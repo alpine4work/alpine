@@ -44,6 +44,8 @@ export default implementRpcs(definitions, {
             await finishedNotionImportUpload(sessionContext, {
                 spaceId: input.spaceId,
                 notionImportId: input.notionImportId,
+                uploadId: input.uploadId,
+                parts: input.parts,
             });
 
             return {};

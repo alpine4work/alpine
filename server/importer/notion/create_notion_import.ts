@@ -6,13 +6,14 @@ import {
     NotionImporterTable,
 } from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Creates a new Notion import record and generates a presigned S3 PutObject URL
- * for the client to upload the zip file directly.
+ * Creates a new Notion import record and initiates a multipart upload for the
+ * client to upload the zip file directly to S3.
  */
 export async function createNotionImport(
     context: ServerSessionActionContext & {importer: ImporterContextModuleBase},
@@ -25,38 +26,54 @@ export async function createNotionImport(
         contentType: string;
         contentLength: number;
     },
-): Promise<{notionImportId: NotionImportId; presignedUploadUrl: string; importKey: string}> {
+): Promise<{
+    notionImportId: NotionImportId;
+    uploadId: string;
+    partUploadUrls: Array<{partNumber: number; presignedUrl: string}>;
+    importKey: string;
+}> {
     await authorizeSpaceAccess(context, spaceId, "Member");
 
     const notionImportId = generateId<NotionImportId>();
     const importKey = createImportUploadKey({spaceId, type: "notion", importId: notionImportId});
 
-    const currentTime = new Date();
-    const importItem: NotionImportItem = {
-        partitionType: "Import",
-        sortRangeType: "Attributes",
-        notionImportId,
-        spaceId,
+    const {uploadId} = await context.importer.createMultipartUpload({
         importKey,
-        importZipSize: contentLength,
-        startedByAccountId: context.actor.getAccountId(),
-        createdTime: currentTime,
-        updatedTime: currentTime,
-        workspaceName: null,
-        startedProcessingTime: null,
-        teamspaceImportOptions: null,
-        status: {type: "UploadPending"},
-        importedCount: 0,
-    };
+        contentType,
+        contentLength,
+    });
 
-    const [{presignedUploadUrl}] = await runAllPromises([
-        context.importer.createPresignedUploadUrl({
+    const partCount = Math.ceil(contentLength / importMultipartUploadPartSize);
+    const [partUploadUrls] = await runAllPromises([
+        context.importer.createPresignedPartUploadUrls({
             importKey,
-            contentType,
-            contentLength,
+            uploadId,
+            partCount,
         }),
-        NotionImporterTable.createItem(context, importItem),
+        (async () => {
+            const currentTime = new Date();
+            const importItem: NotionImportItem = {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId,
+                importKey,
+                importZipSize: contentLength,
+                startedByAccountId: context.actor.getAccountId(),
+                createdTime: currentTime,
+                updatedTime: currentTime,
+                workspaceName: null,
+                startedProcessingTime: null,
+                startedValidatingTime: null,
+                teamspaceImportOptions: null,
+                multipartUploadId: uploadId,
+                status: {type: "UploadPending"},
+                importedCount: 0,
+            };
+
+            await NotionImporterTable.createItem(context, importItem);
+        })(),
     ]);
 
-    return {notionImportId, presignedUploadUrl, importKey};
+    return {notionImportId, uploadId, partUploadUrls, importKey};
 }

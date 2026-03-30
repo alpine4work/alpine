@@ -17,11 +17,11 @@ import {NotionImportTeamspaceOptions} from "~/client/web/importers/notion/notion
 import {LocalNotionImportItem} from "~/client/web/importers/notion/notion_import_types.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {uploadFileToPresignedUrl} from "~/client/web/settings/upload_file_to_presigned_url.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase, UnknownError} from "~/shared/error/error.js";
+import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {
@@ -189,27 +189,143 @@ export function NotionImportUploadSection({
             dispatch({type: "StartUpload", fileName: file.name});
 
             try {
-                const {notionImportId, presignedUploadUrl} = await createNotionImport(appContext, {
-                    spaceId: space.id,
-                    fileName: file.name,
-                    contentType: file.type || "application/zip",
-                    contentLength: file.size,
-                });
+                const {notionImportId, uploadId, partUploadUrls} = await createNotionImport(
+                    appContext,
+                    {
+                        spaceId: space.id,
+                        fileName: file.name,
+                        contentType: file.type || "application/zip",
+                        contentLength: file.size,
+                    },
+                );
+
+                // Upload file in chunks using S3 multipart upload. Each part is 100 MB
+                // (`importMultipartUploadPartSize`). We use XHR instead of fetch so we can track
+                // per-part upload progress via the `xhr.upload.progress` event.
+                const partSize = importMultipartUploadPartSize;
+                const completedParts: Array<{partNumber: number; etag: string}> = [];
+
+                // Track bytes uploaded per part so we can compute total progress across all
+                // concurrent uploads.
+                const partProgress = new Map<number, number>();
+
+                const updateTotalProgress = () => {
+                    let totalLoaded = 0;
+                    for (const loaded of partProgress.values()) {
+                        totalLoaded += loaded;
+                    }
+                    dispatch({
+                        type: "UpdateUploadProgress",
+                        progress: Math.min(totalLoaded / file.size, 1),
+                    });
+                };
+
+                // Simple semaphore to limit concurrent part uploads. We upload up to 3 parts at a
+                // time to balance throughput against memory usage (each in-flight part holds up to
+                // 100 MB in memory).
+                let activeCount = 0;
+                const maxConcurrent = 3;
+                const queue = [...partUploadUrls];
+                const errors: Array<Error> = [];
 
                 await new Promise<void>((resolve, reject) => {
-                    uploadFileToPresignedUrl({
-                        file,
-                        presignedUrl: presignedUploadUrl,
-                        contentType: file.type || "application/zip",
-                        onProgress: progress => dispatch({type: "UpdateUploadProgress", progress}),
-                        onSuccess: resolve,
-                        onError: reject,
-                    });
+                    // Recursively starts the next part upload. Called once initially and then again
+                    // each time a part completes, creating a self-draining queue.
+                    function startNext() {
+                        // Stop starting new uploads if any part has failed.
+                        if (errors.length > 0) return;
+
+                        // All parts uploaded and all XHRs have returned.
+                        if (queue.length === 0 && activeCount === 0) {
+                            resolve();
+                            return;
+                        }
+
+                        // Fill up to maxConcurrent active uploads.
+                        while (activeCount < maxConcurrent && queue.length > 0) {
+                            const part = queue.shift()!;
+                            activeCount++;
+
+                            // Slice the file into the byte range for this part. Part numbers are 1-based (S3
+                            // convention).
+                            const start = (part.partNumber - 1) * partSize;
+                            const end = Math.min(start + partSize, file.size);
+                            const blob = file.slice(start, end);
+
+                            const xhr = new XMLHttpRequest();
+
+                            xhr.upload.addEventListener("progress", event => {
+                                if (event.lengthComputable) {
+                                    partProgress.set(part.partNumber, event.loaded);
+                                    updateTotalProgress();
+                                }
+                            });
+
+                            xhr.addEventListener("load", () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    // S3 returns an ETag header for each uploaded part. We need to collect these and
+                                    // send them to CompleteMultipartUpload.
+                                    const etag = xhr.getResponseHeader("ETag");
+                                    if (!etag) {
+                                        errors.push(
+                                            new UnknownError(
+                                                `Missing ETag for part ${part.partNumber}`,
+                                            ),
+                                        );
+                                        reject(errors[0]);
+                                        return;
+                                    }
+
+                                    // Mark this part's progress as fully complete.
+                                    partProgress.set(part.partNumber, end - start);
+                                    completedParts.push({
+                                        partNumber: part.partNumber,
+                                        etag,
+                                    });
+
+                                    updateTotalProgress();
+                                } else {
+                                    errors.push(
+                                        new UnknownError(
+                                            `Part ${part.partNumber} upload failed with status ${xhr.status}`,
+                                        ),
+                                    );
+
+                                    reject(errors[0]);
+                                    return;
+                                }
+
+                                activeCount--;
+                                startNext();
+                            });
+
+                            xhr.addEventListener("error", () => {
+                                errors.push(
+                                    new UnknownError(
+                                        `Part ${part.partNumber} upload network request failed`,
+                                    ),
+                                );
+                                reject(errors[0]);
+                            });
+
+                            xhr.open("PUT", part.presignedUrl, true);
+                            xhr.send(blob);
+                        }
+                    }
+
+                    startNext();
                 });
 
+                // S3 CompleteMultipartUpload requires parts in order.
+                completedParts.sort((a, b) => a.partNumber - b.partNumber);
+
+                // Tell the server to assemble the parts into the final S3 object and transition
+                // the import to validation.
                 await finishedNotionImportUpload(appContext, {
                     spaceId: space.id,
                     notionImportId,
+                    uploadId,
+                    parts: completedParts,
                 });
 
                 dispatch({type: "UploadComplete"});

@@ -1,13 +1,10 @@
 import envPaths from "env-paths";
-import {mkdir, readFile, stat, unlink, writeFile} from "fs/promises";
+import {mkdir, readFile, readdir, rm, stat, unlink, writeFile} from "fs/promises";
 import {dirname, join as joinPath} from "path";
 
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {
-    ImporterContextModuleBase,
-    PresignedUploadUrlResult,
-} from "~/server/importer/importer_context_module_base.js";
+import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
@@ -46,12 +43,14 @@ async function doesFilePathExist(filePath: string) {
  *
  * ## How it works
  *
- * 1. `createPresignedUploadUrl` returns a URL like
- *    `http://localhost:3010/dev/import-upload/{importKey}`
- * 2. The client PUTs the file to this URL
- * 3. The dev endpoint (defined in `app/routes/dev.import-upload.$.tsx`) saves the
- *    file to `{devEnvPaths.data}/import-uploads/{importKey}`
- * 4. `readUploadedFile` reads directly from the filesystem
+ * 1. `createMultipartUpload` returns an upload ID and creates a parts directory
+ * 2. `createPresignedPartUploadUrls` returns URLs like
+ *    `http://localhost:3010/dev/import-upload/{importKey}/part/{partNumber}`
+ * 3. The client PUTs each chunk to its presigned URL
+ * 4. The dev endpoint (defined in `app/routes/dev.import-upload.$.tsx`) saves each
+ *    part to `{devEnvPaths.data}/import-uploads/{importKey}.parts/{partNumber}`
+ * 5. `completeMultipartUpload` concatenates parts into the final file
+ * 6. `readUploadedFile` reads directly from the filesystem
  *
  * ## Import processing
  *
@@ -112,18 +111,84 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         return joinPath(this._getBasePath(), "import-uploads", importKey);
     }
 
-    async createPresignedUploadUrl({
+    async createMultipartUpload({
         importKey,
     }: {
         importKey: string;
         contentType: string;
         contentLength: number;
-    }): Promise<PresignedUploadUrlResult> {
+    }): Promise<{uploadId: string; importKey: string}> {
+        const uploadId = `dev-multipart-${Date.now()}`;
+
+        // Create the parts directory for storing individual parts before assembly.
+        const partsDir = joinPath(this._getBasePath(), "import-uploads", `${importKey}.parts`);
+        await mkdir(partsDir, {recursive: true});
+
+        return {uploadId, importKey};
+    }
+
+    async createPresignedPartUploadUrls({
+        importKey,
+        partCount,
+    }: {
+        importKey: string;
+        uploadId: string;
+        partCount: number;
+    }): Promise<Array<{partNumber: number; presignedUrl: string}>> {
         // In development, point to the local dev endpoint. The endpoint is defined in
         // `app/routes/dev.import-upload.$.tsx`.
-        const presignedUploadUrl = `${this._context.constants.edgeServiceUrl}/dev/import-upload/${importKey}`;
+        const parts: Array<{partNumber: number; presignedUrl: string}> = [];
+        for (let i = 1; i <= partCount; i++) {
+            parts.push({
+                partNumber: i,
+                presignedUrl: `${this._context.constants.edgeServiceUrl}/dev/import-upload/${importKey}/part/${i}`,
+            });
+        }
+        return parts;
+    }
 
-        return {presignedUploadUrl, importKey};
+    async completeMultipartUpload({
+        importKey,
+    }: {
+        importKey: string;
+        uploadId: string;
+        parts: ReadonlyArray<{partNumber: number; etag: string}>;
+    }): Promise<void> {
+        const partsDir = joinPath(this._getBasePath(), "import-uploads", `${importKey}.parts`);
+        const finalPath = this._getUploadPath(importKey);
+
+        // Read all part files and concatenate them in order. This holds the entire zip in
+        // memory to reassemble it, which is fine for development since imports are small.
+        // In production, S3 handles reassembly server-side via CompleteMultipartUpload.
+        const partFiles = await readdir(partsDir);
+        const sortedPartNumbers = partFiles.map(f => parseInt(f, 10)).sort((a, b) => a - b);
+
+        const buffers: Array<Uint8Array> = [];
+        for (const partNumber of sortedPartNumbers) {
+            const partPath = joinPath(partsDir, String(partNumber));
+            const buffer = await readFile(partPath);
+            buffers.push(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+        }
+
+        const totalLength = buffers.reduce((sum, b) => sum + b.length, 0);
+        const combined = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const buffer of buffers) {
+            combined.set(buffer, offset);
+            offset += buffer.length;
+        }
+
+        const dir = dirname(finalPath);
+        await mkdir(dir, {recursive: true});
+        await writeFile(finalPath, combined);
+
+        // Clean up parts directory.
+        await rm(partsDir, {recursive: true, force: true});
+    }
+
+    async abortMultipartUpload({importKey}: {importKey: string; uploadId: string}): Promise<void> {
+        const partsDir = joinPath(this._getBasePath(), "import-uploads", `${importKey}.parts`);
+        await rm(partsDir, {recursive: true, force: true}).catch(() => {});
     }
 
     async hasUploadedFile(importKey: string): Promise<boolean> {
@@ -144,15 +209,19 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     }
 
     /**
-     * Writes a file to the dev upload directory. Called by the dev upload endpoint to
-     * save files that would normally go to S3.
+     * Writes a part file to the dev parts directory. Called by the dev upload endpoint
+     * to save individual parts that would normally go to S3.
      */
-    public async writeUploadedFile(importKey: string, data: Uint8Array): Promise<void> {
-        const filePath = this._getUploadPath(importKey);
-        const dir = dirname(filePath);
+    public async writePartFile(
+        importKey: string,
+        partNumber: number,
+        data: Uint8Array,
+    ): Promise<void> {
+        const partsDir = joinPath(this._getBasePath(), "import-uploads", `${importKey}.parts`);
+        const partPath = joinPath(partsDir, String(partNumber));
 
-        await mkdir(dir, {recursive: true});
-        await writeFile(filePath, data);
+        await mkdir(partsDir, {recursive: true});
+        await writeFile(partPath, data);
     }
 
     async deleteUploadedFile(importKey: string): Promise<void> {

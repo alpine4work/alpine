@@ -512,25 +512,43 @@ reproducible seed for ID generation.
 
 ## Import Pipeline
 
-### 1. Start Import (`start_notion_import.ts`)
+### 1. Create Import (`create_notion_import.ts`)
 
-The user uploads a Notion export zip to the file storage and calls `startNotionImport` with the
-space ID and file ID. This:
+The client calls `createNotionImport` with the space ID, file name, content type, and content
+length. This:
 
-- Authorizes Admin access to the space
-- Creates an import record in DynamoDB with status `Waiting`
-- Enqueues a `NotionImport` job for async processing
+- Authorizes Member access to the space
+- Generates a `NotionImportId` and an import key (`{spaceId}/{importId}`)
+- Initiates an S3 multipart upload and generates presigned URLs for each part
+- Creates an import record in DynamoDB with status `UploadPending`
+- Returns the `notionImportId`, `uploadId`, `partUploadUrls`, and `importKey` to the client
 
-### 2. Process Import Job (`process_notion_import_job.ts`)
+### 2. Upload File (`notion_import_upload_section.tsx`)
+
+The client uploads the zip file directly to S3 using multipart upload. See
+[Multipart Uploads](#multipart-uploads) for the full details.
+
+### 3. Finish Upload (`finished_notion_import_upload.ts`)
+
+After all parts are uploaded, the client calls `finishedNotionImportUpload` with the `uploadId` and
+the list of `{partNumber, etag}` pairs. This:
+
+- Verifies the import exists and is in `UploadPending` status
+- Completes the S3 multipart upload (assembles all parts into the final object)
+- Verifies the assembled file exists in storage
+- Transitions the import to `ValidateQueued` status
+- Queues the validation job to extract metadata from the uploaded zip
+
+### 4. Process Import Job (`process_start_notion_import_job.ts`)
 
 The job worker picks up the import job and:
 
-- Fetches the uploaded zip from R2 storage
+- Fetches the uploaded zip from S3 storage
 - Calls `parseNotionImportAndMapReferences` to parse the export
 - Creates Alpine documents from the parsed result (TODO: in progress)
 - Updates the import status to `Success` or `Failed`
 
-### 3. Parse and Map References (`parse_notion_import_and_map_references.ts`)
+### 5. Parse and Map References (`parse_notion_import_and_map_references.ts`)
 
 This is the core parsing logic. It takes the raw zip bytes and returns a
 `NotionImportMappedReferencesResult`:
@@ -899,3 +917,65 @@ If any file upload fails:
 
 Failed files don't have previews, but this doesn't affect document content. Users can re-upload
 files manually if needed.
+
+## Multipart Uploads
+
+Notion export zips can be very large (multi-GB), so we use S3 multipart uploads to upload them
+directly from the client. This avoids loading the entire file through our servers and lets us upload
+chunks in parallel for better throughput.
+
+### How It Works
+
+The upload flow has three phases:
+
+1. **Initiate**: The server calls `CreateMultipartUpload` on S3 and returns an `uploadId` plus
+   presigned URLs for each part. The part count is calculated from the file size divided by the part
+   size (100 MB, defined in `shared/files/file_constants.ts` as `importMultipartUploadPartSize`).
+
+2. **Upload parts**: The client slices the file into chunks and PUTs each chunk to its presigned
+   URL. Up to 3 parts are uploaded concurrently using a simple semaphore pattern. Each successful
+   part upload returns an `ETag` header that the client collects.
+
+3. **Complete**: The client sends the list of `{partNumber, etag}` pairs to
+   `finishedNotionImportUpload`, which calls `CompleteMultipartUpload` on S3 to assemble all parts
+   into the final object.
+
+### Progress Tracking
+
+Each part upload uses `XMLHttpRequest` (not `fetch`) so we can listen to `xhr.upload.progress`
+events. A `partProgress` map tracks bytes uploaded per part, and the total progress is the sum of
+all part progress divided by the total file size.
+
+### Error Handling
+
+If any part upload fails, the error is captured and no further parts are started. The multipart
+upload ID is stored on the `NotionImportItem` (`multipartUploadId` field) while the import is in
+`UploadPending` status so it can be aborted to clean up orphaned parts if needed. When the upload
+completes successfully, `multipartUploadId` is set to `null`.
+
+### Abstraction Layer (`ImporterContextModuleBase`)
+
+The multipart upload API is abstracted behind `ImporterContextModuleBase` with four methods:
+
+- `createMultipartUpload` — initiates the upload
+- `createPresignedPartUploadUrls` — generates presigned URLs for each part
+- `completeMultipartUpload` — assembles parts into the final object
+- `abortMultipartUpload` — cleans up if the upload is abandoned
+
+### Development vs Production
+
+**Production (`ImporterContextModule`)**: Uses the AWS S3 SDK directly.
+`CreateMultipartUploadCommand`, `UploadPartCommand` (presigned), and
+`CompleteMultipartUploadCommand` interact with the `cyberworlds-import-uploads` S3 bucket.
+
+**Development (`ImporterDevelopmentContextModule`)**: Simulates multipart uploads on the local
+filesystem. Parts are saved to `{importKey}.parts/{partNumber}` via the dev upload endpoint
+(`app/routes/dev.import-upload.$.tsx`). The dev endpoint generates an MD5-based `ETag` for each part
+to match S3 behavior. On completion, parts are concatenated into the final file and the parts
+directory is cleaned up.
+
+### RPC Changes
+
+The `createNotionImport` RPC now returns `uploadId` and `partUploadUrls` (instead of a single
+`presignedUploadUrl`). The `finishedNotionImportUpload` RPC now accepts `uploadId` and `parts` so
+the server can complete the multipart upload before transitioning to validation.

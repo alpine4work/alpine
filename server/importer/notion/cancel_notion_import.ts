@@ -48,6 +48,15 @@ export async function cancelNotionImport(
         );
     }
 
+    // If the import is still in UploadPending with an active multipart upload, abort
+    // it to clean up uploaded parts in S3.
+    if (item.status.type === "UploadPending" && item.multipartUploadId) {
+        await context.importer.abortMultipartUpload({
+            importKey: item.importKey,
+            uploadId: item.multipartUploadId,
+        });
+    }
+
     await runAllPromises([
         context.importer.deleteUploadedFile(item.importKey),
         NotionImporterTable.deleteItem(context, item),

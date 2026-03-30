@@ -1,17 +1,19 @@
 import {ECSClient, RunTaskCommand} from "@aws-sdk/client-ecs";
 import {
+    AbortMultipartUploadCommand,
+    CompleteMultipartUploadCommand,
+    CreateMultipartUploadCommand,
     DeleteObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
-    PutObjectCommand,
     S3Client,
+    UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 
-import {
-    ImporterContextModuleBase,
-    PresignedUploadUrlResult,
-} from "~/server/importer/importer_context_module_base.js";
+import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {importerVolumeName} from "~/shared/importer/importer_volume.js";
 
@@ -92,7 +94,7 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         this._ecsClient = ecsClient;
     }
 
-    async createPresignedUploadUrl({
+    async createMultipartUpload({
         importKey,
         contentType,
         contentLength,
@@ -100,22 +102,97 @@ export class ImporterContextModule extends ImporterContextModuleBase {
         importKey: string;
         contentType: string;
         contentLength: number;
-    }): Promise<PresignedUploadUrlResult> {
-        return this._context.tracer.withSpan("Create presigned upload URL", async (_, span) => {
+    }): Promise<{uploadId: string; importKey: string}> {
+        return this._context.tracer.withSpan("Create multipart upload", async (_, span) => {
             span.addData({file: {contentType, contentLength}});
 
-            const presignedUploadUrl = await getSignedUrl(
-                this._s3Client,
-                new PutObjectCommand({
+            const result = await this._s3Client.send(
+                new CreateMultipartUploadCommand({
                     Bucket: this._bucketName,
                     Key: importKey,
                     ContentType: contentType,
-                    ContentLength: contentLength,
                 }),
-                {expiresIn: 24 * 60 * 60},
             );
 
-            return {presignedUploadUrl, importKey};
+            return {
+                uploadId: assertExists(result.UploadId),
+                importKey,
+            };
+        });
+    }
+
+    async createPresignedPartUploadUrls({
+        importKey,
+        uploadId,
+        partCount,
+    }: {
+        importKey: string;
+        uploadId: string;
+        partCount: number;
+    }): Promise<Array<{partNumber: number; presignedUrl: string}>> {
+        return this._context.tracer.withSpan("Create presigned part upload URLs", async () => {
+            const partNumbers = Array.from({length: partCount}, (_, i) => i + 1);
+
+            return runAllPromises(
+                partNumbers.map(async partNumber => {
+                    const presignedUrl = await getSignedUrl(
+                        this._s3Client,
+                        new UploadPartCommand({
+                            Bucket: this._bucketName,
+                            Key: importKey,
+                            UploadId: uploadId,
+                            PartNumber: partNumber,
+                        }),
+                        {expiresIn: 24 * 60 * 60},
+                    );
+
+                    return {partNumber, presignedUrl};
+                }),
+            );
+        });
+    }
+
+    async completeMultipartUpload({
+        importKey,
+        uploadId,
+        parts,
+    }: {
+        importKey: string;
+        uploadId: string;
+        parts: ReadonlyArray<{partNumber: number; etag: string}>;
+    }): Promise<void> {
+        await this._context.tracer.withSpan("Complete multipart upload", async () => {
+            await this._s3Client.send(
+                new CompleteMultipartUploadCommand({
+                    Bucket: this._bucketName,
+                    Key: importKey,
+                    UploadId: uploadId,
+                    MultipartUpload: {
+                        Parts: parts.map(p => ({
+                            PartNumber: p.partNumber,
+                            ETag: p.etag,
+                        })),
+                    },
+                }),
+            );
+        });
+    }
+
+    async abortMultipartUpload({
+        importKey,
+        uploadId,
+    }: {
+        importKey: string;
+        uploadId: string;
+    }): Promise<void> {
+        await this._context.tracer.withSpan("Abort multipart upload", async () => {
+            await this._s3Client.send(
+                new AbortMultipartUploadCommand({
+                    Bucket: this._bucketName,
+                    Key: importKey,
+                    UploadId: uploadId,
+                }),
+            );
         });
     }
 

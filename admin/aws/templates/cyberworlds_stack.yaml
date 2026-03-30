@@ -1879,10 +1879,14 @@ Resources:
                       AllowedOrigins:
                           - https://alpine.inc
                           - https://www.alpine.inc
+                      ExposedHeaders:
+                          - ETag
                       MaxAge: 3600
             LifecycleConfiguration:
                 Rules:
-                    - ExpirationInDays: 7
+                    - AbortIncompleteMultipartUpload:
+                          DaysAfterInitiation: 7
+                      ExpirationInDays: 7
                       Status: Enabled
             PublicAccessBlockConfiguration:
                 BlockPublicAcls: true

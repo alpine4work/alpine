@@ -79,9 +79,10 @@ export class AwsAppService extends Construct {
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
 
-        // Grant upload access to the import uploads bucket for creating presigned
-        // PutObject URLs for Notion imports. GetObject access is needed for verifying
-        // uploads exist via HeadObject in finishedNotionImportUpload.
+        // Grant access to the import uploads bucket for multipart uploads. PutObject
+        // covers CreateMultipartUpload, UploadPart, and CompleteMultipartUpload. GetObject
+        // is needed for verifying uploads exist via HeadObject. grantUpload includes
+        // s3:Abort\* which covers AbortMultipartUpload for cleaning up canceled imports.
         options.importUploads.grantUpload(taskDefinition.taskRole);
         options.importUploads.grantGetObject(taskDefinition.taskRole);
         options.importUploads.grantDeleteObject(taskDefinition.taskRole);

@@ -164,6 +164,20 @@ export const NotionImportItemSchema = Schema.object({
     teamspaceImportOptions: NotionImportTeamspaceOptionsSchema.nullable().default(null),
 
     /**
+     * S3 multipart upload ID for completing or aborting the upload.
+     *
+     * Only set while the import is in `UploadPending` status.
+     */
+    multipartUploadId: Schema.string.nullable().default(null),
+
+    /**
+     * When the import started validating.
+     *
+     * Only set after the upload has completed and validation has been queued.
+     */
+    startedValidatingTime: Schema.date.nullable().default(null),
+
+    /**
      * Current status of the import operation.
      */
     status: NotionImportStatusSchema,

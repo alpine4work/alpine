@@ -1,7 +1,6 @@
 import {mkdir, readFile, stat, unlink, writeFile} from "fs/promises";
 import {join as joinPath} from "path";
 
-import {PresignedUploadUrlResult} from "~/server/importer/importer_context_module_base.js";
 import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
@@ -175,15 +174,46 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
         return joinPath(this._basePath, "import-unzipped", importKey);
     }
 
-    async createPresignedUploadUrl({
+    async createMultipartUpload({
         importKey,
     }: {
         importKey: string;
         contentType: string;
         contentLength: number;
-    }): Promise<PresignedUploadUrlResult> {
-        const presignedUploadUrl = `https://test.cyberworlds.dev/dev/import-upload/${importKey}`;
-        return {presignedUploadUrl, importKey};
+    }): Promise<{uploadId: string; importKey: string}> {
+        return {uploadId: `test-multipart-${Date.now()}`, importKey};
+    }
+
+    async createPresignedPartUploadUrls({
+        importKey,
+        partCount,
+    }: {
+        importKey: string;
+        uploadId: string;
+        partCount: number;
+    }): Promise<Array<{partNumber: number; presignedUrl: string}>> {
+        const parts: Array<{partNumber: number; presignedUrl: string}> = [];
+        for (let i = 1; i <= partCount; i++) {
+            parts.push({
+                partNumber: i,
+                presignedUrl: `https://test.cyberworlds.dev/dev/import-upload/${importKey}/part/${i}`,
+            });
+        }
+        return parts;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async completeMultipartUpload(options: {
+        importKey: string;
+        uploadId: string;
+        parts: ReadonlyArray<{partNumber: number; etag: string}>;
+    }): Promise<void> {
+        // No-op in tests.
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async abortMultipartUpload(options: {importKey: string; uploadId: string}): Promise<void> {
+        // No-op in tests.
     }
 
     async hasUploadedFile(importKey: string): Promise<boolean> {

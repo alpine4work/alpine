@@ -33,6 +33,8 @@ test("transitions status from UploadPending to ValidateQueued", async () => {
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
         notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
     const importItem = await NotionImporterTable.getItem(context, {
@@ -64,6 +66,8 @@ test("triggers validation via importer context module", async () => {
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
         notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
     expect(importer.startValidateNotionImportCalls.length - callsBeforeCount).toBe(1);
@@ -89,6 +93,8 @@ test("throws if called when status is not UploadPending", async () => {
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
         notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
     // Second call should throw because status is no longer UploadPending
@@ -96,6 +102,8 @@ test("throws if called when status is not UploadPending", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -126,6 +134,8 @@ test("throws if status is already Validated", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -139,6 +149,8 @@ test("throws if import does not exist", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId: nonexistentId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Item not found");
 });
@@ -161,6 +173,8 @@ test("throws if import belongs to different space", async () => {
         finishedNotionImportUpload(session2.action(), {
             spaceId: space2.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("does not belong to space");
 });
@@ -181,6 +195,8 @@ test("throws if uploaded file does not exist", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Uploaded file not found");
 });
@@ -208,6 +224,8 @@ test("throws when status is ValidateQueued", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -235,6 +253,8 @@ test("throws when status is Validating", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -262,6 +282,8 @@ test("throws when status is ProcessQueued", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -292,6 +314,8 @@ test("throws when status is Processing", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -319,6 +343,8 @@ test("throws when status is Success", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -350,6 +376,8 @@ test("throws when status is Failed", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -369,6 +397,8 @@ test("only checks file when status is UploadPending", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Uploaded file not found");
 

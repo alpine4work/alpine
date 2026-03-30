@@ -13,6 +13,11 @@ export const maxFileContentLength = 1e9;
 export const maxFileMultipartUploadPartContentLength = 1e8;
 
 /**
+ * Size of each part for import multipart uploads: 100 MB.
+ */
+export const importMultipartUploadPartSize = 1e8;
+
+/**
  * If a file processor doesn't finish processing within this amount of time, we
  * abort the file processor.
  */

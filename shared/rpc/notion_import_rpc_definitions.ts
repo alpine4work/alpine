@@ -17,7 +17,13 @@ export const createNotionImport = defineRpc({
     },
     output: {
         notionImportId: Schema.id<NotionImportId>(),
-        presignedUploadUrl: Schema.string,
+        uploadId: Schema.string,
+        partUploadUrls: Schema.array(
+            Schema.object({
+                partNumber: Schema.integer,
+                presignedUrl: Schema.string,
+            }),
+        ),
         importKey: Schema.string,
     },
 });
@@ -79,6 +85,13 @@ export const finishedNotionImportUpload = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         notionImportId: Schema.id<NotionImportId>(),
+        uploadId: Schema.string,
+        parts: Schema.array(
+            Schema.object({
+                partNumber: Schema.integer,
+                etag: Schema.string,
+            }),
+        ),
     },
     output: {},
 });

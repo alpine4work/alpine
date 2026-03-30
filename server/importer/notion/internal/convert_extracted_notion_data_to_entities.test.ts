@@ -109,6 +109,8 @@ async function createTestNotionImportItemInDatabase(
         updatedTime: new Date(),
         startedProcessingTime: new Date(),
         teamspaceImportOptions: null,
+        multipartUploadId: null,
+        startedValidatingTime: null,
         status: {type: "Processing", result: {teamspaces: new Map()}},
         importedCount: 0,
         ...overrides,

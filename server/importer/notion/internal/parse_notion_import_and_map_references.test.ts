@@ -60,6 +60,8 @@ function createTestNotionImportItem(
         updatedTime: new Date(),
         startedProcessingTime: new Date(),
         teamspaceImportOptions: teamspaceImportOptions ?? null,
+        multipartUploadId: null,
+        startedValidatingTime: null,
         status: {type: "UploadPending"},
         importedCount: 0,
     };

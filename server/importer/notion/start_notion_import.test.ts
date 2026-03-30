@@ -39,19 +39,21 @@ test("createNotionImport creates an import record with UploadPending status", as
     expect(importItem.importKey).toBe(`${space.id}/notion/${notionImportId}`);
 });
 
-test("createNotionImport returns a presigned upload URL", async () => {
+test("createNotionImport returns multipart upload details", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
-    const {presignedUploadUrl, importKey} = await createNotionImport(session.action(), {
+    const {uploadId, partUploadUrls, importKey} = await createNotionImport(session.action(), {
         spaceId: space.id,
         contentType: "application/zip",
         contentLength: 1024,
     });
 
-    // Test module returns a test URL containing the import key
-    expect(presignedUploadUrl).toContain("import-upload");
-    expect(presignedUploadUrl).toContain(importKey);
+    // Test module returns a test upload ID and part URLs containing the import key
+    expect(uploadId).toMatch(/^test-multipart-/);
+    expect(partUploadUrls.length).toBeGreaterThan(0);
+    expect(partUploadUrls[0]!.presignedUrl).toContain("import-upload");
+    expect(partUploadUrls[0]!.presignedUrl).toContain(importKey);
 });
 
 test("startNotionImport transitions from Validated to ProcessQueued", async () => {

@@ -36,7 +36,7 @@ export abstract class ImporterServiceContextModuleBase<
      *
      * This is typically used for validation before extraction.
      *
-     * @param importKey - The key returned from `createPresignedUploadUrl` @returns The
+     * @param importKey - The key returned from `createMultipartUpload` @returns The
      * file contents as a Uint8Array, or null if not found
      */
     abstract readUploadedFile(importKey: string): Promise<Uint8Array | null>;

@@ -127,9 +127,9 @@ function createTestImporterModule({bucketName}: {bucketName?: string} = {}) {
 }
 
 describe("ImporterContextModule", () => {
-    // Note: createPresignedUploadUrl cannot be unit tested with a mock S3 client
-    // because getSignedUrl from @aws-sdk/s3-request-presigner requires a real S3Client
-    // with credential resolution. Integration tests should cover this.
+    // Note: createMultipartUpload and createPresignedPartUploadUrls cannot be unit
+    // tested with a mock S3 client because they require a real S3Client with
+    // credential resolution. Integration tests should cover this.
 
     describe("readUploadedFile", () => {
         test("returns file contents from S3", async () => {
@@ -349,8 +349,8 @@ describe("ImporterContextModuleDevelopment", () => {
         }
     });
 
-    describe("createPresignedUploadUrl", () => {
-        test("returns local dev endpoint URL", async () => {
+    describe("createMultipartUpload", () => {
+        test("returns uploadId and importKey", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
                 ...createNoOpDevModuleOptions(),
@@ -366,7 +366,7 @@ describe("ImporterContextModuleDevelopment", () => {
                     importer: module,
                 },
                 async ctx => {
-                    return ctx.importer.createPresignedUploadUrl({
+                    return ctx.importer.createMultipartUpload({
                         importKey: "spa_123/nim_456",
                         contentType: "application/zip",
                         contentLength: 1024,
@@ -374,13 +374,13 @@ describe("ImporterContextModuleDevelopment", () => {
                 },
             );
 
-            expect(result).toEqual({
-                presignedUploadUrl: "http://localhost:3010/dev/import-upload/spa_123/nim_456",
-                importKey: "spa_123/nim_456",
-            });
+            expect(result.importKey).toBe("spa_123/nim_456");
+            expect(result.uploadId).toMatch(/^dev-multipart-/);
         });
+    });
 
-        test("includes full import key in URL path", async () => {
+    describe("createPresignedPartUploadUrls", () => {
+        test("returns correct number of part URLs", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
                 ...createNoOpDevModuleOptions(),
@@ -396,17 +396,23 @@ describe("ImporterContextModuleDevelopment", () => {
                     importer: module,
                 },
                 async ctx => {
-                    return ctx.importer.createPresignedUploadUrl({
-                        importKey: "space/subdir/file",
-                        contentType: "application/octet-stream",
-                        contentLength: 500,
+                    return ctx.importer.createPresignedPartUploadUrls({
+                        importKey: "spa_123/nim_456",
+                        uploadId: "dev-multipart-123",
+                        partCount: 3,
                     });
                 },
             );
 
-            expect(result.presignedUploadUrl).toBe(
-                "http://localhost:3010/dev/import-upload/space/subdir/file",
-            );
+            expect(result).toHaveLength(3);
+            expect(result[0]).toMatchObject({
+                partNumber: 1,
+                presignedUrl: "http://localhost:3010/dev/import-upload/spa_123/nim_456/part/1",
+            });
+            expect(result[2]).toMatchObject({
+                partNumber: 3,
+                presignedUrl: "http://localhost:3010/dev/import-upload/spa_123/nim_456/part/3",
+            });
         });
 
         test("uses edge service URL from constants context", async () => {
@@ -425,105 +431,55 @@ describe("ImporterContextModuleDevelopment", () => {
                     importer: module,
                 },
                 async ctx => {
-                    return ctx.importer.createPresignedUploadUrl({
+                    return ctx.importer.createPresignedPartUploadUrls({
                         importKey: "test/key",
-                        contentType: "application/zip",
-                        contentLength: 100,
+                        uploadId: "dev-multipart-123",
+                        partCount: 1,
                     });
                 },
             );
 
-            expect(result.presignedUploadUrl).toBe(
-                "http://custom-host:8080/dev/import-upload/test/key",
+            expect(result[0]!.presignedUrl).toBe(
+                "http://custom-host:8080/dev/import-upload/test/key/part/1",
             );
         });
     });
 
-    describe("writeUploadedFile", () => {
-        test("writes file to dev-data directory", async () => {
+    describe("writePartFile", () => {
+        test("writes part file to parts directory", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
                 ...createNoOpDevModuleOptions(),
             });
             const testData = new Uint8Array([10, 20, 30, 40, 50]);
 
-            await module.writeUploadedFile("spa_123/nim_456", testData);
+            await module.writePartFile("spa_123/nim_456", 1, testData);
 
-            const filePath = joinPath(uploadDir, "spa_123/nim_456");
+            const filePath = joinPath(uploadDir, "spa_123/nim_456.parts/1");
             expect(existsSync(filePath)).toBe(true);
 
             const written = readFileSync(filePath);
             expect(new Uint8Array(written)).toEqual(testData);
         });
 
-        test("creates nested directories if needed", async () => {
+        test("writes multiple parts", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
                 ...createNoOpDevModuleOptions(),
             });
-            const testData = new Uint8Array([1, 2, 3]);
+            const part1 = new Uint8Array([1, 2, 3]);
+            const part2 = new Uint8Array([4, 5, 6]);
 
-            await module.writeUploadedFile("deep/nested/path/file", testData);
+            await module.writePartFile("multi/parts", 1, part1);
+            await module.writePartFile("multi/parts", 2, part2);
 
-            const filePath = joinPath(uploadDir, "deep/nested/path/file");
-            expect(existsSync(filePath)).toBe(true);
-        });
+            expect(existsSync(joinPath(uploadDir, "multi/parts.parts/1"))).toBe(true);
+            expect(existsSync(joinPath(uploadDir, "multi/parts.parts/2"))).toBe(true);
 
-        test("overwrites existing file", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const importKey = "overwrite/test";
-            const filePath = joinPath(uploadDir, importKey);
-
-            // Write initial file
-            mkdirSync(joinPath(uploadDir, "overwrite"), {recursive: true});
-            writeFileSync(filePath, new Uint8Array([1, 1, 1]));
-
-            // Overwrite
-            const newData = new Uint8Array([2, 2, 2, 2]);
-            await module.writeUploadedFile(importKey, newData);
-
-            const written = readFileSync(filePath);
-            expect(new Uint8Array(written)).toEqual(newData);
-        });
-
-        test("handles empty file", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const testData = new Uint8Array([]);
-
-            await module.writeUploadedFile("empty/file", testData);
-
-            const filePath = joinPath(uploadDir, "empty/file");
-            expect(existsSync(filePath)).toBe(true);
-
-            const written = readFileSync(filePath);
-            expect(written.length).toBe(0);
-        });
-
-        test("handles large file", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            // 1MB file
-            const testData = new Uint8Array(1024 * 1024);
-            for (let i = 0; i < testData.length; i++) {
-                testData[i] = i % 256;
-            }
-
-            await module.writeUploadedFile("large/file", testData);
-
-            const filePath = joinPath(uploadDir, "large/file");
-            expect(existsSync(filePath)).toBe(true);
-
-            const written = readFileSync(filePath);
-            expect(written.length).toBe(testData.length);
-            expect(new Uint8Array(written)).toEqual(testData);
+            const written1 = readFileSync(joinPath(uploadDir, "multi/parts.parts/1"));
+            const written2 = readFileSync(joinPath(uploadDir, "multi/parts.parts/2"));
+            expect(new Uint8Array(written1)).toEqual(part1);
+            expect(new Uint8Array(written2)).toEqual(part2);
         });
     });
 
@@ -598,48 +554,59 @@ describe("ImporterContextModuleDevelopment", () => {
             expect(forked).toBeInstanceOf(ImporterDevelopmentContextModule);
             expect(forked).not.toBe(module);
 
-            // Verify they share the same workspace by writing through one and reading through
-            // other
+            // Verify they share the same workspace by writing a part through one
             const testData = new Uint8Array([1, 2, 3]);
-            await module.writeUploadedFile("fork-test", testData);
+            await module.writePartFile("fork-test", 1, testData);
 
             // The forked module should see the same file
-            const filePath = joinPath(uploadDir, "fork-test");
+            const filePath = joinPath(uploadDir, "fork-test.parts/1");
             expect(existsSync(filePath)).toBe(true);
         });
     });
 
-    describe("round-trip", () => {
-        test("write then read returns same data", async () => {
+    describe("multipart round-trip", () => {
+        test("write parts then complete then read returns concatenated data", async () => {
             const module = new ImporterDevelopmentContextModule({
                 localUploadPath: workspacePath,
                 ...createNoOpDevModuleOptions(),
             });
-            const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
             const importKey = "roundtrip/test";
 
-            await module.writeUploadedFile(importKey, testData);
+            // Create the multipart upload (creates parts dir).
+            await Context.with(
+                {
+                    tracer: new TracerContextModule(testTracer),
+                    constants: new ConstantsContextModule({
+                        edgeServiceUrl: "http://localhost:3010",
+                        resourceServiceUrl: "http://localhost:3020",
+                    }),
+                    importer: module,
+                },
+                async ctx => {
+                    const {uploadId} = await ctx.importer.createMultipartUpload({
+                        importKey,
+                        contentType: "application/zip",
+                        contentLength: 10,
+                    });
+
+                    // Write parts.
+                    await module.writePartFile(importKey, 1, new Uint8Array([1, 2, 3, 4, 5]));
+                    await module.writePartFile(importKey, 2, new Uint8Array([6, 7, 8, 9, 10]));
+
+                    // Complete the multipart upload.
+                    await ctx.importer.completeMultipartUpload({
+                        importKey,
+                        uploadId,
+                        parts: [
+                            {partNumber: 1, etag: "etag1"},
+                            {partNumber: 2, etag: "etag2"},
+                        ],
+                    });
+                },
+            );
+
             const result = await module.readUploadedFile(importKey);
-
-            expect(result).toEqual(testData);
-        });
-
-        test("write with binary data preserves all bytes", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            // Include all possible byte values
-            const testData = new Uint8Array(256);
-            for (let i = 0; i < 256; i++) {
-                testData[i] = i;
-            }
-            const importKey = "binary/test";
-
-            await module.writeUploadedFile(importKey, testData);
-            const result = await module.readUploadedFile(importKey);
-
-            expect(result).toEqual(testData);
+            expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
         });
     });
 });

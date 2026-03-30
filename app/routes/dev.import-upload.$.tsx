@@ -1,3 +1,5 @@
+import {createHash} from "crypto";
+
 import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
@@ -5,25 +7,27 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
  * Development-only endpoint for receiving file uploads that would normally go to
  * S3 in production.
  *
- * This endpoint is called by the client when uploading import files (e.g., Notion
- * exports) in development. The `ImporterDevelopmentContextModule` generates
+ * This endpoint is called by the client when uploading import file parts (e.g.,
+ * Notion exports) in development. The `ImporterDevelopmentContextModule` generates
  * presigned URLs pointing to this endpoint instead of S3.
  *
- * Files are saved to: `{devEnvPaths.data}/import-uploads/{importKey}`
+ * ## Part uploads
  *
- * After uploading, the client calls the `finishedNotionImportUpload` RPC to
- * trigger validation. This is the same flow in both dev and production, making it
- * simpler to debug and maintain (no Lambda or S3 event notifications needed).
+ * The splat param captures everything after /dev/import-upload/:
+ *
+ * - `{spaceId}/{importId}/part/{partNumber}` → saves part to
+ *   `{importKey}.parts/{partNumber}`
+ *
+ * Part uploads return an `ETag` header (hash of the part data) so the client can
+ * collect ETags for completing the multipart upload.
  */
 export async function action({request, params, context}: LoaderArgs) {
     if (process.env.NODE_ENV === "production") {
         return new Response("Not Found", {status: 404});
     }
 
-    // The splat param captures everything after /dev/import-upload/ e.g.,
-    // /dev/import-upload/spa_123/nim_456 -> "spa_123/nim_456"
-    const importKey = params["*"];
-    if (!importKey) {
+    const splatPath = params["*"];
+    if (!splatPath) {
         return new Response("Missing import key", {status: 400});
     }
 
@@ -35,19 +39,37 @@ export async function action({request, params, context}: LoaderArgs) {
     const data = new Uint8Array(body);
 
     // In development, the importer context module is ImporterDevelopmentContextModule
-    // which has the writeUploadedFile method. Given this route is only available in
+    // which has the writePartFile method. Given this route is only available in
     // development, we can safely cast to ImporterDevelopmentContextModule.
     const importer = context.importer as unknown as ImporterDevelopmentContextModule;
-    await importer.writeUploadedFile(importKey, data);
 
-    // The client will call the finishedNotionImportUpload RPC after this upload
-    // completes to trigger validation. No need to trigger the job here.
+    // Parse the path to detect part uploads: {importKey}/part/{partNumber}
+    const partMatch = splatPath.match(/^(.+)\/part\/(\d+)$/);
+    if (!partMatch) {
+        return new Response("Invalid upload path. Expected {importKey}/part/{partNumber}", {
+            status: 400,
+        });
+    }
+
+    const importKey = partMatch[1]!;
+    const partNumber = parseInt(partMatch[2]!, 10);
+
+    await importer.writePartFile(importKey, partNumber, data);
+
+    // Generate an ETag from the part data so the client can use it when completing the
+    // multipart upload.
+    const hash = createHash("md5").update(data).digest("hex");
+    // eslint-disable-next-line cyberworlds/string-quotes -- ETag format requires straight quotes
+    const etag = `"${hash}"`;
+
     return new Response("OK", {
         status: 200,
         headers: {
             "content-type": "text/plain",
+            etag,
             // Allow CORS for local development
             "access-control-allow-origin": "*",
+            "access-control-expose-headers": "ETag",
         },
     });
 }
@@ -68,6 +90,7 @@ export async function loader({request}: LoaderArgs) {
                 "access-control-allow-origin": "*",
                 "access-control-allow-methods": "PUT, OPTIONS",
                 "access-control-allow-headers": "content-type, content-length",
+                "access-control-expose-headers": "ETag",
                 "access-control-max-age": "3600",
             },
         });

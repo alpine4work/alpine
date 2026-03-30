@@ -39,13 +39,24 @@ export class AwsImportUploadsData extends Construct {
             autoDeleteObjects: true,
             // Delete uploaded files after 7 days. Files should be processed within
             // minutes/hours but we keep them around for a week in case of debugging needs.
-            lifecycleRules: [{expiration: Duration.days(notionImportFileRetentionDays)}],
-            // CORS configuration for browser-based uploads via presigned URLs.
+            // Also clean up incomplete multipart uploads after 7 days.
+            lifecycleRules: [
+                {
+                    expiration: Duration.days(notionImportFileRetentionDays),
+                    abortIncompleteMultipartUploadAfter: Duration.days(
+                        notionImportFileRetentionDays,
+                    ),
+                },
+            ],
+            // CORS configuration for browser-based multipart uploads via presigned URLs.
+            // `exposedHeaders` includes `ETag` so the browser can read it from S3 part upload
+            // responses (needed for completing multipart uploads).
             cors: [
                 {
                     allowedMethods: [HttpMethods.PUT],
                     allowedOrigins: ["https://alpine.inc", "https://www.alpine.inc"],
                     allowedHeaders: ["Content-Type", "Content-Length"],
+                    exposedHeaders: ["ETag"],
                     maxAge: 3600,
                 },
             ],

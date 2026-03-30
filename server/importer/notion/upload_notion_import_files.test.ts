@@ -112,6 +112,8 @@ async function createProgressStateForTest({
         updatedTime: new Date(),
         startedProcessingTime: new Date(),
         teamspaceImportOptions: null,
+        multipartUploadId: null,
+        startedValidatingTime: null,
         status: {type: "Processing", result: initialResult},
         importedCount: 0,
     });

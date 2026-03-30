@@ -12,9 +12,10 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
  * This function:
  *
  * 1. Verifies the import exists and is in the correct state (UploadPending)
- * 2. Verifies the uploaded file exists in storage
- * 3. Transitions the import to Validating status
- * 4. Queues the validation job to extract metadata from the uploaded zip
+ * 2. Completes the S3 multipart upload (assembles all parts into final object)
+ * 3. Verifies the uploaded file exists in storage
+ * 4. Transitions the import to Validating status
+ * 5. Queues the validation job to extract metadata from the uploaded zip
  *
  * ## Why use an RPC instead of S3 event notifications?
  *
@@ -40,9 +41,13 @@ export async function finishedNotionImportUpload(
     {
         spaceId,
         notionImportId,
+        uploadId,
+        parts,
     }: {
         spaceId: SpaceId;
         notionImportId: NotionImportId;
+        uploadId: string;
+        parts: ReadonlyArray<{partNumber: number; etag: string}>;
     },
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId, "Member");
@@ -65,12 +70,17 @@ export async function finishedNotionImportUpload(
         throw new FailedPreconditionError("Status is not in the correct state for processing");
     }
 
-    // Verify the uploaded file exists before transitioning status.
+    // Complete the multipart upload to assemble all parts into the final object.
     const importKey = assertExists(importItem.importKey);
+    await context.importer.completeMultipartUpload({importKey, uploadId, parts});
+
+    // Verify the uploaded file exists before transitioning status.
     const fileExists = await context.importer.hasUploadedFile(importKey);
     if (!fileExists) {
         throw new InvalidArgumentError(`Uploaded file not found for import ${notionImportId}`);
     }
+
+    const startedValidatingTime = new Date();
 
     await NotionImporterTable.updateItem(
         context,
@@ -78,7 +88,9 @@ export async function finishedNotionImportUpload(
         item => ({
             ...assertExists(item),
             status: {type: "ValidateQueued"},
-            updatedTime: new Date(),
+            updatedTime: startedValidatingTime,
+            startedValidatingTime,
+            multipartUploadId: null,
         }),
     );
 

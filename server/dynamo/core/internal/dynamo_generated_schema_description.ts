@@ -11675,6 +11675,24 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "multipartUploadId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "startedValidatingTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "status": {
                                         "valueSchema": {
                                             "type": "Union",
