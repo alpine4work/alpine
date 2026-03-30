@@ -26,6 +26,7 @@ import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
+import {LoaderSchema as SpaceIdLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {BlobsArtProvider} from "~/client/web/blobs/blobs_art_provider.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/web/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/web/content/handle_drag_start_event_if_not_text_input_element.js";
@@ -310,6 +311,29 @@ function useRootAppContext(
                 if (!hasOwnProperty(data.value, propagateEventDataKey)) continue;
                 propagatedEventData.push(data.value[propagateEventDataKey] as TracerEventFullData);
             }
+        }
+
+        // The /s/:spaceId route loads account and space data. We want to add the account
+        // and space IDs to the propagated data so that we can use them in the tracer.
+        if (dataRouterStateContext.loaderData["routes/s.$spaceId"]) {
+            const spaceIdLoaderData = dataRouterStateContext.loaderData[
+                "routes/s.$spaceId"
+            ] as SchemaType<typeof SpaceIdLoaderSchema>;
+
+            const spaceId = spaceIdLoaderData.space.id;
+            const actor =
+                spaceIdLoaderData.type === "WithAccess" ||
+                spaceIdLoaderData.currentAccountWithoutSpace !== null
+                    ? "Session"
+                    : "Anonymous";
+            const accountId =
+                spaceIdLoaderData.type === "WithAccess"
+                    ? spaceIdLoaderData.currentAccount.id
+                    : spaceIdLoaderData.currentAccountWithoutSpace?.id;
+
+            propagatedEventData.push({
+                context: {accountId, spaceId, actor},
+            });
         }
 
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
