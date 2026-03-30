@@ -23,6 +23,15 @@ export const genericEmailAddressDomains = new Lazy(() => {
     // workspace!
     addDomain("hey.com");
 
+    // `@test.cyberworlds.dev` is a generic domain used for testing. For test company
+    // email address domains we use something like
+    // `@${generateId}.test.cyberworlds.dev` or `@test1.cyberworlds.dev`.
+    //
+    // Also nice since helpers like `generateEmailAddressForTest()` and
+    // `generateEmailAddressForDevConsole()` won't automatically generate emails that
+    // are added to the same space.
+    addDomain("test.cyberworlds.dev");
+
     freeEmailDomains.forEach(addDomain);
 
     return {set, beforeFirstDotSet};

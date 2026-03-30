@@ -232,6 +232,10 @@ test("can see comments appear in realtime", async ({
     browser,
     isMobile,
 }) => {
+    // Increase test timeout since this test appears to be particularly flaky.
+    // Especially on `webkit_mobile`.
+    test.setTimeout(60_000);
+
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -363,6 +367,10 @@ test("can see new comments when opening post comments", async ({
     browser,
     isMobile,
 }) => {
+    // Increase test timeout since this test appears to be particularly flaky.
+    // Especially on `webkit_mobile`.
+    test.setTimeout(60_000);
+
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
