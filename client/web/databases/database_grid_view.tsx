@@ -1,3 +1,4 @@
+import {useHover} from "@react-aria/interactions";
 import {Plus} from "phosphor-react";
 import {
     type Dispatch,
@@ -10,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {mergeProps} from "react-aria";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
@@ -25,7 +27,7 @@ import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -233,6 +235,8 @@ export function DatabaseGridView({
                                             fields={gridFields.fields}
                                             onStartAddingField={gridFields.startAddingField}
                                             onStartEditingField={gridFields.startEditingField}
+                                            startResizingField={gridFields.startResizingField}
+                                            resizingState={gridFields.resizingState}
                                         />
                                     </Box>
                                 </div>
@@ -273,6 +277,8 @@ export function DatabaseGridView({
             gridFields.fields,
             gridFields.startAddingField,
             gridFields.startEditingField,
+            gridFields.startResizingField,
+            gridFields.resizingState,
             tree,
             rowCount,
             needsMore,
@@ -328,10 +334,21 @@ function DatabaseGridViewHeaderRow({
     fields,
     onStartAddingField,
     onStartEditingField,
+    startResizingField,
+    resizingState,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     onStartAddingField: () => void;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    resizingState: {readonly fieldId: DatabaseFieldId} | null;
 }) {
     return (
         <Box display="flex" borderBottom="grey-5-translucent">
@@ -340,6 +357,8 @@ function DatabaseGridViewHeaderRow({
                     key={field.id}
                     field={field}
                     onStartEditingField={onStartEditingField}
+                    startResizingField={startResizingField}
+                    isResizingThisField={resizingState?.fieldId === field.id}
                 />
             ))}
             <Box
@@ -367,9 +386,20 @@ function DatabaseGridViewHeaderRow({
 function DatabaseGridViewHeaderCell({
     field,
     onStartEditingField,
+    startResizingField,
+    isResizingThisField,
 }: {
     field: DatabaseGridViewFieldWithEditing;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    isResizingThisField: boolean;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
@@ -386,12 +416,8 @@ function DatabaseGridViewHeaderCell({
 
     return (
         <Box
-            color="grey-80"
-            fontSize="75"
-            fontStyle="truncate-semi-bold"
             backgroundColor="grey-0"
-            padding={editing ? undefined : "2"}
-            textAlign="left"
+            position="relative"
             style={field.columnStyle}
             onDoubleClick={() => onStartEditingField(field.id)}
         >
@@ -419,8 +445,97 @@ function DatabaseGridViewHeaderCell({
                     })}
                 />
             ) : (
-                field.name
+                <Box
+                    color="grey-80"
+                    fontSize="75"
+                    fontStyle="truncate-semi-bold"
+                    padding="2"
+                    textAlign="left"
+                >
+                    {field.name}
+                </Box>
             )}
+            <DatabaseGridViewResizeHandle
+                fieldId={field.id}
+                startResizingField={startResizingField}
+                isResizingThisField={isResizingThisField}
+            />
+        </Box>
+    );
+}
+
+// -- Resize handle ------------------------------------------------------------
+
+function DatabaseGridViewResizeHandle({
+    fieldId,
+    startResizingField,
+    isResizingThisField,
+}: {
+    fieldId: DatabaseFieldId;
+    startResizingField: (
+        fieldId: DatabaseFieldId,
+        event: React.PointerEvent,
+    ) => {
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    };
+    isResizingThisField: boolean;
+}) {
+    const {hoverProps, isHovered} = useHover({});
+
+    const [resizeHandlers, setResizeHandlers] = useState<{
+        onMove: (event: PointerEvent) => void;
+        onRelease: (event: PointerEvent) => void;
+        onCancel: () => void;
+    } | null>(null);
+
+    const isResizing = resizeHandlers != null;
+    const showBar = isHovered || isResizing || isResizingThisField;
+
+    return (
+        <Box
+            position="absolute"
+            top="0"
+            bottom="0"
+            right="-2"
+            width="4"
+            cursor="col-resize"
+            zIndex="10"
+            touchAction="none"
+            {...mergeProps(hoverProps, {
+                onPointerDown(event: React.PointerEvent) {
+                    const handlers = startResizingField(fieldId, event);
+                    setResizeHandlers(handlers);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                },
+                onPointerMove(event: React.PointerEvent) {
+                    resizeHandlers?.onMove(event.nativeEvent);
+                },
+                onPointerUp(event: React.PointerEvent) {
+                    resizeHandlers?.onRelease(event.nativeEvent);
+                    setResizeHandlers(null);
+                },
+                onPointerCancel() {
+                    resizeHandlers?.onCancel();
+                    setResizeHandlers(null);
+                },
+                onLostPointerCapture() {
+                    resizeHandlers?.onCancel();
+                    setResizeHandlers(null);
+                },
+            })}
+        >
+            <Box
+                position="absolute"
+                top="0"
+                bottom="0"
+                backgroundColor={showBar ? "theme-40-const" : "transparent"}
+                style={{
+                    left: 7,
+                    width: 2,
+                }}
+            />
         </Box>
     );
 }
@@ -589,8 +704,6 @@ function DatabaseGridViewCellEditor({
                     padding: "2",
                     fontSize: "75",
                     color: "grey-100",
-                    // border: "theme-40-const",
-                    // backgroundColor: "grey-0",
                 })}
                 onBlur={() => {
                     commitValue(editValue);

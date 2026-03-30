@@ -549,6 +549,27 @@ export const databaseActions = {
         },
     }),
 
+    resizeField: defineDatabaseAction({
+        input: Schema.object({
+            viewId: Schema.id<DatabaseViewId>(),
+            fieldId: Schema.id<DatabaseFieldId>(),
+            width: Schema.integer,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run(db, {viewId, fieldId, width}) {
+            sql`
+                UPDATE _alpine_view_fields
+                SET
+                    width = ${width}
+                WHERE
+                    view_id = ${viewId}
+                    AND field_id = ${fieldId}
+            `.exec(db);
+            return {};
+        },
+    }),
+
     renameField: defineDatabaseAction({
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),
