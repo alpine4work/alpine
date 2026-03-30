@@ -1,7 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -13,7 +12,7 @@ export const AccountSettingsSchema = Schema.object({
      * The ID of the space this account last opened. Used for determining which default
      * space to open to when needing to route home.
      */
-    lastOpenedSpaceId: Schema.id<SpaceId>().optional(),
+    lastOpenedSpaceId: Schema.id<SpaceId>().nullable().default(null),
 
     /**
      * This account's observed timezone as an IANA timezone name[1]. This field is
@@ -37,7 +36,7 @@ export const AccountSettingsSchema = Schema.object({
      *
      * This is an empty object in case we want to add more state in the future.
      */
-    shareActivationHint: Schema.object({}).optional().default({}),
+    shareActivationHint: Schema.object({}).nullable().default({}),
 
     /**
      * If present then we need to show the search education hint. This hint tells the
@@ -53,11 +52,12 @@ export const AccountSettingsSchema = Schema.object({
      * we're showing `shareActivationHint` which takes priority.
      */
     searchEducationHint: Schema.object({hasOpenedFeed: Schema.boolean})
-        .optional()
+        .nullable()
         .default({hasOpenedFeed: false}),
 });
 
 export const initialAccountSettings: AccountSettings = {
+    lastOpenedSpaceId: null,
     observedTimeZone: null,
     shareActivationHint: {},
     searchEducationHint: {hasOpenedFeed: false},
@@ -131,7 +131,7 @@ function actuallyApplyAccountSettingsAction(
         }
         case "HideShareActivationHint": {
             if (!settings.shareActivationHint) return settings;
-            return omitObject(settings, ["shareActivationHint"]);
+            return {...settings, shareActivationHint: null};
         }
         case "OpenFeedForSearchEducationHint": {
             if (settings.searchEducationHint?.hasOpenedFeed) return settings;
@@ -146,7 +146,7 @@ function actuallyApplyAccountSettingsAction(
         }
         case "HideSearchEducationHint": {
             if (!settings.searchEducationHint) return settings;
-            return omitObject(settings, ["searchEducationHint"]);
+            return {...settings, searchEducationHint: null};
         }
         case "ResetOnboardingForDev": {
             return {
