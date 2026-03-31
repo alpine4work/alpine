@@ -98,10 +98,13 @@ type WorkerToTabRpc = WebWorkerRpc<
     typeof tabToWorkerDatabaseRpcMethods
 >;
 
-export type ReactiveActionResult = Result<unknown, string>;
+export type DatabaseReactiveActionResult<N extends DatabaseActionName> = Result<
+    DatabaseActionOutput<N>,
+    string
+>;
 
-export interface ReactiveActionHandle {
-    readonly store: Store<ReactiveActionResult>;
+export interface DatabaseReactiveActionHandle<N extends DatabaseActionName> {
+    readonly store: Store<DatabaseReactiveActionResult<N>>;
     unwatch(): void;
 }
 
@@ -110,7 +113,7 @@ export interface ReactiveActionHandle {
  * `databaseId` from inputs since the manager
  * injects it automatically.
  */
-type DatabaseConnectionCall = <K extends string & keyof typeof tabToWorkerDatabaseRpcMethods>(
+type DatabaseConnectionCall = <K extends keyof typeof tabToWorkerDatabaseRpcMethods>(
     method: K,
     input: Omit<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["inputSchema"]>, "databaseId">,
 ) => Promise<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["outputSchema"]>>;
@@ -121,7 +124,10 @@ export interface DatabaseWorkerConnection {
         name: N,
         input: DatabaseActionInput<N>,
     ): Promise<DatabaseActionOutput<N>>;
-    watchAction(actionObject: DatabaseActionObject): Promise<ReactiveActionHandle>;
+    watchAction<N extends DatabaseActionName>(
+        name: N,
+        input: DatabaseActionInput<N>,
+    ): Promise<DatabaseReactiveActionHandle<N>>;
     close(): void;
 }
 
@@ -420,7 +426,10 @@ export class DatabaseActiveTabManager {
     private nextCallId = 0;
     private readonly watches = new Map<
         DatabaseReactiveActionId,
-        {actionObject: DatabaseActionObject; store: ValueStore<ReactiveActionResult>}
+        {
+            actionObject: DatabaseActionObject;
+            store: ValueStore<DatabaseReactiveActionResult<DatabaseActionName>>;
+        }
     >();
 
     constructor(
@@ -473,9 +482,9 @@ export class DatabaseActiveTabManager {
                 const response = await call("executeAction", {
                     action: {name, input} as DatabaseActionObject,
                 });
-                return (response.result as DatabaseActionResult).output as any;
+                return response.result.output as any;
             },
-            watchAction: (actionObject: DatabaseActionObject) => this.watchAction(actionObject),
+            watchAction: (name, input) => this.watchAction({name, input} as DatabaseActionObject),
             close: () => this.closeConnection(),
         };
     }
@@ -534,9 +543,14 @@ export class DatabaseActiveTabManager {
 
     // -- Reactive action watch -----------------------------------------------
 
-    private async watchAction(actionObject: DatabaseActionObject): Promise<ReactiveActionHandle> {
+    private async watchAction(
+        actionObject: DatabaseActionObject,
+    ): Promise<DatabaseReactiveActionHandle<DatabaseActionName>> {
         const id = generateId<DatabaseReactiveActionId>();
-        const store = new ValueStore<ReactiveActionResult>({ok: true, value: {}});
+        const store = new ValueStore<DatabaseReactiveActionResult<DatabaseActionName>>({
+            ok: true,
+            value: {},
+        });
 
         this.watches.set(id, {actionObject, store});
 
@@ -595,7 +609,7 @@ export class DatabaseActiveTabManager {
         if (this.lockWaitActive) return;
         this.lockWaitActive = true;
 
-        this.deps.locks.request("alpine-db", {ifAvailable: false}, async () => {
+        void this.deps.locks.request("alpine-db", {ifAvailable: false}, async () => {
             this.lockWaitActive = false;
             if (this.closed) return;
 
@@ -703,7 +717,7 @@ export class DatabaseActiveTabManager {
 
     private tryAcquireLeaderLock(): Promise<boolean> {
         return new Promise(resolve => {
-            this.deps.locks.request("alpine-db", {ifAvailable: true}, async lock => {
+            void this.deps.locks.request("alpine-db", {ifAvailable: true}, async lock => {
                 if (lock === null) {
                     resolve(false);
                     return;

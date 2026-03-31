@@ -13,8 +13,8 @@ import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js
 
 export type {
     DatabaseWorkerConnection,
-    ReactiveActionHandle,
-    ReactiveActionResult,
+    DatabaseReactiveActionHandle,
+    DatabaseReactiveActionResult,
 } from "~/client/web/databases/database_active_tab_manager.js";
 
 type ConnectOptions = {

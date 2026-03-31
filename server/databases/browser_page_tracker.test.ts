@@ -102,6 +102,25 @@ describe("BrowserPageTracker", () => {
         expect(filtered.has(0)).toBe(true);
     });
 
+    test("setPages clears pending pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+
+        tracker.addPendingPages(b, [5, 6]);
+        tracker.setPages(b, [0]);
+
+        // Page 5 was pending, now gone. Should be included
+        // in filtered results (not skipped).
+        const pages = new Map([
+            [0, pageData(0)],
+            [5, pageData(5)],
+        ]);
+        const filtered = tracker.filterReadPages(b, pages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(5)).toBe(true);
+    });
+
     test("setPages is a no-op for unknown browser", () => {
         const tracker = new BrowserPageTracker();
         // Should not throw
@@ -130,15 +149,100 @@ describe("BrowserPageTracker", () => {
         expect(filtered.has(3)).toBe(true);
     });
 
+    test("addPages promotes pending pages to confirmed", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+
+        tracker.addPendingPages(b, [1, 2]);
+
+        // Pending pages are not skipped by filterReadPages
+        const pages = new Map([
+            [1, pageData(1)],
+            [2, pageData(2)],
+        ]);
+        expect(tracker.filterReadPages(b, pages).size).toBe(2);
+
+        // Acknowledge them
+        tracker.addPages(b, [1, 2]);
+
+        // Now they are confirmed and skipped
+        expect(tracker.filterReadPages(b, pages).size).toBe(0);
+    });
+
     test("addPages is a no-op for unknown browser", () => {
         const tracker = new BrowserPageTracker();
         // Should not throw
         tracker.addPages(bid(), [0, 1]);
     });
 
+    // -- addPendingPages ------------------------------------------------------
+
+    test("addPendingPages marks pages as pending", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+
+        tracker.addPendingPages(b, [1, 2]);
+
+        // Pending pages are NOT skipped by filterReadPages
+        const pages = new Map([
+            [1, pageData(1)],
+            [2, pageData(2)],
+        ]);
+        expect(tracker.filterReadPages(b, pages).size).toBe(2);
+    });
+
+    test("addPendingPages does not downgrade confirmed pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+
+        tracker.setPages(b, [1]); // confirmed
+        tracker.addPendingPages(b, [1]); // should NOT downgrade
+
+        // Page 1 should still be skipped (confirmed)
+        const pages = new Map([[1, pageData(1)]]);
+        expect(tracker.filterReadPages(b, pages).size).toBe(0);
+    });
+
+    test("addPendingPages is a no-op for unknown browser", () => {
+        const tracker = new BrowserPageTracker();
+        // Should not throw
+        tracker.addPendingPages(bid(), [0, 1]);
+    });
+
+    // -- clientMightHavePage ---------------------------------------------------
+
+    test("clientMightHavePage returns true for confirmed pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+        tracker.setPages(b, [0, 1]);
+
+        expect(tracker.clientMightHavePage(b, 0)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 1)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 2)).toBe(false);
+    });
+
+    test("clientMightHavePage returns true for pending pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+        tracker.addPendingPages(b, [3]);
+
+        expect(tracker.clientMightHavePage(b, 3)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 4)).toBe(false);
+    });
+
+    test("clientMightHavePage returns false for unknown browser", () => {
+        const tracker = new BrowserPageTracker();
+        expect(tracker.clientMightHavePage(bid(), 0)).toBe(false);
+    });
+
     // -- filterReadPages ------------------------------------------------------
 
-    test("filterReadPages excludes only tracked pages", () => {
+    test("filterReadPages excludes only confirmed pages", () => {
         const tracker = new BrowserPageTracker();
         const b = bid();
         tracker.registerConnection(b, cid());
@@ -155,7 +259,25 @@ describe("BrowserPageTracker", () => {
         expect([...filtered.keys()].sort()).toEqual([0, 2]);
     });
 
-    test("filterReadPages returns empty map when all pages are tracked", () => {
+    test("filterReadPages includes pending pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+        tracker.setPages(b, [0]);
+        tracker.addPendingPages(b, [1]);
+
+        const pages = new Map([
+            [0, pageData(0)],
+            [1, pageData(1)],
+            [2, pageData(2)],
+        ]);
+        const filtered = tracker.filterReadPages(b, pages);
+
+        // Page 0 skipped (confirmed), pages 1 and 2 included
+        expect([...filtered.keys()].sort()).toEqual([1, 2]);
+    });
+
+    test("filterReadPages returns empty map when all pages are confirmed", () => {
         const tracker = new BrowserPageTracker();
         const b = bid();
         tracker.registerConnection(b, cid());

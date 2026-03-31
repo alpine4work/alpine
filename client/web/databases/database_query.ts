@@ -1,29 +1,20 @@
 import type {
+    DatabaseReactiveActionHandle,
     DatabaseWorkerConnection,
-    ReactiveActionHandle,
 } from "~/client/web/databases/database_active_tab_manager.js";
+import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
-import type {DatabaseActionOutput} from "~/shared/databases/database_actions.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
-type DatabaseQueryPage = {
-    readonly pageId: number;
-    readonly afterCursor: DatabaseRowId | null;
-    readonly endCursor: DatabaseRowId | null;
-    readonly rows: ReadonlyArray<Record<string, unknown>>;
-};
-
-type DatabaseQueryRow = Record<string, unknown>;
-
 type PageWatch = {
-    readonly handle: ReactiveActionHandle;
+    readonly handle: DatabaseReactiveActionHandle<"getViewRowsPage">;
     readonly removeListener: () => void;
 };
 
@@ -67,7 +58,8 @@ export class DatabaseQuery {
         tableOrViewId: string;
         initialPage?: {
             endCursor: DatabaseRowId | null;
-            rows: ReadonlyArray<unknown>;
+            fieldIndexes: ReadonlyMap<DatabaseFieldId, number>;
+            rows: ReadonlyArray<ReadonlyArray<unknown>>;
         };
         _targetRowsPerPage?: number;
         _scheduleRebalance?: (cb: () => void) => void;
@@ -92,12 +84,13 @@ export class DatabaseQuery {
         if (options.initialPage && options.initialPage.rows.length > 0) {
             const pageId = this.allocatePageId();
             this._initialPageId = pageId;
-            const page: DatabaseQueryPage = {
+            const page = new DatabaseQueryPage({
                 pageId,
                 afterCursor: null,
-                endCursor: options.initialPage.endCursor as DatabaseRowId | null,
-                rows: options.initialPage.rows as ReadonlyArray<Record<string, unknown>>,
-            };
+                endCursor: options.initialPage.endCursor,
+                fieldIndexes: options.initialPage.fieldIndexes,
+                rows: options.initialPage.rows,
+            });
             this.treeStore.set(tree => tree.insertNodesAtEnd([page]));
         }
     }
@@ -218,13 +211,10 @@ export class DatabaseQuery {
     ): Promise<number | null> {
         const pageId = reusePageId ?? this.allocatePageId();
 
-        const handle = await this.conn!.watchAction({
-            name: "getViewRowsPage",
-            input: {
-                tableOrViewId: this.tableOrViewId,
-                afterCursor,
-                endCursor,
-            },
+        const handle = await this.conn!.watchAction("getViewRowsPage", {
+            tableOrViewId: this.tableOrViewId,
+            afterCursor,
+            endCursor,
         });
 
         if (this._disposed) {
@@ -235,9 +225,13 @@ export class DatabaseQuery {
         const onUpdate = () => {
             const result = handle.store.getSnapshot();
             if (!result.ok) return;
-            const output = result.value as DatabaseActionOutput<"getViewRowsPage">;
-            const rows = output.rows as ReadonlyArray<Record<string, unknown>>;
-            const page: DatabaseQueryPage = {pageId, afterCursor, endCursor, rows};
+            const page = new DatabaseQueryPage({
+                pageId,
+                afterCursor,
+                endCursor,
+                fieldIndexes: result.value.fieldIndexes,
+                rows: result.value.rows,
+            });
 
             this.treeStore.set(tree => {
                 const existing = tree.getNodeByKeyIfExists(pageId);
@@ -248,7 +242,10 @@ export class DatabaseQuery {
             });
 
             // Check rebalance thresholds.
-            if (rows.length >= this._splitThreshold || rows.length <= this._mergeThreshold) {
+            if (
+                result.value.rows.length >= this._splitThreshold ||
+                result.value.rows.length <= this._mergeThreshold
+            ) {
                 this.maybeScheduleRebalance();
             }
         };
@@ -314,7 +311,7 @@ export class DatabaseQuery {
                 if (mergeRowCount <= this._mergeThreshold) {
                     // Still too small — consume this page.
                     pagesToMerge.push(node);
-                    mergeRowCount += node.rows.length;
+                    mergeRowCount += node.rowCount;
                     continue;
                 }
                 // Run is big enough — flush before
@@ -323,10 +320,10 @@ export class DatabaseQuery {
                 if (this._disposed) return;
             }
 
-            if (node.rows.length >= this._splitThreshold) {
+            if (node.rowCount >= this._splitThreshold) {
                 // Split in half.
-                const midpoint = Math.ceil(node.rows.length / 2);
-                const midCursor = (node.rows[midpoint - 1] as any)._id as DatabaseRowId;
+                const midpoint = Math.ceil(node.rowCount / 2);
+                const midCursor = node.getRow(midpoint - 1).getId();
 
                 this.tearDownWatch(node.pageId);
                 this.treeStore.set(t => t.removeNode(node.pageId));
@@ -336,10 +333,10 @@ export class DatabaseQuery {
                     this.startWatch(midCursor, node.endCursor),
                 ]);
                 if (this._disposed) return;
-            } else if (node.rows.length <= this._mergeThreshold) {
+            } else if (node.rowCount <= this._mergeThreshold) {
                 // Start a merge run.
                 pagesToMerge.push(node);
-                mergeRowCount = node.rows.length;
+                mergeRowCount = node.rowCount;
             }
         }
 
@@ -416,8 +413,8 @@ function pageComesBeforeOrEqual(a: DatabaseQueryPage, b: DatabaseQueryPage): boo
 function newEmptyTree(): VirtualizedTree<number, DatabaseQueryPage, DatabaseQueryRow> {
     return VirtualizedTree.new({
         getNodeKey: (page: DatabaseQueryPage) => page.pageId,
-        getNodeItemCount: (page: DatabaseQueryPage) => page.rows.length,
-        getNodeItem: (page: DatabaseQueryPage, i: number) => page.rows[i]!,
+        getNodeItemCount: (page: DatabaseQueryPage) => page.rowCount,
+        getNodeItem: (page: DatabaseQueryPage, i: number) => page.getRow(i),
     });
 }
 

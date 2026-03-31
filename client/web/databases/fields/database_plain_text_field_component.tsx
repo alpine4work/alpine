@@ -38,6 +38,7 @@ function DatabasePlainTextGridViewCellEditorOverlay({
     commitValue,
     onClose,
     moveSelection,
+    onCreateRow,
 }: DatabaseGridViewCellEditorOverlayProps<"plainText">) {
     const [editValue, setEditValue] = useState(initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
@@ -72,7 +73,11 @@ function DatabasePlainTextGridViewCellEditorOverlay({
                     onClose();
                 }}
                 onKeyDown={e => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && e.shiftKey) {
+                        e.preventDefault();
+                        commitValue((e.currentTarget as HTMLTextAreaElement).value);
+                        onCreateRow();
+                    } else if (e.key === "Enter") {
                         e.preventDefault();
                         commitValue((e.currentTarget as HTMLTextAreaElement).value);
                         moveSelection(1, 0);

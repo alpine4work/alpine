@@ -464,14 +464,43 @@ export const databaseActions = {
             endCursor: Schema.id<DatabaseRowId>().nullable(),
         }),
         output: Schema.object({
-            tableId: Schema.id<DatabaseTableId>(),
-            viewId: Schema.id<DatabaseViewId>(),
-            tableName: Schema.string,
-            rows: Schema.array(Schema.unknown()),
+            fieldIndexes: Schema.map(Schema.id<DatabaseFieldId>(), Schema.integer),
+            rows: Schema.array(Schema.array(Schema.unknown())),
         }),
         writeLevel: "none",
         run(db, {tableOrViewId, afterCursor, endCursor}) {
-            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+            const {viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+
+            // Get the view's fields in position order so we
+            // can build a deterministic SELECT list and a
+            // per-page field-index mapping.
+            const viewFields = sql`
+                SELECT
+                    f.id,
+                    f.column_name
+                FROM
+                    _alpine_view_fields vf
+                    JOIN _alpine_fields f ON f.id = vf.field_id
+                WHERE
+                    vf.view_id = ${viewId}
+                ORDER BY
+                    vf.position
+            `.selectAll(db, {
+                id: Schema.id<DatabaseFieldId>(),
+                columnName: Schema.string.originalPropertyKey("column_name"),
+            });
+
+            // _id is always at index 0; view fields start at 1.
+            const selectColumns = [
+                sql.raw("_id"),
+                ...viewFields.map(f => sql.identifier(f.columnName)),
+            ];
+            const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
+
+            const fieldIndexes = new Map<DatabaseFieldId, number>();
+            for (let i = 0; i < viewFields.length; i++) {
+                fieldIndexes.set(viewFields[i]!.id, i + 1);
+            }
 
             let whereClause: SqlQuery;
             if (afterCursor != null && endCursor != null) {
@@ -496,14 +525,14 @@ export const databaseActions = {
 
             const rows = sql`
                 SELECT
-                    *
+                    ${selectList}
                 FROM
                     ${sql.identifier(tableName)} ${whereClause}
                 ORDER BY
                     _id
-            `.selectAllUnknown(db);
+            `.selectAllArrays(db);
 
-            return {tableId, viewId, tableName, rows};
+            return {fieldIndexes, rows};
         },
     }),
 
@@ -547,6 +576,32 @@ export const databaseActions = {
                 )}
                 WHERE
                     _id = ${rowId}
+            `.exec(db);
+            return {};
+        },
+    }),
+
+    createRow: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            rowId: Schema.id<DatabaseRowId>(),
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run(db, {tableId, rowId}) {
+            const table = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${tableId}
+            `.selectOne(db, alpineTableConfig);
+            sql`
+                INSERT INTO
+                    ${sql.identifier(table.tableName)} (_id)
+                VALUES
+                    (${rowId})
             `.exec(db);
             return {};
         },

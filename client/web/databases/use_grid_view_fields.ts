@@ -15,7 +15,6 @@ import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id
 export type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;
     readonly name: string;
-    readonly columnName: string;
     readonly config: DatabaseFieldConfig;
     readonly width: number;
 };
@@ -30,6 +29,9 @@ export type DatabaseGridViewFieldEditing = {
 export type DatabaseGridViewFieldWithEditing = DatabaseGridViewField & {
     readonly columnStyle: React.CSSProperties;
     readonly editing: DatabaseGridViewFieldEditing | null;
+    // `columnName` is set to "__pending__" for fields that are being added
+    // optimistically and don't yet have a server-assigned SQL column name.
+    readonly columnName: string;
 };
 
 type DatabaseGridViewFieldOptimisticAction =
@@ -130,7 +132,6 @@ export function useGridViewFields({
                         field: {
                             id: addingId,
                             name: trimmed,
-                            columnName: "__pending__",
                             config: {type: addingFieldType},
                             width: 200,
                         },
@@ -168,7 +169,6 @@ export function useGridViewFields({
                 field: {
                     id: addingId,
                     name: trimmed,
-                    columnName: "__pending__",
                     config: {type: fieldType},
                     width: 200,
                 },
@@ -204,7 +204,7 @@ export function useGridViewFields({
                     maxWidth: widthRem,
                     marginRight: -1,
                 };
-                return {...field, columnStyle, editing: null};
+                return {...field, columnName: field.id, columnStyle, editing: null};
             }),
         [optimisticFields],
     );

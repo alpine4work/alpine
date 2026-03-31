@@ -28,6 +28,7 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
     commitValue: (value: DatabaseCellValue<Type>) => void;
     onClose: () => void;
     moveSelection: (deltaRow: number, deltaField: number) => void;
+    onCreateRow: () => void;
 };
 
 // -- Base type ----------------------------------------------------------------

@@ -1009,10 +1009,7 @@ describe("watchAction", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
-        const handle = await conn.watchAction({
-            name: "readonlyRawSql",
-            input: {sql: "SELECT * FROM t"},
-        });
+        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
 
         const snapshot = handle.store.getSnapshot();
         expect(snapshot).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
@@ -1036,9 +1033,8 @@ describe("watchAction", () => {
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
 
-        const handle = await conn.watchAction({
-            name: "readonlyRawSql",
-            input: {sql: "SELECT * FROM t ORDER BY id"},
+        const handle = await conn.watchAction("readonlyRawSql", {
+            sql: "SELECT * FROM t ORDER BY id",
         });
 
         const initial = handle.store.getSnapshot();
@@ -1115,10 +1111,7 @@ describe("watchAction", () => {
         );
 
         // Watch from follower
-        const handle = await connB.watchAction({
-            name: "readonlyRawSql",
-            input: {sql: "SELECT * FROM t"},
-        });
+        const handle = await connB.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
 
         const initial = handle.store.getSnapshot();
         expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});

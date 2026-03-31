@@ -14,7 +14,11 @@ import {DatabaseDurableObjectConnection} from "~/server/databases/database_durab
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateId} from "~/shared/id/id.js";
-import type {BrowserId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import type {
+    BrowserId,
+    DatabaseMutationId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
 
 // Cast to `any` because Miniflare's DurableObjectStorage type doesn't
 // include our patched `sql` / `transactionSync` in the upstream .d.ts
@@ -546,7 +550,7 @@ function createTrackedConnection(
 }
 
 describe("per-browser page tracking", () => {
-    test("ensureCacheIsUpToDate sets matching pages in tracker", async () => {
+    test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
             new Map([
@@ -572,8 +576,9 @@ describe("per-browser page tracking", () => {
             ]),
         );
 
-        // Tracker should know browser has pages 0 and 1.
-        // Page 2 was returned as updatedPages, not matching.
+        // Pages 0 and 1 are confirmed (skipped by filterReadPages).
+        // Page 2 was returned as updatedPages → pending
+        // (not skipped by filterReadPages).
         const allPages = new Map([
             [0, {timestamp: 1, data: new Uint8Array(1)}],
             [1, {timestamp: 1, data: new Uint8Array(1)}],
@@ -584,7 +589,42 @@ describe("per-browser page tracking", () => {
         expect(filtered.has(2)).toBe(true);
     });
 
-    test("acknowledgePages adds pages to tracker", async () => {
+    test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Page 0 matches, page 1 is stale
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, 999],
+            ]),
+        );
+
+        // Page 1 is pending (sent as updatedPages).
+        // Acknowledge it — should promote to confirmed.
+        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [1]}, null as any);
+
+        // Now page 1 is confirmed (skipped)
+        const allPages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        expect(tracker.filterReadPages(browserId, allPages).size).toBe(0);
+    });
+
+    test("acknowledgePages confirms pages in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -592,6 +632,7 @@ describe("per-browser page tracking", () => {
 
         await conn.procedures.acknowledgePages(null as any, {pageIndexes: [5, 6, 7]}, null as any);
 
+        // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
             [5, {timestamp: 1, data: new Uint8Array(1)}],
             [6, {timestamp: 1, data: new Uint8Array(1)}],
@@ -655,6 +696,109 @@ describe("per-browser page tracking", () => {
             [1, {timestamp: 1, data: new Uint8Array(1)}],
         ]);
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
+    });
+
+    test("transformEvent filters pages to only those the client might have", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+                [2, makePage(0xcc)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts1 = doStorage.readPage(1)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Client has pages 0 and 1 confirmed
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, ts1],
+                [2, 999],
+            ]),
+        );
+
+        // Simulate a realtime event touching pages 0, 1, 3
+        const eventStub = {
+            pages: [
+                {pageIndex: 0, timestamp: 1, diff: []},
+                {pageIndex: 1, timestamp: 1, diff: []},
+                {pageIndex: 3, timestamp: 1, diff: []},
+            ],
+            mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 4,
+        };
+        const event = conn.transformEvent(null as any, eventStub);
+
+        // Page 0: confirmed → included
+        // Page 1: confirmed → included
+        // Page 2: pending (sent as updatedPages) but not in
+        //         event → N/A
+        // Page 3: not tracked → excluded
+        expect(event.pages.map(p => p.pageIndex)).toEqual([0, 1]);
+    });
+
+    test("transformEvent includes pending pages", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Page 0 matches (confirmed), page 1 stale (pending)
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, 999],
+            ]),
+        );
+
+        const eventStub = {
+            pages: [
+                {pageIndex: 0, timestamp: 1, diff: []},
+                {pageIndex: 1, timestamp: 1, diff: []},
+            ],
+            mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 2,
+        };
+        const event = conn.transformEvent(null as any, eventStub);
+
+        // Both included: page 0 confirmed, page 1 pending
+        expect(event.pages.map(p => p.pageIndex)).toEqual([0, 1]);
+    });
+
+    test("transformEvent returns empty pages for untracked client", () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // No ensureCacheIsUpToDate — tracker has no pages
+        const eventStub = {
+            pages: [
+                {pageIndex: 0, timestamp: 1, diff: []},
+                {pageIndex: 1, timestamp: 1, diff: []},
+            ],
+            mutationId: generateId<DatabaseMutationId>(),
+            fileSizeInPages: 2,
+        };
+        const event = conn.transformEvent(null as any, eventStub);
+
+        expect(event.pages).toEqual([]);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
