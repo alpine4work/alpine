@@ -563,6 +563,32 @@ export const databaseActions = {
         },
     }),
 
+    createRow: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            rowId: Schema.id<DatabaseRowId>(),
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run(db, {tableId, rowId}) {
+            const table = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${tableId}
+            `.selectOne(db, alpineTableConfig);
+            sql`
+                INSERT INTO
+                    ${sql.identifier(table.tableName)} (_id)
+                VALUES
+                    (${rowId})
+            `.exec(db);
+            return {};
+        },
+    }),
+
     createField: defineDatabaseAction({
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),

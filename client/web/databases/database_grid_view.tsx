@@ -36,6 +36,7 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
@@ -43,7 +44,6 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
 
-const alwaysRenderHeader: ReadonlyArray<number> = [0];
 const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
 
 // -- Selection state ----------------------------------------------------------
@@ -124,8 +124,21 @@ export function DatabaseGridView({
     const scrollViewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const gridFields = useGridViewFields({tableId, viewId, fields});
+    const conn = useDatabaseConnection();
+
+    const createRow = useEvent(() => {
+        const firstFieldId = gridFields.fields[0]?.id;
+        if (firstFieldId == null) return;
+        const rowId = generateChronologicalId<DatabaseRowId>();
+        dispatch({type: "click", rowId, fieldId: firstFieldId});
+        startTransition(async () => {
+            await conn.executeAction("createRow", {tableId, rowId});
+        });
+    });
 
     const rowCount = tree.getItemCount();
+    const addRowIndex = rowCount + 1;
+    const alwaysRenderIndexes = useMemo(() => [0, addRowIndex], [addRowIndex]);
 
     const moveSelection = useEvent((deltaRow: number, deltaField: number) => {
         if (selection == null) return;
@@ -142,7 +155,10 @@ export function DatabaseGridView({
             Math.min(gridFields.fields.length - 1, fieldIndex + deltaField),
         );
 
-        if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) return;
+        if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) {
+            dispatch({type: "blur"});
+            return;
+        }
 
         const nextRow = tree.getItem(nextRowIndex);
         dispatch({
@@ -192,7 +208,7 @@ export function DatabaseGridView({
     }, [selectedRowId]);
 
     const needsMore = useStore(query.needsMoreStore);
-    const itemCount = rowCount + 1 + (needsMore ? 1 : 0);
+    const itemCount = rowCount + 2 + (needsMore ? 1 : 0);
 
     const renderItem: Memo<(index: number) => VirtualizedScrollViewItem> = useMemo(
         () =>
@@ -245,8 +261,36 @@ export function DatabaseGridView({
                     };
                 }
 
+                // Sticky add-row button after all data rows.
+                if (index === rowCount + 1) {
+                    return {
+                        key: "add-row",
+                        minHeight: spacing[gridRowHeight],
+                        withManualLayout: true,
+                        render({ref, offset}) {
+                            return (
+                                <>
+                                    <div style={{height: offset}} />
+                                    <Box
+                                        ref={ref}
+                                        minHeight={gridRowHeight}
+                                        backgroundColor="grey-0"
+                                        style={{
+                                            position: "sticky",
+                                            bottom: 0,
+                                            pointerEvents: "auto",
+                                        }}
+                                    >
+                                        <DatabaseGridViewAddRowButton onCreateRow={createRow} />
+                                    </Box>
+                                </>
+                            );
+                        },
+                    };
+                }
+
                 // Load-more sentinel at the end.
-                if (needsMore && index === rowCount + 1) {
+                if (needsMore && index === rowCount + 2) {
                     return {
                         key: "load-more",
                         minHeight: spacing[gridRowHeight],
@@ -265,9 +309,11 @@ export function DatabaseGridView({
                             row={row}
                             rowId={rowId}
                             isFirstRow={index === 1}
+                            isLastRow={index === rowCount}
                             selection={selection}
                             dispatch={dispatch}
                             moveSelection={moveSelection}
+                            onCreateRow={createRow}
                         />
                     ),
                 };
@@ -284,6 +330,7 @@ export function DatabaseGridView({
             query,
             selection,
             moveSelection,
+            createRow,
         ],
     );
 
@@ -295,7 +342,9 @@ export function DatabaseGridView({
                     itemCount={itemCount}
                     bufferedItemHeight={spacing[gridRowHeight]}
                     renderItem={renderItem}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderHeader}
+                    alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
+                    scrollbarInsetTopItemIndex={0}
+                    scrollbarInsetBottomItemIndex={addRowIndex}
                 />
             </Box>
         </GlobalKeyDownEvent>
@@ -546,20 +595,28 @@ function DatabaseGridViewDataRow({
     row,
     rowId,
     isFirstRow,
+    isLastRow,
     selection,
     dispatch,
     moveSelection,
+    onCreateRow,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
     isFirstRow: boolean;
+    isLastRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
+    onCreateRow: () => void;
 }) {
     return (
-        <Box display="flex" borderBottom="grey-5">
+        <Box
+            display="flex"
+            style={{height: `calc(${spacing[gridRowHeight]} + 1px)`}}
+            borderBottom={isLastRow ? undefined : "grey-5"}
+        >
             {fields.map(field => {
                 const isSelected =
                     selection != null &&
@@ -580,6 +637,7 @@ function DatabaseGridViewDataRow({
                         initialEditValue={initialEditValue}
                         dispatch={dispatch}
                         moveSelection={moveSelection}
+                        onCreateRow={onCreateRow}
                     />
                 );
             })}
@@ -599,6 +657,7 @@ function DatabaseGridViewCell({
     initialEditValue,
     dispatch,
     moveSelection,
+    onCreateRow,
 }: {
     field: DatabaseGridViewFieldWithEditing;
     value: unknown;
@@ -609,6 +668,7 @@ function DatabaseGridViewCell({
     initialEditValue: string | null;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
+    onCreateRow: () => void;
 }) {
     const conn = useDatabaseConnection();
     const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
@@ -640,6 +700,7 @@ function DatabaseGridViewCell({
                     commitValue={commitValue}
                     dispatch={dispatch}
                     moveSelection={moveSelection}
+                    onCreateRow={onCreateRow}
                 />
             }
         >
@@ -669,12 +730,14 @@ function DatabaseGridViewCellEditor({
     commitValue,
     dispatch,
     moveSelection,
+    onCreateRow,
 }: {
     ref?: React.Ref<HTMLElement>;
     initialValue: string;
     commitValue: (value: string) => void;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
+    onCreateRow: () => void;
 }) {
     const [editValue, setEditValue] = useState(initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
@@ -709,7 +772,11 @@ function DatabaseGridViewCellEditor({
                     dispatch({type: "blur"});
                 }}
                 onKeyDown={e => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && e.shiftKey) {
+                        e.preventDefault();
+                        commitValue((e.currentTarget as HTMLTextAreaElement).value);
+                        onCreateRow();
+                    } else if (e.key === "Enter") {
                         e.preventDefault();
                         commitValue((e.currentTarget as HTMLTextAreaElement).value);
                         moveSelection(1, 0);
@@ -721,6 +788,32 @@ function DatabaseGridViewCellEditor({
                     e.stopPropagation();
                 }}
             />
+        </Box>
+    );
+}
+
+// -- Add-row button -----------------------------------------------------------
+
+function DatabaseGridViewAddRowButton({onCreateRow}: {onCreateRow: () => void}) {
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            borderTop="grey-5"
+            cursor="pointer"
+            onClick={onCreateRow}
+        >
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="1"
+                padding="2"
+                fontSize="75"
+                color="grey-50"
+            >
+                <Plus size={14} />
+                New row
+            </Box>
         </Box>
     );
 }
