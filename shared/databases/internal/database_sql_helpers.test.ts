@@ -1,10 +1,4 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
-import {
-    alpineFieldTypeToSqliteType,
-    checkConstraintForColumn,
-    formatUniqueSqlName,
-} from "~/shared/databases/internal/database_sql_helpers.js";
+import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
 
 const empty = new Set<string>();
 
@@ -42,49 +36,5 @@ describe("formatUniqueSqlName", () => {
     test("appends _2, _3 for uniqueness", () => {
         expect(formatUniqueSqlName("Tasks", new Set(["tasks"]))).toBe("tasks_2");
         expect(formatUniqueSqlName("Tasks", new Set(["tasks", "tasks_2"]))).toBe("tasks_3");
-    });
-});
-
-// -- alpineFieldTypeToSqliteType ---------------------------------------------
-
-describe("alpineFieldTypeToSqliteType", () => {
-    test("maps plainText to TEXT", () => {
-        expect(alpineFieldTypeToSqliteType("plainText")).toBe("TEXT");
-    });
-
-    test("maps number to REAL", () => {
-        expect(alpineFieldTypeToSqliteType("number")).toBe("REAL");
-    });
-
-    test("maps boolean to INTEGER", () => {
-        expect(alpineFieldTypeToSqliteType("boolean")).toBe("INTEGER");
-    });
-});
-
-// -- checkConstraintForColumn ------------------------------------------------
-
-describe("checkConstraintForColumn", () => {
-    test("TEXT NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "TEXT", true).query).toBe(
-            "CHECK ( TYPEOF(\"col\") = 'text' )",
-        );
-    });
-
-    test("TEXT nullable", () => {
-        expect(checkConstraintForColumn("col", "TEXT", false).query).toBe(
-            'CHECK ( TYPEOF("col") = \'text\' OR "col" IS NULL )',
-        );
-    });
-
-    test("REAL NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "REAL", true).query).toBe(
-            "CHECK ( TYPEOF(\"col\") IN ('real', 'integer') )",
-        );
-    });
-
-    test("INTEGER NOT NULL", () => {
-        expect(checkConstraintForColumn("col", "INTEGER", true).query).toBe(
-            "CHECK ( TYPEOF(\"col\") = 'integer' )",
-        );
     });
 });

@@ -337,7 +337,7 @@ describe(".value", () => {
                 FROM
                     t
             `.selectValue(db, Schema.integer),
-        ).toThrow("Expected 1 row, got 3");
+        ).toThrow("Expected 1 row, got more");
     });
 
     test("asserts when multiple columns returned", () => {

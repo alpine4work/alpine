@@ -1,6 +1,7 @@
 import type {BindableValue, Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
+    ObjectPropertySchema,
     type ObjectSchemaConfigBase,
     type ObjectSchemaConfigType,
     Schema,
@@ -35,18 +36,49 @@ class SqlQuery {
         readonly bind: ReadonlyArray<BindableValue> = [],
     ) {}
 
-    /** Execute and return all result rows. */
+    /**
+     * Execute and return all result rows, deserialized
+     * in a single pass by stepping through the prepared
+     * statement column-by-column.
+     */
     selectAll<Config extends ObjectSchemaConfigBase>(
         db: Database,
         config: Config,
     ): Array<ObjectSchemaConfigType<Config>> {
-        const schema = Schema.object(config);
-        const rawRows = db.exec(this.query, {
-            returnValue: "resultRows",
-            rowMode: "object",
-            bind: this.bind as Array<BindableValue>,
-        });
-        return rawRows.map(raw => schema.deserialize(raw as Record<string, SchemaSerializedValue>));
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+
+            // Map each SQL column index to its config key
+            // and value schema for single-pass deserialization.
+            const columnNames = stmt.getColumnNames();
+            const propertyByColumnName = new Map<string, [string, Schema<unknown>]>();
+            for (const [key, schema] of Object.entries(config)) {
+                if (schema instanceof ObjectPropertySchema) {
+                    propertyByColumnName.set(schema.serializedKey ?? key, [
+                        key,
+                        schema.valueSchema,
+                    ]);
+                } else {
+                    propertyByColumnName.set(key, [key, schema]);
+                }
+            }
+            const columns = columnNames.map(name => propertyByColumnName.get(name) ?? null);
+
+            const rows: Array<ObjectSchemaConfigType<Config>> = [];
+            while (stmt.step()) {
+                const row: Record<string, unknown> = {};
+                for (let i = 0; i < columns.length; i++) {
+                    const col = columns[i];
+                    if (col == null) continue;
+                    row[col[0]] = col[1].deserialize(stmt.get(i) as SchemaSerializedValue);
+                }
+                rows.push(row as ObjectSchemaConfigType<Config>);
+            }
+            return rows;
+        } finally {
+            stmt.finalize();
+        }
     }
 
     /** Execute and return exactly one row (asserts). */
@@ -77,15 +109,17 @@ class SqlQuery {
      * exactly one row with one column.
      */
     selectValue<Value>(db: Database, schema: Schema<Value>): Value {
-        const rows = db.exec(this.query, {
-            returnValue: "resultRows",
-            rowMode: "array",
-            bind: this.bind as Array<BindableValue>,
-        });
-        assert(rows.length === 1, `Expected 1 row, got ${rows.length}`);
-        const row = rows[0]!;
-        assert(row.length === 1, `Expected 1 column, got ${row.length}`);
-        return schema.deserialize(row[0] as SchemaSerializedValue);
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+            assert(stmt.columnCount === 1, `Expected 1 column, got ${stmt.columnCount}`);
+            assert(stmt.step(), "Expected 1 row, got 0");
+            const value = schema.deserialize(stmt.get(0) as SchemaSerializedValue);
+            assert(!stmt.step(), "Expected 1 row, got more");
+            return value;
+        } finally {
+            stmt.finalize();
+        }
     }
 
     /**
@@ -94,11 +128,17 @@ class SqlQuery {
      * user-provided SQL).
      */
     selectAllUnknown(db: Database): Array<Record<string, unknown>> {
-        return db.exec(this.query, {
-            returnValue: "resultRows",
-            rowMode: "object",
-            bind: this.bind as Array<BindableValue>,
-        }) as Array<Record<string, unknown>>;
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+            const rows: Array<Record<string, unknown>> = [];
+            while (stmt.step()) {
+                rows.push(stmt.get({}) as Record<string, unknown>);
+            }
+            return rows;
+        } finally {
+            stmt.finalize();
+        }
     }
 
     /** Execute without returning results (INSERT/UPDATE/DELETE/DDL). */
@@ -120,19 +160,22 @@ class SqlQuery {
  * // → SqlQuery { query: 'SELECT * FROM "my table" WHERE id = ?', bind: [id] }
  * ```
  */
-function sql(strings: TemplateStringsArray, ...values: Array<BindableValue | SqlQuery>): SqlQuery {
+function sql(
+    strings: TemplateStringsArray,
+    ...values: Array<SchemaSerializedValue | SqlQuery>
+): SqlQuery {
     let query = "";
     const bind: Array<BindableValue> = [];
     for (let i = 0; i < strings.length; i++) {
         query += strings[i];
         if (i < values.length) {
-            const v = values[i];
-            if (v instanceof SqlQuery) {
-                query += v.query;
-                bind.push(...v.bind);
+            const value = values[i];
+            if (value instanceof SqlQuery) {
+                query += value.query;
+                bind.push(...value.bind);
             } else {
                 query += "?";
-                bind.push(v);
+                bind.push(value && typeof value === "object" ? JSON.stringify(value) : value);
             }
         }
     }

@@ -1,12 +1,14 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type.js";
 import {
-    alpineFieldTypeToSqliteType,
-    checkConstraintForColumn,
-    formatUniqueSqlName,
-} from "~/shared/databases/internal/database_sql_helpers.js";
+    DatabaseFieldConfigSchema,
+    DatabaseFieldConfigSqlSchema,
+    DatabaseFieldTypeSchema,
+    getDatabaseFieldProvider,
+} from "~/shared/databases/fields/database_field_providers.js";
+import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_providers.js";
+import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -31,13 +33,6 @@ const alpineViewConfig = {
     id: Schema.id<DatabaseViewId>(),
     tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
     name: Schema.string,
-};
-
-const alpineViewFieldConfig = {
-    id: Schema.id<DatabaseFieldId>(),
-    name: Schema.string,
-    columnName: Schema.string.originalPropertyKey("column_name"),
-    width: Schema.integer,
 };
 
 const alpineFieldConfig = {
@@ -140,11 +135,13 @@ function createField(
         tableId,
         viewId,
         name,
+        type,
     }: {
         fieldId: DatabaseFieldId;
         tableId: DatabaseTableId;
         viewId: DatabaseViewId;
         name: string;
+        type: DatabaseFieldType;
     },
 ): void {
     const table = sql`
@@ -179,7 +176,8 @@ function createField(
             view_id = ${viewId}
     `.selectValue(db, Schema.integer.nullable());
 
-    const fieldType = serializeDatabaseFieldType({type: "plainText"});
+    const provider = getDatabaseFieldProvider(type);
+    const fieldConfig = DatabaseFieldConfigSqlSchema.serialize({type});
 
     sql`
         INSERT INTO
@@ -190,7 +188,7 @@ function createField(
                 ${tableId},
                 ${name},
                 ${columnName},
-                ${fieldType}
+                ${fieldConfig}
             )
     `.exec(db);
 
@@ -206,14 +204,13 @@ function createField(
             )
     `.exec(db);
 
-    const sqliteType = alpineFieldTypeToSqliteType("plainText");
-    const check = checkConstraintForColumn(columnName, sqliteType, true);
+    const {sqliteType, defaultValue, generateCheckConstraint} = provider;
 
     sql`
         ALTER TABLE ${sql.identifier(table.tableName)}
         ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
             fieldId,
-        )} NOT NULL DEFAULT '' ${check}
+        )} NOT NULL DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
     `.exec(db);
 }
 
@@ -326,7 +323,7 @@ export const databaseActions = {
             `.exec(db);
 
             const fieldId = generateChronologicalId<DatabaseFieldId>();
-            createField(db, {fieldId, tableId, viewId, name: "Name"});
+            createField(db, {fieldId, tableId, viewId, name: "Name", type: "plainText"});
 
             sql`
                 CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
@@ -378,6 +375,7 @@ export const databaseActions = {
                     id: Schema.id<DatabaseFieldId>(),
                     name: Schema.string,
                     columnName: Schema.string.originalPropertyKey("column_name"),
+                    config: DatabaseFieldConfigSchema,
                     width: Schema.integer,
                 }),
             ),
@@ -391,6 +389,7 @@ export const databaseActions = {
                     f.id,
                     f.name,
                     f.column_name,
+                    f.type,
                     vf.width
                 FROM
                     _alpine_view_fields vf
@@ -399,9 +398,20 @@ export const databaseActions = {
                     vf.view_id = ${viewId}
                 ORDER BY
                     vf.position
-            `.selectAll(db, alpineViewFieldConfig);
+            `.selectAll(db, {
+                id: Schema.id<DatabaseFieldId>(),
+                name: Schema.string,
+                columnName: Schema.string.originalPropertyKey("column_name"),
+                config: DatabaseFieldConfigSqlSchema.originalPropertyKey("type"),
+                width: Schema.integer,
+            });
 
-            return {tableId, viewId, tableName, fields};
+            return {
+                tableId,
+                viewId,
+                tableName,
+                fields,
+            };
         },
     }),
 
@@ -501,7 +511,7 @@ export const databaseActions = {
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),
             rowId: Schema.id<DatabaseRowId>(),
-            value: Schema.string,
+            value: Schema.unknown(),
         }),
         output: Schema.object({}),
         writeLevel: "data",
@@ -510,12 +520,17 @@ export const databaseActions = {
                 SELECT
                     id,
                     table_id,
-                    column_name
+                    column_name,
+                    type
                 FROM
                     _alpine_fields
                 WHERE
                     id = ${fieldId}
-            `.selectOne(db, alpineFieldConfig);
+            `.selectOne(db, {
+                ...alpineFieldConfig,
+                type: DatabaseFieldConfigSqlSchema,
+            });
+            const provider = getDatabaseFieldProvider(field.type.type);
             const table = sql`
                 SELECT
                     *
@@ -527,7 +542,9 @@ export const databaseActions = {
             sql`
                 UPDATE ${sql.identifier(table.tableName)}
                 SET
-                    ${sql.identifier(field.columnName)} = ${value}
+                    ${sql.identifier(field.columnName)} = ${provider.sqlValueSchema.serialize(
+                    value,
+                )}
                 WHERE
                     _id = ${rowId}
             `.exec(db);
@@ -541,11 +558,12 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
             name: LabelStringSchema,
+            type: DatabaseFieldTypeSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run(db, {fieldId, tableId, viewId, name}) {
-            createField(db, {fieldId, tableId, viewId, name});
+        run(db, {fieldId, tableId, viewId, name, type}) {
+            createField(db, {fieldId, tableId, viewId, name, type});
             return {};
         },
     }),

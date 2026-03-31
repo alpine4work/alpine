@@ -16,6 +16,10 @@ import {mergeProps} from "react-aria";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import {
+    databaseFieldComponentProviders,
+    getDatabaseFieldComponentProvider,
+} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {
     type DatabaseGridViewField,
     type DatabaseGridViewFieldWithEditing,
     useGridViewFields,
@@ -23,7 +27,6 @@ import {
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
-import {TextAreaWithAutoGrowingHeight} from "~/client/web/design/text_area_with_auto_growing_height.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -33,6 +36,10 @@ import {
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import type {
+    DatabaseCellValue,
+    DatabaseFieldType,
+} from "~/shared/databases/fields/database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -43,6 +50,7 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const alwaysRenderHeader: ReadonlyArray<number> = [0];
 const gridRowHeight: Spacing = "8"; // 2rem = 32px at desktop scale
@@ -428,6 +436,7 @@ function DatabaseGridViewHeaderCell({
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
+    const isAdding = field.columnName === "__pending__";
 
     useEffect(() => {
         if (editing != null) {
@@ -447,29 +456,41 @@ function DatabaseGridViewHeaderCell({
             onDoubleClick={() => onStartEditingField(field.id)}
         >
             {editing ? (
-                <input
-                    ref={inputRef}
-                    value={field.name}
-                    maxLength={maxLabelStringLength}
-                    onChange={e => editing.updateName(e.currentTarget.value)}
-                    onBlur={() => editing.commit()}
-                    onKeyDown={e => {
-                        if (e.key === "Enter") {
-                            e.preventDefault();
-                            editing.commit();
-                        } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            editing.cancel();
-                        }
-                        e.stopPropagation();
-                    }}
-                    className={sprinkles({
-                        width: "full",
-                        padding: "2",
-                        fontSize: "75",
-                        color: "grey-80",
-                    })}
-                />
+                <Overlay
+                    isVisible={isAdding}
+                    placement="bottom-start"
+                    fallbackPlacements={["bottom-end"]}
+                    preventOverflow={false}
+                    overlay={
+                        <DatabaseGridViewFieldTypePicker
+                            onSelect={type => editing.commitWithType(type)}
+                        />
+                    }
+                >
+                    <input
+                        ref={inputRef}
+                        value={field.name}
+                        maxLength={maxLabelStringLength}
+                        onChange={e => editing.updateName(e.currentTarget.value)}
+                        onBlur={() => editing.commit()}
+                        onKeyDown={e => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                editing.commit();
+                            } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                editing.cancel();
+                            }
+                            e.stopPropagation();
+                        }}
+                        className={sprinkles({
+                            width: "full",
+                            padding: "2",
+                            fontSize: "75",
+                            color: "grey-80",
+                        })}
+                    />
+                </Overlay>
             ) : (
                 <Box
                     color="grey-80"
@@ -486,6 +507,65 @@ function DatabaseGridViewHeaderCell({
                 startResizingField={startResizingField}
                 isResizingThisField={isResizingThisField}
             />
+        </Box>
+    );
+}
+
+// -- Field type picker --------------------------------------------------------
+
+function DatabaseGridViewFieldTypePicker({
+    ref,
+    onSelect,
+}: {
+    ref?: React.Ref<HTMLElement>;
+    onSelect: (type: DatabaseFieldType) => void;
+}) {
+    return (
+        <Box
+            ref={ref as React.Ref<HTMLDivElement>}
+            backgroundColor="grey-0"
+            borderRadius="1.5"
+            boxShadow="elevation-20"
+            padding="1"
+            style={{minWidth: 120}}
+        >
+            {databaseFieldComponentProviders.map(provider => (
+                <DatabaseGridViewFieldTypePickerOption
+                    key={provider.type}
+                    type={provider.type}
+                    label={provider.label}
+                    onSelect={onSelect}
+                />
+            ))}
+        </Box>
+    );
+}
+
+function DatabaseGridViewFieldTypePickerOption({
+    type,
+    label,
+    onSelect,
+}: {
+    type: DatabaseFieldType;
+    label: string;
+    onSelect: (type: DatabaseFieldType) => void;
+}) {
+    const {hoverProps, isHovered} = useHover({});
+    return (
+        <Box
+            {...hoverProps}
+            padding="1.5"
+            borderRadius="1"
+            fontSize="75"
+            color="grey-100"
+            cursor="pointer"
+            backgroundColor={isHovered ? "grey-5" : undefined}
+            onMouseDown={e => {
+                e.preventDefault();
+                onSelect(type);
+            }}
+        >
+            {label}
         </Box>
     );
 }
@@ -638,55 +718,52 @@ function DatabaseGridViewCell({
     moveSelection: (deltaRow: number, deltaField: number) => void;
 }) {
     const conn = useDatabaseConnection();
+    const provider = getDatabaseFieldComponentProvider(field.config.type);
+    const EditorOverlay = provider.GridViewCellEditorOverlay;
     const cellRef = useRef<HTMLDivElement>(null);
-    const [committedValue, setCommittedValue] = useOptimistic(value == null ? "" : String(value));
+    const [optimisticValue, setOptimisticValue] = useOptimistic(value);
 
-    // Focus the cell element when it becomes selected
-    // (but not editing, since the editor manages its
-    // own focus).
     useEffect(() => {
         if (isSelected && !isEditing) {
             cellRef.current?.focus();
         }
     }, [isSelected, isEditing]);
 
-    const commitValue = useEvent((newValue: string) => {
-        if (newValue === committedValue) return;
+    const commitValue = useEvent((newValue: unknown) => {
+        if (newValue === optimisticValue) return;
         startTransition(async () => {
-            setCommittedValue(newValue);
+            setOptimisticValue(newValue);
             await conn.executeAction("updateCellValue", {
                 fieldId: field.id,
                 rowId,
-                value: newValue,
+                value: newValue as SchemaSerializedValue,
             });
         });
     });
 
     const shouldShowBorder = isSelected && !isEditing;
 
+    const editorOverlay = EditorOverlay ? (
+        <EditorOverlay
+            initialValue={initialEditValue ?? String(optimisticValue ?? "")}
+            commitValue={commitValue}
+            onClose={() => dispatch({type: "blur"})}
+            moveSelection={moveSelection}
+        />
+    ) : (
+        <></>
+    );
+
     return (
         <Overlay
-            isVisible={isEditing}
+            isVisible={isEditing && EditorOverlay != null}
             placement="cover-top"
             fallbackPlacements={[]}
             preventOverflow={false}
             sameWidth
-            overlay={
-                <DatabaseGridViewCellEditor
-                    initialValue={initialEditValue ?? committedValue}
-                    commitValue={commitValue}
-                    dispatch={dispatch}
-                    moveSelection={moveSelection}
-                />
-            }
+            overlay={editorOverlay}
         >
             <Box
-                ref={cellRef}
-                tabIndex={0}
-                fontSize="75"
-                fontStyle="truncate"
-                padding="2"
-                color="grey-100"
                 border={shouldShowBorder ? "theme-40-const" : "transparent"}
                 style={{
                     ...field.columnStyle,
@@ -695,72 +772,14 @@ function DatabaseGridViewCell({
                     ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
                 onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
-                onClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
             >
-                {committedValue}
+                <provider.GridViewCellContent
+                    ref={cellRef}
+                    value={optimisticValue as DatabaseCellValue}
+                    commitValue={commitValue}
+                    onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
+                />
             </Box>
         </Overlay>
-    );
-}
-
-function DatabaseGridViewCellEditor({
-    ref,
-    initialValue,
-    commitValue,
-    dispatch,
-    moveSelection,
-}: {
-    ref?: React.Ref<HTMLElement>;
-    initialValue: string;
-    commitValue: (value: string) => void;
-    dispatch: Dispatch<SelectionAction>;
-    moveSelection: (deltaRow: number, deltaField: number) => void;
-}) {
-    const [editValue, setEditValue] = useState(initialValue);
-    const localRef = useRef<HTMLTextAreaElement>(null);
-
-    useEffect(() => {
-        const textarea = localRef.current;
-        if (textarea) {
-            textarea.focus();
-            textarea.selectionStart = textarea.value.length;
-            textarea.selectionEnd = textarea.value.length;
-        }
-    }, []);
-
-    return (
-        <Box
-            ref={ref as React.Ref<HTMLDivElement>}
-            border="theme-40-const"
-            backgroundColor="grey-0"
-        >
-            <TextAreaWithAutoGrowingHeight
-                ref={localRef}
-                value={editValue}
-                onChange={e => setEditValue(e.currentTarget.value)}
-                className={sprinkles({
-                    width: "full",
-                    padding: "2",
-                    fontSize: "75",
-                    color: "grey-100",
-                })}
-                onBlur={() => {
-                    commitValue(editValue);
-                    dispatch({type: "blur"});
-                }}
-                onKeyDown={e => {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        commitValue((e.currentTarget as HTMLTextAreaElement).value);
-                        moveSelection(1, 0);
-                    } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        commitValue((e.currentTarget as HTMLTextAreaElement).value);
-                        dispatch({type: "blur"});
-                    }
-                    e.stopPropagation();
-                }}
-            />
-        </Box>
     );
 }

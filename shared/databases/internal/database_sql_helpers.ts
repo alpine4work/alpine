@@ -1,7 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
-import type {DatabaseFieldType} from "~/shared/databases/database_field_type.js";
-import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -37,77 +33,5 @@ export function formatUniqueSqlName(name: string, existing: ReadonlySet<string>)
     for (let i = 2; ; i++) {
         const candidate = `${slug}_${i}`;
         if (!existing.has(candidate)) return candidate;
-    }
-}
-
-/**
- * Map a {@link DatabaseFieldType} type name to a SQLite
- * column type affinity.
- */
-export function alpineFieldTypeToSqliteType(type: DatabaseFieldType["type"]): string {
-    switch (type) {
-        case "plainText":
-            return "TEXT";
-        case "number":
-            return "REAL";
-        case "boolean":
-            return "INTEGER";
-        default:
-            assert(false, `unknown Alpine field type: ${type}`);
-    }
-}
-
-/**
- * Generate a CHECK constraint for a column based on its
- * SQLite type affinity and nullability.
- */
-export function checkConstraintForColumn(
-    columnName: string,
-    sqliteType: string,
-    notNull: boolean,
-): SqlQuery {
-    const col = sql.identifier(columnName);
-    switch (sqliteType) {
-        case "TEXT":
-            return notNull
-                ? sql`
-                      CHECK (
-                          TYPEOF(${col}) = 'text'
-                      )
-                  `
-                : sql`
-                      CHECK (
-                          TYPEOF(${col}) = 'text'
-                          OR ${col} IS NULL
-                      )
-                  `;
-        case "REAL":
-            return notNull
-                ? sql`
-                      CHECK (
-                          TYPEOF(${col}) IN ('real', 'integer')
-                      )
-                  `
-                : sql`
-                      CHECK (
-                          TYPEOF(${col}) IN ('real', 'integer')
-                          OR ${col} IS NULL
-                      )
-                  `;
-        case "INTEGER":
-            return notNull
-                ? sql`
-                      CHECK (
-                          TYPEOF(${col}) = 'integer'
-                      )
-                  `
-                : sql`
-                      CHECK (
-                          TYPEOF(${col}) = 'integer'
-                          OR ${col} IS NULL
-                      )
-                  `;
-        default:
-            assert(false, `unsupported SQLite type: ${sqliteType}`);
     }
 }

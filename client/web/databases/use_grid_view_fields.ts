@@ -4,6 +4,10 @@ import {startTransition, useMemo, useOptimistic, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import type {
+    DatabaseFieldConfig,
+    DatabaseFieldType,
+} from "~/shared/databases/fields/database_field_providers.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
@@ -12,12 +16,14 @@ export type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;
     readonly name: string;
     readonly columnName: string;
+    readonly config: DatabaseFieldConfig;
     readonly width: number;
 };
 
 export type DatabaseGridViewFieldEditing = {
     readonly updateName: (value: string) => void;
     readonly commit: () => void;
+    readonly commitWithType: (type: DatabaseFieldType) => void;
     readonly cancel: () => void;
 };
 
@@ -40,7 +46,12 @@ type ResizingState = {
 } | null;
 
 type EditingState =
-    | {readonly type: "adding"; readonly id: DatabaseFieldId; readonly value: string}
+    | {
+          readonly type: "adding";
+          readonly id: DatabaseFieldId;
+          readonly value: string;
+          readonly fieldType: DatabaseFieldType;
+      }
     | {readonly type: "renaming"; readonly fieldId: DatabaseFieldId; readonly value: string}
     | null;
 
@@ -112,16 +123,24 @@ export function useGridViewFields({
             }
             case "adding": {
                 const addingId = editingState.id;
+                const addingFieldType = editingState.fieldType;
                 startTransition(async () => {
                     applyOptimisticField({
                         type: "create",
-                        field: {id: addingId, name: trimmed, columnName: "__pending__", width: 200},
+                        field: {
+                            id: addingId,
+                            name: trimmed,
+                            columnName: "__pending__",
+                            config: {type: addingFieldType},
+                            width: 200,
+                        },
                     });
                     await conn.executeAction("createField", {
                         fieldId: addingId,
                         tableId,
                         viewId,
                         name: trimmed,
+                        type: addingFieldType,
                     });
                 });
                 break;
@@ -134,11 +153,42 @@ export function useGridViewFields({
         setEditingState({...editingState, value});
     });
 
+    const commitWithType = useEvent((fieldType: DatabaseFieldType) => {
+        if (editingState == null || editingState.type !== "adding") return;
+        const trimmed = editingState.value.trim();
+        if (trimmed === "") {
+            setEditingState(null);
+            return;
+        }
+        const addingId = editingState.id;
+        setEditingState(null);
+        startTransition(async () => {
+            applyOptimisticField({
+                type: "create",
+                field: {
+                    id: addingId,
+                    name: trimmed,
+                    columnName: "__pending__",
+                    config: {type: fieldType},
+                    width: 200,
+                },
+            });
+            await conn.executeAction("createField", {
+                fieldId: addingId,
+                tableId,
+                viewId,
+                name: trimmed,
+                type: fieldType,
+            });
+        });
+    });
+
     const cancelEditing = useEvent(() => setEditingState(null));
 
     const editing: DatabaseGridViewFieldEditing = useEvents({
         updateName: updateEditingName,
         commit: commitEditing,
+        commitWithType,
         cancel: cancelEditing,
     });
 
@@ -195,6 +245,7 @@ export function useGridViewFields({
                         id: editingState.id,
                         name: editingState.value,
                         columnName: "__pending__",
+                        config: {type: editingState.fieldType},
                         width: 200,
                         columnStyle: {
                             width: widthRem,
@@ -222,6 +273,7 @@ export function useGridViewFields({
             type: "adding",
             id: generateChronologicalId<DatabaseFieldId>(),
             value: "",
+            fieldType: "plainText",
         });
     });
 

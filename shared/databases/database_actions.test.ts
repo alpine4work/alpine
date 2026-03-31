@@ -3,7 +3,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseActions} from "~/shared/databases/database_actions.js";
-import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {sql} from "~/shared/databases/sql.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -48,7 +48,7 @@ describe("createTable", () => {
                 table_id: tableId,
                 name: "Name",
                 column_name: "name",
-                type: serializeDatabaseFieldType({type: "plainText"}),
+                type: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
             },
         ]);
         db.close();
