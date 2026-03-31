@@ -146,7 +146,7 @@ export function registerSqliteTableFunction(
                     // wasm32).
                     const pVtab = wasm.peekPtr(pCursor) as WasmPointer;
                     const msg = error instanceof Error ? error.message : String(error);
-                    wasm.pokePtr((pVtab + 8) as WasmPointer, wasm.allocCString(msg));
+                    wasm.pokePtr((pVtab + 8) as WasmPointer, wasm.allocCString(msg, false));
                     return capi.SQLITE_ERROR;
                 }
             },

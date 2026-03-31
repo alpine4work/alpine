@@ -1,6 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import type {DatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import type {DatabaseFieldConfig} from "~/shared/databases/database_field_config.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -41,10 +41,10 @@ export function formatUniqueSqlName(name: string, existing: ReadonlySet<string>)
 }
 
 /**
- * Map a {@link DatabaseFieldType} type name to a SQLite
+ * Map a {@link DatabaseFieldConfig} type name to a SQLite
  * column type affinity.
  */
-export function alpineFieldTypeToSqliteType(type: DatabaseFieldType["type"]): string {
+export function alpineFieldTypeToSqliteType(type: DatabaseFieldConfig["type"]): string {
     switch (type) {
         case "plainText":
             return "TEXT";

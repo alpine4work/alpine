@@ -1,7 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import {serializeDatabaseFieldConfig} from "~/shared/databases/database_field_config.js";
 import {
     alpineFieldTypeToSqliteType,
     checkConstraintForColumn,
@@ -169,27 +169,27 @@ function createField(
     );
     const columnName = formatUniqueSqlName(name, existingColumnNames);
 
-    const maxPos = sql`
+    const maxPosition = sql`
         SELECT
             MAX(position)
         FROM
             _alpine_view_fields
         WHERE
             view_id = ${viewId}
-    `.selectValue(db, Schema.integer.nullable());
+    `.selectValue(db, Schema.string.nullable());
 
-    const fieldType = serializeDatabaseFieldType({type: "plainText"});
+    const fieldConfig = serializeDatabaseFieldConfig({type: "plainText"});
 
     sql`
         INSERT INTO
-            _alpine_fields (id, table_id, name, column_name, type)
+            _alpine_fields (id, table_id, name, column_name, config)
         VALUES
             (
                 ${fieldId},
                 ${tableId},
                 ${name},
                 ${columnName},
-                ${fieldType}
+                ${fieldConfig}
             )
     `.exec(db);
 
@@ -200,7 +200,7 @@ function createField(
             (
                 ${viewId},
                 ${fieldId},
-                ${(maxPos ?? -1) + 1},
+                generate_order_key (${maxPosition}, NULL),
                 ${200}
             )
     `.exec(db);

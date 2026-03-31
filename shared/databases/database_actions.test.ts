@@ -3,7 +3,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseActions} from "~/shared/databases/database_actions.js";
-import {serializeDatabaseFieldType} from "~/shared/databases/database_field_type.js";
+import {serializeDatabaseFieldConfig} from "~/shared/databases/database_field_config.js";
 import {sql} from "~/shared/databases/sql.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -48,7 +48,7 @@ describe("createTable", () => {
                 table_id: tableId,
                 name: "Name",
                 column_name: "name",
-                type: serializeDatabaseFieldType({type: "plainText"}),
+                config: serializeDatabaseFieldConfig({type: "plainText"}),
             },
         ]);
         db.close();
@@ -245,7 +245,8 @@ describe("createTable", () => {
                 view_id = ${viewId}
         `.selectAllUnknown(db);
 
-        expect(viewFields).toMatchObject([{view_id: viewId, position: 0, width: 200}]);
+        expect(viewFields).toMatchObject([{view_id: viewId, width: 200}]);
+        expect(typeof viewFields[0]!.position).toBe("string");
         db.close();
     });
 
