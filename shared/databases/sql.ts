@@ -146,13 +146,31 @@ class SqlQuery {
      * Column order matches the SELECT list. Use when
      * the caller needs positional access rather than
      * named columns.
+     *
+     * When `schemas` is provided, each column value is
+     * deserialized through the corresponding schema
+     * (stepping through the prepared statement
+     * column-by-column, like {@link selectAll}).
      */
-    selectAllArrays(db: Database): Array<Array<unknown>> {
-        return db.exec(this.query, {
-            returnValue: "resultRows",
-            rowMode: "array",
-            bind: this.bind as Array<BindableValue>,
-        }) as Array<Array<unknown>>;
+    selectAllArrays(
+        db: Database,
+        schemas: ReadonlyArray<Schema<unknown>>,
+    ): Array<Array<unknown>> {
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+            const rows: Array<Array<unknown>> = [];
+            while (stmt.step()) {
+                const row: Array<unknown> = [];
+                for (let i = 0; i < schemas.length; i++) {
+                    row.push(schemas[i]!.deserialize(stmt.get(i) as SchemaSerializedValue));
+                }
+                rows.push(row);
+            }
+            return rows;
+        } finally {
+            stmt.finalize();
+        }
     }
 
     /** Execute without returning results (INSERT/UPDATE/DELETE/DDL). */

@@ -385,10 +385,29 @@ export function useGridViewFields({
         },
     );
 
+    // Total pixel width of all visible columns plus the
+    // header toolbar (add-field + visibility buttons) at
+    // the current spacing scale. Used by the grid view to
+    // enable horizontal scrolling when columns overflow.
+    const contentMinWidth = useMemo(() => {
+        const pxPerRem = remPxBySpacingScale[spacingScale];
+        const scale = pxPerRem / remPxBySpacingScale.small;
+        let total = 0;
+        for (const field of outputFields) {
+            total += field.width * scale;
+        }
+        // Account for the header toolbar: two sm icon
+        // buttons (1.25rem each) + paddingX 0.25rem×2 +
+        // gap 0.125rem = 3.125rem.
+        total += 3.125 * pxPerRem;
+        return total;
+    }, [outputFields, spacingScale]);
+
     return {
         fields: outputFields,
         hiddenFields,
         fieldIndexById,
+        contentMinWidth,
         startAddingField,
         startEditingField,
         startResizingField,

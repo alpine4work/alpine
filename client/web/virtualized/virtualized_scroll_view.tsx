@@ -433,6 +433,7 @@ function VirtualizedScrollView(
         extraChildrenOutsideContentElement,
         extraChildrenContentHeight = 0,
         withRoundedContentHeight = false,
+        contentMinWidth,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -641,6 +642,14 @@ function VirtualizedScrollView(
          * list (e.g. asides in `<PostListView>`).
          */
         withRoundedContentHeight?: boolean;
+
+        /**
+         * Minimum width for the scrollable content area.
+         * When set, enables horizontal scrolling by
+         * switching `overflowX` from `hidden` to `auto`
+         * and sizing the content to at least this width.
+         */
+        contentMinWidth?: number;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1854,7 +1863,7 @@ function VirtualizedScrollView(
                     flexGrow: "1",
                     position: "relative",
                     height: "full",
-                    overflowX: "hidden",
+                    overflowX: contentMinWidth != null ? "auto" : "hidden",
                     overflowY: "auto",
                 })}
                 style={{
@@ -1868,13 +1877,15 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div style={{height: actualContentHeight}} />
+                <div style={{height: actualContentHeight, minWidth: contentMinWidth}} />
                 <div
                     ref={contentRef}
                     style={{
                         position: "absolute",
                         left: 0,
-                        right: 0,
+                        ...(contentMinWidth != null
+                            ? {width: `max(100%, ${contentMinWidth}px)`}
+                            : {right: 0}),
                         top: 0 - (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0),
                         height: actualContentHeight,
                         zIndex: "0", // Make sure we create a new z-index stacking context

@@ -255,6 +255,7 @@ export function DatabaseGridView({
                                                   left: 0,
                                                   right: 0,
                                                   bottom: 0,
+                                                  pointerEvents: "none",
                                               }
                                     }
                                 >
@@ -269,6 +270,7 @@ export function DatabaseGridView({
                                                 ? undefined
                                                 : 0,
                                             zIndex: 2,
+                                            pointerEvents: "auto",
                                         }}
                                     >
                                         <DatabaseGridViewHeaderRow
@@ -368,7 +370,7 @@ export function DatabaseGridView({
         <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
             <Box
                 flexGrow="1"
-                overflow="hidden"
+                overflowY="hidden"
                 onFocus={() => dispatch({type: "focus"})}
                 onBlur={e => {
                     // Only deactivate if focus moved outside
@@ -386,6 +388,7 @@ export function DatabaseGridView({
                     alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
                     scrollbarInsetTopItemIndex={0}
                     scrollbarInsetBottomItemIndex={addRowIndex}
+                    contentMinWidth={gridFields.contentMinWidth}
                 />
             </Box>
         </GlobalKeyDownEvent>

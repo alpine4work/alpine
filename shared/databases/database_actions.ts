@@ -50,12 +50,6 @@ const alpineViewConfig = {
     name: Schema.string,
 };
 
-const alpineFieldConfig = {
-    id: Schema.id<DatabaseFieldId>(),
-    tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
-    columnName: Schema.string.originalPropertyKey("column_name"),
-};
-
 /**
  * Defines a database action with typed input/output
  * schemas, a write level, and a shared `run()` function
@@ -498,7 +492,8 @@ export const databaseActions = {
             const viewFields = sql`
                 SELECT
                     f.id,
-                    f.column_name
+                    f.column_name,
+                    f.config
                 FROM
                     _alpine_view_fields vf
                     JOIN _alpine_fields f ON f.id = vf.field_id
@@ -509,6 +504,7 @@ export const databaseActions = {
             `.selectAll(db, {
                 id: Schema.id<DatabaseFieldId>(),
                 columnName: Schema.string.originalPropertyKey("column_name"),
+                config: DatabaseFieldConfigSqlSchema,
             });
 
             // _id is always at index 0; view fields start at 1.
@@ -522,6 +518,15 @@ export const databaseActions = {
             for (let i = 0; i < viewFields.length; i++) {
                 fieldIndexes.set(viewFields[i]!.id, i + 1);
             }
+
+            // Build a schema tuple matching the SELECT list so
+            // raw SQL values are deserialized through each
+            // field's sqlValueSchema (e.g. INTEGER → boolean
+            // for checkboxes).
+            const columnSchemas: Array<Schema<unknown>> = [
+                Schema.id<DatabaseRowId>(),
+                ...viewFields.map(f => getDatabaseFieldProvider(f.config.type).sqlValueSchema),
+            ];
 
             let whereClause: SqlQuery;
             if (afterCursor != null && endCursor != null) {
@@ -551,7 +556,7 @@ export const databaseActions = {
                     ${sql.identifier(tableName)} ${whereClause}
                 ORDER BY
                     _id
-            `.selectAllArrays(db);
+            `.selectAllArrays(db, columnSchemas);
 
             return {fieldIndexes, rows};
         },
@@ -571,16 +576,18 @@ export const databaseActions = {
                     id,
                     table_id,
                     column_name,
-                    type
+                    config
                 FROM
                     _alpine_fields
                 WHERE
                     id = ${fieldId}
             `.selectOne(db, {
-                ...alpineFieldConfig,
-                type: DatabaseFieldConfigSqlSchema,
+                id: Schema.id<DatabaseFieldId>(),
+                tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+                columnName: Schema.string.originalPropertyKey("column_name"),
+                config: DatabaseFieldConfigSqlSchema,
             });
-            const provider = getDatabaseFieldProvider(field.type.type);
+            const provider = getDatabaseFieldProvider(field.config.type);
             const table = sql`
                 SELECT
                     *
@@ -712,7 +719,11 @@ export const databaseActions = {
                     _alpine_fields
                 WHERE
                     id = ${fieldId}
-            `.selectOne(db, alpineFieldConfig);
+            `.selectOne(db, {
+                id: Schema.id<DatabaseFieldId>(),
+                tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+                columnName: Schema.string.originalPropertyKey("column_name"),
+            });
 
             const table = sql`
                 SELECT
