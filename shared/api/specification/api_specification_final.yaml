@@ -458,6 +458,36 @@ paths:
                     $ref: "#/components/responses/GetDocument"
                 default:
                     $ref: "#/components/responses/Error"
+        put:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - document
+                            additionalProperties: false
+                            properties:
+                                document:
+                                    type: object
+                                    required:
+                                        - version
+                                        - title
+                                        - content
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        title:
+                                            type: string
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetDocument"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/mention:
         parameters:
             - name: id
@@ -2369,6 +2399,7 @@ components:
             type: object
             required:
                 - id
+                - version
                 - title
                 - content
             additionalProperties: false
@@ -2383,6 +2414,9 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
+                version:
+                    type: integer
+                    minimum: 0
                 title:
                     type: string
                 content:
@@ -3742,6 +3776,7 @@ components:
             type: object
             required:
                 - id
+                - version
                 - title
                 - content
             additionalProperties: false
@@ -3756,6 +3791,9 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
+                version:
+                    type: integer
+                    minimum: 0
                 title:
                     type: string
                 content:

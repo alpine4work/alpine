@@ -48,7 +48,8 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
-    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
+    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
+    | {type: "UpdateContent"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -252,6 +253,10 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        if (url.pathname === "/update-content") {
+            return ["/update-content", {type: "UpdateContent"}];
+        }
+
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
@@ -387,6 +392,36 @@ class DocumentCollaborationDurableObject {
                 }
 
                 return new Response();
+            }
+            case "UpdateContent": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const accountContext = context.actor.authorizeAccount();
+
+                const requestBody =
+                    DocumentCollaborationProtocol.procedureSchemas.updateContent.inputSchema.deserialize(
+                        await request.json(),
+                    );
+
+                const {newVersion} = await this._contentManager.update(
+                    accountContext,
+                    null,
+                    requestBody,
+                );
+
+                return new Response(
+                    JSON.stringify(
+                        DocumentCollaborationProtocol.procedureSchemas.updateContent.outputSchema.serialize(
+                            {newVersion},
+                        ),
+                    ),
+                    {status: 200},
+                );
             }
             default:
                 throw exhaustive(route);

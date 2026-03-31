@@ -55,6 +55,7 @@ ts_project(
         "//server/tokens",
         "//shared/access/model",
         "//shared/context",
+        "//shared/documents",
         "//shared/error",
         "//shared/files",
         "//shared/helpers",

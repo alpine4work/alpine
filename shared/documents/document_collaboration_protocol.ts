@@ -118,7 +118,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                     state: DocumentCollaborationPresenceStateSchema.nullable(),
                 }),
             },
-            output: {},
+            output: {newVersion: Schema.integer},
         },
 
         updateOurPresenceState: {

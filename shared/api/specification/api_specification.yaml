@@ -433,6 +433,30 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetDocument"}
+        put:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [document]
+                            additionalProperties: false
+                            properties:
+                                document:
+                                    type: object
+                                    required: [version, title, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        title:
+                                            type: string
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetDocument"}
 
     /documents/{id}/mention:
         parameters:
@@ -2243,7 +2267,7 @@ components:
 
         Document:
             type: object
-            required: [id, title, content]
+            required: [id, version, title, content]
             additionalProperties: false
             properties:
                 id:
@@ -2255,6 +2279,9 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
+                version:
+                    type: integer
+                    minimum: 0
                 title:
                     type: string
                 content:

@@ -2737,7 +2737,7 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
  *   majority of updates we only save the steps.
  */
 export async function updateDocumentContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         id: documentId,
         version: clientVersion,
@@ -3252,14 +3252,14 @@ export async function updateDocumentContent(
             }
 
             // Keep track of how much each account contributed to the document.
-            if (context.actor.getAccountId() !== internalDocument.creator.id) {
+            if (context.actor.getPossiblyBotAccountId() !== internalDocument.creator.id) {
                 const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
 
                 const stepCount =
-                    actualNewStepCountByAccountId.get(context.actor.getAccountId()) ?? 0;
+                    actualNewStepCountByAccountId.get(context.actor.getPossiblyBotAccountId()) ?? 0;
 
                 actualNewStepCountByAccountId.set(
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     stepCount + steps.length,
                 );
 
@@ -3327,7 +3327,7 @@ export async function updateDocumentContent(
                                     type: "SendShareNotification",
                                     jobId: clientRequestToken ?? generateId(),
                                     spaceId: internalDocument.spaceId,
-                                    actorAccountId: context.actor.getAccountId(),
+                                    actorAccountId: context.actor.getPossiblyBotAccountId(),
                                     entityId: `Document:${documentId}`,
                                     notification: intentionallyUpdateAccessPolicy.notification,
                                 });
@@ -3359,7 +3359,7 @@ export async function updateDocumentContent(
                                     type: "Document",
                                     documentId,
                                     sharedTime: currentTime,
-                                    sharerId: context.actor.getAccountId(),
+                                    sharerId: context.actor.getPossiblyBotAccountId(),
                                     creator: internalDocument.creator,
                                     event: "SharedWithAccessPolicyDefaultGrant",
                                 };
@@ -3445,7 +3445,9 @@ export async function updateDocumentContent(
                     fallbackContentSnippet: null,
                     commentsSummary: {
                         nextCommentIndex: 1,
-                        commentCountByAuthorId: new Map([[context.actor.getAccountId(), 1]]),
+                        commentCountByAuthorId: new Map([
+                            [context.actor.getPossiblyBotAccountId(), 1],
+                        ]),
                         mentionCountByAccountId: getMentionCountByAccountIdInContent(
                             createCommentThread.initialCommentContent,
                         ),
@@ -3468,7 +3470,7 @@ export async function updateDocumentContent(
                         documentId: documentId,
                         commentThreadId: createCommentThread.commentThreadId,
                         commentIndex: 0,
-                        authorId: context.actor.getAccountId(),
+                        authorId: context.actor.getPossiblyBotAccountId(),
                         createdTime,
                         createdTimeZone: createCommentThread.createdTimeZone,
                         payload: {
@@ -3501,7 +3503,7 @@ export async function updateDocumentContent(
                                     commentIndex: 0,
                                     createdTime,
                                     createdTimeZone: createCommentThread.createdTimeZone,
-                                    authorId: context.actor.getAccountId(),
+                                    authorId: context.actor.getPossiblyBotAccountId(),
                                     mentionedAccountIds,
                                     parent: null,
                                     isContentSnippetComplete:
@@ -3738,17 +3740,14 @@ export async function updateDocumentContent(
  * multiple times with the same input then you'll get the same response.
  */
 export async function updateDocumentContentIdempotently(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     options: Parameters<typeof updateDocumentContent>[1] & {clientRequestToken: string},
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
 }> {
     try {
-        const {newVersion, updatedCommentThreads} = await updateDocumentContent(
-            context.actor.authorizeSession(),
-            options,
-        );
+        const {newVersion, updatedCommentThreads} = await updateDocumentContent(context, options);
 
         return {newVersion, updatedCommentThreads};
     } catch (error) {

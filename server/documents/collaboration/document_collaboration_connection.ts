@@ -396,11 +396,8 @@ export class DocumentCollaborationConnection {
             //
             // The client mostly sends messages in sequence anyway.
             return this._state.withLock(async stateRef => {
-                const {presenceState, hasSentPresenceState} = await this._contentManager.update(
-                    context,
-                    this.connectionId,
-                    input,
-                );
+                const {presenceState, hasSentPresenceState, newVersion} =
+                    await this._contentManager.update(context, this.connectionId, input);
 
                 if (!hasSentPresenceState) {
                     this._sendEventToOthers(context, {
@@ -411,7 +408,7 @@ export class DocumentCollaborationConnection {
                 }
 
                 stateRef.current.presenceState = presenceState;
-                return {};
+                return {newVersion};
             });
         },
 

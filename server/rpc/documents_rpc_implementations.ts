@@ -84,7 +84,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {spaceId, version, content} =
                 await getDocumentContentForCollaborationServiceInitialization(
-                    context.actor.authorizeSession(),
+                    context,
                     input.documentId,
                 );
             return {spaceId, version, content};
@@ -117,8 +117,13 @@ export default implementRpcs(definitions, {
     updateDocumentContent: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input, {callId}) => {
+            // We allow bot actors to call this RPC since they may call it indirectly via the
+            // DocumentCollaborationService's Durable Object. Bot actors should never call this
+            // RPC directly, instead they should always use DocumentCollaborationService.
+            const accountContext = context.actor.authorizeAccount();
+
             const {newVersion, updatedCommentThreads} = await updateDocumentContentIdempotently(
-                context.actor.authorizeSession(),
+                accountContext,
                 {
                     id: input.documentId,
                     version: input.version,

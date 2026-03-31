@@ -204,6 +204,10 @@ export class TestDocument {
         return content.toString();
     }
 
+    public async getVersion() {
+        return await this._state.withLock(async stateRef => stateRef.current.lastVersion);
+    }
+
     public readonly access = new TestAccessPolicy({
         get: async () => {
             const document = await getDocumentPreview(this.space.systemAction(), this.id);

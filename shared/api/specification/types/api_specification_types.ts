@@ -686,7 +686,31 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly put?: never;
+            readonly put: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly document: {
+                                readonly version: number;
+                                readonly title: string;
+                                readonly content: components["schemas"]["Content"];
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetDocument"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly post?: never;
             readonly delete?: never;
             readonly options?: never;
@@ -2419,6 +2443,7 @@ export namespace ApiSpecification {
                 readonly creator?: {
                     readonly id: components["schemas"]["AccountId"];
                 };
+                readonly version: number;
                 readonly title: string;
                 readonly content: components["schemas"]["Content"];
             };
@@ -3079,6 +3104,7 @@ export namespace ApiSpecification {
                 readonly creator?: {
                     readonly id: components["schemas"]["AccountId"];
                 };
+                readonly version: number;
                 readonly title: string;
                 readonly content: components["schemas"]["Content_Response"];
             };

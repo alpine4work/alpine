@@ -2,6 +2,7 @@ import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_pr
 import {
     ActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -86,4 +87,16 @@ export type WorkerBotActionContext = Context<WorkerBotActionContextModules>;
 
 export type WorkerBotActionContextModules = WorkerActionContextModulesBase & {
     actor: BotActorContextModule;
+};
+
+/**
+ * Context for actions by an account.
+ */
+export type WorkerAccountActionContext = Context<WorkerAccountActionContextModules>;
+
+export type WorkerAccountActionContextModules = WorkerActionContextModulesBase & {
+    actor:
+        | SessionActorContextModule
+        | BotActorContextModule
+        | ImpersonatedAccountActorContextModule;
 };

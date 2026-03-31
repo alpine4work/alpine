@@ -395,7 +395,12 @@ export class ApiClientMock implements ApiClient {
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
-        responseData: Partial<{creatorId: AccountId; title: string; content: ApiContentResponse}>,
+        responseData: Partial<{
+            creatorId: AccountId;
+            title: string;
+            content: ApiContentResponse;
+            version: number;
+        }>,
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();
@@ -413,6 +418,7 @@ export class ApiClientMock implements ApiClient {
                         id: documentId,
                         title: responseData.title ?? "Test Document",
                         content: responseData.content ?? defaultContent,
+                        version: responseData.version ?? 1,
                     },
                     spaceId,
                 },

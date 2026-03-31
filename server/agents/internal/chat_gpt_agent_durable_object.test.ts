@@ -1148,6 +1148,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 document: {
                     id: documentId,
                     title: "AI Overview",
+                    version: 1,
                     content: {
                         elements: [
                             {

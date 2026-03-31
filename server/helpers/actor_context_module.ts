@@ -82,6 +82,15 @@ interface ActorContextModuleBase extends ContextModuleBase {
     authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>>;
+
+    /**
+     * Throws a `PermissionDeniedError` error if we are not a session, impersonated, or
+     * bot actor. Otherwise returns a context with the correct type for the `actor`
+     * module.
+     */
+    authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>>;
 }
 
 /**
@@ -221,6 +230,12 @@ export class SessionActorContextModule
         throw new PermissionDeniedError("Session actor is not a system actor");
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
+    }
+
     /**
      * Get the `SessionId` we authenticated with.
      */
@@ -325,6 +340,12 @@ export class SystemActorContextModule
         return (this as any)._context;
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        throw new PermissionDeniedError("System actor is not an account actor");
+    }
+
     public getSpaceId(): SpaceId {
         return this._spaceId;
     }
@@ -395,6 +416,12 @@ export class AnonymousActorContextModule
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>> {
         throw new PermissionDeniedError("Anonymous actor is not a system actor");
+    }
+
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        throw new PermissionDeniedError("Anonymous actor is not an account actor");
     }
 
     public fork() {
@@ -476,6 +503,12 @@ export class ImpersonatedAccountActorContextModule
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>> {
         throw new PermissionDeniedError("Impersonated account actor is not a system actor");
+    }
+
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
     }
 
     public getSpaceId() {
@@ -592,6 +625,12 @@ export class BotActorContextModule
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>> {
         throw new PermissionDeniedError("Bot actor is not a system actor");
+    }
+
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
     }
 
     public getSpaceId(): SpaceId {

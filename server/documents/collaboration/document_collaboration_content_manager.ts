@@ -1,7 +1,7 @@
 import {Step} from "prosemirror-transform";
 import {
+    WorkerAccountActionContext,
     WorkerActionContext,
-    WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationEventStub} from "~/server/documents/collaboration/document_collaboration_connection.js";
@@ -267,7 +267,7 @@ export class DocumentCollaborationContentManager {
      * updating so writes from two concurrent writers will be serialized.
      */
     public async update(
-        context: WorkerSessionActionContext,
+        context: WorkerAccountActionContext,
         connectionId: WebSocketConnectionId | null,
         update: {
             version: number;
@@ -290,6 +290,7 @@ export class DocumentCollaborationContentManager {
     ): Promise<{
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
+        newVersion: number;
     }> {
         const {oldVersion, steps, presenceState} = await this._state.withLock(async stateRef => {
             await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
@@ -398,7 +399,7 @@ export class DocumentCollaborationContentManager {
                     createdTime: commentThreadCreatedTime,
                     createdTimeZone: createCommentThread.createdTimeZone,
                     initialComment: {
-                        authorId: context.actor.getAccountId(),
+                        authorId: context.actor.getPossiblyBotAccountId(),
                         content: createCommentThread.initialCommentContent,
                         fileIds: createCommentThread.initialCommentFileIds,
                     },
@@ -607,7 +608,8 @@ export class DocumentCollaborationContentManager {
             };
         });
 
-        if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
+        if (steps.length === 0)
+            return {presenceState, hasSentPresenceState: false, newVersion: oldVersion};
 
         let cleanupInvalidStepCommentThreadsPromise: Promise<void> | null = null;
 
@@ -713,12 +715,14 @@ export class DocumentCollaborationContentManager {
             return cleanupInvalidStepCommentThreadsPromise;
         };
 
+        const newVersion = oldVersion + steps.length;
+
         // You may receive these events in any order because the timing of loading content
         // references in `transformEvent()` will vary. The client must take care to apply
         // events in the correct order.
         await this._sendEventToAllAndWait(context, {
             type: "UpdateContentWithoutPersistence",
-            newVersion: oldVersion + steps.length,
+            newVersion,
             steps,
             clientId: update.clientId,
             updateOtherPresenceState: connectionId ? {connectionId, state: presenceState} : null,
@@ -732,7 +736,7 @@ export class DocumentCollaborationContentManager {
             cleanupInvalidStepCommentThreads,
         });
 
-        return {presenceState, hasSentPresenceState: true};
+        return {presenceState, hasSentPresenceState: true, newVersion};
     }
 
     /**

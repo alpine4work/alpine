@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/fast-check",
         "//:node_modules/gpt-tokenizer",
         "//shared/tracer/dev",
+        "//shared/api/markdown/test_helpers",
     ],
     visibility = ["//visibility:public"],
     # IMPORTANT: We try to keep the first-party dependency list for this markdown

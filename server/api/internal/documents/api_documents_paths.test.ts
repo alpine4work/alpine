@@ -1,5 +1,6 @@
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {TestLocalEdgeServiceContextModule} from "~/admin/environment/test/unit/test_local_edge_service_context_module.js";
 import {apiDocumentsPaths} from "~/server/api/internal/documents/api_documents_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
@@ -19,6 +20,18 @@ const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
+}).cloneWithHelpers({
+    edge: new TestLocalEdgeServiceContextModule({
+        // We don't need to broadcast anything in these tests.
+        pushDurableObjectBroadcast: () => {},
+        // Swap out the actual durable object request with a mock that returns a known
+        // version number.
+        pushDurableObjectRequest: () => {
+            return {
+                newVersion: 1,
+            };
+        },
+    }),
 });
 
 const server = createTestApiServer(context, apiDocumentsPaths);
@@ -849,6 +862,195 @@ describe("comment threads", () => {
                     },
                 }),
             },
+        });
+    });
+});
+
+describe("PUT /documents/{id}", () => {
+    test("no-op PUT returns the unchanged document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "No-op Test",
+            body: "Stable content.",
+            access: "Public",
+        });
+
+        const response = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "No-op Test",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Stable content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                document: expect.objectContaining({
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: [
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Stable content.",
+                                    }),
+                                ],
+                            }),
+                        ]),
+                    }),
+                }),
+            },
+        });
+    });
+
+    test("PUT returns the updated document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Updated Test",
+            body: "Original content.",
+            access: "Public",
+        });
+
+        const response = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Updated Test",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: [
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Updated content.",
+                                    }),
+                                ],
+                            }),
+                        ]),
+                    }),
+                }),
+            },
+        });
+    });
+
+    test("PUT updates the document title via ProseMirror steps", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Original API Title",
+            body: "Body stays the same.",
+            access: "Public",
+        });
+
+        const response = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Renamed Via API",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Body stays the same."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    title: "Renamed Via API",
+                }),
+            },
+        });
+    });
+
+    test("returns 400 when version is stale", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Stale Version Test",
+            body: "Some content.",
+            access: "Public",
+        });
+
+        const response = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Stale Version Test",
+                    version: (await document.getVersion()) + 1,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Some content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: expect.objectContaining({
+                error: expect.objectContaining({
+                    message: expect.stringMatching(
+                        "Can’t update a previous document version. Re-fetch the document and try again.",
+                    ),
+                }),
+            }),
         });
     });
 });

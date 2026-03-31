@@ -18,10 +18,20 @@ export class TestLocalEdgeServiceContextModule
         body: SchemaSerializedValue | null | undefined;
     }) => void;
 
+    private readonly _pushDurableObjectRequest: (request: {
+        url: `/api/durable-objects/${string}`;
+        body: SchemaSerializedValue | null | undefined;
+    }) => void;
+
     constructor({
         pushDurableObjectBroadcast,
+        pushDurableObjectRequest,
     }: {
         pushDurableObjectBroadcast: (broadcast: {
+            url: `/api/durable-objects/${string}`;
+            body: SchemaSerializedValue | null | undefined;
+        }) => void;
+        pushDurableObjectRequest: (request: {
             url: `/api/durable-objects/${string}`;
             body: SchemaSerializedValue | null | undefined;
         }) => void;
@@ -32,6 +42,7 @@ export class TestLocalEdgeServiceContextModule
         super();
 
         this._pushDurableObjectBroadcast = pushDurableObjectBroadcast;
+        this._pushDurableObjectRequest = pushDurableObjectRequest;
     }
 
     public async broadcastToDurableObject(
@@ -47,9 +58,23 @@ export class TestLocalEdgeServiceContextModule
         this._pushDurableObjectBroadcast({url, body});
     }
 
+    public async sendRequestToDurableObject(
+        url: `/api/durable-objects/${string}`,
+        {
+            body,
+        }: {
+            serviceName: TokenServiceName;
+            route: `/api/durable-objects/${string}`;
+            body?: SchemaSerializedValue | null;
+        },
+    ): Promise<any> {
+        return this._pushDurableObjectRequest({url, body});
+    }
+
     public fork() {
         return new TestLocalEdgeServiceContextModule({
             pushDurableObjectBroadcast: this._pushDurableObjectBroadcast,
+            pushDurableObjectRequest: this._pushDurableObjectRequest,
         });
     }
 }

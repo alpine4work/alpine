@@ -618,12 +618,19 @@ export function actuallyCreateUnitTestEnvironment(
         readonly body: SchemaSerializedValue | null | undefined;
     }> = [];
 
+    let durableObjectRequests: Array<{
+        readonly url: `/api/durable-objects/${string}`;
+        readonly body: SchemaSerializedValue | null | undefined;
+    }> = [];
+
     testHooks.beforeEach(async () => {
         durableObjectBroadcasts = [];
+        durableObjectRequests = [];
     });
 
     testHooks.afterEach(async () => {
         durableObjectBroadcasts = [];
+        durableObjectRequests = [];
     });
 
     const processContext = Context.new<TestContextModules>({
@@ -638,6 +645,7 @@ export function actuallyCreateUnitTestEnvironment(
         constants: constantsContextModule,
         edge: new TestLocalEdgeServiceContextModule({
             pushDurableObjectBroadcast: broadcast => durableObjectBroadcasts.push(broadcast),
+            pushDurableObjectRequest: request => durableObjectRequests.push(request),
         }),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),

@@ -3,6 +3,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {
     ActorContextModule,
     AnonymousActorContextModule,
+    BotActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -30,7 +31,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * 2. Authorization header authentication. This is what HTTP clients use. They put
  *    a token in an "Authorization" HTTP header. This is how the edge service
  *    family executes RPCs against our app service. You can authenticate as a
- *    session or system actor through an authorization header.
+ *    session, system, or bot actor through an authorization header.
  */
 export async function authenticateActorContextModule(
     context: Context<{
@@ -128,9 +129,11 @@ export async function authenticateActorContextModule(
                 return AnonymousActorContextModule.dangerouslyNew(serviceName);
             }
             case "Bot": {
-                // Bot actors can't render React pages or call RPCs. They must use the API.
-                throw new PermissionDeniedError(
-                    "Can\u2019t access `AppService` as a bot actor, bot actors must use `ApiService`",
+                return BotActorContextModule.dangerouslyNew(
+                    serviceName,
+                    authorizationHeaderPayload.spaceId,
+                    authorizationHeaderPayload.accountId,
+                    authorizationHeaderPayload.scope,
                 );
             }
             default:

@@ -1,4 +1,7 @@
+import type {Node} from "prosemirror-model";
+import type {ReplaceStep} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
+import {createDocumentPutContentReplaceSteps} from "~/server/api/internal/documents/internal/create_document_body_replace_step.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -28,12 +31,17 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {
+    DocumentContent,
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -42,6 +50,19 @@ import {DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+
+function applyReplaceStepsToDocumentContent(
+    content: DocumentContent,
+    steps: ReadonlyArray<ReplaceStep>,
+): DocumentContent {
+    let doc: Node = content;
+    for (const step of steps) {
+        const result = step.apply(doc);
+        assert(result.failed === null && result.doc !== null, result.failed ?? "Missing doc");
+        doc = result.doc;
+    }
+    return assertDocumentContent(doc);
+}
 
 export const apiDocumentsPaths: Pick<
     ApiPaths,
@@ -103,6 +124,7 @@ export const apiDocumentsPaths: Pick<
                         creator: {id: document.creator.id},
                         title,
                         content: apiContentResponse,
+                        version: document.version,
                     },
                 },
             };
@@ -122,6 +144,7 @@ export const apiDocumentsPaths: Pick<
                         id: pathParameters.id,
                         title: getDocumentContentTitleWithoutFallback(document.content),
                         creator: document.creator.id ? {id: document.creator.id} : undefined,
+                        version: document.version,
                         content: await intoApiContentWithReferences(
                             context,
                             document.spaceId,
@@ -130,6 +153,116 @@ export const apiDocumentsPaths: Pick<
                                 documentId: pathParameters.id,
                             }),
                             document.content,
+                        ),
+                    },
+                },
+            };
+        },
+
+        put: async (context, {pathParameters, requestBody}) => {
+            const {
+                document: {content: apiContent, version, title},
+            } = requestBody;
+            const documentId = pathParameters.id;
+            const consistency = "StrongWithinCache" as const;
+
+            const existingDocumentContent = await getDocumentContent(context, documentId, {
+                consistency,
+            });
+
+            // TODO (rmtobin, #document-update-api): We should be able to support updating a
+            // stale document version, but we need to update this to read the document at the
+            // old version then perform the diff, then apply the steps to the latest version.
+            if (version != null && version !== existingDocumentContent.version) {
+                throw new InvalidArgumentError("Can\u2019t update a stale document version", {
+                    displayMessage: errorDisplayMessage`Can\u2019t update a previous document version. Re-fetch the document and try again.`,
+                });
+            }
+
+            const newContent = assertDocumentContent(
+                fromApiContent(DocumentContentProsemirrorSchema, apiContent),
+            );
+
+            const steps = createDocumentPutContentReplaceSteps(existingDocumentContent.content, {
+                newTitleText: title,
+                newBodyContent: newContent,
+            });
+
+            // If there are no changes to the document, just return the existing document
+            // content.
+            if (steps.length === 0) {
+                return {
+                    content: {
+                        spaceId: existingDocumentContent.spaceId,
+                        document: {
+                            id: pathParameters.id,
+                            title: getDocumentContentTitleWithoutFallback(
+                                existingDocumentContent.content,
+                            ),
+                            creator: existingDocumentContent.creator.id
+                                ? {id: existingDocumentContent.creator.id}
+                                : undefined,
+                            version: existingDocumentContent.version,
+                            content: await intoApiContentWithReferences(
+                                context,
+                                existingDocumentContent.spaceId,
+                                FileDocumentAuthorizer.bind({
+                                    type: "Document",
+                                    documentId: pathParameters.id,
+                                }),
+                                existingDocumentContent.content,
+                            ),
+                        },
+                    },
+                };
+            }
+
+            const {newVersion} =
+                DocumentCollaborationProtocol.procedureSchemas.updateContent.outputSchema.deserialize(
+                    await context.edge.sendRequestToDurableObject(
+                        `/api/durable-objects/documents/${pathParameters.id}/update-content`,
+                        {
+                            serviceName: "DocumentCollaborationService",
+                            route: "/api/durable-objects/documents/:documentId/update-content",
+                            body: DocumentCollaborationProtocol.procedureSchemas.updateContent.inputSchema.serialize(
+                                {
+                                    version: existingDocumentContent.version,
+                                    steps,
+                                    clientId: generateId(),
+                                    createCommentThreads: [],
+                                    intentionallyUpdateAccessPolicy: null,
+                                    updateOurPresenceState: {
+                                        state: null,
+                                    },
+                                },
+                            ),
+                        },
+                    ),
+                );
+
+            const updatedContent = applyReplaceStepsToDocumentContent(
+                existingDocumentContent.content,
+                steps,
+            );
+
+            return {
+                content: {
+                    spaceId: existingDocumentContent.spaceId,
+                    document: {
+                        id: pathParameters.id,
+                        title: getDocumentContentTitleWithoutFallback(updatedContent),
+                        creator: existingDocumentContent.creator.id
+                            ? {id: existingDocumentContent.creator.id}
+                            : undefined,
+                        version: newVersion,
+                        content: await intoApiContentWithReferences(
+                            context,
+                            existingDocumentContent.spaceId,
+                            FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId: pathParameters.id,
+                            }),
+                            updatedContent,
                         ),
                     },
                 },
