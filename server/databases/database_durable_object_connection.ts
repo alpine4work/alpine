@@ -95,6 +95,13 @@ export class DatabaseDurableObjectConnection {
                     ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
                     : null;
 
+                if (readPages !== null && readPages.size > 0) {
+                    this._browserPageTracker.addPendingPages(
+                        this._browserId,
+                        readPages.keys(),
+                    );
+                }
+
                 return {
                     result: input.returnResult
                         ? ({name: input.action.name, output: result.result} as any)
@@ -155,6 +162,13 @@ export class DatabaseDurableObjectConnection {
                 }
             }
             this._browserPageTracker.setPages(this._browserId, matchingPages);
+
+            if (updatedPages.size > 0) {
+                this._browserPageTracker.addPendingPages(
+                    this._browserId,
+                    updatedPages.keys(),
+                );
+            }
 
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
             return {updatedPages, stalePageIndexes, fileSizeInPages};

@@ -546,7 +546,7 @@ function createTrackedConnection(
 }
 
 describe("per-browser page tracking", () => {
-    test("ensureCacheIsUpToDate sets matching pages in tracker", async () => {
+    test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
             new Map([
@@ -572,8 +572,9 @@ describe("per-browser page tracking", () => {
             ]),
         );
 
-        // Tracker should know browser has pages 0 and 1.
-        // Page 2 was returned as updatedPages, not matching.
+        // Pages 0 and 1 are confirmed (skipped by filterReadPages).
+        // Page 2 was returned as updatedPages → pending
+        // (not skipped by filterReadPages).
         const allPages = new Map([
             [0, {timestamp: 1, data: new Uint8Array(1)}],
             [1, {timestamp: 1, data: new Uint8Array(1)}],
@@ -584,7 +585,42 @@ describe("per-browser page tracking", () => {
         expect(filtered.has(2)).toBe(true);
     });
 
-    test("acknowledgePages adds pages to tracker", async () => {
+    test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Page 0 matches, page 1 is stale
+        await ensureCacheIsUpToDate(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, 999],
+            ]),
+        );
+
+        // Page 1 is pending (sent as updatedPages).
+        // Acknowledge it — should promote to confirmed.
+        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [1]}, null as any);
+
+        // Now page 1 is confirmed (skipped)
+        const allPages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        expect(tracker.filterReadPages(browserId, allPages).size).toBe(0);
+    });
+
+    test("acknowledgePages confirms pages in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -592,6 +628,7 @@ describe("per-browser page tracking", () => {
 
         await conn.procedures.acknowledgePages(null as any, {pageIndexes: [5, 6, 7]}, null as any);
 
+        // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
             [5, {timestamp: 1, data: new Uint8Array(1)}],
             [6, {timestamp: 1, data: new Uint8Array(1)}],
