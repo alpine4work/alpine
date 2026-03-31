@@ -58,3 +58,9 @@ export const cacheUpdateStalePageLimit = 1000;
  * database view with cursor-based pagination.
  */
 export const databaseViewTargetRowsPerPage = 100;
+
+/**
+ * Default pixel width for a new column in a database
+ * grid view, stored in `_alpine_view_fields.width`.
+ */
+export const databaseViewDefaultColumnWidth = 200;

@@ -8,9 +8,13 @@ ts_project(
     ],
     deps = [
         "@sqlite",
+        "//:node_modules/@dnd-kit/core",
+        "//:node_modules/@dnd-kit/sortable",
+        "//:node_modules/@dnd-kit/utilities",
         "//:node_modules/@types/react",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
+        "//:node_modules/react-dom",
         "//admin/external_types:sqlite",
         "//client/web/context",
         "//client/web/design",

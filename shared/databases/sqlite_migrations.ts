@@ -122,6 +122,9 @@ export const sqliteMigrations: ReadonlyArray<SqliteMigration> = [
         db.exec(`DROP TABLE _alpine_view_fields`);
         db.exec(`ALTER TABLE _alpine_view_fields_new RENAME TO _alpine_view_fields`);
     },
+
+    // Migration 3: add hidden column to _alpine_view_fields
+    `ALTER TABLE _alpine_view_fields ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 ];
 
 /**
