@@ -24,6 +24,7 @@ import {
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {
     isSqliteActionAllowed,
@@ -629,15 +630,20 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute SQL locally without server interaction.
-     * Writes go directly to the base OPFS store (not
-     * optimistic pages). Use for test setup only.
+     * Execute a migration locally without server
+     * interaction. Writes go directly to the base OPFS
+     * store (not optimistic pages). Use for test setup
+     * only.
      */
-    executeLocallyForTests(sql: string): void {
+    executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         this.writeLevel = "schema+data";
         try {
-            this.db.exec(sql);
+            if (typeof migration === "function") {
+                migration(this.db);
+            } else {
+                this.db.exec(migration);
+            }
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
