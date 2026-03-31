@@ -16,7 +16,7 @@ let dbCounter = 0;
 async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
-    registerSqliteCustomFunctions(db);
+    registerSqliteCustomFunctions(sqlite3, db);
     runSqliteMigrations(db);
     return db;
 }
