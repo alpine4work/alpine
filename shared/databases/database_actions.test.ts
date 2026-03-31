@@ -5,9 +5,13 @@ import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseActions} from "~/shared/databases/database_actions.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {sql} from "~/shared/databases/sql.js";
+import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
+import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -16,7 +20,7 @@ let dbCounter = 0;
 async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
-    registerSqliteCustomFunctions(db);
+    registerSqliteCustomFunctions(sqlite3, db);
     runSqliteMigrations(db);
     return db;
 }
@@ -48,7 +52,7 @@ describe("createTable", () => {
                 table_id: tableId,
                 name: "Name",
                 column_name: "name",
-                type: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
+                config: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
             },
         ]);
         db.close();
@@ -245,7 +249,10 @@ describe("createTable", () => {
                 view_id = ${viewId}
         `.selectAllUnknown(db);
 
-        expect(viewFields).toMatchObject([{view_id: viewId, position: 0, width: 200}]);
+        expect(viewFields).toMatchObject([
+            {view_id: viewId, width: databaseViewDefaultColumnWidth},
+        ]);
+        expect(typeof viewFields[0]!.position).toBe("string");
         db.close();
     });
 
@@ -291,3 +298,109 @@ describe("createTable", () => {
         db.close();
     });
 });
+
+describe("getViewSchema", () => {
+    test("returns position and hidden in field output", async () => {
+        const db = await createDb();
+        const {viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const result = databaseActions.getViewSchema.run(db, {tableOrViewId: viewId});
+
+        expect(result.fields).toHaveLength(1);
+        expect(typeof result.fields[0]!.position).toBe("string");
+        expect(result.fields[0]!.hidden).toBe(false);
+        db.close();
+    });
+
+    test("hidden field is included with hidden=true", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+
+        const {fieldId: secondFieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
+        databaseActions.updateFieldViewVisibility.run(db, {
+            viewId,
+            fieldId: secondFieldId,
+            position: "a1" as OrderKey,
+            isHidden: true,
+        });
+
+        const result = databaseActions.getViewSchema.run(db, {tableOrViewId: viewId});
+        expect(result.fields).toHaveLength(2);
+
+        const hidden = result.fields.find(f => f.id === secondFieldId)!;
+        expect(hidden.hidden).toBe(true);
+
+        const visible = result.fields.find(f => f.id !== secondFieldId)!;
+        expect(visible.hidden).toBe(false);
+        db.close();
+    });
+});
+
+describe("updateFieldViewVisibility", () => {
+    test("updates position and hidden flag", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
+
+        databaseActions.updateFieldViewVisibility.run(db, {
+            viewId,
+            fieldId,
+            position: "a1" as OrderKey,
+            isHidden: true,
+        });
+
+        const row = sql`
+            SELECT
+                *
+            FROM
+                _alpine_view_fields
+            WHERE
+                view_id = ${viewId}
+                AND field_id = ${fieldId}
+        `.selectAllUnknown(db);
+        expect(row).toMatchObject([{position: "a1", hidden: 1}]);
+        db.close();
+    });
+
+    test("can toggle back to visible", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
+
+        databaseActions.updateFieldViewVisibility.run(db, {
+            viewId,
+            fieldId,
+            position: "a1" as OrderKey,
+            isHidden: true,
+        });
+        databaseActions.updateFieldViewVisibility.run(db, {
+            viewId,
+            fieldId,
+            position: "a2" as OrderKey,
+            isHidden: false,
+        });
+
+        const row = sql`
+            SELECT
+                *
+            FROM
+                _alpine_view_fields
+            WHERE
+                view_id = ${viewId}
+                AND field_id = ${fieldId}
+        `.selectAllUnknown(db);
+        expect(row).toMatchObject([{position: "a2", hidden: 0}]);
+        db.close();
+    });
+});
+
+/** Helper: creates a field via the action and returns its id. */
+function addFieldAndGetId(
+    db: Awaited<ReturnType<typeof createDb>>,
+    tableId: DatabaseTableId,
+    viewId: DatabaseViewId,
+    name: string,
+) {
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    databaseActions.createField.run(db, {fieldId, tableId, viewId, name, type: "plainText"});
+    return {fieldId};
+}

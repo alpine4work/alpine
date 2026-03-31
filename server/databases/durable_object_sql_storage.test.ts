@@ -13,9 +13,11 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
+    DatabaseId,
     DatabaseMutationId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
@@ -324,6 +326,7 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
+        databaseId: generateId<DatabaseId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
         browserPageTracker: new BrowserPageTracker(),
@@ -543,6 +546,7 @@ function createTrackedConnection(
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
+        databaseId: generateId<DatabaseId>(),
         browserId,
         connectionId,
         browserPageTracker: tracker,
@@ -726,6 +730,7 @@ describe("per-browser page tracking", () => {
 
         // Simulate a realtime event touching pages 0, 1, 3
         const eventStub = {
+            type: "PagesChanged" as const,
             pages: [
                 {pageIndex: 0, timestamp: 1, diff: []},
                 {pageIndex: 1, timestamp: 1, diff: []},
@@ -734,7 +739,8 @@ describe("per-browser page tracking", () => {
             mutationId: generateId<DatabaseMutationId>(),
             fileSizeInPages: 4,
         };
-        const event = conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(null as any, eventStub);
+        assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Page 0: confirmed → included
         // Page 1: confirmed → included
@@ -768,6 +774,7 @@ describe("per-browser page tracking", () => {
         );
 
         const eventStub = {
+            type: "PagesChanged" as const,
             pages: [
                 {pageIndex: 0, timestamp: 1, diff: []},
                 {pageIndex: 1, timestamp: 1, diff: []},
@@ -775,13 +782,14 @@ describe("per-browser page tracking", () => {
             mutationId: generateId<DatabaseMutationId>(),
             fileSizeInPages: 2,
         };
-        const event = conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(null as any, eventStub);
+        assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
         expect(event.pages.map(p => p.pageIndex)).toEqual([0, 1]);
     });
 
-    test("transformEvent returns empty pages for untracked client", () => {
+    test("transformEvent returns empty pages for untracked client", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -789,6 +797,7 @@ describe("per-browser page tracking", () => {
 
         // No ensureCacheIsUpToDate — tracker has no pages
         const eventStub = {
+            type: "PagesChanged" as const,
             pages: [
                 {pageIndex: 0, timestamp: 1, diff: []},
                 {pageIndex: 1, timestamp: 1, diff: []},
@@ -796,7 +805,8 @@ describe("per-browser page tracking", () => {
             mutationId: generateId<DatabaseMutationId>(),
             fileSizeInPages: 2,
         };
-        const event = conn.transformEvent(null as any, eventStub);
+        const event = await conn.transformEvent(null as any, eventStub);
+        assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         expect(event.pages).toEqual([]);
     });

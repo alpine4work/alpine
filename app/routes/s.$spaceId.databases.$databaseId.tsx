@@ -1,5 +1,5 @@
 import {Outlet, useParams} from "@remix-run/react";
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
     deserializeDatabaseIdForLoader,
     deserializeSpaceIdForLoader,
@@ -10,31 +10,46 @@ import {DatabaseConnectionContext} from "~/client/web/databases/database_connect
 import {DatabaseTablesContext} from "~/client/web/databases/database_tables_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/web/design/input_with_auto_growing_width.js";
 import {useReporter} from "~/client/web/design/reporter.js";
+import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useBrowserId} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
-import {getDatabase} from "~/server/databases/data/get_database.js";
+import {getDatabaseMetadata} from "~/server/databases/data/get_database_metadata.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {DatabaseModel} from "~/shared/databases/database_model.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import {
+    DynamoGeneralRealtimeQueryResult,
+    createDynamoGeneralRealtimeQuerySchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {updateDatabaseName} from "~/shared/rpc/databases_rpc_definitions.js";
+import {
+    backfillDatabaseMetadata,
+    getDatabaseMetadata as getDatabaseMetadataRpc,
+    updateDatabaseName,
+} from "~/shared/rpc/databases_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const LoaderSchema = Schema.object({
-    databaseName: Schema.string,
+    databaseMetadataResult: createDynamoGeneralRealtimeQuerySchema(DatabaseModel.schema()),
     tables: Schema.map(
         Schema.id<DatabaseTableId>(),
         Schema.object({
@@ -51,14 +66,17 @@ const LoaderSchema = Schema.object({
     ),
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({data}) => [{title: data.databaseName}]);
+export const meta = createMetaFunction(LoaderSchema, ({data}) => {
+    const firstItem = data.databaseMetadataResult.items[0];
+    return [{title: firstItem ? firstItem.model.name : "Database"}];
+});
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     deserializeSpaceIdForLoader(params.spaceId);
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
 
-    const database = await getDatabase(context, databaseId);
+    const databaseMetadataResult = await getDatabaseMetadata(context, databaseId);
 
     const {result, readPages} = await fetchDatabaseAction(context, databaseId, {
         name: "getTables",
@@ -72,26 +90,22 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     }));
 
     return jsonWithSchema(LoaderSchema, {
-        databaseName: database.model.name,
+        databaseMetadataResult,
         tables: result.tables,
         pages,
     });
 }
 
 export default function DatabaseLayoutRoute() {
-    const {
-        databaseName: initialDatabaseName,
-        tables,
-        pages,
-    } = useLoaderDataWithSchema(LoaderSchema);
+    const {databaseMetadataResult, tables, pages} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
     const context = useAppContext();
     const browserId = useBrowserId();
     const navigate = useNavigate();
     const reporter = useReporter();
+    const searchEntityRegistry = useSearchEntityRegistry();
     const basePath = `/s/${params.spaceId}/databases/${databaseId}`;
-    const [databaseName, setDatabaseName] = useState(initialDatabaseName);
     const [editingName, setEditingName] = useState(false);
     const [db] = useState(createDatabaseConnection);
     const conn = db.connection;
@@ -99,26 +113,81 @@ export default function DatabaseLayoutRoute() {
 
     useSearchAffinityViewEntityInteraction(`Database:${databaseId}`);
 
-    const events = useEvents({
-        handleEvent: (event: DatabaseRealtimeEvent) => {
-            if (event.type === "PagesChanged") {
-                conn.call("writePagesFromRealtime", {
-                    pages: event.pages,
-                    mutationId: event.mutationId,
-                    fileSizeInPages: event.fileSizeInPages,
-                });
-            }
-        },
-    });
-
     const wsUrl = `/api/durable-objects/databases/${databaseId}?browserId=${browserId}`;
 
-    const {procedures} = useWebSocket(
+    const {isConnected, subscribeToEvents, subscribeToPongs, procedures} = useWebSocket(
         "DatabaseService",
         DatabaseRealtimeProtocol,
         wsUrl,
-        events.handleEvent,
     );
+
+    // Keep database metadata up-to-date in realtime.
+    const {query: metadataQuery, handleEvent: handleEventForMetadata} =
+        useDynamoGeneralRealtimeQuery(
+            databaseMetadataResult as DynamoGeneralRealtimeQueryResult<DatabaseModel>,
+            {
+                isConnected,
+                subscribeToPongs,
+                subscribeToEvents: useCallback(
+                    subscriber =>
+                        subscribeToEvents(event => {
+                            if (event.type === "RealtimeEventTransaction") {
+                                subscriber(event.eventTransaction);
+                            }
+                        }),
+                    [subscribeToEvents],
+                ),
+                backfillQuery: useCallback(
+                    async checkpoint => {
+                        const {backfillDatabaseResult} = await backfillDatabaseMetadata(context, {
+                            databaseId,
+                            checkpoint,
+                        });
+                        return backfillDatabaseResult;
+                    },
+                    [context, databaseId],
+                ),
+                reloadQuery: useCallback(async () => {
+                    const {databaseResult} = await getDatabaseMetadataRpc(context, {databaseId});
+                    return databaseResult;
+                }, [context, databaseId]),
+            },
+        );
+
+    const databaseItem = metadataQuery.getFirstItemIfExists();
+    assert(databaseItem?.model instanceof DatabaseModel);
+    const database = databaseItem.model;
+    const databaseName = database.name;
+
+    // Update `SearchEntityRegistry` with the latest database
+    // name. As the name changes in realtime, any
+    // `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
+    useMemo(() => {
+        return searchEntityRegistry.getEntityStore(
+            new SearchEntityModel({
+                id: `Database:${databaseId}`,
+                title: databaseName,
+                titleVersion: {type: "Integer", version: databaseItem.version},
+                media: null,
+            }),
+        );
+    }, [databaseName, databaseId, databaseItem.version, searchEntityRegistry]);
+
+    // Handle page-level events from the WebSocket.
+    const handlePagesChanged = useEvent((event: DatabaseRealtimeEvent) => {
+        if (event.type === "PagesChanged") {
+            conn.call("writePagesFromRealtime", {
+                pages: event.pages,
+                mutationId: event.mutationId,
+                fileSizeInPages: event.fileSizeInPages,
+            });
+        }
+    });
+
+    useEffect(() => {
+        return subscribeToEvents(handlePagesChanged);
+    }, [handlePagesChanged, subscribeToEvents]);
 
     const {executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError} = useEvents({
         executeActionServer: async (
@@ -191,12 +260,21 @@ export default function DatabaseLayoutRoute() {
                             return;
                         }
                         try {
-                            await updateDatabaseName(context, {databaseId, name: trimmed});
-                            setDatabaseName(trimmed);
+                            const {eventTransaction} = await updateDatabaseName(context, {
+                                databaseId,
+                                name: trimmed,
+                            });
+
+                            setEditingName(false);
+
+                            // Immediately apply the realtime event
+                            // transaction so we don't wait for
+                            // the WebSocket round-trip.
+                            handleEventForMetadata(eventTransaction);
                         } catch (error) {
                             reporter.displayError("Couldn\u2019t rename database", error);
+                            setEditingName(false);
                         }
-                        setEditingName(false);
                     }}
                     onCancel={() => setEditingName(false)}
                 />
@@ -204,6 +282,7 @@ export default function DatabaseLayoutRoute() {
                 <Box
                     fontSize="200"
                     fontStyle="semi-bold"
+                    paddingY="1"
                     onDoubleClick={() => setEditingName(true)}
                     style={{cursor: "text"}}
                 >
@@ -259,32 +338,50 @@ function DatabaseNameEditor({
     }, []);
 
     return (
-        <Box fontSize="200" fontStyle="semi-bold">
-            <InputWithAutoGrowingWidth
-                ref={inputRef}
-                maxLength={maxLabelStringLength}
-                value={name}
-                onChange={event => setName(event.currentTarget.value)}
-                onKeyDown={event => {
-                    switch (event.key) {
-                        case "Enter": {
-                            event.preventDefault();
-                            onSave(name);
-                            break;
-                        }
-                        case "Escape": {
-                            event.preventDefault();
-                            onCancel();
-                            break;
-                        }
-                    }
-                }}
-                onBlur={() => onSave(name)}
-                textStyle={{
-                    fontSize: "inherit",
-                    fontWeight: "inherit",
-                }}
-            />
+        <Box
+            marginLeft="-1"
+            style={{
+                minWidth: 0,
+            }}
+        >
+            <Box display="flex" alignItems="center" maxWidth="full">
+                <FocusRing offset="border" isVisibleFromAnyFocus={true}>
+                    <InputWithAutoGrowingWidth
+                        ref={inputRef}
+                        placeholder={databaseName}
+                        maxLength={maxLabelStringLength}
+                        value={name}
+                        onChange={event => setName(event.currentTarget.value)}
+                        onKeyDown={event => {
+                            switch (event.key) {
+                                case "Enter": {
+                                    event.preventDefault();
+                                    onSave(name);
+                                    break;
+                                }
+                                case "Escape": {
+                                    event.preventDefault();
+                                    onCancel();
+                                    break;
+                                }
+                            }
+                        }}
+                        onBlur={() => onSave(name)}
+                        className={sprinkles({
+                            paddingY: "1",
+                            borderRadius: "1",
+                        })}
+                        style={{
+                            boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                        }}
+                        textClassName={sprinkles({
+                            paddingX: "1",
+                            fontSize: "200",
+                            fontStyle: "semi-bold",
+                        })}
+                    />
+                </FocusRing>
+            </Box>
         </Box>
     );
 }

@@ -124,7 +124,7 @@ export class DatabaseClient {
             0,
         );
 
-        registerSqliteCustomFunctions(this.db);
+        registerSqliteCustomFunctions(sqlite3, this.db);
 
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);

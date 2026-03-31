@@ -14,6 +14,7 @@ import {
 import {mergeProps} from "react-aria";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {DatabaseFieldVisibilityMenu} from "~/client/web/databases/database_field_visibility_menu.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {
@@ -43,6 +44,7 @@ import type {
 } from "~/shared/databases/fields/database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -271,10 +273,14 @@ export function DatabaseGridView({
                                     >
                                         <DatabaseGridViewHeaderRow
                                             fields={gridFields.fields}
+                                            hiddenFields={gridFields.hiddenFields}
                                             onStartAddingField={gridFields.startAddingField}
                                             onStartEditingField={gridFields.startEditingField}
                                             startResizingField={gridFields.startResizingField}
                                             resizingState={gridFields.resizingState}
+                                            onUpdateFieldVisibility={
+                                                gridFields.updateFieldVisibility
+                                            }
                                         />
                                     </Box>
                                 </div>
@@ -342,10 +348,12 @@ export function DatabaseGridView({
             },
         [
             gridFields.fields,
+            gridFields.hiddenFields,
             gridFields.startAddingField,
             gridFields.startEditingField,
             gridFields.startResizingField,
             gridFields.resizingState,
+            gridFields.updateFieldVisibility,
             tree,
             rowCount,
             needsMore,
@@ -413,12 +421,15 @@ function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
 
 function DatabaseGridViewHeaderRow({
     fields,
+    hiddenFields,
     onStartAddingField,
     onStartEditingField,
     startResizingField,
     resizingState,
+    onUpdateFieldVisibility,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     onStartAddingField: () => void;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
@@ -430,6 +441,11 @@ function DatabaseGridViewHeaderRow({
         onCancel: () => void;
     };
     resizingState: {readonly fieldId: DatabaseFieldId} | null;
+    onUpdateFieldVisibility: (
+        fieldId: DatabaseFieldId,
+        position: OrderKey,
+        isHidden: boolean,
+    ) => void;
 }) {
     return (
         <Box display="flex" borderBottom="grey-5-translucent">
@@ -445,10 +461,10 @@ function DatabaseGridViewHeaderRow({
             <Box
                 display="flex"
                 alignItems="center"
-                justifyContent="center"
-                width="8"
                 flexShrink="0"
                 backgroundColor="grey-0"
+                paddingX="1"
+                gap="0.5"
             >
                 <IconButton
                     description="Add field"
@@ -458,6 +474,11 @@ function DatabaseGridViewHeaderRow({
                 >
                     <Plus />
                 </IconButton>
+                <DatabaseFieldVisibilityMenu
+                    shownFields={fields}
+                    hiddenFields={hiddenFields}
+                    onUpdateFieldVisibility={onUpdateFieldVisibility}
+                />
             </Box>
             <Box backgroundColor="grey-0" flexGrow="1" />
         </Box>

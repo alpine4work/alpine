@@ -11,6 +11,7 @@ import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_p
 import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
+import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -19,7 +20,21 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
+
+// -- Helpers ------------------------------------------------------------------
+
+/**
+ * SQLite stores booleans as INTEGER 0/1 but
+ * `Schema.boolean` expects a real boolean. This schema
+ * migrates 0/1 on read and relies on the SQLite binding
+ * layer converting `true`/`false` back to 1/0 on write.
+ */
+const sqlBoolean = Schema.boolean.migration({
+    serialize: value => value,
+    deserialize: value => (value === 1 ? true : value === 0 ? false : value),
+});
 
 // -- Row schema configs -------------------------------------------------------
 
@@ -167,21 +182,21 @@ function createField(
     );
     const columnName = formatUniqueSqlName(name, existingColumnNames);
 
-    const maxPos = sql`
+    const maxPosition = sql`
         SELECT
             MAX(position)
         FROM
             _alpine_view_fields
         WHERE
             view_id = ${viewId}
-    `.selectValue(db, Schema.integer.nullable());
+    `.selectValue(db, Schema.string.nullable());
 
     const provider = getDatabaseFieldProvider(type);
     const fieldConfig = DatabaseFieldConfigSqlSchema.serialize({type});
 
     sql`
         INSERT INTO
-            _alpine_fields (id, table_id, name, column_name, type)
+            _alpine_fields (id, table_id, name, column_name, config)
         VALUES
             (
                 ${fieldId},
@@ -199,8 +214,8 @@ function createField(
             (
                 ${viewId},
                 ${fieldId},
-                ${(maxPos ?? -1) + 1},
-                ${200}
+                generate_order_key (${maxPosition}, NULL),
+                ${databaseViewDefaultColumnWidth}
             )
     `.exec(db);
 
@@ -376,7 +391,9 @@ export const databaseActions = {
                     name: Schema.string,
                     columnName: Schema.string.originalPropertyKey("column_name"),
                     config: DatabaseFieldConfigSchema,
+                    position: OrderKeySchema,
                     width: Schema.integer,
+                    hidden: sqlBoolean,
                 }),
             ),
         }),
@@ -389,8 +406,10 @@ export const databaseActions = {
                     f.id,
                     f.name,
                     f.column_name,
-                    f.type,
-                    vf.width
+                    f.config,
+                    vf.position,
+                    vf.width,
+                    vf.hidden
                 FROM
                     _alpine_view_fields vf
                     JOIN _alpine_fields f ON f.id = vf.field_id
@@ -402,8 +421,10 @@ export const databaseActions = {
                 id: Schema.id<DatabaseFieldId>(),
                 name: Schema.string,
                 columnName: Schema.string.originalPropertyKey("column_name"),
-                config: DatabaseFieldConfigSqlSchema.originalPropertyKey("type"),
+                config: DatabaseFieldConfigSqlSchema,
+                position: OrderKeySchema,
                 width: Schema.integer,
+                hidden: sqlBoolean,
             });
 
             return {
@@ -639,6 +660,36 @@ export const databaseActions = {
                 WHERE
                     view_id = ${viewId}
                     AND field_id = ${fieldId}
+            `.exec(db);
+            return {};
+        },
+    }),
+
+    updateFieldViewVisibility: defineDatabaseAction({
+        input: Schema.object({
+            viewId: Schema.id<DatabaseViewId>(),
+            fieldId: Schema.id<DatabaseFieldId>(),
+            position: OrderKeySchema,
+            isHidden: Schema.boolean,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run(db, {viewId, fieldId, position, isHidden}) {
+            sql`
+                INSERT INTO
+                    _alpine_view_fields (view_id, field_id, position, width, hidden)
+                VALUES
+                    (
+                        ${viewId},
+                        ${fieldId},
+                        ${position},
+                        ${databaseViewDefaultColumnWidth},
+                        ${isHidden}
+                    )
+                ON CONFLICT (view_id, field_id) DO UPDATE
+                SET
+                    position = ${position},
+                    hidden = ${isHidden}
             `.exec(db);
             return {};
         },

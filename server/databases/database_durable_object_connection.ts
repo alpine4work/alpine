@@ -13,17 +13,27 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
+    DatabaseId,
     DatabaseMutationId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {getDatabaseRealtimeEvent} from "~/shared/rpc/databases_rpc_definitions.js";
 
-export interface DatabaseRealtimeEventStub {
-    pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
-    mutationId: DatabaseMutationId;
-    fileSizeInPages: number;
-}
+export type DatabaseRealtimeEventStub =
+    | {
+          type: "PagesChanged";
+          pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
+          mutationId: DatabaseMutationId;
+          fileSizeInPages: number;
+      }
+    | {
+          type: "RealtimeEventTransaction";
+          eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>;
+      };
 
 export class DatabaseDurableObjectConnection {
     private readonly _server: DatabaseServer;
@@ -34,6 +44,7 @@ export class DatabaseDurableObjectConnection {
         event: DatabaseRealtimeEventStub,
     ) => void;
     private readonly _processContext: WorkerProcessContext;
+    private readonly _databaseId: DatabaseId;
     private readonly _browserId: BrowserId;
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _browserPageTracker: BrowserPageTracker;
@@ -44,6 +55,7 @@ export class DatabaseDurableObjectConnection {
         durableObjectStorage,
         processContext,
         sendEventToAll,
+        databaseId,
         browserId,
         connectionId,
         browserPageTracker,
@@ -53,6 +65,7 @@ export class DatabaseDurableObjectConnection {
         durableObjectStorage: DatabaseDurableObjectStorage;
         processContext: WorkerProcessContext;
         sendEventToAll: (context: WorkerProcessContext, event: DatabaseRealtimeEventStub) => void;
+        databaseId: DatabaseId;
         browserId: BrowserId;
         connectionId: WebSocketConnectionId;
         browserPageTracker: BrowserPageTracker;
@@ -62,6 +75,7 @@ export class DatabaseDurableObjectConnection {
         this._durableObjectStorage = durableObjectStorage;
         this._processContext = processContext;
         this._sendEventToAll = sendEventToAll;
+        this._databaseId = databaseId;
         this._browserId = browserId;
         this._connectionId = connectionId;
         this._browserPageTracker = browserPageTracker;
@@ -85,6 +99,7 @@ export class DatabaseDurableObjectConnection {
                         }),
                     );
                     this._sendEventToAll(this._processContext, {
+                        type: "PagesChanged",
                         pages: diffPages,
                         mutationId: input.mutationId,
                         fileSizeInPages: this._durableObjectStorage.getFileSize() / sqlitePageSize,
@@ -182,18 +197,34 @@ export class DatabaseDurableObjectConnection {
         // createDurableObject's token verification.
     }
 
-    public transformEvent(
-        _context: WorkerSessionActionContext,
+    public async transformEvent(
+        context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
-    ): DatabaseRealtimeEvent {
-        const pages = eventStub.pages.filter(p =>
-            this._browserPageTracker.clientMightHavePage(this._browserId, p.pageIndex),
-        );
-        return {
-            type: "PagesChanged",
-            pages,
-            mutationId: eventStub.mutationId,
-            fileSizeInPages: eventStub.fileSizeInPages,
-        };
+    ): Promise<DatabaseRealtimeEvent> {
+        switch (eventStub.type) {
+            case "PagesChanged": {
+                const pages = eventStub.pages.filter(p =>
+                    this._browserPageTracker.clientMightHavePage(this._browserId, p.pageIndex),
+                );
+                return {
+                    type: "PagesChanged",
+                    pages,
+                    mutationId: eventStub.mutationId,
+                    fileSizeInPages: eventStub.fileSizeInPages,
+                };
+            }
+            case "RealtimeEventTransaction": {
+                const {eventTransaction} = await getDatabaseRealtimeEvent(context, {
+                    databaseId: this._databaseId,
+                    eventTransaction: eventStub.eventTransaction,
+                });
+                return {
+                    type: "RealtimeEventTransaction",
+                    eventTransaction,
+                };
+            }
+            default:
+                throw exhaustive(eventStub);
+        }
     }
 }
