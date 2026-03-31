@@ -3,7 +3,7 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
+import {syncCachePagesResultConfig} from "~/shared/databases/database_realtime_protocol.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
     DatabaseId,
@@ -85,15 +85,12 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
             readPages: Schema.map(Schema.integer, pageValueSchema).nullable(),
         },
     },
-    ensureCacheIsUpToDate: {
+    syncCachePages: {
         input: {
             pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+            mode: Schema.enum(["initial", "incremental"]),
         },
-        output: ensureCacheIsUpToDateResultConfig,
-    },
-    acknowledgePages: {
-        input: {pageIndexes: Schema.array(Schema.integer)},
-        output: {},
+        output: syncCachePagesResultConfig,
     },
     reportError: {
         input: {message: Schema.string},

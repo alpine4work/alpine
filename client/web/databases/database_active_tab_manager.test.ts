@@ -420,7 +420,7 @@ function createTestTab(config: {
                 // pages are preserved during tests.
                 return new Promise(() => {});
             }),
-        ensureCacheIsUpToDate: async (clientTimestamps: ReadonlyMap<number, number>) => {
+        syncCachePages: async (clientTimestamps: ReadonlyMap<number, number>) => {
             // Read the local OPFS index to compare against
             // client timestamps, simulating a server that
             // agrees with the local cache.
@@ -477,7 +477,6 @@ function createTestTab(config: {
             }
             return {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
         },
-        acknowledgePages: () => {},
     });
 
     return {

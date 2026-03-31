@@ -11,7 +11,7 @@ import {
 } from "~/shared/web_socket/web_socket_protocol.js";
 
 /**
- * Schema output config for `ensureCacheIsUpToDate`.
+ * Schema output config for `syncCachePages`.
  * Reused by both the WebSocket protocol definition
  * and the worker-to-tab RPC method definition.
  *
@@ -23,7 +23,7 @@ import {
  *   empty — too many stale pages; client deletes
  *   them and re-fetches on demand.
  */
-export const ensureCacheIsUpToDateResultConfig = {
+export const syncCachePagesResultConfig = {
     updatedPages: Schema.map(
         Schema.integer,
         Schema.object({
@@ -36,12 +36,10 @@ export const ensureCacheIsUpToDateResultConfig = {
 };
 
 /**
- * TypeScript type for the `ensureCacheIsUpToDate`
+ * TypeScript type for the `syncCachePages`
  * result, inferred from the shared schema config.
  */
-export type EnsureCacheIsUpToDateResult = ObjectSchemaConfigType<
-    typeof ensureCacheIsUpToDateResultConfig
->;
+export type SyncCachePagesResult = ObjectSchemaConfigType<typeof syncCachePagesResultConfig>;
 
 export type DatabaseRealtimeEvent = WebSocketProtocolEventType<typeof DatabaseRealtimeProtocol>;
 
@@ -65,17 +63,12 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
                 ).nullable(),
             },
         },
-        ensureCacheIsUpToDate: {
+        syncCachePages: {
             input: {
                 pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+                mode: Schema.enum(["initial", "incremental"]),
             },
-            output: ensureCacheIsUpToDateResultConfig,
-        },
-        acknowledgePages: {
-            input: {
-                pageIndexes: Schema.array(Schema.integer),
-            },
-            output: {},
+            output: syncCachePagesResultConfig,
         },
     },
     events: {

@@ -310,7 +310,7 @@ describe("DatabaseDurableObjectStorage integration", () => {
 });
 
 // ---------------------------------------------------------------------------
-// ensureCacheIsUpToDate handler tests
+// syncCachePages handler tests
 // ---------------------------------------------------------------------------
 
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
@@ -326,11 +326,12 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
     });
 }
 
-async function ensureCacheIsUpToDate(
+async function syncCachePages(
     conn: DatabaseDurableObjectConnection,
     pageTimestampsByIndex: ReadonlyMap<number, number>,
+    mode: "initial" | "incremental" = "initial",
 ) {
-    return conn.procedures.ensureCacheIsUpToDate(null as any, {pageTimestampsByIndex}, null as any);
+    return conn.procedures.syncCachePages(null as any, {pageTimestampsByIndex, mode}, null as any);
 }
 
 function makePage(marker: number): Uint8Array {
@@ -339,14 +340,14 @@ function makePage(marker: number): Uint8Array {
     return data;
 }
 
-describe("ensureCacheIsUpToDate", () => {
+describe("syncCachePages — initial mode", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
         const ts = doStorage.readPage(0)!.timestamp;
         const conn = createConnection(doStorage);
 
-        const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
+        const result = await syncCachePages(conn, new Map([[0, ts]]));
 
         expect(result.updatedPages.size).toBe(0);
         expect(result.stalePageIndexes).toEqual([]);
@@ -364,7 +365,7 @@ describe("ensureCacheIsUpToDate", () => {
         const conn = createConnection(doStorage);
 
         // Page 0 matches, page 1 has stale client timestamp
-        const result = await ensureCacheIsUpToDate(
+        const result = await syncCachePages(
             conn,
             new Map([
                 [0, ts0],
@@ -385,7 +386,7 @@ describe("ensureCacheIsUpToDate", () => {
         const conn = createConnection(doStorage);
 
         // Page 5 doesn't exist on the server
-        const result = await ensureCacheIsUpToDate(
+        const result = await syncCachePages(
             conn,
             new Map([
                 [0, ts0],
@@ -404,7 +405,7 @@ describe("ensureCacheIsUpToDate", () => {
 
         // Page 0 is stale (mismatched ts), page 5 is
         // missing on the server entirely.
-        const result = await ensureCacheIsUpToDate(
+        const result = await syncCachePages(
             conn,
             new Map([
                 [0, 999],
@@ -434,7 +435,7 @@ describe("ensureCacheIsUpToDate", () => {
             clientTimestamps.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await syncCachePages(conn, clientTimestamps);
 
         // Exactly at the limit — should dump all into
         // stalePageIndexes. Page 0 is always included
@@ -461,7 +462,7 @@ describe("ensureCacheIsUpToDate", () => {
             clientTimestamps.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await syncCachePages(conn, clientTimestamps);
 
         expect(result.updatedPages.size).toBe(count);
         expect(result.stalePageIndexes).toEqual([]);
@@ -482,7 +483,7 @@ describe("ensureCacheIsUpToDate", () => {
         doStorage.truncate(1 * sqlitePageSize);
 
         const conn = createConnection(doStorage);
-        const result = await ensureCacheIsUpToDate(
+        const result = await syncCachePages(
             conn,
             new Map([
                 [0, ts0],
@@ -512,7 +513,7 @@ describe("ensureCacheIsUpToDate", () => {
             clientTimestamps.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await syncCachePages(conn, clientTimestamps);
 
         // All pages should be in stalePageIndexes.
         // Page 0 is always included in updatedPages
@@ -520,6 +521,79 @@ describe("ensureCacheIsUpToDate", () => {
         expect(result.updatedPages.size).toBe(1);
         expect(result.updatedPages.has(0)).toBe(true);
         expect(result.stalePageIndexes.length).toBe(count);
+    });
+});
+
+describe("syncCachePages — incremental mode", () => {
+    test("returns newer page versions when timestamps don't match", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const conn = createConnection(doStorage);
+
+        // Page 1 has wrong client timestamp
+        const result = await syncCachePages(
+            conn,
+            new Map([
+                [0, doStorage.readPage(0)!.timestamp],
+                [1, 999],
+            ]),
+            "incremental",
+        );
+
+        expect(result.updatedPages.size).toBe(1);
+        expect(result.updatedPages.has(1)).toBe(true);
+        expect(result.updatedPages.get(1)!.data[0]).toBe(0xbb);
+        expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("does not apply stale page limit", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+
+        // Write more than cacheUpdateStalePageLimit pages
+        const count = cacheUpdateStalePageLimit + 1;
+        const pages = new Map<number, Uint8Array>();
+        for (let i = 0; i < count; i++) {
+            pages.set(i, makePage(i & 0xff));
+        }
+        doStorage.writePages(pages);
+        const conn = createConnection(doStorage);
+
+        // All pages stale
+        const clientTimestamps = new Map<number, number>();
+        for (let i = 0; i < count; i++) {
+            clientTimestamps.set(i, 0);
+        }
+
+        const result = await syncCachePages(conn, clientTimestamps, "incremental");
+
+        // Incremental mode returns all pages as updated,
+        // no stale page limit applied.
+        expect(result.updatedPages.size).toBe(count);
+        expect(result.stalePageIndexes).toEqual([]);
+    });
+
+    test("does not force page 0", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts1 = doStorage.readPage(1)!.timestamp;
+        const conn = createConnection(doStorage);
+
+        // Only send page 1 which matches — page 0 not sent
+        const result = await syncCachePages(conn, new Map([[1, ts1]]), "incremental");
+
+        // Should not include page 0 in incremental mode
+        expect(result.updatedPages.size).toBe(0);
+        expect(result.stalePageIndexes).toEqual([]);
     });
 });
 
@@ -546,7 +620,7 @@ function createTrackedConnection(
 }
 
 describe("per-browser page tracking", () => {
-    test("ensureCacheIsUpToDate sets matching pages in tracker", async () => {
+    test("initial syncCachePages sets matching pages in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
             new Map([
@@ -563,7 +637,7 @@ describe("per-browser page tracking", () => {
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
         // Page 0 and 1 match, page 2 is stale (wrong ts)
-        await ensureCacheIsUpToDate(
+        await syncCachePages(
             conn,
             new Map([
                 [0, ts0],
@@ -584,13 +658,32 @@ describe("per-browser page tracking", () => {
         expect(filtered.has(2)).toBe(true);
     });
 
-    test("acknowledgePages adds pages to tracker", async () => {
+    test("incremental syncCachePages adds pages to tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [5, makePage(0x55)],
+                [6, makePage(0x66)],
+                [7, makePage(0x77)],
+            ]),
+        );
+        const ts5 = doStorage.readPage(5)!.timestamp;
+        const ts6 = doStorage.readPage(6)!.timestamp;
+        const ts7 = doStorage.readPage(7)!.timestamp;
+
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [5, 6, 7]}, null as any);
+        await syncCachePages(
+            conn,
+            new Map([
+                [5, ts5],
+                [6, ts6],
+                [7, ts7],
+            ]),
+            "incremental",
+        );
 
         const pages = new Map([
             [5, {timestamp: 1, data: new Uint8Array(1)}],
@@ -600,6 +693,45 @@ describe("per-browser page tracking", () => {
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.size).toBe(1);
         expect(filtered.has(8)).toBe(true);
+    });
+
+    test("incremental syncCachePages adds all valid pages (matching + updated) to tracker", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0xaa)],
+                [1, makePage(0xbb)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // Page 0 matches, page 1 is stale (wrong ts) but
+        // will be returned as updatedPages
+        const result = await syncCachePages(
+            conn,
+            new Map([
+                [0, ts0],
+                [1, 999],
+            ]),
+            "incremental",
+        );
+
+        // Both pages should be in tracker: page 0 matched,
+        // page 1 was updated (client will write the response).
+        expect(result.updatedPages.has(1)).toBe(true);
+
+        const allPages = new Map([
+            [0, {timestamp: 1, data: new Uint8Array(1)}],
+            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [2, {timestamp: 1, data: new Uint8Array(1)}],
+        ]);
+        const filtered = tracker.filterReadPages(browserId, allPages);
+        expect(filtered.size).toBe(1);
+        expect(filtered.has(2)).toBe(true);
     });
 
     test("handleClose unregisters connection from tracker", () => {
@@ -617,15 +749,42 @@ describe("per-browser page tracking", () => {
         expect(tracker.filterReadPages(browserId, pages)).toEqual(pages);
     });
 
-    test("two connections from same browser share page set", async () => {
+    test("two connections from same browser share page set via incremental", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        doStorage.writePages(
+            new Map([
+                [0, makePage(0x00)],
+                [1, makePage(0x11)],
+                [2, makePage(0x22)],
+                [3, makePage(0x33)],
+            ]),
+        );
+        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts1 = doStorage.readPage(1)!.timestamp;
+        const ts2 = doStorage.readPage(2)!.timestamp;
+        const ts3 = doStorage.readPage(3)!.timestamp;
+
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
         const conn2 = createTrackedConnection(doStorage, tracker, browserId);
 
-        await conn1.procedures.acknowledgePages(null as any, {pageIndexes: [0, 1]}, null as any);
-        await conn2.procedures.acknowledgePages(null as any, {pageIndexes: [2, 3]}, null as any);
+        await syncCachePages(
+            conn1,
+            new Map([
+                [0, ts0],
+                [1, ts1],
+            ]),
+            "incremental",
+        );
+        await syncCachePages(
+            conn2,
+            new Map([
+                [2, ts2],
+                [3, ts3],
+            ]),
+            "incremental",
+        );
 
         const pages = new Map([
             [0, {timestamp: 1, data: new Uint8Array(1)}],
@@ -657,7 +816,7 @@ describe("per-browser page tracking", () => {
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
     });
 
-    test("ensureCacheIsUpToDate replaces page set on each call", async () => {
+    test("initial syncCachePages replaces page set on each call", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
             new Map([
@@ -673,7 +832,7 @@ describe("per-browser page tracking", () => {
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
         // First sync: both pages match
-        await ensureCacheIsUpToDate(
+        await syncCachePages(
             conn,
             new Map([
                 [0, ts0],
@@ -682,7 +841,7 @@ describe("per-browser page tracking", () => {
         );
 
         // Second sync: only page 0 sent (page 1 not in client cache)
-        await ensureCacheIsUpToDate(conn, new Map([[0, ts0]]));
+        await syncCachePages(conn, new Map([[0, ts0]]));
 
         // Tracker should only know about page 0 now
         const pages = new Map([

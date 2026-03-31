@@ -14,7 +14,7 @@ import {
     type DatabaseActionResult,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import type {SyncCachePagesResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
@@ -66,10 +66,10 @@ export interface DatabaseClientConnection {
             returnPages?: boolean;
         },
     ): Promise<ExecuteActionServerResult>;
-    ensureCacheIsUpToDate(
+    syncCachePages(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
-    ): Promise<EnsureCacheIsUpToDateResult>;
-    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+        mode: "initial" | "incremental",
+    ): Promise<SyncCachePagesResult>;
     reportError(error: unknown): void;
 }
 
@@ -164,15 +164,17 @@ export class DatabaseClient {
             pageTimestampsByIndex.set(entry.pageIndex, entry.timestamp);
         }
 
-        const {updatedPages, stalePageIndexes, fileSizeInPages} =
-            await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
+        const {updatedPages, stalePageIndexes, fileSizeInPages} = await conn.syncCachePages(
+            pageTimestampsByIndex,
+            "initial",
+        );
 
         for (const [pageIndex, {timestamp, data}] of updatedPages) {
             this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
 
         if (updatedPages.size > 0) {
-            conn.acknowledgePages([...updatedPages.keys()]);
+            await this.acknowledgePages(conn, updatedPages);
         }
 
         if (stalePageIndexes.length > 0) {
@@ -496,6 +498,35 @@ export class DatabaseClient {
         }
     }
 
+    /**
+     * Tell the server which pages we now hold so
+     * its page tracker stays current. If the server
+     * has newer versions, write them locally.
+     *
+     * The timestamps we send were just received from
+     * the server, so `stalePageIndexes` should always
+     * be empty — a page can only go stale if it was
+     * truncated between the two calls, which would be
+     * corrected by realtime events.
+     */
+    private async acknowledgePages(
+        conn: DatabaseClientConnection,
+        pages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>,
+    ): Promise<void> {
+        const timestamps = new Map<number, number>();
+        for (const [pageIndex, {timestamp}] of pages) {
+            timestamps.set(pageIndex, timestamp);
+        }
+        const result = await conn.syncCachePages(timestamps, "incremental");
+        assert(
+            result.stalePageIndexes.length === 0,
+            "incremental syncCachePages should not return stale pages",
+        );
+        if (result.updatedPages.size > 0) {
+            this.applyServerPages(result.updatedPages);
+        }
+    }
+
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
         this.pageStore.clearOptimisticPages();
@@ -620,7 +651,7 @@ export class DatabaseClient {
         this.pageStore.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
-            conn.acknowledgePages([...serverResult.readPages.keys()]);
+            await this.acknowledgePages(conn, serverResult.readPages);
         }
         this.replayOptimisticQueue();
         if (returnResult) {

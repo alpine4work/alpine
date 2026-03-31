@@ -20,10 +20,9 @@ const testConn: DatabaseClientConnection = {
         // pages are preserved during tests.
         return new Promise(() => {});
     },
-    ensureCacheIsUpToDate() {
+    syncCachePages() {
         return Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0});
     },
-    acknowledgePages() {},
     reportError() {},
 };
 
@@ -269,14 +268,13 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -313,14 +311,13 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -345,14 +342,13 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -391,14 +387,13 @@ describe("optimistic mutations", () => {
                 capturedMutationId = options.mutationId;
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -419,14 +414,13 @@ describe("optimistic mutations", () => {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -451,14 +445,13 @@ describe("optimistic mutations", () => {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -491,14 +484,13 @@ describe("optimistic mutations", () => {
             async executeActionServer() {
                 throw new InternalError("server rejected mutation");
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
@@ -519,14 +511,13 @@ describe("optimistic mutations", () => {
             async executeActionServer() {
                 throw new InternalError("server rejected mutation");
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -553,14 +544,13 @@ describe("optimistic mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
@@ -606,14 +596,13 @@ describe("server fallback", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -647,14 +636,13 @@ describe("server fallback", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
@@ -664,6 +652,58 @@ describe("server fallback", () => {
         const rows = await execute(local, testConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
+    });
+});
+
+describe("acknowledgePages assertion", () => {
+    test("asserts when incremental syncCachePages returns stale pages", async () => {
+        const serverDir = createInMemoryDirectory();
+        const server = await DatabaseClient.create(serverDir);
+        server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        for (let i = 0; i < 20; i++) {
+            server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
+        }
+
+        const allPages = await extractPages(serverDir);
+
+        const localDir = createInMemoryDirectory();
+        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const local = await DatabaseClient.create(localDir);
+
+        let syncCallCount = 0;
+        const conn: DatabaseClientConnection = {
+            async executeActionServer(action) {
+                const rows = await execute(server, testConn, (action.input as any).sql);
+                return {
+                    result: {name: action.name, output: {rows}},
+                    readPages: pagesToMap(allPages),
+                } as ExecuteActionServerResult;
+            },
+            syncCachePages(_timestamps, mode) {
+                syncCallCount++;
+                if (mode === "incremental") {
+                    // Simulate a page being truncated between
+                    // the server response and the ack call.
+                    return Promise.resolve({
+                        updatedPages: new Map(),
+                        stalePageIndexes: [1],
+                        fileSizeInPages: 0,
+                    });
+                }
+                return Promise.resolve({
+                    updatedPages: new Map(),
+                    stalePageIndexes: [],
+                    fileSizeInPages: 0,
+                });
+            },
+            reportError() {},
+        };
+
+        await expect(
+            execute(local, conn, "SELECT count(*) AS n FROM t"),
+        ).rejects.toThrow("incremental syncCachePages should not return stale pages");
+
+        expect(syncCallCount).toBeGreaterThan(0);
     });
 });
 
@@ -752,14 +792,13 @@ describe("executeActionWithTracking", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 
@@ -803,14 +842,13 @@ describe("executeActionWithTracking", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
+            syncCachePages() {
                 return Promise.resolve({
                     updatedPages: new Map(),
                     stalePageIndexes: [],
                     fileSizeInPages: 0,
                 });
             },
-            acknowledgePages() {},
             reportError() {},
         };
 

@@ -16,7 +16,7 @@ import type {
     DatabaseActionOutput,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import type {SyncCachePagesResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -364,11 +364,8 @@ export class DatabaseActiveTabWorker {
                     returnResult: options.returnResult ?? true,
                     returnPages: options.returnPages ?? true,
                 }),
-            ensureCacheIsUpToDate: async pageTimestampsByIndex =>
-                rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
-            acknowledgePages: pageIndexes => {
-                void rpc.call("acknowledgePages", {pageIndexes});
-            },
+            syncCachePages: async (pageTimestampsByIndex, mode) =>
+                rpc.call("syncCachePages", {pageTimestampsByIndex, mode}),
             reportError: error => {
                 void rpc.call("reportError", {
                     message: error instanceof Error ? error.message : String(error),
@@ -449,10 +446,10 @@ export class DatabaseActiveTabManager {
                     returnPages?: boolean;
                 },
             ): Promise<ExecuteActionServerResult>;
-            ensureCacheIsUpToDate(
+            syncCachePages(
                 pageTimestampsByIndex: ReadonlyMap<number, number>,
-            ): Promise<EnsureCacheIsUpToDateResult>;
-            acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+                mode: "initial" | "incremental",
+            ): Promise<SyncCachePagesResult>;
             reportError?(message: string): void;
         },
     ) {}
@@ -749,12 +746,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
-                ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
-                acknowledgePages: async input => {
-                    this.deps.acknowledgePages(input.pageIndexes);
-                    return {};
-                },
+                syncCachePages: async input =>
+                    this.deps.syncCachePages(input.pageTimestampsByIndex, input.mode),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};
@@ -820,12 +813,8 @@ export class DatabaseActiveTabManager {
                         readPages: result.readPages,
                     };
                 },
-                ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
-                acknowledgePages: async input => {
-                    this.deps.acknowledgePages(input.pageIndexes);
-                    return {};
-                },
+                syncCachePages: async input =>
+                    this.deps.syncCachePages(input.pageTimestampsByIndex, input.mode),
                 reportError: async input => {
                     this.deps.reportError?.(input.message);
                     return {};

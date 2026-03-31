@@ -7,7 +7,7 @@ import {
 } from "~/client/web/databases/database_active_tab_manager.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
-import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import type {SyncCachePagesResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
 import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
@@ -28,10 +28,10 @@ type ConnectOptions = {
             returnPages?: boolean;
         },
     ): Promise<ExecuteActionServerResult>;
-    ensureCacheIsUpToDate(
+    syncCachePages(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
-    ): Promise<EnsureCacheIsUpToDateResult>;
-    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+        mode: "initial" | "incremental",
+    ): Promise<SyncCachePagesResult>;
     reportError?(message: string): void;
 };
 
@@ -195,8 +195,7 @@ async function connectToDatabase(options: ConnectOptions): Promise<DatabaseWorke
             window.addEventListener("beforeunload", callback);
         },
         executeActionServer: options.executeActionServer,
-        ensureCacheIsUpToDate: options.ensureCacheIsUpToDate,
-        acknowledgePages: options.acknowledgePages,
+        syncCachePages: options.syncCachePages,
         reportError: options.reportError,
     });
 
