@@ -103,8 +103,7 @@ export class DatabaseDurableObjectConnection {
                 };
             });
         },
-        syncCachePages: async (_context, input) => {
-            const isInitial = input.mode === "initial";
+        ensureCacheIsUpToDate: async (_context, input) => {
             const updatedPages = new Map<number, {timestamp: number; data: Uint8Array}>();
             const stalePageIndexes: Array<number> = [];
             let overLimit = false;
@@ -115,21 +114,14 @@ export class DatabaseDurableObjectConnection {
                 // Page matches — skip.
                 if (page !== null && page.data !== null && page.timestamp === clientTs) continue;
 
-                // Page is gone (null/tombstone) — stale index.
-                if (page === null || page.data === null) {
-                    stalePageIndexes.push(pageIndex);
-                    continue;
-                }
-
-                // In initial mode, apply the stale page limit.
-                if (isInitial && overLimit) {
+                // Over limit, or page is gone (null/tombstone) — stale index.
+                if (overLimit || page === null || page.data === null) {
                     stalePageIndexes.push(pageIndex);
                     continue;
                 }
 
                 updatedPages.set(pageIndex, {timestamp: page.timestamp, data: page.data});
-
-                if (isInitial && updatedPages.size >= cacheUpdateStalePageLimit) {
+                if (updatedPages.size >= cacheUpdateStalePageLimit) {
                     // Too many stale pages to inline — dump
                     // everything collected so far into
                     // stalePageIndexes and stop reading data.
@@ -141,9 +133,8 @@ export class DatabaseDurableObjectConnection {
                 }
             }
 
-            // Initial mode: always include page 0 so the
-            // client has the schema.
-            if (isInitial && !updatedPages.has(0)) {
+            // Always include page 0 so the client has the schema.
+            if (!updatedPages.has(0)) {
                 const page0 = this._durableObjectStorage.readPage(0);
                 if (page0 !== null && page0.data !== null) {
                     const clientTs = input.pageTimestampsByIndex.get(0);
@@ -153,33 +144,24 @@ export class DatabaseDurableObjectConnection {
                 }
             }
 
-            // Update tracker based on mode.
+            // Tell the tracker which pages the client
+            // already has valid copies of: all client pages
+            // minus those we're updating or marking stale.
             const staleSet = new Set(stalePageIndexes);
-            if (isInitial) {
-                // Replace: only matching pages (not updated
-                // or stale).
-                const matchingPages: Array<number> = [];
-                for (const pageIndex of input.pageTimestampsByIndex.keys()) {
-                    if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
-                        matchingPages.push(pageIndex);
-                    }
+            const matchingPages: Array<number> = [];
+            for (const pageIndex of input.pageTimestampsByIndex.keys()) {
+                if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
+                    matchingPages.push(pageIndex);
                 }
-                this._browserPageTracker.setPages(this._browserId, matchingPages);
-            } else {
-                // Incremental: add all valid pages (matching
-                // + updated). Client will have these after
-                // writing the response.
-                const validPages: Array<number> = [];
-                for (const pageIndex of input.pageTimestampsByIndex.keys()) {
-                    if (!staleSet.has(pageIndex)) {
-                        validPages.push(pageIndex);
-                    }
-                }
-                this._browserPageTracker.addPages(this._browserId, validPages);
             }
+            this._browserPageTracker.setPages(this._browserId, matchingPages);
 
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
             return {updatedPages, stalePageIndexes, fileSizeInPages};
+        },
+        acknowledgePages: async (_context, input) => {
+            this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
+            return {};
         },
     };
 

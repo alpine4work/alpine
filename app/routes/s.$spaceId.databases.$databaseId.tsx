@@ -120,7 +120,7 @@ export default function DatabaseLayoutRoute() {
         events.handleEvent,
     );
 
-    const {executeActionServer, syncCachePages, reportError} = useEvents({
+    const {executeActionServer, ensureCacheIsUpToDate, acknowledgePages, reportError} = useEvents({
         executeActionServer: async (
             action: {name: "rawSql"; input: {readonly sql: string}},
             options: {
@@ -136,11 +136,11 @@ export default function DatabaseLayoutRoute() {
                 returnPages: options.returnPages ?? true,
             });
         },
-        syncCachePages: async (
-            pageTimestampsByIndex: ReadonlyMap<number, number>,
-            mode: "initial" | "incremental",
-        ) => {
-            return procedures.syncCachePages({pageTimestampsByIndex, mode});
+        ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {
+            return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
+        },
+        acknowledgePages: (pageIndexes: ReadonlyArray<number>) => {
+            void procedures.acknowledgePages({pageIndexes: [...pageIndexes]});
         },
         reportError: (message: string) => {
             reporter.displayError("Couldn\u2019t save changes", new InternalError(message));
@@ -152,7 +152,8 @@ export default function DatabaseLayoutRoute() {
             databaseId,
             initialPages: initialPagesRef.current,
             executeActionServer,
-            syncCachePages,
+            ensureCacheIsUpToDate,
+            acknowledgePages,
             reportError,
         }).catch((error: unknown) => {
             reporter.displayError(

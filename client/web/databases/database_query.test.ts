@@ -116,9 +116,10 @@ const testClientConn: DatabaseClientConnection = {
     executeActionServer() {
         return new Promise(() => {});
     },
-    syncCachePages() {
+    ensureCacheIsUpToDate() {
         return Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0});
     },
+    acknowledgePages() {},
     reportError() {},
 };
 

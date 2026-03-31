@@ -36,7 +36,7 @@ export class BrowserPageTracker {
 
     /**
      * Full replacement of the browser's known page set.
-     * Called after `syncCachePages` (initial) determines
+     * Called after `ensureCacheIsUpToDate` determines
      * which pages the client already has valid copies of.
      */
     setPages(browserId: BrowserId, pageIndexes: Iterable<number>): void {
