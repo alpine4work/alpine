@@ -97,6 +97,18 @@ export class BrowserPageTracker {
     }
 
     /**
+     * Returns true if the browser might have this page
+     * (either confirmed or pending). Used to decide
+     * whether to include a page in changedPages events.
+     * Returns false for unknown browsers.
+     */
+    clientMightHavePage(browserId: BrowserId, pageIndex: number): boolean {
+        const entry = this._browsers.get(browserId);
+        if (entry === undefined) return false;
+        return entry.pages.has(pageIndex);
+    }
+
+    /**
      * Return a new map containing only the pages the
      * browser does NOT have confirmed. Pending pages
      * are included (re-sent) since the client may not

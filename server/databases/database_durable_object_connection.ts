@@ -96,10 +96,7 @@ export class DatabaseDurableObjectConnection {
                     : null;
 
                 if (readPages !== null && readPages.size > 0) {
-                    this._browserPageTracker.addPendingPages(
-                        this._browserId,
-                        readPages.keys(),
-                    );
+                    this._browserPageTracker.addPendingPages(this._browserId, readPages.keys());
                 }
 
                 return {
@@ -164,10 +161,7 @@ export class DatabaseDurableObjectConnection {
             this._browserPageTracker.setPages(this._browserId, matchingPages);
 
             if (updatedPages.size > 0) {
-                this._browserPageTracker.addPendingPages(
-                    this._browserId,
-                    updatedPages.keys(),
-                );
+                this._browserPageTracker.addPendingPages(this._browserId, updatedPages.keys());
             }
 
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
@@ -192,9 +186,12 @@ export class DatabaseDurableObjectConnection {
         _context: WorkerSessionActionContext,
         eventStub: DatabaseRealtimeEventStub,
     ): DatabaseRealtimeEvent {
+        const pages = eventStub.pages.filter(p =>
+            this._browserPageTracker.clientMightHavePage(this._browserId, p.pageIndex),
+        );
         return {
             type: "PagesChanged",
-            pages: eventStub.pages,
+            pages,
             mutationId: eventStub.mutationId,
             fileSizeInPages: eventStub.fileSizeInPages,
         };

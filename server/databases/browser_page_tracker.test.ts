@@ -212,6 +212,34 @@ describe("BrowserPageTracker", () => {
         tracker.addPendingPages(bid(), [0, 1]);
     });
 
+    // -- clientMightHavePage ---------------------------------------------------
+
+    test("clientMightHavePage returns true for confirmed pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+        tracker.setPages(b, [0, 1]);
+
+        expect(tracker.clientMightHavePage(b, 0)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 1)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 2)).toBe(false);
+    });
+
+    test("clientMightHavePage returns true for pending pages", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        tracker.registerConnection(b, cid());
+        tracker.addPendingPages(b, [3]);
+
+        expect(tracker.clientMightHavePage(b, 3)).toBe(true);
+        expect(tracker.clientMightHavePage(b, 4)).toBe(false);
+    });
+
+    test("clientMightHavePage returns false for unknown browser", () => {
+        const tracker = new BrowserPageTracker();
+        expect(tracker.clientMightHavePage(bid(), 0)).toBe(false);
+    });
+
     // -- filterReadPages ------------------------------------------------------
 
     test("filterReadPages excludes only confirmed pages", () => {
