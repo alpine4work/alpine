@@ -197,7 +197,10 @@ export function getSearchEntityPath({
 export function getSearchDynamicEntityPath(
     spaceId: SpaceId,
     entityId: SearchDynamicEntityIdObject,
-    routeLayout: RouteLayout,
+    // We may use this in the future, so we keep the
+    // parameter to avoid changing all call sites.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _routeLayout: RouteLayout,
 ): string {
     switch (entityId.type) {
         case "Account": {
@@ -236,11 +239,7 @@ export function getSearchDynamicEntityPath(
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
-            if (routeLayout !== "narrow") {
-                return `/s/${spaceId}/tasks/${entityId.taskId}?comments=show&comment=${entityId.commentIndex}`;
-            } else {
-                return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
-            }
+            return `/s/${spaceId}/tasks/${entityId.taskId}?comments=show&comment=${entityId.commentIndex}`;
         }
         case "Site": {
             // TODO(#sites): Implement site search entity path.
