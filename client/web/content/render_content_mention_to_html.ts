@@ -88,7 +88,7 @@ export function renderContentMentionToHtml(
 
     switch (mention.type) {
         case "Account": {
-            href = `/s/${spaceId}/chat/with/${mention.accountId}`;
+            href = `/s/${spaceId}/chat/with/${mention.accountId}?focus`;
 
             const account = references.accountById.get(mention.accountId);
             media = account ? {type: "Account", account} : null;

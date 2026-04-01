@@ -209,7 +209,7 @@ export function getSearchDynamicEntityPath(
             //
             // Though even if we had a profile page for accounts, routing to the 1:1 chat in
             // search may be more useful.
-            return `/s/${spaceId}/chat/with/${entityId.accountId}`;
+            return `/s/${spaceId}/chat/with/${entityId.accountId}?focus`;
         }
         case "Document": {
             return `/s/${spaceId}/documents/${entityId.documentId}`;
