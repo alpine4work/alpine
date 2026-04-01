@@ -1,11 +1,15 @@
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {RpcHttpBatchCallEventOutputSchema} from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export async function deserializeRpcBatchResponse(
-    callBatch: ReadonlyArray<{outputPromiseResolver: PromiseResolver<SchemaSerializedValue>}>,
+    callBatch: ReadonlyArray<{
+        name: string;
+        outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
+    }>,
     response: Response,
 ) {
     const decoder = new TextDecoder();
@@ -53,8 +57,12 @@ export async function deserializeRpcBatchResponse(
         }
     }
 
+    let receivedEventCount = 0;
+
     for await (const eventString of read()) {
         const event = RpcHttpBatchCallEventOutputSchema.deserialize(JSON.parse(eventString));
+
+        receivedEventCount++;
 
         const call = callBatch[event.index];
         const callOutput = event.call;
@@ -72,10 +80,14 @@ export async function deserializeRpcBatchResponse(
         }
     }
 
-    for (const call of callBatch) {
+    for (let i = 0; i < callBatch.length; i++) {
+        const call = callBatch[i]!;
         if (!call.outputPromiseResolver.isSettled()) {
             call.outputPromiseResolver.reject(
-                new InternalError("Batch request didn\u2019t include output for call"),
+                new InternalError(
+                    quote`Batch request didn\u2019t include output for call ${call.name}` +
+                        ` (index ${i}, received ${receivedEventCount}/${callBatch.length} events)`,
+                ),
             );
         }
     }
