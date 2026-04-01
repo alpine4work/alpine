@@ -4,7 +4,6 @@ import {
     CompleteMultipartUploadCommand,
     CreateMultipartUploadCommand,
     DeleteObjectCommand,
-    GetObjectCommand,
     HeadObjectCommand,
     S3Client,
     UploadPartCommand,
@@ -206,22 +205,6 @@ export class ImporterContextModule extends ImporterContextModuleBase {
             } catch {
                 return false;
             }
-        });
-    }
-
-    // TODO: Stream this file to disk before reading it
-    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/75j9w76k2chdpbnv04pa4sg8qw
-    async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        return this._context.tracer.withSpan("Read uploaded file", async () => {
-            const getObjectResult = await this._s3Client
-                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-                .catch(() => null);
-
-            if (!getObjectResult?.Body) {
-                return null;
-            }
-
-            return getObjectResult.Body.transformToByteArray();
         });
     }
 

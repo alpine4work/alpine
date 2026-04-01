@@ -12,6 +12,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/node",
         "//:node_modules/fflate",
+        "//server/importer",
         "//server/importer/notion",
         "//shared/helpers",
     ],

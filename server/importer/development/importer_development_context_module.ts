@@ -50,7 +50,6 @@ async function doesFilePathExist(filePath: string) {
  * 4. The dev endpoint (defined in `app/routes/dev.import-upload.$.tsx`) saves each
  *    part to `{devEnvPaths.data}/import-uploads/{importKey}.parts/{partNumber}`
  * 5. `completeMultipartUpload` concatenates parts into the final file
- * 6. `readUploadedFile` reads directly from the filesystem
  *
  * ## Import processing
  *
@@ -194,18 +193,6 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     async hasUploadedFile(importKey: string): Promise<boolean> {
         const filePath = this._getUploadPath(importKey);
         return doesFilePathExist(filePath);
-    }
-
-    async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const filePath = this._getUploadPath(importKey);
-
-        const isFile = await doesFilePathExist(filePath);
-        if (!isFile) {
-            return null;
-        }
-
-        const buffer = await readFile(filePath);
-        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     /**

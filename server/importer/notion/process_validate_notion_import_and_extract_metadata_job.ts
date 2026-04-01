@@ -1,8 +1,8 @@
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {buildSiteFileSpanData} from "~/server/importer/notion/internal/build_site_file_span_data.js";
 import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
-import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
+import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -48,17 +48,34 @@ export async function processValidateNotionImportAndExtractMetadataJob(
 
         const importItem = assertExists(updatedImportItem);
 
-        // Read the uploaded file
-        const data = await context.importerService.readUploadedFile(importItem.importKey);
+        // Download and unzip the import file to disk
+        let diskPathToUnzippedFiles: string;
+        try {
+            const result = await context.importerService.downloadAndUnzipImportToDisk({
+                importKey: importItem.importKey,
+            });
+            diskPathToUnzippedFiles = result.diskPathToUnzippedFiles;
 
-        if (!data) {
+            // Normalize Notion's export structure (extract nested zips, flatten Export-xxx
+            // dirs)
+            await context.tracer.withSpan("Normalize notion export directory", async () => {
+                await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+            });
+        } catch {
             await markImportFailed(context, notionImportId, "Import file not found");
             return;
         }
 
-        // Find the Notion export root (handles nested zips)
-        const rawFiles = findNotionImportRoot(data);
-        if (!rawFiles) {
+        // List all files in the unzipped export
+        const filePaths = await context.importerService.listUnzippedFiles({
+            diskPathToUnzippedFiles,
+        });
+
+        // Find index.html
+        const indexHtmlPath = filePaths.find(
+            path => path === "index.html" || path.endsWith("/index.html"),
+        );
+        if (!indexHtmlPath) {
             await markImportFailed(
                 context,
                 notionImportId,
@@ -67,11 +84,12 @@ export async function processValidateNotionImportAndExtractMetadataJob(
             return;
         }
 
-        // Find and extract index.html content
-        const indexHtmlKey = Object.keys(rawFiles).find(
-            key => key.endsWith("/index.html") || key === "index.html",
-        );
-        if (!indexHtmlKey) {
+        // Read index.html from disk
+        const indexHtmlContent = await context.importerService.readUnzippedFile({
+            diskPathToUnzippedFiles,
+            relativeFilePath: indexHtmlPath,
+        });
+        if (!indexHtmlContent) {
             await markImportFailed(
                 context,
                 notionImportId,
@@ -79,7 +97,6 @@ export async function processValidateNotionImportAndExtractMetadataJob(
             );
             return;
         }
-        const indexHtmlContent = rawFiles[indexHtmlKey]!;
 
         // Extract metadata (workspace name & teamspaces)
         const metadata = getNotionImportMetadata(indexHtmlContent);
@@ -117,14 +134,21 @@ export async function processValidateNotionImportAndExtractMetadataJob(
             };
         });
 
-        // Compute expected counts and file sizes per teamspace by scanning the zip
-        // contents. This gives users an estimate of the import scope before they confirm.
-        const result = computeNotionImportExpectedStatistics(
-            rawFiles,
+        // Compute expected counts and file sizes per teamspace by scanning the unzipped
+        // files on disk. This gives users an estimate of the import scope before they
+        // confirm.
+        const result = await computeNotionImportExpectedStatistics({
+            readFile: relativePath =>
+                context.importerService.readUnzippedFile({
+                    diskPathToUnzippedFiles,
+                    relativeFilePath: relativePath,
+                }),
+            diskPathToUnzippedFiles,
+            filePaths,
             indexHtmlContent,
             teamspaceNameById,
-            metadata.workspaceId,
-        );
+            workspaceId: metadata.workspaceId,
+        });
 
         // Emit per-teamspace validation spans with file metrics.
         for (const [teamspaceId, stats] of result.teamspaces) {

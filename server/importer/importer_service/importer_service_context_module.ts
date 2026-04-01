@@ -31,23 +31,6 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
     }
 
     /**
-     * Reads an uploaded file from S3.
-     */
-    async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        return this._context.tracer.withSpan("Read uploaded file", async () => {
-            const getObjectResult = await this._s3Client
-                .send(new GetObjectCommand({Bucket: this._bucketName, Key: importKey}))
-                .catch(() => null);
-
-            if (!getObjectResult?.Body) {
-                return null;
-            }
-
-            return getObjectResult.Body.transformToByteArray();
-        });
-    }
-
-    /**
      * Downloads an import zip file from S3 and extracts it to disk.
      */
     async downloadAndUnzipImportToDisk(options: {

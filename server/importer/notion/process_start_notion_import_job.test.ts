@@ -5,7 +5,6 @@ import {getDocument, getDocumentsTableForTest} from "~/server/documents/data/doc
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
-import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {
@@ -14,6 +13,11 @@ import {
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {
+    createDiskReadFile,
+    extractTestNotionImportToDisk,
+    readTestNotionImportIndexHtml,
+} from "~/server/importer/notion/test_helpers/extract_test_notion_import_to_disk.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -161,13 +165,11 @@ async function findDocumentByTitle(
  * separately; here we use it to get realistic initial state for testing the actual
  * import.
  */
-function createProcessQueuedTestResult(zip: Uint8Array): NotionImportProcessingOrDoneResult {
-    const rawFiles = assertExists(findNotionImportRoot(zip));
-    const indexHtmlKey = assertExists(
-        Object.keys(rawFiles).find(key => key.endsWith("/index.html") || key === "index.html"),
-    );
-
-    const indexHtmlContent = rawFiles[indexHtmlKey]!;
+async function createProcessQueuedTestResult(
+    zip: Uint8Array,
+): Promise<NotionImportProcessingOrDoneResult> {
+    const {diskPath, filePaths} = await extractTestNotionImportToDisk(zip);
+    const indexHtmlContent = assertExists(await readTestNotionImportIndexHtml(diskPath, filePaths));
     const metadata = assertExists(getNotionImportMetadata(indexHtmlContent));
 
     const teamspaceNameById =
@@ -175,12 +177,14 @@ function createProcessQueuedTestResult(zip: Uint8Array): NotionImportProcessingO
             ? metadata.teamspaceNameById
             : new Map([["default", metadata.workspaceName]]);
 
-    return computeNotionImportExpectedStatistics(
-        rawFiles,
+    return computeNotionImportExpectedStatistics({
+        readFile: createDiskReadFile(diskPath),
+        diskPathToUnzippedFiles: diskPath,
+        filePaths,
         indexHtmlContent,
         teamspaceNameById,
-        metadata.workspaceId,
-    );
+        workspaceId: metadata.workspaceId,
+    });
 }
 
 async function importedFixtureSpaceItemsToString(
@@ -207,7 +211,7 @@ async function importedFixtureSpaceItemsToString(
         teamspaceImportOptions: null,
         multipartUploadId: null,
         startedValidatingTime: null,
-        status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+        status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
         importedCount: 0,
         importZipSize: 1024,
     });
@@ -384,7 +388,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -445,7 +449,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -514,7 +518,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -743,7 +747,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1048,7 +1052,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1172,7 +1176,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1311,7 +1315,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1398,7 +1402,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1473,7 +1477,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1501,12 +1505,16 @@ describe("processStartNotionImportJob", () => {
             const docCountAfterFirstImport = docsAfterFirstImport.length;
 
             // Reset the import status to allow re-import
+            const reImportResult = await createProcessQueuedTestResult(zip);
             await NotionImporterTable.updateItem(
                 context,
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
                 item => ({
                     ...item!,
-                    status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                    status: {
+                        type: "ProcessQueued",
+                        result: reImportResult,
+                    },
                     importedCount: 0,
                 }),
             );
@@ -1576,7 +1584,7 @@ describe("processStartNotionImportJob", () => {
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1608,12 +1616,16 @@ describe("processStartNotionImportJob", () => {
             expect(docsAfterFirstImport.map(d => d.title)).toContain("Grandchild");
 
             // Reset import status for second import
+            const reImportResult = await createProcessQueuedTestResult(zip);
             await NotionImporterTable.updateItem(
                 context,
                 {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
                 item => ({
                     ...item!,
-                    status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                    status: {
+                        type: "ProcessQueued",
+                        result: reImportResult,
+                    },
                     importedCount: 0,
                 }),
             );
@@ -1683,7 +1695,7 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -1796,7 +1808,7 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2032,7 +2044,7 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2166,7 +2178,7 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });
@@ -2250,7 +2262,7 @@ ${child2.toReference()}`,
                 teamspaceImportOptions: null,
                 multipartUploadId: null,
                 startedValidatingTime: null,
-                status: {type: "ProcessQueued", result: createProcessQueuedTestResult(zip)},
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
                 importZipSize: 1024,
             });

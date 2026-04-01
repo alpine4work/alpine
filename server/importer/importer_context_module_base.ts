@@ -74,14 +74,6 @@ export abstract class ImporterContextModuleBase<
     abstract hasUploadedFile(importKey: string): Promise<boolean>;
 
     /**
-     * Reads an uploaded import file.
-     *
-     * @param importKey - The key returned from `createMultipartUpload` @returns The
-     * file contents as a Uint8Array, or null if not found
-     */
-    abstract readUploadedFile(importKey: string): Promise<Uint8Array | null>;
-
-    /**
      * Deletes an uploaded import file.
      *
      * @param importKey - The key of the file to delete

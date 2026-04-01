@@ -1,5 +1,5 @@
 import envPaths from "env-paths";
-import {mkdir, readFile, stat} from "fs/promises";
+import {mkdir, stat} from "fs/promises";
 import {join as joinPath} from "path";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 
@@ -41,21 +41,6 @@ export class ImporterServiceDevelopmentContextModule extends ImporterServiceCont
 
     private _getUnzipPath(importKey: string): string {
         return joinPath(this._getBasePath(), "import-unzipped", importKey.replace(/\//g, "_"));
-    }
-
-    /**
-     * Reads an uploaded file from local storage.
-     */
-    async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const filePath = this._getUploadPath(importKey);
-
-        const fileStat = await stat(filePath).catch(() => null);
-        if (!fileStat?.isFile()) {
-            return null;
-        }
-
-        const buffer = await readFile(filePath);
-        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     /**

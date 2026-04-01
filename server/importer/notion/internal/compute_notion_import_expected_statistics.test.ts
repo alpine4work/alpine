@@ -1,5 +1,4 @@
 import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
-import {findNotionImportRoot} from "~/server/importer/notion/internal/find_notion_import_root.js";
 import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {
     ExportedNotionDatabase,
@@ -8,23 +7,25 @@ import {
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {
+    createDiskReadFile,
+    extractTestNotionImportToDisk,
+    readTestNotionImportIndexHtml,
+} from "~/server/importer/notion/test_helpers/extract_test_notion_import_to_disk.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * Helper that creates a zip, extracts it, gets metadata, and calls
+ * Helper that creates a zip, extracts it to disk, gets metadata, and calls
  * `computeNotionImportExpectedStatistics`.
  */
-function computeStats(
+async function computeStats(
     items: Array<ExportedNotionDocument> | Array<ExportedNotionTeamspace>,
     options?: {createFoldersForSubpages?: boolean; workspaceName?: string},
 ) {
     const zip = createTestNotionImportZip(items, options);
-    const rawFiles = assertExists(findNotionImportRoot(zip));
+    const {diskPath, filePaths} = await extractTestNotionImportToDisk(zip);
+    const indexHtmlContent = assertExists(await readTestNotionImportIndexHtml(diskPath, filePaths));
 
-    const indexHtmlKey = assertExists(
-        Object.keys(rawFiles).find(k => k === "index.html" || k.endsWith("/index.html")),
-    );
-    const indexHtmlContent = rawFiles[indexHtmlKey]!;
     const metadata = assertExists(getNotionImportMetadata(indexHtmlContent));
 
     const teamspaceNameById =
@@ -32,20 +33,22 @@ function computeStats(
             ? metadata.teamspaceNameById
             : new Map([["default", metadata.workspaceName]]);
 
-    return computeNotionImportExpectedStatistics(
-        rawFiles,
+    return computeNotionImportExpectedStatistics({
+        readFile: createDiskReadFile(diskPath),
+        diskPathToUnzippedFiles: diskPath,
+        filePaths,
         indexHtmlContent,
         teamspaceNameById,
-        metadata.workspaceId,
-    );
+        workspaceId: metadata.workspaceId,
+    });
 }
 
 describe("computeNotionImportExpectedStatistics", () => {
     for (const createFoldersForSubpages of [true, false]) {
         describe(`createFoldersForSubpages=${createFoldersForSubpages}`, () => {
-            test("counts a single document", () => {
+            test("counts a single document", async () => {
                 const doc = new ExportedNotionDocument("Hello", "World");
-                const result = computeStats([doc], {createFoldersForSubpages});
+                const result = await computeStats([doc], {createFoldersForSubpages});
 
                 expect(result.teamspaces.size).toBe(1);
                 const stats = [...result.teamspaces.values()][0]!;
@@ -53,35 +56,35 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(stats.documents.imported).toBe(0);
             });
 
-            test("counts multiple documents", () => {
+            test("counts multiple documents", async () => {
                 const docs = [
                     new ExportedNotionDocument("Doc A", "Content A"),
                     new ExportedNotionDocument("Doc B", "Content B"),
                     new ExportedNotionDocument("Doc C", "Content C"),
                 ];
-                const result = computeStats(docs, {createFoldersForSubpages});
+                const result = await computeStats(docs, {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.documents.expectedCount).toBe(3);
             });
 
-            test("counts nested documents", () => {
+            test("counts nested documents", async () => {
                 const child = new ExportedNotionDocument("Child", "child content");
                 const parent = new ExportedNotionDocument("Parent", "parent content", [child]);
-                const result = computeStats([parent], {createFoldersForSubpages});
+                const result = await computeStats([parent], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.documents.expectedCount).toBe(2);
             });
 
-            test("counts image files", () => {
+            test("counts image files", async () => {
                 const image = new ExportedNotionFile("photo.png", "image");
                 const doc = new ExportedNotionDocument(
                     "With Image",
                     `Look: ${image.toReference()}`,
                 );
                 doc.files.push(image);
-                const result = computeStats([doc], {createFoldersForSubpages});
+                const result = await computeStats([doc], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.documents.expectedCount).toBe(1);
@@ -89,40 +92,40 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(stats.files.get("image/png")?.size).toBeGreaterThan(0);
             });
 
-            test("counts video files", () => {
+            test("counts video files", async () => {
                 const video = new ExportedNotionFile("clip.mp4", "video");
                 const doc = new ExportedNotionDocument(
                     "With Video",
                     `Watch: ${video.toReference()}`,
                 );
                 doc.files.push(video);
-                const result = computeStats([doc], {createFoldersForSubpages});
+                const result = await computeStats([doc], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.files.get("video/mp4")?.expectedCount).toBe(1);
                 expect(stats.files.get("video/mp4")?.size).toBeGreaterThan(0);
             });
 
-            test("counts audio files", () => {
+            test("counts audio files", async () => {
                 const audio = new ExportedNotionFile("song.mp3", "audio");
                 const doc = new ExportedNotionDocument(
                     "With Audio",
                     `Listen: ${audio.toReference()}`,
                 );
                 doc.files.push(audio);
-                const result = computeStats([doc], {createFoldersForSubpages});
+                const result = await computeStats([doc], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.files.get("audio/mpeg")?.expectedCount).toBe(1);
                 expect(stats.files.get("audio/mpeg")?.size).toBeGreaterThan(0);
             });
 
-            test("pre-populates all known teamspaces even if empty", () => {
+            test("pre-populates all known teamspaces even if empty", async () => {
                 const ts1 = new ExportedNotionTeamspace("Engineering", [
                     new ExportedNotionDocument("Doc", "content"),
                 ]);
                 const ts2 = new ExportedNotionTeamspace("Design", []);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 expect(result.teamspaces.size).toBe(2);
                 const designStats = result.teamspaces.get(ts2.notionId);
@@ -130,7 +133,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(designStats!.documents.expectedCount).toBe(0);
             });
 
-            test("assigns documents to correct teamspaces", () => {
+            test("assigns documents to correct teamspaces", async () => {
                 const ts1 = new ExportedNotionTeamspace("Engineering", [
                     new ExportedNotionDocument("API Design", "content"),
                     new ExportedNotionDocument("Architecture", "content"),
@@ -138,13 +141,13 @@ describe("computeNotionImportExpectedStatistics", () => {
                 const ts2 = new ExportedNotionTeamspace("Marketing", [
                     new ExportedNotionDocument("Campaign", "content"),
                 ]);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 expect(result.teamspaces.get(ts1.notionId)!.documents.expectedCount).toBe(2);
                 expect(result.teamspaces.get(ts2.notionId)!.documents.expectedCount).toBe(1);
             });
 
-            test("all imported counters are zero", () => {
+            test("all imported counters are zero", async () => {
                 const image = new ExportedNotionFile("photo.png", "image");
                 const video = new ExportedNotionFile("clip.mp4", "video");
                 const audio = new ExportedNotionFile("song.mp3", "audio");
@@ -153,7 +156,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                     `${image.toReference()} ${video.toReference()} ${audio.toReference()}`,
                 );
                 doc.files.push(image, video, audio);
-                const result = computeStats([doc], {createFoldersForSubpages});
+                const result = await computeStats([doc], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 expect(stats.documents.imported).toBe(0);
@@ -162,7 +165,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 }
             });
 
-            test("counts binary files in multi-teamspace exports", () => {
+            test("counts binary files in multi-teamspace exports", async () => {
                 const image1 = new ExportedNotionFile("logo.png", "image");
                 const image2 = new ExportedNotionFile("banner.png", "image");
                 const video = new ExportedNotionFile("demo.mp4", "video");
@@ -177,7 +180,7 @@ describe("computeNotionImportExpectedStatistics", () => {
 
                 const ts1 = new ExportedNotionTeamspace("Design", [docWithMedia]);
                 const ts2 = new ExportedNotionTeamspace("Sales", [docPlain]);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 const designStats = result.teamspaces.get(ts1.notionId)!;
                 expect(designStats.documents.expectedCount).toBe(1);
@@ -192,7 +195,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(salesStats.files.get("video/mp4")).toBeUndefined();
             });
 
-            test("attributes binary files to correct teamspace when second teamspace has files", () => {
+            test("attributes binary files to correct teamspace when second teamspace has files", async () => {
                 const image = new ExportedNotionFile("photo.png", "image");
                 const video = new ExportedNotionFile("clip.mp4", "video");
 
@@ -205,7 +208,7 @@ describe("computeNotionImportExpectedStatistics", () => {
 
                 const ts1 = new ExportedNotionTeamspace("First", [docPlain]);
                 const ts2 = new ExportedNotionTeamspace("Second", [docWithMedia]);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 const firstStats = result.teamspaces.get(ts1.notionId)!;
                 expect(firstStats.documents.expectedCount).toBe(1);
@@ -220,7 +223,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(secondStats.files.get("video/mp4")?.size).toBeGreaterThan(0);
             });
 
-            test("distributes binary files across multiple teamspaces", () => {
+            test("distributes binary files across multiple teamspaces", async () => {
                 const image1 = new ExportedNotionFile("logo.png", "image");
                 const image2 = new ExportedNotionFile("banner.jpg", "image");
                 const video = new ExportedNotionFile("demo.mp4", "video");
@@ -240,7 +243,7 @@ describe("computeNotionImportExpectedStatistics", () => {
 
                 const ts1 = new ExportedNotionTeamspace("Design", [doc1]);
                 const ts2 = new ExportedNotionTeamspace("Marketing", [doc2]);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 const designStats = result.teamspaces.get(ts1.notionId)!;
                 expect(designStats.files.get("image/png")?.expectedCount).toBe(1);
@@ -253,7 +256,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(marketingStats.files.get("audio/mpeg")?.expectedCount).toBe(1);
             });
 
-            test("does not cross-contaminate counts between teamspaces", () => {
+            test("does not cross-contaminate counts between teamspaces", async () => {
                 const ts1 = new ExportedNotionTeamspace("Engineering", [
                     new ExportedNotionDocument("Doc 1", "content"),
                     new ExportedNotionDocument("Doc 2", "content"),
@@ -263,7 +266,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                     new ExportedNotionDocument("Campaign", "content"),
                 ]);
                 const ts3 = new ExportedNotionTeamspace("Empty Team", []);
-                const result = computeStats([ts1, ts2, ts3], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2, ts3], {createFoldersForSubpages});
 
                 expect(result.teamspaces.size).toBe(3);
                 expect(result.teamspaces.get(ts1.notionId)!.documents.expectedCount).toBe(3);
@@ -271,7 +274,7 @@ describe("computeNotionImportExpectedStatistics", () => {
                 expect(result.teamspaces.get(ts3.notionId)!.documents.expectedCount).toBe(0);
             });
 
-            test("counts full-page database as a document", () => {
+            test("counts full-page database as a document", async () => {
                 const db = new ExportedNotionDatabase("Task Tracker", [
                     ["Name", "Status"],
                     ["Task 1", "Done"],
@@ -279,14 +282,14 @@ describe("computeNotionImportExpectedStatistics", () => {
                 const parent = new ExportedNotionDocument("Project", `Tasks: ${db.toReference()}`, [
                     db,
                 ]);
-                const result = computeStats([parent], {createFoldersForSubpages});
+                const result = await computeStats([parent], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 // parent .md + full-page database .md = 2
                 expect(stats.documents.expectedCount).toBe(2);
             });
 
-            test("does not count inline database as a document", () => {
+            test("does not count inline database as a document", async () => {
                 const inlineDb = new ExportedNotionDatabase(
                     "Team Members",
                     [
@@ -301,14 +304,14 @@ describe("computeNotionImportExpectedStatistics", () => {
                     `Team: ${inlineDb.toCsvReference()}`,
                     [inlineDb],
                 );
-                const result = computeStats([parent], {createFoldersForSubpages});
+                const result = await computeStats([parent], {createFoldersForSubpages});
 
                 const stats = [...result.teamspaces.values()][0]!;
                 // Only the parent .md — inline database has no .md file
                 expect(stats.documents.expectedCount).toBe(1);
             });
 
-            test("counts full-page but not inline databases across teamspaces", () => {
+            test("counts full-page but not inline databases across teamspaces", async () => {
                 const fullPageDb = new ExportedNotionDatabase("Roadmap", [
                     ["Feature", "Quarter"],
                     ["Search", "Q1"],
@@ -336,7 +339,7 @@ describe("computeNotionImportExpectedStatistics", () => {
 
                 const ts1 = new ExportedNotionTeamspace("Product", [docWithFullPage]);
                 const ts2 = new ExportedNotionTeamspace("Analytics", [docWithInline]);
-                const result = computeStats([ts1, ts2], {createFoldersForSubpages});
+                const result = await computeStats([ts1, ts2], {createFoldersForSubpages});
 
                 // Product: Planning .md + Roadmap .md = 2
                 expect(result.teamspaces.get(ts1.notionId)!.documents.expectedCount).toBe(2);

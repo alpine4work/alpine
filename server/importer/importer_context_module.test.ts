@@ -6,7 +6,7 @@ import {
     S3Client,
 } from "@aws-sdk/client-s3";
 import {SdkStreamMixin} from "@smithy/types";
-import {existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "fs";
+import {existsSync, mkdirSync, readFileSync, rmSync} from "fs";
 import {join as joinPath} from "path";
 import {ImporterDevelopmentContextModule} from "~/server/importer/development/importer_development_context_module.js";
 import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
@@ -130,51 +130,6 @@ describe("ImporterContextModule", () => {
     // Note: createMultipartUpload and createPresignedPartUploadUrls cannot be unit
     // tested with a mock S3 client because they require a real S3Client with
     // credential resolution. Integration tests should cover this.
-
-    describe("readUploadedFile", () => {
-        test("returns file contents from S3", async () => {
-            const {mockS3, run} = createTestImporterModule();
-            const fileData = new Uint8Array([1, 2, 3, 4, 5]);
-            mockS3.mockGetObjectData = fileData;
-
-            const result = await run(importer => importer.readUploadedFile("spa_123/nim_456"));
-
-            expect(result).toEqual(fileData);
-            expect(mockS3.sentCommands.length).toBe(1);
-            expect(mockS3.sentCommands[0]).toBeInstanceOf(GetObjectCommand);
-        });
-
-        test("uses provided bucket name for GetObject", async () => {
-            const {mockS3, run} = createTestImporterModule({
-                bucketName: "custom-bucket-name",
-            });
-            mockS3.mockGetObjectData = new Uint8Array([1]);
-
-            await run(importer => importer.readUploadedFile("test/key"));
-
-            const command = mockS3.sentCommands[0] as GetObjectCommand;
-            expect(command.input.Bucket).toBe("custom-bucket-name");
-            expect(command.input.Key).toBe("test/key");
-        });
-
-        test("returns null when S3 returns error", async () => {
-            const {mockS3, run} = createTestImporterModule();
-            mockS3.mockGetObjectError = InternalError.from("NoSuchKey");
-
-            const result = await run(importer => importer.readUploadedFile("nonexistent/key"));
-
-            expect(result).toBeNull();
-        });
-
-        test("returns null when Body is missing", async () => {
-            const {run} = createTestImporterModule();
-            // mockGetObjectData is null by default, so Body will be missing
-
-            const result = await run(importer => importer.readUploadedFile("spa_123/nim_456"));
-
-            expect(result).toBeNull();
-        });
-    });
 
     describe("fork", () => {
         test("returns a new instance with same s3Client and bucketName", () => {
@@ -483,66 +438,6 @@ describe("ImporterContextModuleDevelopment", () => {
         });
     });
 
-    describe("readUploadedFile", () => {
-        test("returns file contents from dev-data directory", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const testData = new Uint8Array([100, 200, 150, 75]);
-            const importKey = "spa_abc/nim_xyz";
-
-            // Write test file
-            const filePath = joinPath(uploadDir, importKey);
-            mkdirSync(joinPath(uploadDir, "spa_abc"), {recursive: true});
-            writeFileSync(filePath, testData);
-
-            const result = await module.readUploadedFile(importKey);
-
-            expect(result).toEqual(testData);
-        });
-
-        test("returns null when file does not exist", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-
-            const result = await module.readUploadedFile("nonexistent/file");
-
-            expect(result).toBeNull();
-        });
-
-        test("returns null when path is a directory", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const dirPath = joinPath(uploadDir, "some-dir");
-            mkdirSync(dirPath, {recursive: true});
-
-            const result = await module.readUploadedFile("some-dir");
-
-            expect(result).toBeNull();
-        });
-
-        test("handles empty file", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const importKey = "empty/read-test";
-
-            const filePath = joinPath(uploadDir, importKey);
-            mkdirSync(joinPath(uploadDir, "empty"), {recursive: true});
-            writeFileSync(filePath, new Uint8Array([]));
-
-            const result = await module.readUploadedFile(importKey);
-
-            expect(result).toEqual(new Uint8Array([]));
-        });
-    });
-
     describe("fork", () => {
         test("returns a new instance with same workspace path", async () => {
             const module = new ImporterDevelopmentContextModule({
@@ -561,52 +456,6 @@ describe("ImporterContextModuleDevelopment", () => {
             // The forked module should see the same file
             const filePath = joinPath(uploadDir, "fork-test.parts/1");
             expect(existsSync(filePath)).toBe(true);
-        });
-    });
-
-    describe("multipart round-trip", () => {
-        test("write parts then complete then read returns concatenated data", async () => {
-            const module = new ImporterDevelopmentContextModule({
-                localUploadPath: workspacePath,
-                ...createNoOpDevModuleOptions(),
-            });
-            const importKey = "roundtrip/test";
-
-            // Create the multipart upload (creates parts dir).
-            await Context.with(
-                {
-                    tracer: new TracerContextModule(testTracer),
-                    constants: new ConstantsContextModule({
-                        edgeServiceUrl: "http://localhost:3010",
-                        resourceServiceUrl: "http://localhost:3020",
-                    }),
-                    importer: module,
-                },
-                async ctx => {
-                    const {uploadId} = await ctx.importer.createMultipartUpload({
-                        importKey,
-                        contentType: "application/zip",
-                        contentLength: 10,
-                    });
-
-                    // Write parts.
-                    await module.writePartFile(importKey, 1, new Uint8Array([1, 2, 3, 4, 5]));
-                    await module.writePartFile(importKey, 2, new Uint8Array([6, 7, 8, 9, 10]));
-
-                    // Complete the multipart upload.
-                    await ctx.importer.completeMultipartUpload({
-                        importKey,
-                        uploadId,
-                        parts: [
-                            {partNumber: 1, etag: "etag1"},
-                            {partNumber: 2, etag: "etag2"},
-                        ],
-                    });
-                },
-            );
-
-            const result = await module.readUploadedFile(importKey);
-            expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
         });
     });
 });

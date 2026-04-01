@@ -1,4 +1,4 @@
-import {mkdir, readFile, stat, unlink, writeFile} from "fs/promises";
+import {mkdir, stat, unlink, writeFile} from "fs/promises";
 import {join as joinPath} from "path";
 
 import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
@@ -31,18 +31,6 @@ export class TestImporterServiceContextModule extends ImporterServiceDevelopment
 
     private _testGetUnzipPath(importKey: string): string {
         return joinPath(this._testBasePath, "import-unzipped", importKey);
-    }
-
-    override async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const filePath = this._testGetUploadPath(importKey);
-
-        const fileStat = await stat(filePath).catch(() => null);
-        if (!fileStat?.isFile()) {
-            return null;
-        }
-
-        const buffer = await readFile(filePath);
-        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     override async downloadAndUnzipImportToDisk(options: {
@@ -220,18 +208,6 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
         const filePath = this._getUploadPath(importKey);
         const fileStat = await stat(filePath).catch(() => null);
         return fileStat?.isFile() ?? false;
-    }
-
-    async readUploadedFile(importKey: string): Promise<Uint8Array | null> {
-        const filePath = this._getUploadPath(importKey);
-
-        const fileStat = await stat(filePath).catch(() => null);
-        if (!fileStat?.isFile()) {
-            return null;
-        }
-
-        const buffer = await readFile(filePath);
-        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     async deleteUploadedFile(importKey: string): Promise<void> {

@@ -30,18 +30,6 @@ export abstract class ImporterServiceContextModuleBase<
     },
 > extends ContextModuleBase<Modules> {
     /**
-     * Reads an uploaded import file.
-     *
-     * In production: Reads from S3. In development: Reads from the local filesystem.
-     *
-     * This is typically used for validation before extraction.
-     *
-     * @param importKey - The key returned from `createMultipartUpload` @returns The
-     * file contents as a Uint8Array, or null if not found
-     */
-    abstract readUploadedFile(importKey: string): Promise<Uint8Array | null>;
-
-    /**
      * Downloads an import zip file and extracts it to disk.
      *
      * In production: Downloads from S3 to disk, then unzips to a directory. In
