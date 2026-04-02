@@ -1,5 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
@@ -10,12 +10,14 @@ import {
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
+import {useHintOracle} from "~/client/web/design/use_hint_oracle.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {
     getCurrentDate,
@@ -727,6 +729,33 @@ function TaskRouteInner() {
         initialFieldsCollectionSubscriptionById,
         taskSubscriptionFromLoader,
     ]);
+
+    const peekContext = usePeekContext();
+
+    // Show the auto save hint once the user has typed something in a task and we've
+    // established a `taskSubscription` (confirming the task was created on the
+    // backend).
+    const isPeekStackAutoSaveHintVisible = useHintOracle(
+        peekContext?.stack &&
+            wasCreating &&
+            taskSubscription &&
+            currentAccountSettings.taskPeekStackAutoSaveHint
+            ? "a2#TaskPeekStackAutoSaveHint"
+            : null,
+    );
+
+    const lastIsPeekStackAutoSaveHintVisibleRef = useRef(isPeekStackAutoSaveHintVisible);
+    useEffect(() => {
+        if (lastIsPeekStackAutoSaveHintVisibleRef.current === isPeekStackAutoSaveHintVisible)
+            return;
+        lastIsPeekStackAutoSaveHintVisibleRef.current = isPeekStackAutoSaveHintVisible;
+
+        if (isPeekStackAutoSaveHintVisible) {
+            // `isPeekStackAutoSaveHintVisible` should only be true if `peekContext.stack`
+            // exists.
+            assertExists(peekContext?.stack).showTaskAutoSaveHint();
+        }
+    }, [isPeekStackAutoSaveHintVisible, peekContext?.stack]);
 
     const commitActionTransactionAndCreateIfNeeded = useEvent(
         (

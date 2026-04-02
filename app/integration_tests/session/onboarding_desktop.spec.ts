@@ -12,6 +12,34 @@ async function waitForOneTimePassword(index: number) {
     });
 }
 
+async function signUpAndOpenHome(page: Page) {
+    const emailAddress = `test.${generateId()}@gmail.com`;
+
+    await page.goto("/auth/sign-up");
+    await page.getByPlaceholder("name@company.com").fill(emailAddress);
+    await page.getByRole("button", {name: "Sign up"}).click();
+    await page.getByPlaceholder("Anthony Mose").fill("Test Testerson");
+    await page.getByRole("button", {name: "Sign up"}).click();
+    await page.getByRole("link", {name: "Skip for now"}).click();
+    await page.getByRole("button", {name: "Skip for now"}).click();
+    await page.getByLabel("Passcode").fill(await waitForOneTimePassword(0));
+    await page.getByRole("button", {name: "Sign up"}).click();
+
+    await expect(page.getByText("Test\u2019s Space", {exact: true})).toBeVisible();
+}
+
+async function createTaskOnHomeRouteInPeekAndType(page: Page, title: string) {
+    await page.getByLabel("Create task", {exact: true}).click();
+
+    const peekLocator = page.getByTestId("PeekStackOverlay");
+    await expect(peekLocator).toBeVisible();
+
+    const titleInputLocator = peekLocator.getByTestId("TaskDetailViewMain").getByLabel("Title");
+    await expect(titleInputLocator).toBeVisible();
+    await titleInputLocator.pressSequentially(title);
+    await expect(page).not.toHaveURL(/[?&]create/);
+}
+
 const onboardingHintsTestCases: Array<{
     name: string;
     firstEdit: (page: Page) => Promise<void>;
@@ -159,3 +187,43 @@ for (const {name, firstEdit, secondEdit, thirdEdit} of onboardingHintsTestCases)
         await expect(shareActivationHintLocator).toBeHidden();
     });
 }
+
+test("task auto save hint stays dismissed after clicking close", async ({page}) => {
+    await page.clock.install();
+    await signUpAndOpenHome(page);
+
+    const autoSaveHintLocator = page.getByText("Tasks are saved automatically as you type.");
+    const peekLocator = page.getByTestId("PeekStackOverlay");
+
+    await createTaskOnHomeRouteInPeekAndType(page, "First task");
+    await page.clock.runFor(1000 * 5);
+    await expect(autoSaveHintLocator).toBeVisible();
+
+    await peekLocator.getByRole("button", {name: "Close"}).click();
+    await expect(peekLocator).toBeHidden();
+    await expect(autoSaveHintLocator).toBeHidden();
+
+    await createTaskOnHomeRouteInPeekAndType(page, "Second task");
+    await page.clock.runFor(1000 * 5);
+    await expect(autoSaveHintLocator).toBeHidden();
+});
+
+test("task auto save hint stays dismissed after pressing escape", async ({page}) => {
+    await page.clock.install();
+    await signUpAndOpenHome(page);
+
+    const autoSaveHintLocator = page.getByText("Tasks are saved automatically as you type.");
+    const peekLocator = page.getByTestId("PeekStackOverlay");
+
+    await createTaskOnHomeRouteInPeekAndType(page, "First task");
+    await page.clock.runFor(1000 * 5);
+    await expect(autoSaveHintLocator).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(peekLocator).toBeHidden();
+    await expect(autoSaveHintLocator).toBeHidden();
+
+    await createTaskOnHomeRouteInPeekAndType(page, "Second task");
+    await page.clock.runFor(1000 * 5);
+    await expect(autoSaveHintLocator).toBeHidden();
+});

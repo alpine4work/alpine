@@ -1542,7 +1542,7 @@ export function DocumentContentEditor({
 
     const cover = editorState.getDoc().attrs.cover as DocumentContentCover | null;
 
-    const withinPeekStackOverlay = peekContext?.withinStack === true;
+    const withinPeekStackOverlay = !!peekContext?.stack;
 
     const blobsScale = useRouteLayout() === "narrow" ? 0.75 : 1;
     const blobsSettings = useMemo(

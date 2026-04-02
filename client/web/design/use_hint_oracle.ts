@@ -22,7 +22,10 @@ import {ValueStore} from "~/shared/store/value_store.js";
  * to add hints in the middle of the list without having to renumber the existing
  * hints.
  */
-export type HintKind = "a0#ShareActivationHint" | "a1#SearchEducationHint";
+export type HintKind =
+    | "a0#ShareActivationHint"
+    | "a1#SearchEducationHint"
+    | "a2#TaskPeekStackAutoSaveHint";
 
 // Double check that the syntax is `${OrderKey}#${HintName}`.
 assertAssignableTypes<HintKind, `${string}#${string}`>();

@@ -8,6 +8,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {PeekRemixEmbedRouter} from "~/client/web/peek/peek_remix_embed_router.js";
 // eslint-disable-next-line cyberworlds/no-internal-imports
 import {PeekContextDefinition} from "~/client/web/remix/internal/peek_context_definition.js";
+import {PeekContext} from "~/client/web/remix/peek_context_types.js";
 import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
@@ -20,14 +21,14 @@ import {PeekId} from "~/shared/id/types/id_types.js";
 export function PeekRemixEmbed({
     peekId,
     layout,
-    withinStack = false,
+    stack = null,
     withoutSearchAffinityViewEntityInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
     layout: RouteLayout;
-    withinStack?: boolean;
+    stack?: PeekContext["stack"];
     withoutSearchAffinityViewEntityInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
@@ -90,10 +91,10 @@ export function PeekRemixEmbed({
                     () => ({
                         id: peekId,
                         layout,
-                        withinStack,
+                        stack,
                         withoutSearchAffinityViewEntityInteraction,
                     }),
-                    [layout, peekId, withinStack, withoutSearchAffinityViewEntityInteraction],
+                    [layout, peekId, stack, withoutSearchAffinityViewEntityInteraction],
                 )}
             >
                 <UpdateMetaTitleContextProvider

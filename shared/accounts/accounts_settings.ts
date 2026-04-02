@@ -54,6 +54,12 @@ export const AccountSettingsSchema = Schema.object({
     searchEducationHint: Schema.object({hasOpenedFeed: Schema.boolean})
         .nullable()
         .default({hasOpenedFeed: false}),
+
+    /**
+     * We show a hint after you create a task in a peek. The hint tells you that the
+     * task is auto-saved and you can close the peek once you're done editing.
+     */
+    taskPeekStackAutoSaveHint: Schema.object({}).nullable().default({}),
 });
 
 export const initialAccountSettings: AccountSettings = {
@@ -61,6 +67,7 @@ export const initialAccountSettings: AccountSettings = {
     observedTimeZone: null,
     shareActivationHint: {},
     searchEducationHint: {hasOpenedFeed: false},
+    taskPeekStackAutoSaveHint: {},
 };
 
 export type AccountSettingsAction = SchemaType<typeof AccountSettingsActionSchema>;
@@ -82,6 +89,9 @@ export const AccountSettingsActionSchema = Schema.union({
     }),
     HideSearchEducationHint: Schema.object({
         type: Schema.value("HideSearchEducationHint"),
+    }),
+    HideTaskPeekStackAutoSaveHint: Schema.object({
+        type: Schema.value("HideTaskPeekStackAutoSaveHint"),
     }),
     ResetOnboardingForDev: Schema.object({
         type: Schema.value("ResetOnboardingForDev"),
@@ -148,11 +158,16 @@ function actuallyApplyAccountSettingsAction(
             if (!settings.searchEducationHint) return settings;
             return {...settings, searchEducationHint: null};
         }
+        case "HideTaskPeekStackAutoSaveHint": {
+            if (!settings.taskPeekStackAutoSaveHint) return settings;
+            return {...settings, taskPeekStackAutoSaveHint: null};
+        }
         case "ResetOnboardingForDev": {
             return {
                 ...settings,
                 shareActivationHint: {},
                 searchEducationHint: {hasOpenedFeed: false},
+                taskPeekStackAutoSaveHint: {},
             };
         }
         default:

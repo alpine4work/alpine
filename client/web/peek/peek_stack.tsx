@@ -42,6 +42,7 @@ import {Box} from "~/client/web/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {
@@ -83,11 +84,15 @@ import {
     peekStackOverlayBorderRadius,
 } from "~/client/web/styles/peek_shared_styles.js";
 import {
+    pingAnimationClassName,
     spaceLayoutStyles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/web/styles/styles.js";
-import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
+import {
+    greyElevated1ClassName,
+    greyElevated2ClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -1332,6 +1337,7 @@ function PeekStackOverlay({
                                     createPeekRouter={createPeekRouter}
                                     entry={entry}
                                     isDragging={isDragging}
+                                    isHidden={isContentHidden}
                                     draggableListeners={draggableListeners}
                                     onClosePress={onClosePress}
                                 />
@@ -1370,6 +1376,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         createPeekRouter,
         entry,
         isDragging,
+        isHidden,
         draggableListeners,
         onClosePress,
     }: {
@@ -1382,6 +1389,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         }) => PeekRemixEmbedRouter;
         entry: PeekStackEntry;
         isDragging: boolean;
+        isHidden: boolean;
         draggableListeners: SyntheticListenerMap | undefined;
         onClosePress: (event: PressEvent) => void;
     },
@@ -1389,6 +1397,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
 ) {
     const clientInfo = useClientInfo();
     const navigate = useNavigate();
+    const {currentAccountSettings, updateCurrentAccountSettings} = useSpaceContext();
 
     const contentRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLElement>(null);
@@ -1488,12 +1497,38 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         return routerResult.value.subscribe(update);
     }, [entry.history, routerResult.isPending, routerResult.value]);
 
+    const [isTaskAutoSaveHintVisible, setIsTaskAutoSaveHintVisible] = useState(false);
+
+    // Turn off the auto-save hint if it's been dismissed in settings.
+    if (!currentAccountSettings.taskPeekStackAutoSaveHint && isTaskAutoSaveHintVisible) {
+        setIsTaskAutoSaveHintVisible(false);
+    }
+    // Turn off the auto-save hint if the peek is hidden (e.g. when another peek opens
+    // on top of this one).
+    else if (isHidden && isTaskAutoSaveHintVisible) {
+        setIsTaskAutoSaveHintVisible(false);
+    }
+
+    const showTaskAutoSaveHint = useEvent(() => {
+        if (!currentAccountSettings.taskPeekStackAutoSaveHint) return;
+        setIsTaskAutoSaveHintVisible(true);
+    });
+
+    const stack = useMemo(() => ({showTaskAutoSaveHint}), [showTaskAutoSaveHint]);
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
                 switch (event.key) {
                     case "Escape": {
                         if (state.stack.length === 0) break;
+
+                        // Once the user performs the action in the hint (closing the peek), we can hide
+                        // the auto-save hint.
+                        if (isTaskAutoSaveHintVisible) {
+                            setIsTaskAutoSaveHintVisible(false);
+                            updateCurrentAccountSettings({type: "HideTaskPeekStackAutoSaveHint"});
+                        }
 
                         if (event.shiftKey) {
                             event.preventDefault();
@@ -1646,19 +1681,88 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         >
                             <ArrowsOutSimple />
                         </IconButton>
-                        <IconButton
-                            ref={closeButtonRef}
-                            size="xs"
-                            description="Close"
-                            keyboardShortcutHint="esc"
-                            tooltipPlacement="top"
-                            tooltipContentOverride={
-                                state.stack.length > 1 ? "Double-click to close all" : undefined
+                        <OverlayAnimated
+                            isVisible={isTaskAutoSaveHintVisible}
+                            disableAnimationOut
+                            placement="top-end"
+                            offset="3"
+                            offsetAlong="0.5"
+                            overlay={
+                                <Box
+                                    backgroundColor="grey-0"
+                                    boxShadow="elevation-20"
+                                    className={greyElevated2ClassName}
+                                    borderRadius="1.5"
+                                    paddingX="3"
+                                    paddingY="2"
+                                    display="flex"
+                                    alignItems="center"
+                                    gap="4"
+                                >
+                                    <Box fontSize="50">
+                                        Tasks are saved automatically as you type.
+                                        <br />
+                                        Press esc to close when you’re done editing.
+                                    </Box>
+                                </Box>
                             }
-                            onPress={onClosePress}
                         >
-                            <X />
-                        </IconButton>
+                            <Box position="relative" zIndex="0">
+                                {isTaskAutoSaveHintVisible && (
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        width="2"
+                                        height="2"
+                                        style={{
+                                            top: 0,
+                                            right: 0,
+                                        }}
+                                    >
+                                        <Box
+                                            className={pingAnimationClassName}
+                                            position="absolute"
+                                            inset="0"
+                                            borderRadius="full"
+                                            backgroundColor="theme-30-const"
+                                        />
+                                        <Box
+                                            position="absolute"
+                                            inset="0"
+                                            borderRadius="full"
+                                            backgroundColor="theme-40-const"
+                                        />
+                                    </Box>
+                                )}
+                                <IconButton
+                                    ref={closeButtonRef}
+                                    size="xs"
+                                    description="Close"
+                                    keyboardShortcutHint="esc"
+                                    tooltipPlacement="top"
+                                    tooltipContentOverride={
+                                        state.stack.length > 1
+                                            ? "Double-click to close all"
+                                            : undefined
+                                    }
+                                    isHovered={isTaskAutoSaveHintVisible}
+                                    onPress={event => {
+                                        // Once the user performs the action in the hint (closing the peek), we can hide
+                                        // the auto-save hint.
+                                        if (isTaskAutoSaveHintVisible) {
+                                            setIsTaskAutoSaveHintVisible(false);
+                                            updateCurrentAccountSettings({
+                                                type: "HideTaskPeekStackAutoSaveHint",
+                                            });
+                                        }
+
+                                        onClosePress(event);
+                                    }}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
+                        </OverlayAnimated>
                     </Box>
                 </Box>
                 {useMemo(
@@ -1671,13 +1775,13 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                                 <PeekRemixEmbed
                                     peekId={entry.id}
                                     layout="narrow"
-                                    withinStack={true}
+                                    stack={stack}
                                     router={routerResult.value}
                                     onGoBackOverflow={() => dispatch({type: "Pop"})}
                                 />
                             </ContentBlockWidthContextProvider>
                         ),
-                    [dispatch, entry.id, routerResult.isPending, routerResult.value],
+                    [dispatch, entry.id, routerResult.isPending, routerResult.value, stack],
                 )}
             </Box>
         </GlobalKeyDownEvent>

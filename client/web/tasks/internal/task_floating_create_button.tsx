@@ -48,7 +48,7 @@ export function TaskFloatingCreateButton({
     // weird to see two create buttons next to each other.
     //
     // We do want to show the floating create button in search, though.
-    if (peekContext?.withinStack) return null;
+    if (peekContext?.stack) return null;
 
     return (
         <Box
