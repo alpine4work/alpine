@@ -587,7 +587,7 @@ function renderContentFileImagePreviewInner(
             classNames(html.getAttribute("class"), contentStyles.loadedFileImagePreviewClassName),
         );
     } else {
-        const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+        const svg = renderFileImagePreviewPlaceholder(fileSize, filePreviewPlaceholder);
 
         const placeholderImageHtml = new HtmlElementGenerator("img");
         placeholderImageHtml.setAttribute(
@@ -638,7 +638,9 @@ function renderContentFileImagePreviewInner(
         }
 
         if (needsLetterbox) {
-            const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+            // Intentionally use `layout` when rendering the letterbox to not stretch out the
+            // placeholder too much.
+            const svg = renderFileImagePreviewPlaceholder(layout, filePreviewPlaceholder);
 
             const letterboxImageHtml = new HtmlElementGenerator("img");
             html.appendChild(letterboxImageHtml);
@@ -651,9 +653,6 @@ function renderContentFileImagePreviewInner(
             // technologies.
             letterboxImageHtml.setAttribute("aria-hidden", "true");
             letterboxImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
-
-            const letterboxBorderHtml = new HtmlElementGenerator("div");
-            html.appendChild(letterboxBorderHtml);
 
             // Use CSS `clip-path` to cut out the space inside the letterbox where the image
             // will be rendered. So if there's any transparency in the image the transparency
@@ -670,16 +669,6 @@ function renderContentFileImagePreviewInner(
                     // eslint-disable-next-line cyberworlds/string-quotes
                     `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height} H 0 Z M ${layout.width - Math.ceil(barWidth)} 0 H ${layout.width} V ${layout.height} H ${layout.width - Math.ceil(barWidth)} Z')`,
                 );
-
-                letterboxBorderHtml.setAttribute(
-                    "class",
-                    contentStyles.fileImagePreviewLetterboxVerticalBorderClassName,
-                );
-
-                letterboxBorderHtml.setAttribute(
-                    "style",
-                    `top: ${contentStyles.fileBorderWidth}px; height: ${layout.height - contentStyles.fileBorderWidth * 2}px; left: ${barWidth}px; width: ${containedFileWidth}px`,
-                );
             } else {
                 const barHeight = (layout.height - containedFileHeight) / 2;
 
@@ -687,16 +676,6 @@ function renderContentFileImagePreviewInner(
                     "style",
                     // eslint-disable-next-line cyberworlds/string-quotes
                     `clip-path: path('M 0 0 H ${layout.width} V ${Math.ceil(barHeight)} H 0 Z M 0 ${layout.height - Math.ceil(barHeight)} H ${layout.width} V ${layout.height} H 0 Z')`,
-                );
-
-                letterboxBorderHtml.setAttribute(
-                    "class",
-                    contentStyles.fileImagePreviewLetterboxHorizontalBorderClassName,
-                );
-
-                letterboxBorderHtml.setAttribute(
-                    "style",
-                    `top: ${barHeight}px; height: ${containedFileHeight}px; left: ${contentStyles.fileBorderWidth}px; width: ${layout.width - contentStyles.fileBorderWidth * 2}px`,
                 );
             }
         }
@@ -1061,20 +1040,25 @@ export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePr
     return {isNearBlack, isNearWhite, hasTransparentBackground};
 }
 
-export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
+export function renderFileImagePreviewPlaceholder(
+    fileSize: {width: number; height: number},
+    placeholder: FileImagePreviewPlaceholder,
+) {
     /* eslint-disable cyberworlds/string-quotes */
 
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
     const pixelGridHeight = pixelGrid.length;
 
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fileSize.width} ${fileSize.height}">`;
 
-    const blurStdDeviation = 2 / 3;
+    const rectWidthBase = fileSize.width / pixelGridWidth;
+    const rectHeightBase = fileSize.height / pixelGridHeight;
+    const blurStdDeviation = (2 / 3) * Math.min(rectWidthBase, rectHeightBase);
     const translateX = -blurStdDeviation * 2;
     const translateY = -blurStdDeviation * 2;
-    const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
-    const scaleY = (pixelGridHeight + -translateY * 2) / pixelGridHeight;
+    const rectWidth = rectWidthBase + -translateX * 2;
+    const rectHeight = rectHeightBase + -translateY * 2;
 
     svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
         blurStdDeviation,
@@ -1093,12 +1077,12 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
 
             svg +=
                 `<rect ` +
-                `x="${round6(x * scaleX + translateX)}" ` +
-                `y="${round6(y * scaleY + translateY)}" ` +
+                `x="${round6(x * rectWidth + translateX)}" ` +
+                `y="${round6(y * rectHeight + translateY)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${round6(scaleX)}" ` +
-                `height="${round6(scaleY)}" ` +
+                `width="${round6(rectWidth)}" ` +
+                `height="${round6(rectHeight)}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;

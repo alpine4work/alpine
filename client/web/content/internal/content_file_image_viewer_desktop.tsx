@@ -418,12 +418,14 @@ function ContentFileImageDesktopViewerInner({
                                         draggable={false}
                                         src={convertSvgToDataUrl(
                                             renderFileImagePreviewPlaceholder(
+                                                fileSize,
                                                 filePreviewPlaceholder,
                                             ),
                                         )}
                                     />
                                 ),
                             [
+                                fileSize,
                                 filePreviewPlaceholder,
                                 isLoadedAndAnimated,
                                 scaledFileHeight,

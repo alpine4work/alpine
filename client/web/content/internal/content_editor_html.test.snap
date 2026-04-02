@@ -4978,9 +4978,6 @@ exports[`file row (one file) 1`] = `
         aria-hidden="true"
         style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
       />
-      <div
-        style="top: 0.5px; height: 511px; left: 44px; width: 512px"
-      />
     </div>
   </div>
 </div>
@@ -5240,9 +5237,6 @@ exports[`file row (one file, image type) 1`] = `
         aria-hidden="true"
         style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
       />
-      <div
-        style="top: 0.5px; height: 511px; left: 44px; width: 512px"
-      />
     </div>
   </div>
 </div>
@@ -5345,9 +5339,6 @@ exports[`file row (one file, video type) 1`] = `
       <img
         aria-hidden="true"
         style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
-      />
-      <div
-        style="top: 0.5px; height: 511px; left: 44px; width: 512px"
       />
       <div
         class="greyElevated2"

@@ -630,11 +630,14 @@ function ContentFileImageMobileViewerInner({
                                 aria-hidden={true}
                                 draggable={false}
                                 src={convertSvgToDataUrl(
-                                    renderFileImagePreviewPlaceholder(filePreviewPlaceholder),
+                                    renderFileImagePreviewPlaceholder(
+                                        fileSize,
+                                        filePreviewPlaceholder,
+                                    ),
                                 )}
                             />
                         ),
-                    [filePreviewPlaceholder, fileSize.height, fileSize.width, isLoadedAndAnimated],
+                    [filePreviewPlaceholder, fileSize, isLoadedAndAnimated],
                 )}
             </div>
             {withoutZoom && extraChildrenForVideo && (

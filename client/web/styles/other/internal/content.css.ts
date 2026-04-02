@@ -1348,7 +1348,7 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
     }),
 );
 
-export const fileBorderWidth = 0.5;
+export const fileBorderWidth = 1;
 
 // We add a border around images to prevent images from bleeding into the
 // background. Say you have a screenshot of a web design with an off white
@@ -1367,7 +1367,7 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 ${fileBorderWidth}px ${colorSchemeVars["grey-5-translucent"]}`,
+    boxShadow: `inset 0 0 0 ${fileBorderWidth}px ${colorSchemeVars["grey-1-translucent"]}`,
 });
 
 globalStyle(`${fileClassName}${fileEntityClassName}:not(${fileImageViewerClassName})::before`, {
@@ -1526,26 +1526,7 @@ export const fileImagePreviewLetterboxClassName = style({
     objectFit: "cover",
     pointerEvents: "none",
     opacity: 0.2,
-});
-
-export const fileImagePreviewLetterboxVerticalBorderClassName = style({
-    zIndex: "20",
-    position: "absolute",
-    pointerEvents: "none",
-    borderLeftColor: colorSchemeVars["grey-5-translucent"],
-    borderLeftWidth: fileBorderWidth,
-    borderRightColor: colorSchemeVars["grey-5-translucent"],
-    borderRightWidth: fileBorderWidth,
-});
-
-export const fileImagePreviewLetterboxHorizontalBorderClassName = style({
-    zIndex: "20",
-    position: "absolute",
-    pointerEvents: "none",
-    borderTopColor: colorSchemeVars["grey-5-translucent"],
-    borderTopWidth: fileBorderWidth,
-    borderBottomColor: colorSchemeVars["grey-5-translucent"],
-    borderBottomWidth: fileBorderWidth,
+    filter: "contrast(0.9)",
 });
 
 export const fileEntityPreviewSubscribeButtonBellIconClassName = style({
