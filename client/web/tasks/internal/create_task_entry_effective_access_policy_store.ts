@@ -6,6 +6,7 @@ import {
     EffectiveAccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     maxAccessLevel,
+    minAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -20,13 +21,36 @@ export function createTaskEffectiveAccessPolicyStore(
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<{
-    effectiveAccessPolicy: EffectiveAccessPolicy;
-    inheritedAccessPolicy: EffectiveAccessPolicy;
+    effectiveAccessPolicyWithOptimisticState: EffectiveAccessPolicy;
+    effectiveAccessPolicyWithoutOptimisticState: EffectiveAccessPolicy;
+    inheritedAccessPolicyWithOptimisticState: EffectiveAccessPolicy;
+    inheritedAccessPolicyWithoutOptimisticState: EffectiveAccessPolicy;
 }> {
     const store = computeStore(get => {
         const taskEntry = get(taskEntryStore);
 
-        return computeTaskEffectiveAccessPolicy(get, referencesSubscription, taskEntry);
+        const withOptimisticState = computeTaskEffectiveAccessPolicy(
+            get,
+            referencesSubscription,
+            taskEntry,
+            true,
+        );
+
+        const withoutOptimisticState = computeTaskEffectiveAccessPolicy(
+            get,
+            referencesSubscription,
+            taskEntry,
+            false,
+        );
+
+        return {
+            effectiveAccessPolicyWithOptimisticState: withOptimisticState.effectiveAccessPolicy,
+            effectiveAccessPolicyWithoutOptimisticState:
+                withoutOptimisticState.effectiveAccessPolicy,
+            inheritedAccessPolicyWithOptimisticState: withOptimisticState.inheritedAccessPolicy,
+            inheritedAccessPolicyWithoutOptimisticState:
+                withoutOptimisticState.inheritedAccessPolicy,
+        };
     });
 
     return store.reduce((previousAccessPolicy, accessPolicy) => {
@@ -49,16 +73,25 @@ export function createTaskEffectiveAccessLevelStore(
     return computeStore(get => {
         const taskEntry = get(taskEntryStore);
 
-        const {effectiveAccessPolicy} = computeTaskEffectiveAccessPolicy(
-            get,
-            referencesSubscription,
-            taskEntry,
-        );
+        const {effectiveAccessPolicy: effectiveAccessPolicyWithOptimisticState} =
+            computeTaskEffectiveAccessPolicy(get, referencesSubscription, taskEntry, true);
+
+        const {effectiveAccessPolicy: effectiveAccessPolicyWithoutOptimisticState} =
+            computeTaskEffectiveAccessPolicy(get, referencesSubscription, taskEntry, false);
 
         // Slightly more efficient than using
         // `createTaskEffectiveAccessPolicyStore().map((...) => getAccountAccessLevelAssumingSpaceAccess(...))`
         // because we can skip the `isDeepEqual()` check.
-        return getAccountAccessLevelAssumingSpaceAccess(effectiveAccessPolicy, currentAccountId);
+        return minAccessLevel(
+            getAccountAccessLevelAssumingSpaceAccess(
+                effectiveAccessPolicyWithOptimisticState,
+                currentAccountId,
+            ),
+            getAccountAccessLevelAssumingSpaceAccess(
+                effectiveAccessPolicyWithoutOptimisticState,
+                currentAccountId,
+            ),
+        );
     });
 }
 
@@ -73,7 +106,11 @@ export function createTaskEffectiveAccessLevelStore(
 function computeTaskEffectiveAccessPolicy(
     get: <Value>(store: Store<Value>) => Value,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
-    taskEntry: TaskClientStoreTaskEntry,
+    // We use a really ugly name for `taskEntry`s to encourage unwrapping the `task`
+    // field and checking `withOptimisticState` first to make sure you use the original
+    // when optimistic updates are disabled.
+    rootTaskEntryWithOptimisticState: TaskClientStoreTaskEntry,
+    withOptimisticState: boolean,
 ): {
     effectiveAccessPolicy: EffectiveAccessPolicy;
     inheritedAccessPolicy: EffectiveAccessPolicy;
@@ -126,46 +163,61 @@ function computeTaskEffectiveAccessPolicy(
         }
     }
 
-    function addTaskGrants(taskEntry: TaskClientStoreTaskEntry, isRoot: boolean) {
-        if (!taskEntry.task) return;
-        if (taskEntry.task.isDeleted()) return;
+    function addTaskGrants(
+        taskEntryWithOptimisticState: TaskClientStoreTaskEntry,
+        isRoot: boolean,
+    ) {
+        if (!taskEntryWithOptimisticState.task) return;
+
+        const task = withOptimisticState
+            ? taskEntryWithOptimisticState.task
+            : (taskEntryWithOptimisticState.optimisticState?.original.task ??
+              taskEntryWithOptimisticState.task);
+
+        if (task.isDeleted()) return;
 
         if (!isRoot) {
-            addGrants(getTaskAccessPolicy(taskEntry.task));
+            addGrants(getTaskAccessPolicy(task));
         }
 
-        const assignee = taskEntry.task.getAssignee();
+        const assignee = task.getAssignee();
         if (assignee) {
             addAccountGrant(assignee.assignee.accountId, "Edit");
         }
 
-        const parent = taskEntry.task.getParent();
+        const parent = task.getParent();
         if (parent && !seenTaskIds.has(parent.taskId)) {
             seenTaskIds.add(parent.taskId);
 
-            const parentTaskEntry = get(
+            const parentTaskEntryWithOptimisticState = get(
                 referencesSubscription.getReferencedTaskEntryStore(parent.taskId),
             );
 
-            addTaskGrants(parentTaskEntry, false);
+            addTaskGrants(parentTaskEntryWithOptimisticState, false);
         }
 
-        for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
+        for (const {collectionId} of task.getCollections().getArray()) {
             if (seenCollectionIds.has(collectionId)) continue;
             seenCollectionIds.add(collectionId);
 
-            const collectionEntry = get(
+            const collectionEntryWithOptimisticState = get(
                 referencesSubscription.getReferencedCollectionEntryStore(collectionId),
             );
 
-            if (!collectionEntry.collection) continue;
-            if (collectionEntry.collection.isDeleted()) continue;
+            if (!collectionEntryWithOptimisticState.collection) continue;
 
-            addGrants(getCollectionAccessPolicy(collectionEntry.collection));
+            const collection = withOptimisticState
+                ? collectionEntryWithOptimisticState.collection
+                : (collectionEntryWithOptimisticState.optimisticState?.original.collection ??
+                  collectionEntryWithOptimisticState.collection);
+
+            if (collection.isDeleted()) continue;
+
+            addGrants(getCollectionAccessPolicy(collection));
         }
     }
 
-    addTaskGrants(taskEntry, true);
+    addTaskGrants(rootTaskEntryWithOptimisticState, true);
 
     // Clone the access policy into `inheritedAccessPolicy` before we add grants from
     // the root task to get the effective access policy.
@@ -188,8 +240,15 @@ function computeTaskEffectiveAccessPolicy(
             : null,
     };
 
-    if (taskEntry.task && !taskEntry.task.isDeleted()) {
-        addGrants(getTaskAccessPolicy(taskEntry.task));
+    if (rootTaskEntryWithOptimisticState.task) {
+        const rootTask = withOptimisticState
+            ? rootTaskEntryWithOptimisticState.task
+            : (rootTaskEntryWithOptimisticState.optimisticState?.original.task ??
+              rootTaskEntryWithOptimisticState.task);
+
+        if (!rootTask.isDeleted()) {
+            addGrants(getTaskAccessPolicy(rootTask));
+        }
     }
 
     return {

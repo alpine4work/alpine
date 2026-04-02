@@ -23,6 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
@@ -15670,4 +15671,188 @@ describe("referenced sites", () => {
         expect(siteStore?.getSnapshot().name).toBe("Updated Name");
         expect(siteStore?.getSnapshot().version).toBe(2);
     });
+});
+
+test("task subscription keeps referenced collection during optimistic collection removal until commit", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const task = createTask(store);
+
+    const taskWithCollection = task.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        getSortableAccount,
+    );
+
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [],
+        backfillTasks: [{type: "Authorized", task: taskWithCollection}],
+        backfillCollections: [{type: "Authorized", collection}],
+        referencedAccounts: [account1],
+        referencedSites: [],
+    });
+
+    const taskSubscription = store.createAndRetainTaskSubscription(taskWithCollection.id);
+
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [taskSubscription];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
+
+    const previousCollectionSubscriptions = collectionSubscriptions;
+    collectionSubscriptions = [];
+    for (const subscription of previousCollectionSubscriptions) {
+        subscription.release();
+    }
+
+    expect(taskSubscription.getReferencedCollectionSnapshot(collection.id)).toEqual(collection);
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
+    });
+
+    const removeCollectionAction: TaskActionModel = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: taskWithCollection.id,
+        taskAction: {
+            type: "RemoveCollection",
+            collectionId: collection.id,
+        },
+    };
+
+    store.commitTaskActionTransaction(context, [removeCollectionAction], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(taskWithCollection.id)?.task)
+            .getCollections()
+            .getArray(),
+    ).toEqual([]);
+    expect(taskSubscription.getReferencedCollectionSnapshot(collection.id)).toEqual(collection);
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
+    });
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(taskWithCollection.id)?.task)
+            .getCollections()
+            .getArray(),
+    ).toEqual([]);
+    expect(() => taskSubscription.getReferencedCollectionSnapshot(collection.id)).toThrow(
+        "Collection is not referenced",
+    );
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+});
+
+test("task subscription keeps referenced parent during optimistic parent removal until commit", async () => {
+    const store = createAutoRetainStore();
+
+    const parentTask = createTask(store);
+
+    const childTask = createTask(store);
+
+    const childTaskWithParent = childTask.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: childTask.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: parentTask},
+            {type: "Authorized", task: childTaskWithParent},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [account1],
+        referencedSites: [],
+    });
+
+    const childTaskSubscription = store.createAndRetainTaskSubscription(childTaskWithParent.id);
+
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [childTaskSubscription];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
+
+    expect(childTaskSubscription.getReferencedTaskSnapshot(parentTask.id).id).toEqual(
+        parentTask.id,
+    );
+    expect(assertExists(store.getTaskEntrySnapshot(parentTask.id)?.task).id).toEqual(parentTask.id);
+
+    const removeParentAction: TaskActionModel = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: childTaskWithParent.id,
+        taskAction: {
+            type: "UpdateParentTaskId",
+            parentTaskId: null,
+        },
+    };
+
+    store.commitTaskActionTransaction(context, [removeParentAction], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(childTaskWithParent.id)?.task).getParent(),
+    ).toBeNull();
+    expect(childTaskSubscription.getReferencedTaskSnapshot(parentTask.id).id).toEqual(
+        parentTask.id,
+    );
+    expect(assertExists(store.getTaskEntrySnapshot(parentTask.id)?.task).id).toEqual(parentTask.id);
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(childTaskWithParent.id)?.task).getParent(),
+    ).toBeNull();
+    expect(() => childTaskSubscription.getReferencedTaskSnapshot(parentTask.id)).toThrow(
+        "Task is not referenced",
+    );
+    expect(getTaskEntryIfExists(store, parentTask.id)).toEqual(null);
 });

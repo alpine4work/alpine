@@ -153,6 +153,10 @@ export function useTaskUndoStackState<Extra = unknown>({
                         ...lastEntry,
                         time: currentTime,
                         undoActions: lastEntry.undoActions.concat(entry.undoActions),
+                        release: () => {
+                            lastEntry.release();
+                            entry.release();
+                        },
                     };
                     return;
                 }

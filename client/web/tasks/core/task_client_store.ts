@@ -257,13 +257,15 @@ export type TaskClientStoreBatchUpdate = {
     readonly actions: ReadonlyArray<TaskActionMaybeModel>;
 };
 
+export type TaskClientStoreUndoManagerStackEntry = {
+    undoActions: TaskUndoActions;
+    removedFromQueries: ReadonlySet<TaskClientQuery>;
+    leaseId: TaskActionTransactionLeaseId | null;
+    release: () => void;
+};
+
 export interface TaskClientStoreUndoManager {
-    pushUndoStackEntry(entry: {
-        undoActions: TaskUndoActions;
-        removedFromQueries: ReadonlySet<TaskClientQuery>;
-        leaseId: TaskActionTransactionLeaseId | null;
-        release: () => void;
-    }): void;
+    pushUndoStackEntry(entry: TaskClientStoreUndoManagerStackEntry): void;
 }
 
 export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
@@ -1930,13 +1932,15 @@ export class TaskClientStoreInternal {
         let undoActions: TaskUndoActions | null;
         let allPendingActions: Array<TaskClientStorePendingAction>;
         let createLeaseIfLostAccessId: TaskActionTransactionLeaseId | null;
-        let release: () => void;
+        let releaseFromApplyOptimisticActions: () => void;
         try {
             // We need to create undo actions before applying our actions to the store so we
             // can read old task data from the store.
-            undoActions = undoManager
+            const undoActionsResult = undoManager
                 ? createTaskUndoActionsIfPossible(this, actions, undoableSlice)
                 : null;
+
+            undoActions = undoActionsResult?.undoActions ?? null;
 
             assert(this.onQueryLoadedTaskRemove === null);
             const removedFromQueries = new Set<TaskClientQuery>();
@@ -1944,10 +1948,9 @@ export class TaskClientStoreInternal {
                 removedFromQueries.add(query.external);
             };
 
-            let actuallyRelease: () => void;
             try {
-                ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
-                    () => {
+                ({pendingActions: allPendingActions, release: releaseFromApplyOptimisticActions} =
+                    batchStoreUpdates(() => {
                         const referencedCollections: Array<TaskCollectionModel> = [];
 
                         for (const action of actions) {
@@ -1960,6 +1963,26 @@ export class TaskClientStoreInternal {
                             }
                         }
 
+                        const afterApplyOptimisticTaskActions = (
+                            update: TaskClientStoreBatchUpdate,
+                        ) => {
+                            affinityManager.markLowIntentUpdateInteraction(update);
+
+                            if (undoActionsResult) {
+                                // Retain the tasks/collections we'll need to apply undo actions. The undo stack
+                                // entry has a `release()` function that'll release these tasks/collections once
+                                // we're done with the undo stack entry.
+
+                                for (const taskId of undoActionsResult.retainTaskIds) {
+                                    this.retainTaskEntryStore(taskId);
+                                }
+
+                                for (const collectionId of undoActionsResult.retainCollectionIds) {
+                                    this.retainCollectionEntryStore(collectionId);
+                                }
+                            }
+                        };
+
                         if (referencedCollections.length === 0) {
                             const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
@@ -1967,9 +1990,7 @@ export class TaskClientStoreInternal {
                                 optimisticExtraActions.length > 0
                                     ? [...actions, ...optimisticExtraActions]
                                     : actions,
-                                update => {
-                                    affinityManager.markLowIntentUpdateInteraction(update);
-                                },
+                                afterApplyOptimisticTaskActions,
                             );
                         }
 
@@ -2001,50 +2022,48 @@ export class TaskClientStoreInternal {
                                     optimisticExtraActions.length > 0
                                         ? [...actions, ...optimisticExtraActions]
                                         : actions,
-                                    update => {
-                                        affinityManager.markLowIntentUpdateInteraction(update);
-                                    },
+                                    afterApplyOptimisticTaskActions,
                                 );
                             },
                         );
-                    },
-                ));
+                    }));
             } finally {
                 this.onQueryLoadedTaskRemove = null;
             }
 
-            // We hold onto collections and tasks that become unreferenced after applying
-            // optimistic actions until both:
-            //
-            // 1. The action is commit (if it's reverted we need the collections/tasks back)
-            // 2. The undo stack corresponding to this action is applied or released
-            let referenceCount = 1;
-
-            release = () => {
-                referenceCount--;
-                if (referenceCount === 0) actuallyRelease?.();
-            };
-
             // Leases allow us to temporarily add a task back to our query with undo actions
             // even if we've lost access.
             createLeaseIfLostAccessId =
-                removedFromQueries.size > 0 && undoManager && undoActions
+                removedFromQueries.size > 0 && undoActionsResult
                     ? generateId<TaskActionTransactionLeaseId>()
                     : null;
 
-            if (undoManager && undoActions) {
-                referenceCount++;
+            if (undoActionsResult) {
+                assert(undoManager);
 
                 let isUndoEntryReleased = false;
 
                 undoManager.pushUndoStackEntry({
-                    undoActions,
+                    undoActions: undoActionsResult.undoActions,
                     removedFromQueries,
                     leaseId: createLeaseIfLostAccessId,
                     release: () => {
                         assert(!isUndoEntryReleased);
                         isUndoEntryReleased = true;
-                        release();
+
+                        // Now that we're done with the undo stack entry, release the tasks/collections we
+                        // were holding onto. This release function should be called after applying an undo
+                        // stack entry. When applying the undo stack entry we may retain these resources
+                        // again so we don't want to leave hanging references around that'll never be
+                        // cleaned up.
+
+                        for (const taskId of undoActionsResult.retainTaskIds) {
+                            this.releaseTaskEntryStore(taskId);
+                        }
+
+                        for (const collectionId of undoActionsResult.retainCollectionIds) {
+                            this.releaseCollectionEntryStore(collectionId);
+                        }
                     },
                 });
             }
@@ -2056,10 +2075,12 @@ export class TaskClientStoreInternal {
             throw error;
         }
 
-        const run = () =>
-            commitTaskActionTransaction(context, {
+        const run = () => {
+            const actualActions = actions.map(fromTaskActionModel);
+
+            return commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
-                actions: actions.map(fromTaskActionModel),
+                actions: actualActions,
                 clientId: this._clientId,
                 leaseId: leaseId ?? undefined,
                 createLeaseIfLostAccess: createLeaseIfLostAccessId
@@ -2085,6 +2106,7 @@ export class TaskClientStoreInternal {
                     throw error;
                 },
             );
+        };
 
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
@@ -2218,7 +2240,7 @@ export class TaskClientStoreInternal {
                     // Release any references held when we applied the optimistic action. If tasks are
                     // fully released by the optimistic action, we retain them until the action commits
                     // in case we need to revert the action.
-                    release();
+                    releaseFromApplyOptimisticActions();
                 });
             },
             error => {
@@ -2278,7 +2300,7 @@ export class TaskClientStoreInternal {
                     // Release any references held when we applied the optimistic action. If tasks are
                     // fully released by the optimistic action, we retain them until the action commits
                     // in case we need to revert the action.
-                    release();
+                    releaseFromApplyOptimisticActions();
                 });
             },
         );
@@ -2322,23 +2344,7 @@ export class TaskClientStoreInternal {
         let mergedTitleUpdate = initialTitleUpdate.raw;
 
         const individualActions: Array<TaskActionModel> = [];
-
-        // We hold onto collections and tasks that become unreferenced after applying
-        // optimistic actions until both:
-        //
-        // 1. The action is commit (if it's reverted we need the collections/tasks back)
-        // 2. The undo stack corresponding to this action is applied or released
-        let referenceCount = 1;
-        const actualReleases: Array<() => void> = [];
-
-        const release = () => {
-            referenceCount--;
-            if (referenceCount === 0) {
-                for (const actuallyRelease of actualReleases) {
-                    actuallyRelease();
-                }
-            }
-        };
+        const releasesFromApplyOptimisticActions: Array<() => void> = [];
 
         const addTitleUpdate = (titleUpdate: TaskTitleUpdateModel) => {
             const action: TaskActionModel = {
@@ -2355,7 +2361,7 @@ export class TaskClientStoreInternal {
 
             // We need to create undo actions before applying our actions to the store so we
             // can read old task data from the store.
-            const undoActions = undoManager
+            const undoActionsResult = undoManager
                 ? createTaskUndoActionsIfPossible(this, [action])
                 : null;
 
@@ -2366,24 +2372,35 @@ export class TaskClientStoreInternal {
             };
 
             try {
-                const {release: actuallyRelease} = this._applyOptimisticTaskActions(
-                    [action],
-                    update => {
-                        affinityManager.markLowIntentUpdateInteraction(update);
-                    },
-                );
-                actualReleases.push(actuallyRelease);
+                const {release} = this._applyOptimisticTaskActions([action], update => {
+                    affinityManager.markLowIntentUpdateInteraction(update);
+
+                    if (undoActionsResult) {
+                        // Retain the tasks/collections we'll need to apply undo actions. The undo stack
+                        // entry has a `release()` function that'll release these tasks/collections once
+                        // we're done with the undo stack entry.
+
+                        for (const taskId of undoActionsResult.retainTaskIds) {
+                            this.retainTaskEntryStore(taskId);
+                        }
+
+                        for (const collectionId of undoActionsResult.retainCollectionIds) {
+                            this.retainCollectionEntryStore(collectionId);
+                        }
+                    }
+                });
+                releasesFromApplyOptimisticActions.push(release);
             } finally {
                 this.onQueryLoadedTaskRemove = null;
             }
 
-            if (undoManager && undoActions) {
-                referenceCount++;
+            if (undoActionsResult) {
+                assert(undoManager);
 
                 let isUndoEntryReleased = false;
 
                 undoManager.pushUndoStackEntry({
-                    undoActions,
+                    undoActions: undoActionsResult.undoActions,
                     removedFromQueries,
                     // Changing the title can never remove the account's access to the task. Since task
                     // access is determined by the creator, assignee, parent task, and collections. So
@@ -2392,7 +2409,20 @@ export class TaskClientStoreInternal {
                     release: () => {
                         assert(!isUndoEntryReleased);
                         isUndoEntryReleased = true;
-                        release();
+
+                        // Now that we're done with the undo stack entry, release the tasks/collections we
+                        // were holding onto. This release function should be called after applying an undo
+                        // stack entry. When applying the undo stack entry we may retain these resources
+                        // again so we don't want to leave hanging references around that'll never be
+                        // cleaned up.
+
+                        for (const taskId of undoActionsResult.retainTaskIds) {
+                            this.releaseTaskEntryStore(taskId);
+                        }
+
+                        for (const collectionId of undoActionsResult.retainCollectionIds) {
+                            this.releaseCollectionEntryStore(collectionId);
+                        }
                     },
                 });
             }
@@ -2453,7 +2483,7 @@ export class TaskClientStoreInternal {
                                 })),
                             );
 
-                            release();
+                            for (const release of releasesFromApplyOptimisticActions) release();
                         });
                     },
                     error => {
@@ -2475,7 +2505,7 @@ export class TaskClientStoreInternal {
                                 })),
                             );
 
-                            release();
+                            for (const release of releasesFromApplyOptimisticActions) release();
                         });
                     },
                 );
@@ -2535,7 +2565,6 @@ export class TaskClientStoreInternal {
 
         return promise.then(result => {
             const {actions, referencedAccounts, referencedSites} = result;
-            let hasUndoStackEntry = false;
 
             assert(this.onQueryLoadedTaskRemove === null);
             const removedFromQueries = new Set<TaskClientQuery>();
@@ -2543,58 +2572,71 @@ export class TaskClientStoreInternal {
                 removedFromQueries.add(query.external);
             };
 
-            const previousDelayReleaseTaskEntryStoreIds = this._delayReleaseTaskEntryStoreIds;
-            const previousDelayReleaseCollectionEntryStoreIds =
-                this._delayReleaseCollectionEntryStoreIds;
-
-            const delayReleaseTaskEntryStoreIds = new Set<TaskId>();
-            const delayReleaseCollectionEntryStoreIds = new Set<TaskCollectionId>();
-
-            this._delayReleaseTaskEntryStoreIds = delayReleaseTaskEntryStoreIds;
-            this._delayReleaseCollectionEntryStoreIds = delayReleaseCollectionEntryStoreIds;
-
-            let releaseTaskIds: Array<TaskId>;
-            let releaseCollectionIds: Array<TaskCollectionId>;
-
             try {
                 // We need to create undo actions before applying our actions to the store so we
                 // can read old task data from the store.
-                const undoActions = undoManager
+                const undoActionsResult = undoManager
                     ? createTaskUndoActionsIfPossible(this, mapUndoActions(actions))
                     : null;
 
-                this.applyUpdateEvent({
-                    type: "Update",
-                    actions,
-                    backfillTasks: [],
-                    backfillCollections: [],
-                    // Any authorization state change from the server should override us.
-                    defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                    referencedAccounts,
-                    referencedSites,
-                    // Don't pass `this._clientId` in since we don't want to ignore this event.
-                    originClientId: null,
+                batchStoreUpdates(() => {
+                    this._applyUpdateEvent(
+                        {
+                            type: "Update",
+                            actions,
+                            backfillTasks: [],
+                            backfillCollections: [],
+                            // Any authorization state change from the server should override us.
+                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                            referencedAccounts,
+                            referencedSites,
+                            // Don't pass `this._clientId` in since we don't want to ignore this event.
+                            originClientId: null,
+                        },
+                        () => {
+                            if (undoActionsResult) {
+                                // Retain the tasks/collections we'll need to apply undo actions. The undo stack
+                                // entry has a `release()` function that'll release these tasks/collections once
+                                // we're done with the undo stack entry.
+
+                                for (const taskId of undoActionsResult.retainTaskIds) {
+                                    this.retainTaskEntryStore(taskId);
+                                }
+
+                                for (const collectionId of undoActionsResult.retainCollectionIds) {
+                                    this.retainCollectionEntryStore(collectionId);
+                                }
+                            }
+                        },
+                    );
                 });
 
                 // Push an undo stack entry that retains the deleted tasks so if we undo the
                 // deletion we still have the task data.
-                if (undoManager && undoActions) {
-                    hasUndoStackEntry = true;
+                if (undoActionsResult) {
+                    assert(undoManager);
+
                     let isUndoEntryReleased = false;
 
                     undoManager.pushUndoStackEntry({
-                        undoActions,
+                        undoActions: undoActionsResult.undoActions,
                         removedFromQueries,
                         leaseId: null,
                         release: () => {
                             assert(!isUndoEntryReleased);
                             isUndoEntryReleased = true;
 
-                            for (const taskId of releaseTaskIds) {
+                            // Now that we're done with the undo stack entry, release the tasks/collections we
+                            // were holding onto. This release function should be called after applying an undo
+                            // stack entry. When applying the undo stack entry we may retain these resources
+                            // again so we don't want to leave hanging references around that'll never be
+                            // cleaned up.
+
+                            for (const taskId of undoActionsResult.retainTaskIds) {
                                 this.releaseTaskEntryStore(taskId);
                             }
 
-                            for (const collectionId of releaseCollectionIds) {
+                            for (const collectionId of undoActionsResult.retainCollectionIds) {
                                 this.releaseCollectionEntryStore(collectionId);
                             }
                         },
@@ -2602,55 +2644,6 @@ export class TaskClientStoreInternal {
                 }
             } finally {
                 this.onQueryLoadedTaskRemove = null;
-
-                // Any tasks or collections that were released while updating our store, we want to
-                // retain as long as we have an undo stack entry. Since hitting undo may
-                // reintroduce the tasks to the store.
-
-                releaseTaskIds = Array.from(delayReleaseTaskEntryStoreIds);
-                releaseCollectionIds = Array.from(delayReleaseCollectionEntryStoreIds);
-
-                if (hasUndoStackEntry) {
-                    for (const taskId of releaseTaskIds) {
-                        this.retainTaskEntryStore(taskId);
-                    }
-
-                    for (const collectionId of releaseCollectionIds) {
-                        this.retainCollectionEntryStore(collectionId);
-                    }
-
-                    assert(delayReleaseTaskEntryStoreIds.size === 0);
-                    assert(delayReleaseCollectionEntryStoreIds.size === 0);
-                } else {
-                    for (const taskId of delayReleaseTaskEntryStoreIds) {
-                        const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
-                        assert(taskEntryStore.referenceCount === 0);
-
-                        this._taskEntryStoreById.delete(taskId);
-                        this._taskEntryStoreByIdStores.get(taskId)?.set(null);
-
-                        this._updateReferencedTaskStores(taskEntryStore.store.getSnapshot(), null);
-                    }
-
-                    for (const collectionId of delayReleaseCollectionEntryStoreIds) {
-                        const collectionEntryStore = assertExists(
-                            this._collectionEntryStoreById.get(collectionId),
-                        );
-                        assert(collectionEntryStore.referenceCount === 0);
-
-                        this._collectionEntryStoreById.delete(collectionId);
-                        this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
-
-                        this._updateReferencedCollectionStores(
-                            collectionEntryStore.store.getSnapshot(),
-                            null,
-                        );
-                    }
-                }
-
-                this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
-                this._delayReleaseCollectionEntryStoreIds =
-                    previousDelayReleaseCollectionEntryStoreIds;
             }
 
             return result;
@@ -4216,9 +4209,8 @@ export class TaskClientStoreInternal {
             } finally {
                 // We delay releasing tasks/collections until the end of our store update so that
                 // if one query releases a task (setting its `referenceCount` to 0) and another
-                // query wants to retain a task (setting its `referenceCount` back to
-                //
-                // 1. we don't end up deleting the task from our store.
+                // query wants to retain a task (setting its `referenceCount` back to 1) we don't
+                // end up deleting the task from our store.
                 {
                     this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
                     this._delayReleaseCollectionEntryStoreIds =

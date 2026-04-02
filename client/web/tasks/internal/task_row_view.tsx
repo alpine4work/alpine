@@ -696,7 +696,17 @@ function TaskRowView(
                 case "Title": {
                     // If we have no columns then directly focus the title input.
                     if (!capabilities.hasColumns) {
-                        assertExists(titleInputRef.current).focusAll();
+                        if (hasEditAccessLevel) {
+                            assertExists(titleInputRef.current).focusAll();
+                        } else {
+                            // In no-columns mode with read-only access, focusing the title input causes a
+                            // recursion loop:
+                            //
+                            // `focusCell("Title") -> titleInput.focusAll() -> focusCell("Title")`
+                            //
+                            // Noop for now. We have no focusable title cell when columns are disabled and the
+                            // user can't edit.
+                        }
                     } else {
                         // I'm finding that if there's a selection when we focus the title element the
                         // selection sometimes isn't cleared. This fixes that issue.

@@ -201,43 +201,15 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
     protected _trackTaskDependenciesFromAdd(newTaskEntry: TaskClientStoreTaskEntry) {
         // Get a reference to the parent tasks of loaded tasks
-        const newParentTaskId = newTaskEntry.task?.getParent()?.taskId;
-        if (newParentTaskId) {
-            this._trackNewParentTaskDependency(newParentTaskId);
+        const newTaskIds = new Set(collectTaskEntryTaskDependencies(newTaskEntry));
+        for (const newTaskId of newTaskIds) {
+            this._trackNewTaskDependency(newTaskId);
         }
 
         // Get a reference to the collections of loaded tasks
-        const newCollectionIds = new Set(
-            newTaskEntry.task
-                ?.getCollections()
-                .getArray()
-                .map(({collectionId}) => collectionId),
-        );
+        const newCollectionIds = new Set(collectTaskEntryCollectionDependencies(newTaskEntry));
         for (const newCollectionId of newCollectionIds) {
-            const referencedCollectionEntryStore =
-                this._referencedCollectionEntryStoreById.get(newCollectionId);
-
-            if (referencedCollectionEntryStore !== undefined) {
-                referencedCollectionEntryStore.referenceCount++;
-            } else {
-                // The server makes sure all referenced collections are available so it's safe to
-                // assert. If a parent task is not available that means the server has failed to
-                // send us some data or we didn't retain a reference to the collection and it was
-                // garbage collected.
-                const collectionEntryStore = assertExists(
-                    this._getStore()._getCollectionEntryStoreIfExists(newCollectionId),
-                    "Referenced collection is not present in store",
-                );
-
-                this._referencedCollectionEntryStoreById.set(newCollectionId, {
-                    referenceCount: 1,
-                    store: collectionEntryStore,
-                });
-
-                // While a collection is referenced in our subscription class, it should also be
-                // referenced in the store.
-                this._getStore().retainCollectionEntryStore(newCollectionId);
-            }
+            this._trackNewCollectionDependency(newCollectionId);
         }
     }
 
@@ -246,112 +218,59 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         newTaskEntry: TaskClientStoreTaskEntry,
     ) {
         // If parent task updated then update our references
-        const oldParentTaskId = oldTaskEntry.task?.getParent()?.taskId;
-        const newParentTaskId = newTaskEntry.task?.getParent()?.taskId;
+        if (didTaskEntryTaskDependenciesChange(oldTaskEntry, newTaskEntry)) {
+            const newTaskIds = new Set(collectTaskEntryTaskDependencies(newTaskEntry));
+            const oldTaskIds = new Set(collectTaskEntryTaskDependencies(oldTaskEntry));
 
-        if (oldParentTaskId !== newParentTaskId) {
+            const addedTaskIds = diffSets(newTaskIds, oldTaskIds);
+            const removedTaskIds = diffSets(oldTaskIds, newTaskIds);
+
             // Track references for the new parent first so if the old parent indirectly
             // references stuff in the new parent we don't remove those references and add them
             // immediately back.
-            if (newParentTaskId) {
-                this._trackNewParentTaskDependency(newParentTaskId);
+            for (const taskId of addedTaskIds) {
+                this._trackNewTaskDependency(taskId);
             }
 
-            if (oldParentTaskId) {
-                this._trackOldParentTaskDependency(oldParentTaskId);
+            for (const taskId of removedTaskIds) {
+                this._trackOldTaskDependency(taskId);
             }
         }
 
         // If collections updated then update our references
-        if (oldTaskEntry.task?.getCollections() !== newTaskEntry.task?.getCollections()) {
-            const newCollectionIds = new Set(
-                newTaskEntry.task
-                    ?.getCollections()
-                    .getArray()
-                    .map(({collectionId}) => collectionId),
-            );
-            const oldCollectionIds = new Set(
-                oldTaskEntry.task
-                    ?.getCollections()
-                    .getArray()
-                    .map(({collectionId}) => collectionId),
-            );
+        if (didTaskEntryCollectionDependenciesChange(oldTaskEntry, newTaskEntry)) {
+            const newCollectionIds = new Set(collectTaskEntryCollectionDependencies(newTaskEntry));
+            const oldCollectionIds = new Set(collectTaskEntryCollectionDependencies(oldTaskEntry));
 
             const addedCollectionIds = diffSets(newCollectionIds, oldCollectionIds);
             const removedCollectionIds = diffSets(oldCollectionIds, newCollectionIds);
 
             for (const addedCollectionId of addedCollectionIds) {
-                const referencedCollectionEntryStore =
-                    this._referencedCollectionEntryStoreById.get(addedCollectionId);
-
-                if (referencedCollectionEntryStore !== undefined) {
-                    referencedCollectionEntryStore.referenceCount++;
-                } else {
-                    // The server makes sure all referenced collections are available so it's safe to
-                    // assert. If a parent task is not available that means the server has failed to
-                    // send us some data or we didn't retain a reference to the collection and it was
-                    // garbage collected.
-                    const collectionEntryStore = assertExists(
-                        this._getStore()._getCollectionEntryStoreIfExists(addedCollectionId),
-                        "Referenced collection is not present in store",
-                    );
-
-                    this._referencedCollectionEntryStoreById.set(addedCollectionId, {
-                        referenceCount: 1,
-                        store: collectionEntryStore,
-                    });
-
-                    // While a collection is referenced in our subscription class, it should also be
-                    // referenced in the store.
-                    this._getStore().retainCollectionEntryStore(addedCollectionId);
-                }
+                this._trackNewCollectionDependency(addedCollectionId);
             }
 
             for (const removedCollectionId of removedCollectionIds) {
-                const referencedCollectionEntryStore = assertExists(
-                    this._referencedCollectionEntryStoreById.get(removedCollectionId),
-                );
-
-                referencedCollectionEntryStore.referenceCount--;
-
-                if (referencedCollectionEntryStore.referenceCount === 0) {
-                    this._referencedCollectionEntryStoreById.delete(removedCollectionId);
-                    this._getStore().releaseCollectionEntryStore(removedCollectionId);
-                }
+                this._trackOldCollectionDependency(removedCollectionId);
             }
         }
     }
 
     protected _trackTaskDependenciesFromRemove(oldTaskEntry: TaskClientStoreTaskEntry) {
         // Remove the reference to the parent task of this loaded task
-        const oldParentTaskId = oldTaskEntry.task?.getParent()?.taskId;
-        if (oldParentTaskId) {
-            this._trackOldParentTaskDependency(oldParentTaskId);
+        const oldTaskIds = new Set(collectTaskEntryTaskDependencies(oldTaskEntry));
+        for (const oldTaskId of oldTaskIds) {
+            this._trackOldTaskDependency(oldTaskId);
         }
 
         // Remove the references to the collections of this loaded task
-        const oldCollectionIds = new Set(
-            oldTaskEntry.task
-                ?.getCollections()
-                .getArray()
-                .map(({collectionId}) => collectionId),
-        );
+        const oldCollectionIds = new Set(collectTaskEntryCollectionDependencies(oldTaskEntry));
         for (const oldCollectionId of oldCollectionIds) {
-            const referencedCollectionEntryStore = assertExists(
-                this._referencedCollectionEntryStoreById.get(oldCollectionId),
-            );
-
-            referencedCollectionEntryStore.referenceCount--;
-
-            if (referencedCollectionEntryStore.referenceCount === 0) {
-                this._referencedCollectionEntryStoreById.delete(oldCollectionId);
-                this._getStore().releaseCollectionEntryStore(oldCollectionId);
-            }
+            this._trackOldCollectionDependency(oldCollectionId);
         }
     }
 
-    private _trackNewParentTaskDependency(newParentTaskId: TaskId) {
-        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(newParentTaskId);
+    private _trackNewTaskDependency(newTaskId: TaskId) {
+        const referencedTaskEntryStore = this._referencedTaskEntryStoreById.get(newTaskId);
 
         if (referencedTaskEntryStore !== undefined) {
             referencedTaskEntryStore.referenceCount++;
@@ -360,42 +279,39 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             // a parent task is not available that means the server has failed to send us some
             // data or we didn't retain a reference to the task and it was garbage collected.
             const taskEntryStore = assertExists(
-                this._getStore()._getTaskEntryStoreIfExists(newParentTaskId),
+                this._getStore()._getTaskEntryStoreIfExists(newTaskId),
                 "Referenced task is not present in store",
             );
 
-            this._referencedTaskEntryStoreById.set(newParentTaskId, {
+            this._referencedTaskEntryStoreById.set(newTaskId, {
                 referenceCount: 1,
                 store: taskEntryStore,
             });
 
             // While a task is referenced in our subscription class, it should also be
             // referenced in the store.
-            this._getStore().retainTaskEntryStore(newParentTaskId);
+            this._getStore().retainTaskEntryStore(newTaskId);
 
-            this._onReferencedTaskAdd(newParentTaskId, taskEntryStore.getSnapshot());
+            this._onReferencedTaskAdd(newTaskId, taskEntryStore.getSnapshot());
         }
     }
 
-    private _trackOldParentTaskDependency(oldParentTaskId: TaskId) {
+    private _trackOldTaskDependency(oldTaskId: TaskId) {
         // If we are removing a cycle then we should recursively visit this function but
         // the task has already been removed so we don't need to remove it again (we'll get
         // an assertion error if we try).
-        if (removingCycleStartingWithTaskId === oldParentTaskId) return;
+        if (removingCycleStartingWithTaskId === oldTaskId) return;
 
         const referencedTaskEntryStore = assertExists(
-            this._referencedTaskEntryStoreById.get(oldParentTaskId),
+            this._referencedTaskEntryStoreById.get(oldTaskId),
         );
 
         referencedTaskEntryStore.referenceCount--;
 
         if (referencedTaskEntryStore.referenceCount === 0) {
-            this._referencedTaskEntryStoreById.delete(oldParentTaskId);
-            this._getStore().releaseTaskEntryStore(oldParentTaskId);
-            this._onReferencedTaskRemove(
-                oldParentTaskId,
-                referencedTaskEntryStore.store.getSnapshot(),
-            );
+            this._referencedTaskEntryStoreById.delete(oldTaskId);
+            this._getStore().releaseTaskEntryStore(oldTaskId);
+            this._onReferencedTaskRemove(oldTaskId, referencedTaskEntryStore.store.getSnapshot());
         }
         // If we have a cycle then a task entry's one remaining reference might be a
         // reference to itself! Loop through the task's parents to see if we have a cycle
@@ -421,7 +337,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                     removingCycleStartingWithTaskId = taskEntry.task.id;
                     try {
                         this._referencedTaskEntryStoreById.delete(taskEntry.task.id);
-                        this._getStore().releaseTaskEntryStore(oldParentTaskId);
+                        this._getStore().releaseTaskEntryStore(oldTaskId);
                         this._onReferencedTaskRemove(taskEntry.task.id, taskEntry);
                     } finally {
                         removingCycleStartingWithTaskId = previousRemovingCycleFromInitialTaskId;
@@ -436,6 +352,115 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             }
         }
     }
+
+    private _trackNewCollectionDependency(newCollectionId: TaskCollectionId) {
+        const referencedCollectionEntryStore =
+            this._referencedCollectionEntryStoreById.get(newCollectionId);
+
+        if (referencedCollectionEntryStore !== undefined) {
+            referencedCollectionEntryStore.referenceCount++;
+        } else {
+            // The server makes sure all referenced collections are available so it's safe to
+            // assert. If a parent task is not available that means the server has failed to
+            // send us some data or we didn't retain a reference to the collection and it was
+            // garbage collected.
+            const collectionEntryStore = assertExists(
+                this._getStore()._getCollectionEntryStoreIfExists(newCollectionId),
+                "Referenced collection is not present in store",
+            );
+
+            this._referencedCollectionEntryStoreById.set(newCollectionId, {
+                referenceCount: 1,
+                store: collectionEntryStore,
+            });
+
+            // While a collection is referenced in our subscription class, it should also be
+            // referenced in the store.
+            this._getStore().retainCollectionEntryStore(newCollectionId);
+        }
+    }
+
+    private _trackOldCollectionDependency(oldCollectionId: TaskCollectionId) {
+        const referencedCollectionEntryStore = assertExists(
+            this._referencedCollectionEntryStoreById.get(oldCollectionId),
+        );
+
+        referencedCollectionEntryStore.referenceCount--;
+
+        if (referencedCollectionEntryStore.referenceCount === 0) {
+            this._referencedCollectionEntryStoreById.delete(oldCollectionId);
+            this._getStore().releaseCollectionEntryStore(oldCollectionId);
+        }
+    }
 }
 
 let removingCycleStartingWithTaskId: TaskId | null = null;
+
+/**
+ * Did the task dependencies for this task change?
+ *
+ * Should be the same as
+ * `!isDeepEqual(new Set(collectTaskEntryTaskDependencies(oldTaskEntry)), new Set(collectTaskEntryTaskDependencies(newTaskEntry)))`
+ * but more efficient.
+ */
+function didTaskEntryTaskDependenciesChange(
+    oldTaskEntry: TaskClientStoreTaskEntry,
+    newTaskEntry: TaskClientStoreTaskEntry,
+): boolean {
+    return (
+        oldTaskEntry.task?.getParent()?.taskId !== newTaskEntry.task?.getParent()?.taskId ||
+        oldTaskEntry.optimisticState?.original.task?.getParent()?.taskId !==
+            newTaskEntry.optimisticState?.original.task?.getParent()?.taskId
+    );
+}
+
+/**
+ * Collect all the task dependencies in a task entry. Both in the optimistic task
+ * and the task without optimistic updates.
+ */
+function* collectTaskEntryTaskDependencies(taskEntry: TaskClientStoreTaskEntry): Iterable<TaskId> {
+    if (taskEntry.task) yield* collectTaskModelTaskDependencies(taskEntry.task);
+    if (taskEntry.optimisticState?.original.task)
+        yield* collectTaskModelTaskDependencies(taskEntry.optimisticState.original.task);
+}
+
+function* collectTaskModelTaskDependencies(task: TaskModel): Iterable<TaskId> {
+    const parent = task.getParent();
+    if (parent) yield parent.taskId;
+}
+
+/**
+ * Did the collection dependencies for this task change?
+ *
+ * Should be the same as
+ * `!isDeepEqual(new Set(collectTaskEntryCollectionDependencies(oldTaskEntry)), new Set(collectTaskEntryCollectionDependencies(newTaskEntry)))`
+ * but more efficient.
+ */
+function didTaskEntryCollectionDependenciesChange(
+    oldTaskEntry: TaskClientStoreTaskEntry,
+    newTaskEntry: TaskClientStoreTaskEntry,
+): boolean {
+    return (
+        oldTaskEntry.task?.getCollections() !== newTaskEntry.task?.getCollections() ||
+        oldTaskEntry.optimisticState?.original.task?.getCollections() !==
+            newTaskEntry.optimisticState?.original.task?.getCollections()
+    );
+}
+
+/**
+ * Collect all the collection dependencies in a task entry. Both in the optimistic
+ * task and the task without optimistic updates.
+ */
+function* collectTaskEntryCollectionDependencies(
+    taskEntry: TaskClientStoreTaskEntry,
+): Iterable<TaskCollectionId> {
+    if (taskEntry.task) yield* collectTaskModelCollectionDependencies(taskEntry.task);
+    if (taskEntry.optimisticState?.original.task)
+        yield* collectTaskModelCollectionDependencies(taskEntry.optimisticState.original.task);
+}
+
+function* collectTaskModelCollectionDependencies(task: TaskModel): Iterable<TaskCollectionId> {
+    for (const {collectionId} of task.getCollections().getArray()) {
+        yield collectionId;
+    }
+}

@@ -169,6 +169,7 @@ import {
     ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
+    minAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
@@ -328,22 +329,32 @@ export function TaskDetailView({
      *                             Task access check                             *
     \* ========================================================================= */
 
-    const {effectiveAccessPolicy, inheritedAccessPolicy} = useStore(
+    const {
+        effectiveAccessPolicyWithOptimisticState,
+        effectiveAccessPolicyWithoutOptimisticState,
+        inheritedAccessPolicyWithOptimisticState,
+    } = useStore(
         useMemo((): Store<{
-            effectiveAccessPolicy: EffectiveAccessPolicy;
-            inheritedAccessPolicy: EffectiveAccessPolicy;
+            effectiveAccessPolicyWithOptimisticState: EffectiveAccessPolicy;
+            effectiveAccessPolicyWithoutOptimisticState: EffectiveAccessPolicy;
+            inheritedAccessPolicyWithOptimisticState: EffectiveAccessPolicy;
         }> => {
             // If there's no task subscription that's because we're creating the task. The task
             // creator always has manage access.
             if (!taskSubscription) {
+                const effectiveAccessPolicy =
+                    createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount);
+
+                const inheritedAccessPolicy: EffectiveAccessPolicy = {
+                    accountGrantById: emptyMap,
+                    defaultGrant: null,
+                    urlGrant: null,
+                };
+
                 return new ConstStore({
-                    effectiveAccessPolicy:
-                        createDefaultTaskAccessPolicyForOptionalCurrentAccount(currentAccount),
-                    inheritedAccessPolicy: {
-                        accountGrantById: emptyMap,
-                        defaultGrant: null,
-                        urlGrant: null,
-                    },
+                    effectiveAccessPolicyWithOptimisticState: effectiveAccessPolicy,
+                    effectiveAccessPolicyWithoutOptimisticState: effectiveAccessPolicy,
+                    inheritedAccessPolicyWithOptimisticState: inheritedAccessPolicy,
                 });
             }
 
@@ -362,9 +373,18 @@ export function TaskDetailView({
     );
 
     const accessLevel = useMemo(() => {
-        const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
-            effectiveAccessPolicy,
-            currentAccount?.id,
+        // Take the minimum access level between our optimistic and non-optimistic access
+        // policies. So we're never trying to take an action we don't actually have
+        // permission to perform on the server.
+        const accessLevel = minAccessLevel(
+            getAccountAccessLevelAssumingSpaceAccess(
+                effectiveAccessPolicyWithOptimisticState,
+                currentAccount?.id,
+            ),
+            getAccountAccessLevelAssumingSpaceAccess(
+                effectiveAccessPolicyWithoutOptimisticState,
+                currentAccount?.id,
+            ),
         );
 
         if (accessLevel === null) {
@@ -384,7 +404,12 @@ export function TaskDetailView({
         }
 
         return accessLevel;
-    }, [currentAccount?.id, effectiveAccessPolicy, isDeleted]);
+    }, [
+        currentAccount?.id,
+        effectiveAccessPolicyWithOptimisticState,
+        effectiveAccessPolicyWithoutOptimisticState,
+        isDeleted,
+    ]);
 
     // This is the access policy directly added to the task. This is different from the
     // task's "effective" access which is based on the task's parent tasks and task
@@ -2033,7 +2058,7 @@ export function TaskDetailView({
               entityId: `Task:${possiblyGhostTaskId}`,
               accessPolicy: immediateAccessPolicy,
               inherited: {
-                  accessPolicy: inheritedAccessPolicy,
+                  accessPolicy: inheritedAccessPolicyWithOptimisticState,
                   explanations: createTaskDetailViewInheritedAccessPolicyExplanations({
                       space,
                       taskSubscription,

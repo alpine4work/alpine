@@ -16,7 +16,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
@@ -265,7 +265,11 @@ export function createTaskUndoActionsIfPossible(
     store: TaskClientStoreInterface,
     actions: Iterable<TaskActionModel>,
     undoableSlice: {startIndex: number | null; endIndex: number | null} | null = null,
-): TaskUndoActions | null {
+): {
+    undoActions: TaskUndoActions;
+    retainTaskIds: Set<TaskId>;
+    retainCollectionIds: Set<TaskCollectionId>;
+} | null {
     // Currently, accounts without space access can't edit tasks. The max permission
     // level of `urlGrant` is `View`.
     assert(store.currentAccountId);
@@ -290,6 +294,9 @@ export function createTaskUndoActionsIfPossible(
               }>;
           }
     >();
+
+    const retainTaskIds = new Set<TaskId>();
+    const retainCollectionIds = new Set<TaskCollectionId>();
 
     let nextIndex = 0;
     for (const action of actions) {
@@ -347,6 +354,8 @@ export function createTaskUndoActionsIfPossible(
                         getTask,
                         action,
                         undoActions,
+                        retainTaskIds,
+                        retainCollectionIds,
                     );
 
                     if (result?.abort) {
@@ -426,7 +435,7 @@ export function createTaskUndoActionsIfPossible(
     // setting `UpdateParentTaskId` to null.
     undoActions.reverse();
 
-    return new TaskUndoActions(undoActions);
+    return {undoActions: new TaskUndoActions(undoActions), retainTaskIds, retainCollectionIds};
 }
 
 function pushTaskUndoAction(
@@ -434,7 +443,18 @@ function pushTaskUndoAction(
     getTask: (taskId: TaskId) => TaskModel | null,
     action: TaskUpdateTaskActionModel,
     undoActions: Array<TaskUndoAction>,
+    retainTaskIds: Set<TaskId>,
+    retainCollectionIds: Set<TaskCollectionId>,
 ): {abort: boolean} | undefined {
+    // Retain the task so if it leaves the query when the user hits undo we still have
+    // the task's data and can immediately restore it.
+    //
+    // e.g. If you have a query sorted by priority and only "High" priority tasks are
+    // visible. Then you switch a task to "Low" and hit undo. The task leaves the query
+    // bounds but on undo we should add it back to the query. We need the `TaskModel`
+    // to be retained in our store to do that.
+    retainTaskIds.add(action.taskId);
+
     switch (action.taskAction.type) {
         case "Create":
         case "Undelete": {
@@ -449,6 +469,10 @@ function pushTaskUndoAction(
             break;
         }
         case "Delete": {
+            // Retain this deleted task. When we undelete we'll need the deleted `TaskModel`
+            // and all its data to restore the task.
+            retainTaskIds.add(action.taskId);
+
             undoActions.push({
                 type: "UpdateTask",
                 time: action.time,
@@ -462,6 +486,11 @@ function pushTaskUndoAction(
         case "UpdateParentTaskId": {
             const task = getTask(action.taskId);
             if (!task) return {abort: true};
+
+            // Make sure we retain the old parent task so if we undo this action then the old
+            // parent task is still available in the store.
+            if (task.rawData.parent.taskId.value)
+                retainTaskIds.add(task.rawData.parent.taskId.value);
 
             undoActions.push({
                 type: "UpdateTask",
@@ -514,6 +543,10 @@ function pushTaskUndoAction(
             // If there is no order key, collection was not added in the first place.
             const orderKey = task.rawData.collections.getOrderKey(action.taskAction.collectionId);
             if (!orderKey) return {abort: true};
+
+            // Make sure we retain the old collection so if we undo this action then the old
+            // collection is still available in the store.
+            retainCollectionIds.add(action.taskAction.collectionId);
 
             undoActions.push({
                 type: "UpdateTask",
