@@ -1077,8 +1077,8 @@ export function renderFileImagePreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${round6(x * rectWidth + translateX)}" ` +
-                `y="${round6(y * rectHeight + translateY)}" ` +
+                `x="${round6(x * rectWidthBase + translateX)}" ` +
+                `y="${round6(y * rectHeightBase + translateY)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get any
                 // gaps between `<rect>`s from rounding errors when rendering the SVG.
                 `width="${round6(rectWidth)}" ` +
