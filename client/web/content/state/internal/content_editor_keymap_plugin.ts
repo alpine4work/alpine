@@ -1944,12 +1944,32 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // Don't move focus if we don't apply a shortcut.
-            //
-            // TODO(calebmer): Kinda clearly this is pretty bad for accessibility. We need to
-            // make sure `Esc` unfocuses and allows the keyboard user to resume tab order.
-            () => {
-                return true;
+            state => {
+                const {$from, $to} = state.selection;
+
+                let shouldTrapFocus = false;
+
+                state.doc.nodesBetween($from.pos, $to.pos, node => {
+                    // If the user press "Tab" or "Shift-Tab" when their selection is in a code block
+                    // or list item then we trap focus since the tab keyboard shortcut means something
+                    // else in these contexts.
+                    //
+                    // TODO(calebmer): We need to implement a way to escape the focus trap of code
+                    // blocks and list items. In the future maybe pressing tab/shift-tab three times
+                    // could move you if you're trapped? First press, nothing happens. Second press we
+                    // show a hint saying "press tab one more time to move" and on that third press we
+                    // actually move.
+                    if (node.type.name === "codeBlock" || node.type.groups.includes("listItem")) {
+                        shouldTrapFocus = true;
+                    }
+
+                    // We don't need to recurse over textblock children.
+                    if (node.isTextblock) return false;
+                });
+
+                if (shouldTrapFocus) return true;
+
+                return false;
             },
         ),
     );
@@ -2043,12 +2063,32 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // Don't move focus if we don't apply a shortcut.
-            //
-            // TODO(calebmer): Kinda clearly this is pretty bad for accessibility. We need to
-            // make sure `Esc` unfocuses and allows the keyboard user to resume tab order.
-            () => {
-                return true;
+            state => {
+                const {$from, $to} = state.selection;
+
+                let shouldTrapFocus = false;
+
+                state.doc.nodesBetween($from.pos, $to.pos, node => {
+                    // If the user press "Tab" or "Shift-Tab" when their selection is in a code block
+                    // or list item then we trap focus since the tab keyboard shortcut means something
+                    // else in these contexts.
+                    //
+                    // TODO(calebmer): We need to implement a way to escape the focus trap of code
+                    // blocks and list items. In the future maybe pressing tab/shift-tab three times
+                    // could move you if you're trapped? First press, nothing happens. Second press we
+                    // show a hint saying "press tab one more time to move" and on that third press we
+                    // actually move.
+                    if (node.type.name === "codeBlock" || node.type.groups.includes("listItem")) {
+                        shouldTrapFocus = true;
+                    }
+
+                    // We don't need to recurse over textblock children.
+                    if (node.isTextblock) return false;
+                });
+
+                if (shouldTrapFocus) return true;
+
+                return false;
             },
         ),
     );

@@ -7,6 +7,7 @@ import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import {CaretDown, Check, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {
+    KeyboardEvent,
     MutableRefObject,
     Ref,
     RefObject,
@@ -30,6 +31,7 @@ import {defaultTooltipOffset} from "~/client/web/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {SiteRegistry} from "~/client/web/sites/site_registry.js";
@@ -105,14 +107,17 @@ function PostCreatorChannelSelectorInput(
         channel,
         onChannelChange,
         width = "48",
+        onModEnterKeyDown,
     }: {
         channel: ChannelPreviewModel | null;
         onChannelChange: (channel: ChannelPreviewModel | null) => void;
         width?: "48" | "full";
+        onModEnterKeyDown?: (event: KeyboardEvent) => void;
     },
     ref: Ref<PostCreatorChannelSelectorInputRef>,
 ) {
     const platform = usePlatform();
+    const clientInfo = useClientInfo();
     const {space, currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
 
@@ -532,6 +537,14 @@ function PostCreatorChannelSelectorInput(
                         spellCheck={undefined}
                         onKeyDown={event => {
                             if (
+                                event.key === "Enter" &&
+                                !event.altKey &&
+                                !event.shiftKey &&
+                                // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
+                                (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                            ) {
+                                onModEnterKeyDown?.(event);
+                            } else if (
                                 event.key === "Enter" &&
                                 comboBoxState.selectionManager.focusedKey == null
                             ) {

@@ -11,6 +11,7 @@ import {
     navigationBarHeight,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -23,7 +24,7 @@ import {
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {getClientInfo} from "~/client/web/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
@@ -62,6 +63,7 @@ export function PostCreator({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
+    const clientInfo = useClientInfo();
     const platform = usePlatform();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
@@ -164,6 +166,7 @@ export function PostCreator({
             variant="neutral"
             withoutMinWidth={platform === "mobile"}
             isDisabled={isContentEmpty(state.getDoc()) || !channel}
+            keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "enter")}
             pressErrorTitle="Couldn&#x2019;t create post"
             onPress={async () => {
                 if (!channel) return;
@@ -294,6 +297,14 @@ export function PostCreator({
                                                 channel={channel}
                                                 onChannelChange={setChannel}
                                                 width="full"
+                                                onModEnterKeyDown={event => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+
+                                                    // Programmatically press the button instead of calling `createPost()` directly to
+                                                    // correctly handle loading and error states.
+                                                    assertExists(createButtonRef.current).press();
+                                                }}
                                             />
                                         }
                                     />
@@ -326,6 +337,14 @@ export function PostCreator({
                                             channel={channel}
                                             onChannelChange={setChannel}
                                             width="full"
+                                            onModEnterKeyDown={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+
+                                                // Programmatically press the button instead of calling `createPost()` directly to
+                                                // correctly handle loading and error states.
+                                                assertExists(createButtonRef.current).press();
+                                            }}
                                         />
                                     </Box>
                                 </Box>
