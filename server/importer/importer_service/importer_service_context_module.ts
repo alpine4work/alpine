@@ -8,6 +8,7 @@ import {ImporterServiceContextModuleBase} from "~/server/importer/importer_servi
 
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {importerVolumeContainerPath} from "~/shared/importer/importer_volume.js";
 
 /**
  * Production importer service context module that reads files from S3.
@@ -39,8 +40,8 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
         return this._context.tracer.withSpan("Download and unzip import to disk", async () => {
             const {importKey} = options;
 
-            // Create a temporary directory for the import using the import key as the name
-            const unzipDir = `/tmp/importer/${importKey.replace(/\//g, "_")}`;
+            // Write to the mounted EBS volume, not /tmp (which is limited ephemeral storage).
+            const unzipDir = `${importerVolumeContainerPath}/${importKey.replace(/\//g, "_")}`;
             const zipFilePath = `${unzipDir}.zip`;
 
             // Download the zip file from S3
