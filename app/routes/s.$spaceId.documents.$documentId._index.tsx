@@ -29,6 +29,7 @@ import {
     createEmptySpellCheckIgnoredLintsForNewEntity,
     getSpellCheckIgnoredLints,
 } from "~/server/spell_check/get_spell_check_ignored_lints.js";
+import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
@@ -133,9 +134,25 @@ export async function loader({params, context: unauthenticatedContext, request}:
     });
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) =>
-    createHeadMetaForDocument(document),
-);
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => {
+    let openGraph = null;
+    if (document?.content.doc.attrs.accessPolicy.urlGrant && document.content.doc.childCount > 1) {
+        const bodyContent = document.content.doc.cut(document.content.doc.child(0).nodeSize);
+        openGraph = getOpenGraphContent(document.getTitle(), {
+            doc: bodyContent,
+            references: document.content.references,
+        });
+    }
+
+    return createHeadMetaForDocument(
+        document
+            ? {
+                  title: document.getTitle(),
+                  openGraph,
+              }
+            : null,
+    );
+});
 
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({

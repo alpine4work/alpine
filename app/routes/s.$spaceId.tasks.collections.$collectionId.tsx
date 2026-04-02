@@ -72,6 +72,7 @@ const LoaderSchema = Schema.object({
         Exists: Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
+            initialHasUrlGrant: Schema.boolean,
             initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
             initialIsFavorite: Schema.boolean,
             hasUrlGrant: Schema.boolean,
@@ -85,7 +86,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}})
         collectionState.type === "Exists"
             ? {
                   name: collectionState.initialMetaTitleText,
-                  hasUrlGrant: collectionState.hasUrlGrant,
+                  hasUrlGrant: collectionState.initialHasUrlGrant,
               }
             : null,
     ),
@@ -310,6 +311,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
+                initialHasUrlGrant: hasUrlGrant,
                 initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
                 initialIsFavorite: isFavorite,
                 hasUrlGrant,

@@ -48,6 +48,7 @@ import {getAccount} from "~/server/spaces/get_account.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_table.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -127,13 +128,13 @@ const LoaderSchema = Schema.object({
 
 export const meta = createMetaFunction(
     LoaderSchema,
-    ({data: {initialMetaTitleText, hasUrlGrant, notesContent}}) =>
-        createHeadMetaForTask({
-            title: addFallbackToTaskTitle(initialMetaTitleText),
-            hasUrlGrant,
-            notesDoc: notesContent.doc,
-            notesReferences: notesContent.references,
-        }),
+    ({data: {initialMetaTitleText, hasUrlGrant, notesContent}}) => {
+        const title = addFallbackToTaskTitle(initialMetaTitleText);
+        return createHeadMetaForTask({
+            title,
+            openGraph: hasUrlGrant ? getOpenGraphContent(initialMetaTitleText, notesContent) : null,
+        });
+    },
 );
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
@@ -313,15 +314,17 @@ export async function loader({params, context: unauthenticatedContext, request}:
             backfillTask.type === "Authorized" && backfillTask.task.id === taskId,
     );
 
+    // Compute Open Graph metadata server-side since content reference resolution is
+    // server-only.
     const accessPolicy = backfillTask?.task.getAccessPolicy();
 
-    let hasUrlGrant: boolean;
+    let taskHasUrlGrant: boolean;
     if (!accessPolicy) {
-        hasUrlGrant = false;
+        taskHasUrlGrant = false;
     } else {
         switch (accessPolicy.type) {
             case "Local": {
-                hasUrlGrant = accessPolicy.urlGrant !== null;
+                taskHasUrlGrant = accessPolicy.urlGrant !== null;
                 break;
             }
             case "Site": {
@@ -330,7 +333,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 );
 
                 assert(siteResult && siteResult.ok);
-                hasUrlGrant =
+                taskHasUrlGrant =
                     assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
                 break;
             }
@@ -344,7 +347,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         {
             key: generateId(),
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
-            hasUrlGrant,
+            hasUrlGrant: taskHasUrlGrant,
             childrenGridViewExpansionState:
                 loadQueriesOutput?.queries[0]?.gridViewExpansionState ?? null,
             notesVersion: task?.notes.version ?? 0,

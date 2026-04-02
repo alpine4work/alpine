@@ -38,6 +38,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
@@ -55,6 +56,7 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -73,7 +75,23 @@ const LoaderSchema = Schema.object({
 export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) => {
     const channel = channelResult.items[0]?.model;
     assert(channel instanceof ChannelModel);
-    return createHeadMetaForChannel(channel);
+
+    let hasUrlGrant: boolean;
+    switch (channel.accessPolicy.data.type) {
+        case "Local":
+            hasUrlGrant = channel.accessPolicy.data.urlGrant !== null;
+            break;
+        case "Site":
+            hasUrlGrant = channel.accessPolicy.data.site.initialData.accessPolicy.urlGrant !== null;
+            break;
+        default:
+            throw exhaustive(channel.accessPolicy.data);
+    }
+
+    return createHeadMetaForChannel({
+        name: channel.name,
+        openGraph: hasUrlGrant ? getOpenGraphContent(channel.name, channel.description) : null,
+    });
 });
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {

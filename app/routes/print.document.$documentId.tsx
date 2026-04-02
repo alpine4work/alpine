@@ -38,7 +38,7 @@ const LoaderSchema = Schema.object({
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) =>
-    createHeadMetaForDocument(document),
+    createHeadMetaForDocument({title: document.getTitle(), openGraph: null}),
 );
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
