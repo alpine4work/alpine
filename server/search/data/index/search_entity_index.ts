@@ -2107,14 +2107,7 @@ export async function searchBySemantics(
         spaceId,
         {
             size: limit,
-            storedFields: [
-                "entity.id",
-                "entity.title",
-                "entity.titleVersion",
-                "entity.media",
-                "text",
-                "preambleEndIndex",
-            ],
+            storedFields: ["entity.id", "text", "preambleEndIndex"],
             sort: ["_score"],
             query: {
                 knn: {
@@ -2185,6 +2178,18 @@ export async function searchBySemantics(
             // score. But I can't seem to find the OpenSearch parameter that will let me do
             // this?
             if (score < options.minSemanticScore) return null;
+
+            // OpenSearch kNN hits can reflect stale `entity.accessPolicy` on embedding chunks.
+            // Re-check access using the keyword index (and Dynamo fallbacks) the same way
+            // `getSearchEntityBaseIfPossible()` does for mention and affinity paths.
+            const authorizedSearchEntity = await getSearchEntityIfPossible(
+                context as ServerActionContext,
+                spaceId,
+                entityId,
+            );
+            if (!authorizedSearchEntity || authorizedSearchEntity.isPrivate) {
+                return null;
+            }
 
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we can
@@ -2257,37 +2262,8 @@ export async function searchBySemantics(
                   }))
                 : [];
 
-            const hitMedia = hit.fields["entity.media"]?.[0];
-
-            const media = hitMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
-                : null;
-
-            let model: SearchEntityModel | AccountModel;
-
-            if (!isSearchEntityModelId(entityId)) {
-                // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
-                // `Account:${AccountId}`. Expect that account search entities always have an
-                // account media object.
-                assert(hitMedia?.type === "Account");
-
-                model = await getAccount(context, spaceId, hitMedia.accountId);
-            } else {
-                model = new SearchEntityModel({
-                    id: entityId,
-                    title: prepareSearchEntityTitleForResult(
-                        context.actor.type,
-                        entityId,
-                        hit.fields["entity.title"]?.[0] ?? null,
-                        media,
-                    ),
-                    titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
-                    media,
-                });
-            }
-
             return new SearchEntityResultModel({
-                model,
+                model: authorizedSearchEntity.entity,
                 score: hit.score,
                 bodyTextSnippet,
                 parsedFilter: null,
