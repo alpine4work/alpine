@@ -1513,7 +1513,13 @@ function VirtualizedScrollView(
                 scrollTop,
             });
         }
-        setActualState(newActualState);
+        // NOTE (rmtobin, 2026-04-01): This is an attempt to fix
+        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/yczy9sa0ffx006gedsyzr79gz4
+        // I'm not super confident this fix will work since the bug is not consistently
+        // reproducible. But it shouldn't hurt anything to have this check.
+        if (newActualState !== actualState) {
+            setActualState(newActualState);
+        }
     }, [getItemWithoutRender, itemCount, actualState, state]);
 
     // Effect to report the rendered range back to our callback.
