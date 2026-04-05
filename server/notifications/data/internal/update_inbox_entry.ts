@@ -28,7 +28,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
@@ -212,7 +212,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             }
             // Optimization: Don't write to the database (and so update `updateVersionLock`) if
             // the item didn't actually update.
-            else if (!isDeepEqual(oldInboxEntryItem?.item, newInboxEntryItem)) {
+            else if (!isDeepEqualForUnknownValues(oldInboxEntryItem?.item, newInboxEntryItem)) {
                 newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
 
                 transactionEntries.push(
@@ -265,7 +265,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         //
         // Optimization: Don't write to the database (and so update `updateVersionLock`) if
         // the item didn't actually update.
-        if (!isDeepEqual(oldInboxItem, newInboxItem)) {
+        if (!isDeepEqualForUnknownValues(oldInboxItem, newInboxItem)) {
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
 

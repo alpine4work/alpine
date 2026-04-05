@@ -259,7 +259,7 @@ export class ApiClientMock implements ApiClient {
     private findMatchingMock(
         method: HttpMethod,
         path: string,
-        params?: unknown,
+        params?: any,
     ): MockConfig | undefined {
         return this.mockConfigs.find(config => {
             // Method must match

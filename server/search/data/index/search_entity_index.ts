@@ -73,6 +73,7 @@ import {
 } from "~/server/search/data/index/internal/prepare_search_chat_entity_title_for_result.js";
 import {printSearchNaturalLanguageFilter} from "~/server/search/data/index/internal/print_search_natural_language_filter.js";
 import {
+    SearchEntityEmbeddingChunkIndexDoc,
     SearchEntityEmbeddingChunkIndexDocType,
     SearchEntityIndexActivenessType,
     SearchEntityIndexActivenessTypeIntegerMapping,
@@ -84,8 +85,13 @@ import {
     SearchEntityIndexPriorityTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
     SearchEntityKeywordIndexDocType,
+    convertStoredFieldsIntoSearchEntityEmbeddingChunkIndexDocVector,
+    searchEntityEmbeddingChunkIndexVectorStoredFields,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
-import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
+import {
+    SearchEntityMedia,
+    SearchEntityMediaSchema,
+} from "~/server/search/data/index/internal/search_entity_media.js";
 import {
     getPossiblyStaleChannelSearchAffinityEntityIds,
     getPossiblyStaleTaskCollectionSearchAffinityEntityIds,
@@ -151,7 +157,6 @@ import {
     createPostSearchEntityTitleWithAlreadySnippedContent,
     getPostSearchEntityTitleContentSnippet,
 } from "~/shared/forum/create_post_search_entity_title.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -159,12 +164,15 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
+import {enumerateIterable} from "~/shared/helpers/iterable/enumerate_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -184,6 +192,7 @@ import {
     TaskCollectionId,
 } from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     SearchAffinityEntityId,
@@ -208,7 +217,10 @@ import {
     SearchEntityResultModel,
     SearchFavoriteEntityResultModel,
 } from "~/shared/search/search_entity_result_model.js";
-import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
+import {
+    SearchEntityTitleVersion,
+    SearchEntityTitleVersionSchema,
+} from "~/shared/search/search_entity_title_version.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -419,8 +431,8 @@ assertEqualTypes<
         text: string;
         textHash: number;
         preambleEndIndex: number;
-        "vector.allMiniLmL6V2": number;
-        "vector.cohereEmbedEnglishV3": number;
+        "vector.allMiniLmL6V2": {data: ReadonlyArray<number>};
+        "vector.cohereEmbedEnglishV3": {data: ReadonlyArray<number>};
     }
 >();
 
@@ -652,13 +664,17 @@ export async function processIndexSearchEntityJob(
             job.spaceId,
             intoSearchEntityIdForKeywordIndex(job.spaceId, entityId),
             {
-                storedFields:
-                    job.update.type !== "Post"
-                        ? ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks"]
-                        : // If we're indexing a `Post` then load the `title`. We compute the `Post`'s
-                          // `title` during indexing so in order to know whether we need to re-index
-                          // dependents we need the old `title` value.
-                          ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks", "title"],
+                storedFields: [
+                    "lastUpdatedTime",
+                    "lastReadStartTime",
+                    "hasEmbeddingChunks",
+                    "title",
+                    "titleVersion",
+                    "media",
+                    "accessPolicy.accountGrantAccountIds",
+                    "accessPolicy.defaultGrantType",
+                    "accessPolicy.urlGrantLevel",
+                ],
             },
         );
 
@@ -673,7 +689,17 @@ export async function processIndexSearchEntityJob(
                   ),
                   hasEmbeddingChunks:
                       actualOldDocForKeywordIndex.fields.hasEmbeddingChunks?.[0] ?? false,
-                  titleIfPost: actualOldDocForKeywordIndex.fields.title?.[0] ?? null,
+                  title: actualOldDocForKeywordIndex.fields.title?.[0] ?? null,
+                  titleVersion: actualOldDocForKeywordIndex.fields.titleVersion?.[0] ?? null,
+                  media: actualOldDocForKeywordIndex.fields.media?.[0] ?? null,
+                  accessPolicyAccountGrantIds: new Set(
+                      actualOldDocForKeywordIndex.fields["accessPolicy.accountGrantAccountIds"],
+                  ),
+                  accessPolicyDefaultGrantType:
+                      actualOldDocForKeywordIndex.fields["accessPolicy.defaultGrantType"]?.[0] ??
+                      null,
+                  accessPolicyUrlGrantLevel:
+                      actualOldDocForKeywordIndex.fields["accessPolicy.urlGrantLevel"]?.[0] ?? null,
               }
             : null;
 
@@ -712,7 +738,12 @@ export async function processIndexSearchEntityJob(
             lastUpdatedTime: Date;
             lastReadStartTime: Date;
             hasEmbeddingChunks: boolean;
-            titleIfPost: string | null;
+            title: string | null;
+            titleVersion: SearchEntityTitleVersion | null;
+            media: SearchEntityMedia | null;
+            accessPolicyAccountGrantIds: ReadonlySet<AccountId>;
+            accessPolicyDefaultGrantType: "Space" | null;
+            accessPolicyUrlGrantLevel: "View" | null;
         } | null,
     ) {
         // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our content.
@@ -819,9 +850,58 @@ export async function processIndexSearchEntityJob(
             // the entity had some embedding chunks but no longer has those chunks we also need
             // to run our embedding chunk indexing job since we need to delete any existing
             // embedding chunks.
-            newDocForKeywordIndex.hasEmbeddingChunks || oldDocForKeywordIndex?.hasEmbeddingChunks
-                ? scheduleUpdateEmbeddingChunks()
-                : null,
+            (async () => {
+                if (
+                    !newDocForKeywordIndex.hasEmbeddingChunks &&
+                    !oldDocForKeywordIndex?.hasEmbeddingChunks
+                ) {
+                    return;
+                }
+
+                // If any metadata on the entity has changed that's included in embedding chunks
+                // then we need to force update all embedding chunk metadata instead of just the
+                // embedding chunks whose text changed.
+                //
+                // This is critical for security! If the access policy on the search entity changes
+                // then we must reindex all embedding chunks with the new access policy.
+                const forceEmbeddingChunksMetadataUpdate =
+                    oldDocForKeywordIndex?.title !== newDocForKeywordIndex.title ||
+                    !isDeepEqualWithSchema(
+                        SearchEntityTitleVersionSchema,
+                        oldDocForKeywordIndex.titleVersion,
+                        newDocForKeywordIndex.titleVersion,
+                    ) ||
+                    !isDeepEqualWithSchema(
+                        SearchEntityMediaSchema,
+                        oldDocForKeywordIndex.media,
+                        newDocForKeywordIndex.media,
+                    ) ||
+                    !isDeepEqual(
+                        cast<typeof newDocForKeywordIndex.accessPolicy>({
+                            accountGrantAccountIds:
+                                oldDocForKeywordIndex.accessPolicyAccountGrantIds,
+                            defaultGrantType: oldDocForKeywordIndex.accessPolicyDefaultGrantType,
+                            urlGrantLevel: oldDocForKeywordIndex.accessPolicyUrlGrantLevel,
+                        }),
+                        newDocForKeywordIndex.accessPolicy,
+                    );
+
+                // Record if we need to force a metadata update when indexing our embedding chunks.
+                span.addData({
+                    search: {
+                        index: {
+                            embeddingChunks: {
+                                scheduled: true,
+                                forceMetadataUpdate: forceEmbeddingChunksMetadataUpdate,
+                            },
+                        },
+                    },
+                });
+
+                await scheduleUpdateEmbeddingChunks({
+                    forceMetadataUpdate: forceEmbeddingChunksMetadataUpdate,
+                });
+            })(),
 
             // If `getSearchEntity()` declared any additional write actions then execute those
             // now.
@@ -891,7 +971,11 @@ export async function processIndexSearchEntityJob(
         }
     }
 
-    async function scheduleUpdateEmbeddingChunks() {
+    async function scheduleUpdateEmbeddingChunks({
+        forceMetadataUpdate,
+    }: {
+        forceMetadataUpdate: boolean;
+    }) {
         if (hasScheduledIndexEmbeddingChunksJob) return;
         hasScheduledIndexEmbeddingChunksJob = true;
 
@@ -899,6 +983,7 @@ export async function processIndexSearchEntityJob(
             spaceId: job.spaceId,
             entityId,
             readAfterTime,
+            forceMetadataUpdate,
         });
     }
 }
@@ -1019,7 +1104,12 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
         }
     >,
     job: IndexSearchEntityEmbeddingChunksJobDescription,
+    span: TracerSpan,
 ) {
+    span.addData({
+        search: {index: {embeddingChunks: {forceMetadataUpdate: job.forceMetadataUpdate}}},
+    });
+
     await withIndexSearchEntityEmbeddingChunksJobLock(context, job, async () => {
         // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our content.
         // That's because it's the main model we use in production for embeddings. In
@@ -1041,6 +1131,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                 const allHits: Array<{
                     id: string;
                     textHash: number;
+                    vector: SearchEntityEmbeddingChunkIndexDoc["vector"];
                 }> = [];
 
                 const size = 500;
@@ -1061,7 +1152,12 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                             size,
                             sort: ["_doc"],
                             afterCursor: afterCursor ?? undefined,
-                            storedFields: ["textHash"],
+                            storedFields: !job.forceMetadataUpdate
+                                ? ["textHash"]
+                                : [
+                                      "textHash",
+                                      ...searchEntityEmbeddingChunkIndexVectorStoredFields,
+                                  ],
                             query: {
                                 bool: {
                                     filter: [
@@ -1088,6 +1184,9 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                         allHits.push({
                             id: hit.id,
                             textHash: assertExists(hit.fields.textHash?.[0]),
+                            vector: convertStoredFieldsIntoSearchEntityEmbeddingChunkIndexDocVector(
+                                hit.fields,
+                            ),
                         });
                     }
 
@@ -1104,7 +1203,14 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
             })(),
         ]);
 
-        const oldChunksByTextHash = new Map<number, Array<{id: string; textHash: number}>>();
+        const oldChunksByTextHash = new Map<
+            number,
+            Array<{
+                id: string;
+                textHash: number;
+                vector: SearchEntityEmbeddingChunkIndexDoc["vector"];
+            }>
+        >();
 
         for (const chunk of allOldChunks) {
             getOrSetDefaultMapValue(oldChunksByTextHash, chunk.textHash, () => []).push(chunk);
@@ -1135,6 +1241,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
         const addNewChunks: Array<{
             textHash: number;
             chunk: SearchEntityEmbeddingChunk;
+            vector: SearchEntityEmbeddingChunkIndexDoc["vector"] | null;
         }> = [];
 
         const deleteOldChunkIds: Array<string> = [];
@@ -1146,13 +1253,27 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
             if (!oldChunks) {
                 // Add any new chunks.
                 for (const newChunk of newChunks) {
-                    addNewChunks.push({textHash, chunk: newChunk});
+                    addNewChunks.push({textHash, chunk: newChunk, vector: null});
                 }
             } else {
+                // If we're forcing metadata to be reindexed then add all existing chunks to the
+                // force update list.
+                if (job.forceMetadataUpdate) {
+                    for (let i = 0; i < Math.min(oldChunks.length, newChunks.length); i++) {
+                        addNewChunks.push({
+                            textHash,
+                            chunk: newChunks[i]!,
+                            vector: oldChunks[i]!.vector,
+                        });
+
+                        deleteOldChunkIds.push(oldChunks[i]!.id);
+                    }
+                }
+
                 // If there are more `newChunks` than `oldChunks`, add any additional `newChunks`.
                 for (let i = oldChunks.length; i < newChunks.length; i++) {
                     const newChunk = newChunks[i]!;
-                    addNewChunks.push({textHash, chunk: newChunk});
+                    addNewChunks.push({textHash, chunk: newChunk, vector: null});
                 }
 
                 // If there are more `oldChunks` than `newChunks`, delete any remaining
@@ -1199,19 +1320,50 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                     throw new InternalError("Missing language model in context");
                 }
 
-                const vectors = !context.languageModel
-                    ? createArrayWithLength(addNewChunks.length, () => [])
-                    : Array.from(
-                          await context.languageModel.model.embed(
-                              context.tracer.getTracer(),
-                              addNewChunks.map(({chunk}) => chunk.text),
-                              {inputType: "SearchDocument"},
-                          ),
-                          vector => Array.from(vector),
-                      );
+                const chunkTextsToEmbed: Array<{text: string; index: number}> = [];
 
-                const addCommands = addNewChunks.map(({textHash, chunk}, i) => {
-                    const vector = assertExists(vectors[i]);
+                type VectorResult =
+                    | {type: "Reuse"; vector: ReadonlyArray<number>}
+                    | {type: "Embed"};
+
+                // Reuse vectors we've already computed to avoid paying an additional embedding
+                // cost.
+                const vectorResults = addNewChunks.map(({chunk, vector}, index): VectorResult => {
+                    if (!context.languageModel) return {type: "Reuse", vector: []};
+
+                    const existingVector = vector?.[context.languageModel.model.statics.key];
+                    if (existingVector) return {type: "Reuse", vector: existingVector.data};
+
+                    chunkTextsToEmbed.push({text: chunk.text, index});
+                    return {type: "Embed"};
+                });
+
+                const vectorByEmbedResultIndex = new Map<number, ReadonlyArray<number>>();
+
+                if (chunkTextsToEmbed.length > 0) {
+                    assert(context.languageModel);
+
+                    for (const [chunkTextsToEmbedIndex, vector] of enumerateIterable(
+                        await context.languageModel.model.embed(
+                            context.tracer.getTracer(),
+                            chunkTextsToEmbed.map(({text}) => text),
+                            {inputType: "SearchDocument"},
+                        ),
+                    )) {
+                        vectorByEmbedResultIndex.set(
+                            chunkTextsToEmbed[chunkTextsToEmbedIndex]!.index,
+                            Array.from(vector),
+                        );
+                    }
+                }
+
+                const addCommands = addNewChunks.map(({textHash, chunk}, index) => {
+                    const vectorResult = assertExists(vectorResults[index]);
+
+                    const vector =
+                        vectorResult.type === "Embed"
+                            ? assertExists(vectorByEmbedResultIndex.get(index))
+                            : vectorResult.vector;
 
                     const newDoc: OpensearchIndexDocType<typeof SearchEntityEmbeddingChunkIndex> = {
                         spaceId: job.spaceId,
@@ -1234,7 +1386,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                             : {
                                   allMiniLmL6V2: null,
                                   cohereEmbedEnglishV3: null,
-                                  [context.languageModel.model.statics.key]: vector,
+                                  [context.languageModel.model.statics.key]: {data: vector},
                               },
                     };
 

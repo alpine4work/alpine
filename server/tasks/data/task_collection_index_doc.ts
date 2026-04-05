@@ -1,3 +1,10 @@
+// IMPORTANT: There are a couple small backwards incompatible changes we'd like to
+// make to our search index. (e.g. Remove `accessPolicyAccountGrantIds` from the
+// collection index as we don't use it anymore.) They haven't been worth setting up
+// infrasturcture for backwards incompatible changes yet. If you're going to make a
+// backwards incompatible change please consider incorporating all `NOTE` and
+// `TODO` comments we've left in this file.
+
 import {
     OpensearchIndexAnalysisCustomAnalyzer,
     OpensearchIndexAnalysisCustomFilter,

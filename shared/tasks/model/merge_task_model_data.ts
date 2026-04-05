@@ -1,6 +1,6 @@
 import {InternalError} from "~/shared/error/error.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {mergeTaskSortableAccounts} from "~/shared/tasks/task_sortable_account.js";
 
@@ -78,7 +78,7 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
 
     // Optimization: If nothing changed between `task1` and the merged task then return
     // `task1` so the new task is referentially equal to the old one.
-    if (isDeepEqual(task1, newTask)) return task1;
+    if (isDeepEqualForUnknownValues(task1, newTask)) return task1;
 
     return newTask;
 }

@@ -3700,6 +3700,9 @@ function isPlainObject(value) {
 
 // shared/helpers/control/is_deep_equal.js
 function isDeepEqual(value1, value2) {
+    return isDeepEqualForUnknownValues(value1, value2);
+}
+function isDeepEqualForUnknownValues(value1, value2) {
     if (value1 === value2) return true;
     if (
         value1 !== null &&
@@ -3724,6 +3727,8 @@ function areObjectsDeeplyEqual(object1, object2) {
         if (object1 instanceof Set && object2 instanceof Set)
             return areSetsDeeplyEqual(object1, object2);
         if (object1 instanceof Date && object2 instanceof Date) return isEqual(object1, object2);
+        if (object1 instanceof Uint8Array && object2 instanceof Uint8Array)
+            return areArraysDeeplyEqual(object1, object2);
         return false;
     }
     const object1Keys = new Set(Object.keys(object1));
@@ -3731,13 +3736,16 @@ function areObjectsDeeplyEqual(object1, object2) {
         if (!object1Keys.delete(key)) return false;
         if (!hasOwnProperty(object1, key)) return false;
         const value1 = object1[key];
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
     return object1Keys.size === 0;
 }
 function areArraysDeeplyEqual(array1, array2) {
     if (array1.length !== array2.length) return false;
-    return array1.every((item1, index) => isDeepEqual(item1, array2[index]));
+    for (let index = 0; index < array1.length; index++) {
+        if (!isDeepEqualForUnknownValues(array1[index], array2[index])) return false;
+    }
+    return true;
 }
 function areMapsDeeplyEqual(map1, map2) {
     if (map1.size !== map2.size) return false;
@@ -3745,7 +3753,7 @@ function areMapsDeeplyEqual(map1, map2) {
     for (const [key, value2] of map2) {
         if (!map1Keys.delete(key)) return false;
         const value1 = map1.get(key);
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
     return map1Keys.size === 0;
 }

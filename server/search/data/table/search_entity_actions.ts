@@ -189,10 +189,12 @@ export async function scheduleIndexSearchEntityEmbeddingChunksJob(
         spaceId,
         entityId,
         readAfterTime,
+        forceMetadataUpdate,
     }: {
         spaceId: SpaceId;
         entityId: SearchDynamicEntityId;
         readAfterTime: Date;
+        forceMetadataUpdate: boolean;
     },
 ) {
     const jobId = generateId();
@@ -206,40 +208,29 @@ export async function scheduleIndexSearchEntityEmbeddingChunksJob(
             entityId,
         },
         item => {
+            const isJobSatisfactory = (job: {startTime: Date; forceMetadataUpdate: boolean}) => {
+                // If we set `forceMetadataUpdate` to true then the previous job must also have set
+                // `forceMetadataUpdate`.
+                if (forceMetadataUpdate && !job.forceMetadataUpdate) return false;
+
+                return isDateDefinitelyLessThanWithUncertaintyWindow(readAfterTime, job.startTime);
+            };
+
             // Our previous job already read the entity update we're targeting. So we don't
             // need to schedule another job.
-            if (
-                item?.previousJob &&
-                isDateDefinitelyLessThanWithUncertaintyWindow(
-                    readAfterTime,
-                    item.previousJob.startTime,
-                )
-            ) {
+            if (item?.previousJob && isJobSatisfactory(item.previousJob)) {
                 return item;
             }
 
             // A scheduled job will read the entity update we're targeting. So we don't need to
             // schedule another job.
-            if (
-                item?.scheduledJobs.some(scheduledJob =>
-                    isDateDefinitelyLessThanWithUncertaintyWindow(
-                        readAfterTime,
-                        scheduledJob.startTime,
-                    ),
-                )
-            ) {
+            if (item?.scheduledJobs.some(isJobSatisfactory)) {
                 return item;
             }
 
             // The active job is currently reading the entity update we're targeting. So we
             // don't need to schedule another job.
-            if (
-                item?.activeJob &&
-                isDateDefinitelyLessThanWithUncertaintyWindow(
-                    readAfterTime,
-                    item.activeJob.startTime,
-                )
-            ) {
+            if (item?.activeJob && isJobSatisfactory(item.activeJob)) {
                 return item;
             }
 
@@ -291,6 +282,7 @@ export async function scheduleIndexSearchEntityEmbeddingChunksJob(
                     {
                         id: jobId,
                         startTime: scheduledJobStartTime,
+                        forceMetadataUpdate,
                     },
                 ],
             };
@@ -314,6 +306,7 @@ export async function scheduleIndexSearchEntityEmbeddingChunksJob(
             id: jobId,
             spaceId,
             entityId,
+            forceMetadataUpdate,
         },
         {
             delaySeconds: Math.max(
@@ -364,7 +357,17 @@ export function createWithIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashE
  */
 export async function withIndexSearchEntityEmbeddingChunksJobLock(
     context: ServerActionContext,
-    {id: jobId, spaceId, entityId}: {id: Id; spaceId: SpaceId; entityId: SearchDynamicEntityId},
+    {
+        id: jobId,
+        spaceId,
+        entityId,
+        forceMetadataUpdate,
+    }: {
+        id: Id;
+        spaceId: SpaceId;
+        entityId: SearchDynamicEntityId;
+        forceMetadataUpdate: boolean;
+    },
     action: () => Promise<void>,
 ): Promise<void> {
     const updateExpirationTimeIntervalMs = 15 * 1000;
@@ -449,6 +452,7 @@ export async function withIndexSearchEntityEmbeddingChunksJobLock(
                             {
                                 id: jobId,
                                 startTime: scheduledJobStartTime,
+                                forceMetadataUpdate,
                             },
                         ],
                     };
@@ -474,6 +478,7 @@ export async function withIndexSearchEntityEmbeddingChunksJobLock(
                         id: jobId,
                         startTime: currentTime,
                         expirationTime: new Date(currentTime.getTime() + expirationTimeoutMs),
+                        forceMetadataUpdate,
                     },
                 };
             },
@@ -492,6 +497,7 @@ export async function withIndexSearchEntityEmbeddingChunksJobLock(
                     id: jobId,
                     spaceId,
                     entityId,
+                    forceMetadataUpdate,
                 },
                 {
                     delaySeconds: Math.max(
@@ -593,9 +599,13 @@ export async function withIndexSearchEntityEmbeddingChunksJobLock(
                         id: jobId,
                         startTime: item.activeJob.startTime,
                         endTime,
+                        forceMetadataUpdate,
                     },
                     scheduledJobs: isError
-                        ? [...item.scheduledJobs, {id: jobId, startTime: item.activeJob.startTime}]
+                        ? [
+                              ...item.scheduledJobs,
+                              {id: jobId, startTime: item.activeJob.startTime, forceMetadataUpdate},
+                          ]
                         : item.scheduledJobs,
                     activeJob: null,
                 };

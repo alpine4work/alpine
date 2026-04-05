@@ -177,6 +177,15 @@ export async function updateChannelAccessPolicyBase(
         });
     }
 
+    // TODO(calebmer, #security): Send `IndexSearchEntity` job from DynamoDB stream.
+    // Right now we can't guarantee indexing after a DynamoDB update. Say we make a
+    // DynamoDB write and then before we're able to send `IndexSearchEntity` to SQS the
+    // EC2 instance crashes! If the DynamoDB update changed the channel's permissions
+    // then we won't propagate the permission updates to the channel's posts and post
+    // comments in OpenSearch. Which is very bad!
+    //
+    // This is a problem for all `IndexSearchEntity` jobs after an access policy
+    // update. Arbitrarily leaving the TODO comment here.
     context.jobs.send({
         type: "IndexSearchEntity",
         spaceId: channelItem.spaceId,

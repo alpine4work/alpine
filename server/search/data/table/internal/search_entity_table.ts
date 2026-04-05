@@ -242,6 +242,7 @@ export const SearchEntityTable = DynamoTableSchema.new({
                             id: Schema.id<Id>(),
                             startTime: Schema.date,
                             endTime: Schema.date,
+                            forceMetadataUpdate: Schema.boolean.default(false),
                         }).nullable(),
 
                         /**
@@ -264,6 +265,7 @@ export const SearchEntityTable = DynamoTableSchema.new({
                             id: Schema.id<Id>(),
                             startTime: Schema.date,
                             expirationTime: Schema.date,
+                            forceMetadataUpdate: Schema.boolean.default(false),
                         }).nullable(),
 
                         /**
@@ -284,6 +286,7 @@ export const SearchEntityTable = DynamoTableSchema.new({
                             Schema.object({
                                 id: Schema.id<Id>(),
                                 startTime: Schema.date,
+                                forceMetadataUpdate: Schema.boolean.default(false),
                             }),
                         ).validation("Scheduled job `id`s must be unique", scheduledJobs => {
                             const ids = new Set<Id>();

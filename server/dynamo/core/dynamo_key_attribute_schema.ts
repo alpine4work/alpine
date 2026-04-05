@@ -11,7 +11,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {
     DateString,
     deserializeDateString,
@@ -853,7 +853,10 @@ export class DynamoKeyAttributeSchema<Value> {
                     );
 
                     assert(
-                        isDeepEqual(sortedSerializedStringValues, sortedSerializedBinaryValues),
+                        isDeepEqualForUnknownValues(
+                            sortedSerializedStringValues,
+                            sortedSerializedBinaryValues,
+                        ),
                         "Sort order when serializing key values to string is different from sort order when serializing key values to binary",
                     );
                 }

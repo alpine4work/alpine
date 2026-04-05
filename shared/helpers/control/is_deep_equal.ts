@@ -3,6 +3,33 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 /**
+ * A value that can be safely passed into `isDeepEqual()`. Functions and custom
+ * classes aren't safe since we'll only perform a referential equality check. It's
+ * recommended that you use `isDeepEqualWithSchema()` if your object has custom
+ * classes. You can also use `isDeepEqualForUnknownValues()` if you want to ignore
+ * the "safe" types for `isDeepEqual()`.
+ */
+export type ValueForDeepEqual = ScalarValueForDeepEqual | CompositeValueForDeepEqual;
+
+type ScalarValueForDeepEqual = undefined | null | boolean | number | string | Date | Uint8Array;
+
+type CompositeValueForDeepEqual =
+    | ObjectValueForDeepEqual
+    | ArrayValueForDeepEqual
+    | MapValueForDeepEqual
+    | SetValueForDeepEqual;
+
+type ObjectValueForDeepEqual = {
+    readonly [key: string]: ValueForDeepEqual;
+};
+
+type ArrayValueForDeepEqual = ReadonlyArray<ValueForDeepEqual>;
+
+type MapValueForDeepEqual = ReadonlyMap<ValueForDeepEqual, ValueForDeepEqual>;
+
+type SetValueForDeepEqual = ReadonlySet<ValueForDeepEqual>;
+
+/**
  * Checks if two values deeply equal each other.
  *
  * Our deep equality algorithm supports:
@@ -13,6 +40,7 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
  * - Maps
  * - Sets
  * - Dates
+ * - `Uint8Array`s
  *
  * For numbers, `+0` and `-0` are considered equal. `NaN` is also considered to
  * equal `NaN`.
@@ -25,12 +53,25 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
  * For non-plain object values that aren't otherwise supported (e.g. ProseMirror
  * `Node`s) we'll check referential equality (`a === b`) and if that fails we'll
  * return false.
+ *
+ * If you have non-plain object value consider using `isDeepEqualWithSchema()`
+ * instead which first uses a schema to serialize to JSON and then performs a deep
+ * equality check on the serialized value.
  */
 // NOTE(calebmer): I chose to manually write a deep equality implementation instead
 // of using the common Lodash implementation since at a previous job I discovered
 // Lodash considers `isEqual(new Map([['x', [1, 2]]]), new Map([['x', [2, 1]]]))`
 // to be true! Beware of Lodash deep equality.
-export function isDeepEqual(value1: unknown, value2: unknown): boolean {
+export function isDeepEqual(value1: ValueForDeepEqual, value2: ValueForDeepEqual): boolean {
+    return isDeepEqualForUnknownValues(value1, value2);
+}
+
+/**
+ * Same as `isDeepEqual()` but doesn't check whether the types are "safe" for our
+ * deep equality check. Prefer using `isDeepEqualWithSchema()` which is safe for
+ * types with custom classes since it first serializes to JSON.
+ */
+export function isDeepEqualForUnknownValues(value1: unknown, value2: unknown): boolean {
     if (value1 === value2) return true;
 
     if (
@@ -74,6 +115,9 @@ function areObjectsDeeplyEqual(
         if (object1 instanceof Date && object2 instanceof Date)
             return areDatesEqual(object1, object2);
 
+        if (object1 instanceof Uint8Array && object2 instanceof Uint8Array)
+            return areArraysDeeplyEqual(object1, object2);
+
         return false;
     }
 
@@ -85,18 +129,20 @@ function areObjectsDeeplyEqual(
         if (!hasOwnProperty(object1, key)) return false;
         const value1 = object1[key];
 
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
 
     return object1Keys.size === 0;
 }
 
-function areArraysDeeplyEqual(
-    array1: ReadonlyArray<unknown>,
-    array2: ReadonlyArray<unknown>,
-): boolean {
+function areArraysDeeplyEqual(array1: ArrayLike<unknown>, array2: ArrayLike<unknown>): boolean {
     if (array1.length !== array2.length) return false;
-    return array1.every((item1, index) => isDeepEqual(item1, array2[index]));
+
+    for (let index = 0; index < array1.length; index++) {
+        if (!isDeepEqualForUnknownValues(array1[index], array2[index])) return false;
+    }
+
+    return true;
 }
 
 function areMapsDeeplyEqual(
@@ -111,7 +157,7 @@ function areMapsDeeplyEqual(
         if (!map1Keys.delete(key)) return false;
 
         const value1 = map1.get(key)!;
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
 
     return map1Keys.size === 0;

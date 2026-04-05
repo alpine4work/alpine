@@ -1750,6 +1750,10 @@ Resources:
                           Type: int
                         - Name: importer__uploaded__audio_total_size
                           Type: int
+                        - Name: search__index__embedding_chunks__scheduled
+                          Type: boolean
+                        - Name: search__index__embedding_chunks__force_metadata_update
+                          Type: boolean
                     InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
                     Location:
                         Fn::Join:

@@ -12250,6 +12250,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "type": "Date"
                                                         },
                                                         "optional": false
+                                                    },
+                                                    "forceMetadataUpdate": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": true
                                                     }
                                                 }
                                             }
@@ -12279,6 +12285,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "type": "Date"
                                                         },
                                                         "optional": false
+                                                    },
+                                                    "forceMetadataUpdate": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": true
                                                     }
                                                 }
                                             }
@@ -12302,6 +12314,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "type": "Date"
                                                         },
                                                         "optional": false
+                                                    },
+                                                    "forceMetadataUpdate": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": true
                                                     }
                                                 }
                                             }

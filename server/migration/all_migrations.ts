@@ -11,6 +11,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexChatAndChatMessageSearchEntitiesMigration,
+    runIndexEverySearchEntityEmbeddingChunksForceMetadataUpdate,
     runIndexEverySearchEntityMigration,
     runIndexPostAndChannelSearchEntitiesMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
@@ -54,6 +55,8 @@ export const allMigrations: {
     FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,
     IndexEveryTaskActionStep1Of2: runIndexEveryTaskActionStep1Of2,
     IndexEveryTaskActionStep2Of2: runIndexEveryTaskActionStep2Of2,
+    IndexEverySearchEntityEmbeddingChunksForceMetadataUpdate:
+        runIndexEverySearchEntityEmbeddingChunksForceMetadataUpdate,
     BackfillAccountEmailCreationTime: runBackfillAccountEmailCreationTimeMigration,
     UpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries:
         runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,

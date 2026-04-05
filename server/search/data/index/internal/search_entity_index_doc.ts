@@ -1,3 +1,9 @@
+// IMPORTANT: There are a couple small backwards incompatible changes we'd like to
+// make to our search index. (e.g. Switching `urlGrantLevel` to `hasUrlGrant`.)
+// They haven't been worth setting up infrasturcture for backwards incompatible
+// changes yet. If you're going to make a backwards incompatible change please
+// consider incorporating all `NOTE` and `TODO` comments we've left in this file.
+
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelBaseClass} from "~/server/language_models/core/language_model_base.js";
@@ -23,6 +29,7 @@ import {
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     IntegerMappingStringType,
@@ -501,23 +508,57 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
     },
 });
 
+type SearchEntityEmbeddingChunkIndexLanguageModelKey =
+    (typeof searchEntityEmbeddingChunkIndexLanguageModelKeys)[number];
+
+const searchEntityEmbeddingChunkIndexLanguageModelKeys = [
+    "allMiniLmL6V2",
+    "cohereEmbedEnglishV3",
+] as const;
+
 /**
  * Language models we embed search entity content with.
  *
  * - We use `AllMiniLmL6V2Model` (free) locally in development
  * - We use `CohereEmbedEnglishV3Model` (paid) in production
  */
-const searchEntitySemanticIndexEmbeddingChunkLanguageModels = {
+const searchEntityEmbeddingChunkIndexLanguageModels: Record<
+    SearchEntityEmbeddingChunkIndexLanguageModelKey,
+    LanguageModelBaseClass
+> = {
     allMiniLmL6V2: AllMiniLmL6V2LanguageModel,
     cohereEmbedEnglishV3: CohereEmbedEnglishV3LanguageModel,
-} satisfies {
-    [key: string]: LanguageModelBaseClass;
 };
 
 for (const [key, languageModelClass] of Object.entries(
-    searchEntitySemanticIndexEmbeddingChunkLanguageModels,
+    searchEntityEmbeddingChunkIndexLanguageModels,
 )) {
     assert(key === languageModelClass.key);
+}
+
+export const searchEntityEmbeddingChunkIndexVectorStoredFields =
+    searchEntityEmbeddingChunkIndexLanguageModelKeys.map(
+        key => `vector.${key}`,
+    ) as any as MakeSearchEntityEmbeddingChunkIndexVectorStoredFields<
+        typeof searchEntityEmbeddingChunkIndexLanguageModelKeys
+    >;
+
+type MakeSearchEntityEmbeddingChunkIndexVectorStoredFields<T extends ReadonlyArray<string>> = {
+    [Key in keyof T]: `vector.${T[Key]}`;
+};
+
+export function convertStoredFieldsIntoSearchEntityEmbeddingChunkIndexDocVector(
+    fields: Partial<
+        Record<
+            `vector.${SearchEntityEmbeddingChunkIndexLanguageModelKey}`,
+            ReadonlyArray<{readonly data: ReadonlyArray<number>}>
+        >
+    >,
+): SearchEntityEmbeddingChunkIndexDoc["vector"] {
+    return createObjectFromKeys(
+        searchEntityEmbeddingChunkIndexLanguageModelKeys,
+        key => fields[`vector.${key}`]?.[0] ?? null,
+    );
 }
 
 export type SearchEntityEmbeddingChunkIndexDoc = OpensearchIndexTypeType<
@@ -552,6 +593,10 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
                  *
                  * [1]: opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
                  */
+                // TODO(calebmer): Consider `store()`ing the access policy. This would make
+                // debugging whether an embedding chunk has the correct permissions much easier.
+                // Right now you have to test via indirect queries (e.g. does
+                // `accountGrantAccountIds` include X?) that don't give you full information.
                 accessPolicy: SearchEntityIndexAccessPolicyType,
 
                 /**
@@ -601,7 +646,7 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
          */
         vector: OpensearchIndexObjectType.new({
             fields: mapObjectValues(
-                searchEntitySemanticIndexEmbeddingChunkLanguageModels,
+                searchEntityEmbeddingChunkIndexLanguageModels,
                 languageModelClass => {
                     return (
                         new OpensearchIndexKnnVectorType({

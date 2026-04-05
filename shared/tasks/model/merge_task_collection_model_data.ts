@@ -3,7 +3,7 @@ import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskCollectionModelData} from "~/shared/tasks/model/task_collection_model.js";
 
 export function mergeTaskCollectionModelData(
@@ -45,7 +45,7 @@ export function mergeTaskCollectionModelData(
     // Optimization: If nothing changed between `collection1` and the merged collection
     // then return `collection1` so the new collection is referentially equal to the
     // old one.
-    if (isDeepEqual(collection1, newCollection)) return collection1;
+    if (isDeepEqualForUnknownValues(collection1, newCollection)) return collection1;
 
     return newCollection;
 }

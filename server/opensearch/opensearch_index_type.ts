@@ -973,7 +973,9 @@ export type OpensearchIndexKnnVectorTypeConfigMethodParametersEncoder =
  *     https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/
  */
 export class OpensearchIndexKnnVectorType extends OpensearchIndexTypeBase<
-    ReadonlyArray<number>,
+    // We have an object wrapping the vector so that it's not unwrapped by the
+    // `NonNullableNonArrayType` type used by `store()`.
+    {readonly data: ReadonlyArray<number>},
     "this",
     {}
 > {
@@ -1007,13 +1009,13 @@ export class OpensearchIndexKnnVectorType extends OpensearchIndexTypeBase<
         };
     }
 
-    public override serialize(value: ReadonlyArray<number>): JsonValue {
-        return value;
+    public override serialize(value: {data: ReadonlyArray<number>}): JsonValue {
+        return value.data;
     }
 
-    public override deserialize(value: JsonValue | undefined): ReadonlyArray<number> {
+    public override deserialize(value: JsonValue | undefined): {data: ReadonlyArray<number>} {
         assert(Array.isArray(value));
-        return value;
+        return {data: value};
     }
 }
 

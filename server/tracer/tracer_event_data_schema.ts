@@ -656,11 +656,9 @@ const TracerEventDataSchema = {
             },
         },
     },
-
     loops: {
         contactId: Schema.string,
     },
-
     importer: {
         type: Schema.string,
         site: {
@@ -679,6 +677,14 @@ const TracerEventDataSchema = {
             videoTotalSize: Schema.integer,
             audioCount: Schema.integer,
             audioTotalSize: Schema.integer,
+        },
+    },
+    search: {
+        index: {
+            embeddingChunks: {
+                scheduled: Schema.boolean,
+                forceMetadataUpdate: Schema.boolean,
+            },
         },
     },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;

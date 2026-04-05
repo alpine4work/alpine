@@ -21,7 +21,8 @@ type StringifiableScalarValueForDeepEqualCheck =
     | boolean
     | number
     | string
-    | Date;
+    | Date
+    | Uint8Array;
 
 type StringifiableCompositeValueForDeepEqualCheck<ReplacedValue> =
     | StringifiableObjectValueForDeepEqualCheck<ReplacedValue>
@@ -112,6 +113,7 @@ function stringifyObjectForDeepEqualCheck<ReplacedValue>(
     object:
         | StringifiableCompositeValueForDeepEqualCheck<ReplacedValue>
         | Date
+        | Uint8Array
         | (ReplacedValue & {}),
     replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
     seen: Set<unknown>,
@@ -126,6 +128,7 @@ function stringifyObjectForDeepEqualCheck<ReplacedValue>(
             if (object instanceof Map) return stringifyMapForDeepEqualCheck(object, replacer, seen);
             if (object instanceof Set) return stringifySetForDeepEqualCheck(object, replacer, seen);
             if (object instanceof Date) return stringifyDateForDeepEqualCheck(object);
+            if (object instanceof Uint8Array) return stringifyUint8ArrayForDeepEqualCheck(object);
 
             // If we don't recognize the type, call our replacer.
             return stringifyForDeepEqualCheck(replacer(object as any), replacer, seen);
@@ -164,6 +167,16 @@ function stringifyArrayForDeepEqualCheck<ReplacedValue>(
     }
 
     return `[${items.join(",")}]`;
+}
+
+function stringifyUint8ArrayForDeepEqualCheck(array: Uint8Array): string {
+    const items = [];
+
+    for (const item of array) {
+        items.push(item);
+    }
+
+    return `Uint8Array([${items.join(",")}])`;
 }
 
 function stringifyMapForDeepEqualCheck<ReplacedValue>(

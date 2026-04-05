@@ -19,6 +19,7 @@ import {
     MessageStream,
 } from "~/shared/messaging/message_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -247,7 +248,15 @@ export function areMessagePayloadModelsEqual(
 
             if (!payload1.content.doc.eq(payload2.content.doc)) return false;
 
-            if (!isDeepEqual(payload1.contentUpdate, payload2.contentUpdate)) return false;
+            if (
+                !isDeepEqualWithSchema(
+                    MessageContentPayloadContentUpdateSchema,
+                    payload1.contentUpdate,
+                    payload2.contentUpdate,
+                )
+            ) {
+                return false;
+            }
 
             if (!isDeepEqual(payload1.clerical, payload2.clerical)) return false;
 

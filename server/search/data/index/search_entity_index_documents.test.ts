@@ -66,7 +66,7 @@ const context = createTestContext({
                 break;
             }
             case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
                 break;
             }
             default: {

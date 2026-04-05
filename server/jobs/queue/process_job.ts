@@ -45,7 +45,7 @@ export async function processJob(
             return;
         }
         case "IndexSearchEntityEmbeddingChunks": {
-            await processIndexSearchEntityEmbeddingChunksJob(context, job);
+            await processIndexSearchEntityEmbeddingChunksJob(context, job, span);
             return;
         }
         case "NotificationEvent": {

@@ -114,6 +114,7 @@ const context = createTestContext({
                         languageModel: new LanguageModelContextModule(languageModel),
                     }),
                     job,
+                    span,
                 );
                 break;
             }
@@ -1847,6 +1848,203 @@ test("search by semantics only sees entities the account has access to", async (
             `TaskCollection:${collection3.id}`,
         ].sort(defaultCompareStrings),
     );
+});
+
+test("semantic search stops returning post and comment entities after channel is made private", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const semanticPhrase = "orchard astronaut lighthouse";
+    const semanticFiller = createArrayWithLength(100, () => "semantic").join(" ");
+
+    const channel = await TestChannel.create(session1, {
+        name: "Channel visibility test",
+        access: "Public",
+    });
+
+    const post1 = await channel.createPost(
+        session1,
+        `${semanticPhrase} post one ${semanticFiller}`,
+    );
+    const post2 = await channel.createPost(
+        session1,
+        `${semanticPhrase} post two ${semanticFiller}`,
+    );
+
+    await runAllPromises([
+        post1.createComment(session1, `${semanticPhrase} comment one ${semanticFiller}`),
+        post2.createComment(session1, `${semanticPhrase} comment two ${semanticFiller}`),
+    ]);
+
+    const entityIds = [
+        `Post:${post1.id}`,
+        `Post:${post2.id}`,
+        `PostComment:${post1.id}-0`,
+        `PostComment:${post2.id}-0`,
+    ];
+    const entityIdSet = new Set(entityIds);
+
+    const searchEntityIdsBySemantics = async (session: TestSpaceSession) =>
+        (
+            await searchBySemantics(
+                session
+                    .action()
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: space.id,
+                    queryText: semanticPhrase,
+                    limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
+                },
+            )
+        )
+            .map(result => result.id)
+            .filter(resultId => entityIdSet.has(resultId))
+            .sort(defaultCompareStrings);
+
+    await runAllTimersAndWaitForTestTasks();
+    await runAllPromises([
+        context.opensearch.refresh(SearchEntityKeywordIndex),
+        context.opensearch.refresh(SearchEntityEmbeddingChunkIndex),
+    ]);
+
+    const embeddingChunkCounts = await runAllPromises(
+        entityIds.map(entityId =>
+            context.opensearch
+                .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+                    size: 1,
+                    query: {
+                        bool: {
+                            filter: [
+                                {
+                                    term: {
+                                        "entity.id": new OpensearchQueryValue(entityId),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                })
+                .then(({hits}) => hits.length),
+        ),
+    );
+
+    expect(embeddingChunkCounts.length).toBe(4);
+    for (const embeddingChunkCount of embeddingChunkCounts) {
+        expect(embeddingChunkCount).toBeGreaterThan(0);
+    }
+
+    expect(await searchEntityIdsBySemantics(session2)).toEqual(
+        entityIds.sort(defaultCompareStrings),
+    );
+
+    await channel.access.revokeDefault(session1);
+
+    await runAllTimersAndWaitForTestTasks();
+    await runAllPromises([
+        context.opensearch.refresh(SearchEntityKeywordIndex),
+        context.opensearch.refresh(SearchEntityEmbeddingChunkIndex),
+    ]);
+
+    expect(await searchEntityIdsBySemantics(session2)).toEqual([]);
+});
+
+test("semantic search updates document title for matches across embedding chunks", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const semanticPhrase1 = "orchard astronaut lighthouse";
+    const semanticPhrase2 = "volcano violin nebula";
+    const semanticFiller = createArrayWithLength(450, () => "semantic").join(" ");
+    const initialDocumentTitle = "Hollywoo Stars and Celebrities";
+    const updatedDocumentTitle = "Hollywood (semantic update) Stars and Celebrities";
+
+    const document = await TestDocument.create(session, {
+        title: initialDocumentTitle,
+        body: `${semanticPhrase1} ${semanticFiller}\n\n${semanticPhrase2} ${semanticFiller}`,
+    });
+    const documentEntityId = `Document:${document.id}`;
+
+    const searchDocumentBySemantics = async (queryText: string) => {
+        const results = await searchBySemantics(
+            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {
+                spaceId: space.id,
+                queryText,
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
+        );
+
+        const result = assertExists(
+            results.find(searchResult => searchResult.id === documentEntityId),
+        );
+        assert(result.model instanceof SearchEntityModel);
+        return result;
+    };
+
+    await runAllTimersAndWaitForTestTasks();
+    await runAllPromises([
+        context.opensearch.refresh(SearchEntityKeywordIndex),
+        context.opensearch.refresh(SearchEntityEmbeddingChunkIndex),
+    ]);
+
+    {
+        const semanticResult1Before = await searchDocumentBySemantics(semanticPhrase1);
+        const semanticResult2Before = await searchDocumentBySemantics(semanticPhrase2);
+
+        expect(semanticResult1Before.model.initialData).toMatchObject({
+            title: initialDocumentTitle,
+        });
+        expect(semanticResult2Before.model.initialData).toMatchObject({
+            title: initialDocumentTitle,
+        });
+        expect(
+            semanticResult1Before.bodyTextSnippet
+                .map(bodyTextSnippetSegment => bodyTextSnippetSegment.text)
+                .join("")
+                .toLowerCase(),
+        ).toContain("orchard");
+        expect(
+            semanticResult2Before.bodyTextSnippet
+                .map(bodyTextSnippetSegment => bodyTextSnippetSegment.text)
+                .join("")
+                .toLowerCase(),
+        ).toContain("volcano");
+    }
+
+    await document.update(session, [
+        new ReplaceStep(9, 9, new Slice(Fragment.from(schema.text("d (semantic update)")), 0, 0)),
+    ]);
+
+    await runAllTimersAndWaitForTestTasks();
+    await runAllPromises([
+        context.opensearch.refresh(SearchEntityKeywordIndex),
+        context.opensearch.refresh(SearchEntityEmbeddingChunkIndex),
+    ]);
+
+    {
+        const semanticResult1After = await searchDocumentBySemantics(semanticPhrase1);
+        const semanticResult2After = await searchDocumentBySemantics(semanticPhrase2);
+
+        expect(semanticResult1After.model.initialData).toMatchObject({title: updatedDocumentTitle});
+        expect(semanticResult2After.model.initialData).toMatchObject({title: updatedDocumentTitle});
+        expect(
+            semanticResult1After.bodyTextSnippet
+                .map(bodyTextSnippetSegment => bodyTextSnippetSegment.text)
+                .join("")
+                .toLowerCase(),
+        ).toContain("orchard");
+        expect(
+            semanticResult2After.bodyTextSnippet
+                .map(bodyTextSnippetSegment => bodyTextSnippetSegment.text)
+                .join("")
+                .toLowerCase(),
+        ).toContain("volcano");
+    }
 });
 
 test("get search entities only sees entities the account has access to", async () => {

@@ -49,7 +49,7 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
@@ -755,7 +755,7 @@ export class FileUploader {
                     // Optimization: If we left both `item.preview.size` alone and
                     // `item.preview.videoDuration` alone then return the old item to skip a DynamoDB
                     // write.
-                    if (isDeepEqual(newItem, item)) return item;
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
                     return newItem;
                 },
@@ -919,7 +919,7 @@ export class FileUploader {
 
                     // Optimization: If we left both `item.preview.content` alone and
                     // `item.alternative` alone then return the old item to skip a DynamoDB write.
-                    if (isDeepEqual(newItem, item)) return item;
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
                     return newItem;
                 },

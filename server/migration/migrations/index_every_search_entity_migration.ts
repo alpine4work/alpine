@@ -4,6 +4,7 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {expensiveScanEveryChannelAndPostForMigration} from "~/server/forum/data/expensive_scan_every_channel_and_post_for_migration.js";
 import {expensiveScanEveryPostCommentForMigration} from "~/server/forum/data/expensive_scan_every_post_comment_for_migration.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {scheduleIndexSearchEntityEmbeddingChunksJob} from "~/server/search/data/table/search_entity_actions.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
@@ -12,7 +13,11 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    SearchDynamicEntityIdObject,
+    printSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 
 const subSegmentCount = 3;
 const countLogInterval = process.env.NODE_ENV !== "production" ? 100 : 1000;
@@ -27,7 +32,10 @@ export function runIndexEverySearchEntityMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
     options: {segmentIndex: number; totalSegmentCount: number},
 ) {
-    return runIndexSearchEntityMigrationModules(context, allMigrationModules, options);
+    return runIndexSearchEntityMigrationModules(context, allMigrationModules, {
+        ...options,
+        send: sendIndexSearchEntityJob,
+    });
 }
 
 /**
@@ -41,7 +49,7 @@ export function runIndexPostAndChannelSearchEntitiesMigration(
     return runIndexSearchEntityMigrationModules(
         context,
         [channelAndPostSearchEntityMigrationModule],
-        options,
+        {...options, send: sendIndexSearchEntityJob},
     );
 }
 
@@ -56,7 +64,7 @@ export function runIndexChatAndChatMessageSearchEntitiesMigration(
     return runIndexSearchEntityMigrationModules(
         context,
         [chatAndChatMessageSearchEntityMigrationModule],
-        options,
+        {...options, send: sendIndexSearchEntityJob},
     );
 }
 
@@ -71,19 +79,76 @@ export function runIndexTaskAndTaskCollectionSearchEntitiesMigration(
     return runIndexSearchEntityMigrationModules(
         context,
         [taskAndTaskCollectionSearchEntityMigrationModule],
-        options,
+        {...options, send: sendIndexSearchEntityJob},
     );
+}
+
+async function sendIndexSearchEntityJob(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    spaceId: SpaceId,
+    entityIdObject: SearchDynamicEntityIdObject,
+) {
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {...entityIdObject, updatedTraits: {type: "None"}},
+    });
+}
+
+/**
+ * Run the `IndexSearchEntityEmbeddingChunksJob` job with
+ * `forceMetadataUpdate: true` for every search entity. Scans over our DynamoDB
+ * tables to find all entities and schedules a job for each one.
+ *
+ * Introduced when we had a security issue where `accessPolicy` in embedding chunks
+ * wasn't being updated properly.
+ */
+export function runIndexEverySearchEntityEmbeddingChunksForceMetadataUpdate(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) {
+    return runIndexSearchEntityMigrationModules(context, allMigrationModules, {
+        ...options,
+        send: async (context, spaceId, entityIdObject) => {
+            await scheduleIndexSearchEntityEmbeddingChunksJob(context, {
+                spaceId,
+                entityId: printSearchDynamicEntityId(entityIdObject),
+                readAfterTime: new Date(),
+                forceMetadataUpdate: true,
+            });
+        },
+    });
 }
 
 type MigrationModule = (
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-    options: {segmentIndex: number; totalSegmentCount: number},
+    options: {
+        segmentIndex: number;
+        totalSegmentCount: number;
+        send: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            spaceId: SpaceId,
+            entityIdObject: SearchDynamicEntityIdObject,
+        ) => Promise<void>;
+    },
 ) => Promise<void>;
 
 async function runIndexSearchEntityMigrationModules(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
     modules: Array<MigrationModule>,
-    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+    {
+        segmentIndex,
+        totalSegmentCount,
+        send,
+    }: {
+        segmentIndex: number;
+        totalSegmentCount: number;
+        send: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            spaceId: SpaceId,
+            entityIdObject: SearchDynamicEntityIdObject,
+        ) => Promise<void>;
+    },
 ) {
     const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(subSegmentCount, () => new Mutex());
@@ -104,6 +169,7 @@ async function runIndexSearchEntityMigrationModules(
                         await migrationModule(context, {
                             segmentIndex: subSegmentIndex,
                             totalSegmentCount: totalSubSegmentCount,
+                            send,
                         });
                     } catch (error) {
                         // eslint-disable-next-line no-console
@@ -127,9 +193,9 @@ function createDynamoScanMigrationModule<Item>(
         options: {segmentIndex: number; totalSegmentCount: number},
     ) => AsyncIterable<Item>,
     processItem: (
-        context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
         item: Item,
-    ) => MaybePromise<void>,
+        send: (spaceId: SpaceId, entityIdObject: SearchDynamicEntityIdObject) => Promise<void>,
+    ) => Promise<void>,
 ): MigrationModule {
     return async (context, options) => {
         // We use a linked span instead of a child span since it's not practical to read a
@@ -147,8 +213,9 @@ function createDynamoScanMigrationModule<Item>(
                 let count = 0;
 
                 for await (const item of scan(context, options)) {
-                    const maybePromise = processItem(context, item);
-                    if (maybePromise instanceof Promise) await maybePromise;
+                    await processItem(item, (spaceId, entityIdObject) =>
+                        options.send(context, spaceId, entityIdObject),
+                    );
 
                     if (count !== 0 && count % countLogInterval === 0) {
                         // eslint-disable-next-line no-console
@@ -176,30 +243,14 @@ function createDynamoScanMigrationModule<Item>(
 const channelAndPostSearchEntityMigrationModule = createDynamoScanMigrationModule(
     "channels and posts",
     expensiveScanEveryChannelAndPostForMigration,
-    async (context, item) => {
+    async (item, send) => {
         switch (item.type) {
             case "Channel": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: item.spaceId,
-                    update: {
-                        type: "Channel",
-                        channelId: item.channelId,
-                        updatedTraits: {type: "None"},
-                    },
-                });
+                await send(item.spaceId, {type: "Channel", channelId: item.channelId});
                 break;
             }
             case "Post": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: item.spaceId,
-                    update: {
-                        type: "Post",
-                        postId: item.postId,
-                        updatedTraits: {type: "None"},
-                    },
-                });
+                await send(item.spaceId, {type: "Post", postId: item.postId});
                 break;
             }
             default:
@@ -211,30 +262,17 @@ const channelAndPostSearchEntityMigrationModule = createDynamoScanMigrationModul
 const chatAndChatMessageSearchEntityMigrationModule = createDynamoScanMigrationModule(
     "chats and chat messages",
     expensiveScanEveryChatAndChatMessageForMigration,
-    async (context, item) => {
+    async (item, send) => {
         switch (item.type) {
             case "Chat": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: item.spaceId,
-                    update: {
-                        type: "Chat",
-                        chatId: item.chatId,
-                        updatedTraits: {type: "None"},
-                    },
-                });
+                await send(item.spaceId, {type: "Chat", chatId: item.chatId});
                 break;
             }
             case "ChatMessage": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: await item.getSpaceId(),
-                    update: {
-                        type: "ChatMessage",
-                        chatId: item.chatId,
-                        messageIndex: item.messageIndex,
-                        updatedTraits: {type: "None"},
-                    },
+                await send(await item.getSpaceId(), {
+                    type: "ChatMessage",
+                    chatId: item.chatId,
+                    messageIndex: item.messageIndex,
                 });
                 break;
             }
@@ -247,30 +285,14 @@ const chatAndChatMessageSearchEntityMigrationModule = createDynamoScanMigrationM
 const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrationModule(
     "tasks and task collections",
     expensiveScanEveryTaskAndTaskCollectionForMigration,
-    async (context, item) => {
+    async (item, send) => {
         switch (item.type) {
             case "Task": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: item.spaceId,
-                    update: {
-                        type: "Task",
-                        taskId: item.taskId,
-                        updatedTraits: {type: "None"},
-                    },
-                });
+                await send(item.spaceId, {type: "Task", taskId: item.taskId});
                 break;
             }
             case "TaskCollection": {
-                context.jobs.send({
-                    type: "IndexSearchEntity",
-                    spaceId: item.spaceId,
-                    update: {
-                        type: "TaskCollection",
-                        collectionId: item.collectionId,
-                        updatedTraits: {type: "None"},
-                    },
-                });
+                await send(item.spaceId, {type: "TaskCollection", collectionId: item.collectionId});
                 break;
             }
             default:
@@ -283,46 +305,25 @@ const allMigrationModules: Array<MigrationModule> = [
     createDynamoScanMigrationModule(
         "space accounts",
         expensiveScanEverySpaceAccountForMigration,
-        (context, {spaceId, accountId}) => {
-            context.jobs.send({
-                type: "IndexSearchEntity",
-                spaceId,
-                update: {
-                    type: "Account",
-                    accountId,
-                    updatedTraits: {type: "None"},
-                },
-            });
+        async ({spaceId, accountId}, send) => {
+            await send(spaceId, {type: "Account", accountId});
         },
     ),
     createDynamoScanMigrationModule(
         "documents and document comments",
         expensiveScanEveryDocumentAndDocumentCommentForMigration,
-        async (context, item) => {
+        async (item, send) => {
             switch (item.type) {
                 case "Document": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "Document",
-                            documentId: item.documentId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
+                    await send(item.spaceId, {type: "Document", documentId: item.documentId});
                     break;
                 }
                 case "DocumentComment": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: await item.getSpaceId(),
-                        update: {
-                            type: "DocumentComment",
-                            documentId: item.documentId,
-                            commentThreadId: item.commentThreadId,
-                            commentIndex: item.commentIndex,
-                            updatedTraits: {type: "None"},
-                        },
+                    await send(await item.getSpaceId(), {
+                        type: "DocumentComment",
+                        documentId: item.documentId,
+                        commentThreadId: item.commentThreadId,
+                        commentIndex: item.commentIndex,
                     });
                     break;
                 }
@@ -335,16 +336,11 @@ const allMigrationModules: Array<MigrationModule> = [
     createDynamoScanMigrationModule(
         "post comments",
         expensiveScanEveryPostCommentForMigration,
-        async (context, item) => {
-            context.jobs.send({
-                type: "IndexSearchEntity",
-                spaceId: await item.getSpaceId(),
-                update: {
-                    type: "PostComment",
-                    postId: item.postId,
-                    commentIndex: item.commentIndex,
-                    updatedTraits: {type: "None"},
-                },
+        async (item, send) => {
+            await send(await item.getSpaceId(), {
+                type: "PostComment",
+                postId: item.postId,
+                commentIndex: item.commentIndex,
             });
         },
     ),

@@ -1969,6 +1969,25 @@ export type TracerEventData = {
             readonly audioTotalSize?: number;
         };
     };
+
+    /** Information regarding our search system. */
+    readonly search?: {
+        /** Information regarding search indexing. */
+        readonly index?: {
+            /** Information regarding search embedding chunk indexing. */
+            readonly embeddingChunks?: {
+                /**
+                 * Did we schedule an embedding chunk reindex?
+                 */
+                readonly scheduled?: boolean;
+
+                /**
+                 * Does this embedding chunk index need to update all embedding chunk metadatas?
+                 */
+                readonly forceMetadataUpdate?: boolean;
+            };
+        };
+    };
 };
 
 /**

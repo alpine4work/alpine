@@ -182,7 +182,7 @@ export class AgentMessageStream {
                     };
 
                     // We only need to update the last part if it actually changed.
-                    if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
+                    if (!isDeepEqual(this._parts[this._parts.length - 1], firstPart)) {
                         putParts.push({span: textSpan, part: firstPart});
                         this._parts[this._parts.length - 1] = firstPart;
                     }
