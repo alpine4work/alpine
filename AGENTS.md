@@ -170,6 +170,8 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Avoid shared mutability. Local mutation within a function is ok, but don't mutate shared objects.
   Prefer immutable data structures.
 - Always use `runAllPromises()` instead of `Promise.all()`.
+- Prefer `switch`/`case` when checking values of enums or discriminated object unions instead of
+  `if`/`else`, with `default: throw exhaustive(enumVariable)` to ensure exhaustiveness.
 
 ### Testing
 
