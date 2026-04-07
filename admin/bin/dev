@@ -72,6 +72,8 @@ Usage:
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
     dev sourcemap            Resolve a production stack trace using sourcemaps
+    dev adhoc                List ad-hoc scripts
+    dev adhoc <command>      Create or run ad-hoc scripts
     dev agents <command>     Manage agents-related services
     dev experimental         Run experimental scripts
     dev --help               Print this message"
@@ -317,6 +319,14 @@ EOF
 
     sourcemap)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:sourcemap -- ${@:2}
+        ;;
+
+    adhoc)
+        if [ -z "$2" ]; then
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/adhoc -- list
+        else
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/adhoc -- "${@:2}"
+        fi
         ;;
 
     agents)
