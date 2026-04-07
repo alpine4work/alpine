@@ -2006,9 +2006,13 @@ function handleTaskRowTitleInputPaste(
     };
 
     for (const originalNode of slice?.content.content ?? []) {
-        const node = originalNode.isText
+        let node = originalNode.isText
             ? schema.node("paragraph", {}, [originalNode])
             : originalNode;
+
+        if (node.type.name === "orderedListItem") {
+            node = schema.node("unorderedListItem", node.attrs, node.content);
+        }
 
         // Ignore empty nodes or non-text nodes (e.g. files and dividers).
         if (!doesNodeHaveText(node)) continue;

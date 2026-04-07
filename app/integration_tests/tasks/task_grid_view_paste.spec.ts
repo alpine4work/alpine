@@ -1917,3 +1917,65 @@ test("can paste a formatted list in the middle of existing task text in personal
         {withoutColumns: true},
     );
 });
+
+test("can paste an ordered list from Alpine without including list item numbers", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const collection = await TestTaskCollection.create(session);
+    await collection.access.grantDefault(session);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    await expectTaskGridView(page, []);
+
+    await page
+        .getByTestId(/^TaskRowView:/)
+        .getByRole("textbox", {name: "Title"})
+        .click();
+
+    await page.evaluate(async () => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob(
+                    [
+                        `\
+<ol>
+    <li>
+        First task
+        <ol>
+            <li>First subtask</li>
+            <li>Second subtask</li>
+        </ol>
+    </li>
+    <li>Second task</li>
+    <li>Third task</li>
+</ol>
+`,
+                    ],
+                    {type: "text/html"},
+                ),
+            }),
+        ]);
+    });
+
+    await page.keyboard.press("ControlOrMeta+v");
+
+    await expectTaskGridView(page, [
+        [
+            [true, "First task"],
+            [
+                [true, "First subtask"],
+                [true, "Second subtask"],
+            ],
+        ],
+        [true, "Second task"],
+        [true, "Third task"],
+    ]);
+});
