@@ -813,6 +813,8 @@ export function TaskDetailView({
         };
     }, [isWideProjectLayout, shiftRenderedRangeForChildrenGridView]);
 
+    const isCreatedCollectionPrivate = !effectiveAccessPolicyWithOptimisticState.defaultGrant;
+
     const {
         spacingScale,
         stateKey: childrenGridViewStateKey,
@@ -844,6 +846,7 @@ export function TaskDetailView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    isCreatedCollectionFromGhostTaskPrivate: isCreatedCollectionPrivate,
                 };
             } else {
                 return {
@@ -853,9 +856,10 @@ export function TaskDetailView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    isCreatedCollectionFromGhostTaskPrivate: isCreatedCollectionPrivate,
                 };
             }
-        }, [hasEditAccessLevel, isWideProjectLayout]),
+        }, [hasEditAccessLevel, isCreatedCollectionPrivate, isWideProjectLayout]),
 
         // Even when `childrenQuery` is null we still want to show the bottom ghost task.
         // If the user starts to type in the bottom ghost task then
@@ -2197,6 +2201,7 @@ export function TaskDetailView({
                             taskSubscription={taskSubscription}
                             initialFields={initialFields}
                             hasEditAccessLevel={hasEditAccessLevel}
+                            isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                             focusChildrenGridViewStart={focusChildrenGridViewStart}
                             pushUndoStackEntry={pushUndoStackEntry}
                             pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
@@ -2504,6 +2509,7 @@ export function TaskDetailView({
             taskSubscription,
             initialFields,
             hasEditAccessLevel,
+            isCreatedCollectionPrivate,
             focusChildrenGridViewStart,
             pushUndoStackEntry,
             pushUndoStackEntryFromRedo,
@@ -2803,6 +2809,7 @@ function TaskDetailViewMain(
         taskSubscription,
         initialFields,
         hasEditAccessLevel,
+        isCreatedCollectionPrivate,
         focusChildrenGridViewStart,
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
@@ -2832,6 +2839,7 @@ function TaskDetailViewMain(
         taskSubscription: TaskClientTaskSubscription | null;
         initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
         hasEditAccessLevel: boolean;
+        isCreatedCollectionPrivate: boolean;
         focusChildrenGridViewStart: Memo<() => void>;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -3099,6 +3107,7 @@ function TaskDetailViewMain(
                                 store={store}
                                 referencesSubscription={taskSubscription ?? initialFields}
                                 collections={collections}
+                                isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                                 aria-labelledby={ariaLabelledBy}
                                 isReadOnly={!hasEditAccessLevel}
                                 shouldAlignWithDetailViewInputsIfEmpty={true}

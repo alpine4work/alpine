@@ -8,7 +8,7 @@ import {
     TeamspaceImportOptionType,
     TeamspaceImportOptionsMap,
 } from "~/client/web/importers/notion/notion_import_types.js";
-import {contentStyles} from "~/client/web/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 
 const importOptionDisplay: {[K in TeamspaceImportOptionType]: string} = {
@@ -109,7 +109,10 @@ export function NotionImportTeamspaceOptions({
                             >
                                 <Box display="flex" alignItems="center" gap="1">
                                     {choice?.type === "Private" && (
-                                        <LockBoldFillIcon size={spacing["3"]} />
+                                        <LockBoldFillIcon
+                                            size={spacing["3"]}
+                                            className={sprinkles({fill: "grey-80"})}
+                                        />
                                     )}
                                     {importOptionDisplay[choice?.type ?? "Public"]}
                                 </Box>

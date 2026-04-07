@@ -64,6 +64,7 @@ ts_project(
         "//server/messaging/helpers",
         "//server/opensearch",
         "//server/search/data/table",
+        "//server/sites/data",
         "//server/spaces",
         "//server/tasks/router",
         "//shared/access",

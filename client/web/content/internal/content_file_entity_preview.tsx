@@ -21,6 +21,7 @@ import {Reporter} from "~/client/web/design/reporter.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -78,6 +79,7 @@ export function renderContentFileEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         blockWidth,
         transformScale,
@@ -99,6 +101,7 @@ export function renderContentFileEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         blockWidth: number;
         transformScale: number;
@@ -194,6 +197,7 @@ export function renderContentFileEntityPreview(
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale,

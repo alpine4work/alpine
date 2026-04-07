@@ -18,6 +18,7 @@ import {getMessageTextForBigEmojiMessage} from "~/client/web/messaging/internal/
 import {getMessageViewMarginBottom} from "~/client/web/messaging/internal/get_message_view_margin_bottom.js";
 import {shouldMergeMessages} from "~/client/web/messaging/internal/should_merge_messages.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {
     messageViewAccountAvatarSize,
     messageViewAccountNameFontSize,
@@ -98,6 +99,7 @@ export function renderMessageView(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale,
         platform,
@@ -120,6 +122,7 @@ export function renderMessageView(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -311,6 +314,7 @@ export function renderMessageView(
                             accountRegistry,
                             searchEntityRegistry,
                             fileRegistry,
+                            siteRegistry,
                             currentAccount,
                             blockWidth: contentBlockWidthPx,
                             transformScale,
@@ -342,6 +346,7 @@ export function renderMessageView(
                     accountRegistry,
                     searchEntityRegistry,
                     fileRegistry,
+                    siteRegistry,
                     currentAccount,
                     transformScale,
                     platform,

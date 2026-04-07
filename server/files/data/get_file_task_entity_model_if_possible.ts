@@ -106,6 +106,7 @@ export async function getFileTaskEntityModelIfPossible(
                 assignee: null,
                 parent: null,
                 collections: emptyArray,
+                referencedSites: emptyArray,
             },
         };
     }
@@ -255,6 +256,7 @@ export async function getFileTaskEntityModelIfPossible(
             assignee,
             parent,
             collections: Array.from(collections),
+            referencedSites: result.value.updateEvent.referencedSites,
         },
     };
 }

@@ -1,9 +1,10 @@
-import {CaretLeft, CaretRight, Lock} from "phosphor-react";
+import {CaretLeft, CaretRight} from "phosphor-react";
 import {ReactElement, useMemo} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
@@ -64,7 +65,6 @@ export function TaskDetailViewParentBreadcrumbs({
                             content="You don&#x2019;t have access to the task this is a subtask of"
                         >
                             <Box
-                                color="grey-60"
                                 height="5"
                                 paddingX="1.5"
                                 flexShrink="0"
@@ -72,7 +72,7 @@ export function TaskDetailViewParentBreadcrumbs({
                                 alignItems="center"
                                 gap="1"
                             >
-                                <Lock size={spacing["3"]} />
+                                <LockBoldFillIcon size={spacing["2.5"]} />
                                 <Box>Private</Box>
                             </Box>
                         </Tooltip>,
@@ -85,7 +85,7 @@ export function TaskDetailViewParentBreadcrumbs({
                 parentNodes.push(
                     <Box key={parentTaskEntry.task.id} flexShrink="1" minWidth="flex-fit">
                         <Button
-                            variant="quieter"
+                            variant="quietest"
                             height="5"
                             paddingX="1.5"
                             pressErrorTitle="Couldn&#x2019;t open task"
@@ -140,7 +140,7 @@ export function TaskDetailViewParentBreadcrumbs({
                     overflow="hidden"
                     marginX="-1.5"
                     paddingBottom="0.5"
-                    color="grey-60"
+                    color="grey-50"
                     display="flex"
                     alignItems="center"
                 >
@@ -199,7 +199,6 @@ export function TaskProjectDetailViewParentBreadcrumbs({
                             content="You don&#x2019;t have access to the task this is a subtask of"
                         >
                             <Box
-                                color="grey-60"
                                 height="5"
                                 paddingX="1.5"
                                 flexShrink="0"
@@ -207,7 +206,7 @@ export function TaskProjectDetailViewParentBreadcrumbs({
                                 alignItems="center"
                                 gap="1"
                             >
-                                <Lock size={spacing["3"]} />
+                                <LockBoldFillIcon size={spacing["2.5"]} />
                                 <Box>Private</Box>
                             </Box>
                         </Tooltip>,
@@ -225,7 +224,7 @@ export function TaskProjectDetailViewParentBreadcrumbs({
                         maxWidth="64"
                     >
                         <Button
-                            variant="quieter"
+                            variant="quietest"
                             height="5"
                             maxWidth="full"
                             paddingX="1.5"
@@ -283,7 +282,7 @@ export function TaskProjectDetailViewParentBreadcrumbs({
                     flexShrink="0"
                     overflow="hidden"
                     paddingLeft="1"
-                    color="grey-60"
+                    color="grey-50"
                     display="flex"
                     alignItems="center"
                 >

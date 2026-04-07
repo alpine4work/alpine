@@ -12,6 +12,7 @@ import {normalizeHtmlForFileEntityTest} from "~/client/web/content/file_entity/i
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -92,6 +93,7 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
         accountRegistry: getAccountRegistry(spaceId),
         searchEntityRegistry: getSearchEntityRegistry(spaceId),
         fileRegistry: getFileRegistry(spaceId),
+        siteRegistry: getSiteRegistry(spaceId),
         currentAccount: null,
         transformScale: 1,
         routeLayout: "wide" as const,

@@ -158,7 +158,7 @@ function IconButton(
         /**
          * The border radius of the icon button. Defaults to `full`.
          */
-        borderRadius?: "full" | "0.5" | "1";
+        borderRadius?: "full" | "0.5" | "1" | "none";
 
         /**
          * Manually override the button's background color.

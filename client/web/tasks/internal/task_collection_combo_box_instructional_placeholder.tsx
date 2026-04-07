@@ -26,11 +26,11 @@ export function TaskCollectionComboBoxInstructionalPlaceholder({
                     gap="1"
                 >
                     <Box display="flex" gap="1">
-                        <TaskCollectionChipBase color="red" name="Bugs" />
-                        <TaskCollectionChipBase color="green" name="Q3" />
+                        <TaskCollectionChipBase color="red" isPrivate={false} name="Bugs" />
+                        <TaskCollectionChipBase color="green" isPrivate={false} name="Q3" />
                     </Box>
                     <Box>
-                        <TaskCollectionChipBase color="cyan" name="Marketing" />
+                        <TaskCollectionChipBase color="cyan" isPrivate={false} name="Marketing" />
                     </Box>
                 </Box>
             </Box>

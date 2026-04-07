@@ -1,5 +1,6 @@
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 /**
@@ -32,4 +33,10 @@ export const TaskCollectionModelSearchResultSchema = Schema.object({
      * collections.
      */
     collection: TaskCollectionModel.schema,
+
+    /**
+     * If the task collection is in a site then the collection's `AccessPolicy` will
+     * reference a `SiteId`. This is the model for that site.
+     */
+    referencedAccessPolicySite: SitePreviewModel.schema.nullable().default(null),
 });

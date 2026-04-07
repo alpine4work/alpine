@@ -2,18 +2,20 @@ import {useMemo} from "react";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {AccountId, SiteId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export type TaskQueryReferencesForUrlGrantFilterEditor = {
-    readonly accountById: ReadonlyMap<AccountId, AccountModelData>;
     readonly collectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
+    readonly accountById: ReadonlyMap<AccountId, AccountModelData>;
     readonly siteById: ReadonlyMap<SiteId, SitePreviewModelData>;
 };
 
@@ -72,6 +74,23 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         iterator.next();
                     }
 
+                    const collectionById = new Map(
+                        filterMapIterable(collectionIds, collectionId => {
+                            const collectionEntry = get(
+                                query.getReferencedCollectionEntryStore(collectionId),
+                            );
+                            if (!collectionEntry.collection) return;
+                            if (collectionEntry.collection.isDeleted()) return;
+
+                            collectReferencedIdsFromTaskCollectionModelData(
+                                siteIds,
+                                collectionEntry.collection.rawData,
+                            );
+
+                            return [collectionId, collectionEntry.collection];
+                        }),
+                    );
+
                     const accountById = new Map(
                         filterMapIterable(accountIds, accountId => {
                             const accountStore =
@@ -82,22 +101,11 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         }),
                     );
 
-                    const collectionById = new Map(
-                        filterMapIterable(collectionIds, collectionId => {
-                            const collectionEntry = get(
-                                query.getReferencedCollectionEntryStore(collectionId),
-                            );
-                            if (!collectionEntry.collection) return;
-                            if (collectionEntry.collection.isDeleted()) return;
-
-                            return [collectionId, collectionEntry.collection];
-                        }),
-                    );
-
                     const siteById = new Map<SiteId, SitePreviewModelData>(
                         filterMapIterable(siteIds, siteId => {
-                            const siteStore = query.store.getReferencedSiteStoreIfExists(siteId);
-                            if (!siteStore) return;
+                            const siteStore = assertExists(
+                                query.store.getReferencedSiteStoreIfExists(siteId),
+                            );
 
                             return [siteId, get(siteStore)];
                         }),
@@ -116,20 +124,11 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
         ([newReferences], oldReferences) => {
             if (!newReferences) return null;
 
-            const accountById = new Map<AccountId, AccountModelData>(oldReferences?.accountById);
             const collectionById = new Map<TaskCollectionId, TaskCollectionModel>(
                 oldReferences?.collectionById,
             );
+            const accountById = new Map<AccountId, AccountModelData>(oldReferences?.accountById);
             const siteById = new Map<SiteId, SitePreviewModelData>(oldReferences?.siteById);
-
-            for (const [accountId, newAccount] of newReferences.accountById) {
-                const oldAccount = accountById.get(accountId);
-
-                accountById.set(
-                    accountId,
-                    oldAccount ? AccountModel.mergeData(oldAccount, newAccount) : newAccount,
-                );
-            }
 
             for (const [collectionId, newCollection] of newReferences.collectionById) {
                 const oldCollection = collectionById.get(collectionId);
@@ -137,6 +136,15 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                 collectionById.set(
                     collectionId,
                     oldCollection ? oldCollection.merge(newCollection) : newCollection,
+                );
+            }
+
+            for (const [accountId, newAccount] of newReferences.accountById) {
+                const oldAccount = accountById.get(accountId);
+
+                accountById.set(
+                    accountId,
+                    oldAccount ? AccountModel.mergeData(oldAccount, newAccount) : newAccount,
                 );
             }
 

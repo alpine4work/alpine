@@ -104,10 +104,12 @@ const TaskCollectionsInputForwardRef = forwardRef(TaskCollectionsInput);
 export {TaskCollectionsInputForwardRef as TaskCollectionsInput};
 
 function TaskCollectionChipWithNavigation({
+    store,
     collection,
     tabIndex,
     onRemove,
 }: {
+    store: TaskClientReadonlyStore;
     collection: TaskCollectionModel;
     tabIndex?: number;
     onRemove?: () => void;
@@ -118,6 +120,7 @@ function TaskCollectionChipWithNavigation({
 
     return (
         <TaskCollectionChip
+            store={store}
             collection={collection}
             tabIndex={tabIndex}
             onPress={() => {
@@ -139,6 +142,7 @@ function TaskCollectionsInput(
         store,
         referencesSubscription,
         collections,
+        isCreatedCollectionPrivate,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         isReadOnly = false,
@@ -158,6 +162,7 @@ function TaskCollectionsInput(
             ): Store<TaskClientStoreCollectionEntry>;
         } | null;
         collections: TaskCollectionSet;
+        isCreatedCollectionPrivate: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         isReadOnly?: boolean;
@@ -416,7 +421,12 @@ function TaskCollectionsInput(
                                         accountGrantById: new Map([
                                             [currentAccount.id, {level: "Manage", generation: 0}],
                                         ]),
-                                        defaultGrant: null,
+                                        defaultGrant: !isCreatedCollectionPrivate
+                                            ? // Default grant generation must be larger than current account generation in the
+                                              // access policy. So any other accounts that add themselves to the access policy in
+                                              // turn have a generation greater than the current account.
+                                              {level: "Manage", generation: 1}
+                                            : null,
                                         urlGrant: null,
                                     },
                                 },
@@ -975,6 +985,7 @@ function TaskCollectionsInput(
                     onKeyDown={handleKeyDown}
                 >
                     <TaskCollectionChipWithNavigation
+                        store={store}
                         collection={collection}
                         // The first selected account is focusable via tab and you can use arrow keys to
                         // focus the others.
@@ -1077,6 +1088,7 @@ function TaskCollectionsInput(
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
                     <TaskCollectionInputCreateCollectionInput
+                        isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                         onCancel={() => {
                             setCreateCollectionInputState({isVisible: false});
 
@@ -1113,7 +1125,12 @@ function TaskCollectionsInput(
                                                     {level: "Manage", generation: 0},
                                                 ],
                                             ]),
-                                            defaultGrant: null,
+                                            defaultGrant: !isCreatedCollectionPrivate
+                                                ? // Default grant generation must be larger than current account generation in the
+                                                  // access policy. So any other accounts that add themselves to the access policy in
+                                                  // turn have a generation greater than the current account.
+                                                  {level: "Manage", generation: 1}
+                                                : null,
                                             urlGrant: null,
                                         },
                                     },
@@ -1357,9 +1374,11 @@ function TaskCollectionsInput(
 }
 
 function TaskCollectionInputCreateCollectionInput({
+    isCreatedCollectionPrivate,
     onCancel,
     onConfirm,
 }: {
+    isCreatedCollectionPrivate: boolean;
     onCancel: () => void;
     onConfirm: (inputValue: string) => void;
 }) {
@@ -1395,8 +1414,10 @@ function TaskCollectionInputCreateCollectionInput({
             <FocusRing isVisibleWhenFocusWithin>
                 <TaskCollectionChipBase
                     color={null}
+                    isPrivate={isCreatedCollectionPrivate}
                     name={
                         <Box
+                            minWidth="flex-fit"
                             height={taskCollectionChipHeight}
                             marginY={`-${taskCollectionChipPaddingY}`}
                         >
@@ -1406,9 +1427,6 @@ function TaskCollectionInputCreateCollectionInput({
                                 className={sprinkles({
                                     height: taskCollectionChipHeight,
                                     backgroundColor: "transparent",
-                                })}
-                                textClassName={sprinkles({
-                                    paddingRight: "1",
                                 })}
                                 placeholder={inputPlaceholder}
                                 value={inputValue}

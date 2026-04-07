@@ -12,6 +12,7 @@ import {normalizeHtmlForFileEntityTest} from "~/client/web/content/file_entity/i
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -212,6 +213,7 @@ const basicParams = {
     accountRegistry: getAccountRegistry(spaceId),
     searchEntityRegistry: getSearchEntityRegistry(spaceId),
     fileRegistry: getFileRegistry(spaceId),
+    siteRegistry: getSiteRegistry(spaceId),
     currentAccount: account1,
     transformScale: 1,
     routeLayout: "wide" as const,

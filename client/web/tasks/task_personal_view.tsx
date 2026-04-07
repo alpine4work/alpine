@@ -521,6 +521,7 @@ export function TaskPersonalView({
                 hasColumns: true,
                 withoutAssigneeField: true,
                 hasDenseFields: false,
+                isCreatedCollectionFromGhostTaskPrivate: true,
             };
         } else {
             return {
@@ -530,6 +531,7 @@ export function TaskPersonalView({
                 hasColumns: false,
                 withoutAssigneeField: true,
                 hasDenseFields: true,
+                isCreatedCollectionFromGhostTaskPrivate: true,
             };
         }
     }, [routeLayout]);

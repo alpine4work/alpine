@@ -621,6 +621,8 @@ export function TaskCollectionView({
         [itemCountBeforeGridView, shiftRenderedRangeForGridView],
     );
 
+    const isCreatedCollectionFromGhostTaskPrivate = !accessPolicy.defaultGrant;
+
     const {
         stateKey: gridViewStateKey,
         bufferedItemHeight: gridViewBufferedItemHeight,
@@ -644,6 +646,7 @@ export function TaskCollectionView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    isCreatedCollectionFromGhostTaskPrivate,
                 };
             } else {
                 return {
@@ -653,9 +656,10 @@ export function TaskCollectionView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    isCreatedCollectionFromGhostTaskPrivate,
                 };
             }
-        }, [hasEditAccessLevel, routeLayout]),
+        }, [hasEditAccessLevel, isCreatedCollectionFromGhostTaskPrivate, routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         query: queryState.activeQuery.query,

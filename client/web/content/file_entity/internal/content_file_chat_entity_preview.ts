@@ -17,6 +17,7 @@ import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generat
 import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
 import {renderMessageView} from "~/client/web/messaging/message_view_html.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {
     messageViewAccountAvatarSize,
     messageViewMinHeightPx,
@@ -55,6 +56,7 @@ export function renderContentFileChatEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -73,6 +75,7 @@ export function renderContentFileChatEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -215,6 +218,7 @@ export function renderContentFileChatEntityPreview(
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount,
                 transformScale: originalTransformScale * transformScale,
                 platform,

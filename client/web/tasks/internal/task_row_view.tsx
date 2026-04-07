@@ -65,7 +65,7 @@ import {
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {createTaskEffectiveAccessLevelStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
+import {createTaskEffectiveAccessPolicyStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
 import {getTaskStatusMenuActions} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/web/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
@@ -101,7 +101,12 @@ import {TaskRowViewPaddingBottom} from "~/client/web/tasks/internal/task_row_vie
 import {TaskStatusButton} from "~/client/web/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskGridViewDraggableData} from "~/client/web/tasks/task_grid_view_dnd_context.js";
-import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+    minAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {
     RemLength,
     Spacing,
@@ -469,16 +474,51 @@ function TaskRowView(
         });
     }, [capabilities.hasParentTaskTitle, parents.length, query, task]);
 
-    const accessLevel = useStore(
-        useMemo((): Store<AccessLevel | null> => {
-            // If this is a ghost task then the current account is the task creator so they
-            // have edit access.
+    const [isCreatedCollectionPrivate, accessLevel] = useStore(
+        useMemo((): Store<
+            readonly [isCreatedCollectionPrivate: boolean, accessLevel: AccessLevel | null]
+        > => {
             if (query === null || taskEntryStore === null) {
-                return new ConstStore("Manage");
+                return new ConstStore([
+                    // We allow the grid view component to tell us whether the created ghost task
+                    // should be private or not.
+                    capabilities.isCreatedCollectionFromGhostTaskPrivate,
+                    // If this is a ghost task then the current account is the task creator so they
+                    // have edit access.
+                    "Manage",
+                ]);
             }
 
-            return createTaskEffectiveAccessLevelStore(currentAccount?.id, query, taskEntryStore);
-        }, [currentAccount?.id, query, taskEntryStore]),
+            const resultStore = createTaskEffectiveAccessPolicyStore(query, taskEntryStore);
+
+            return Store.many([
+                resultStore.map(
+                    ({effectiveAccessPolicyWithOptimisticState}) =>
+                        !effectiveAccessPolicyWithOptimisticState.defaultGrant,
+                ),
+                resultStore.map(
+                    ({
+                        effectiveAccessPolicyWithOptimisticState,
+                        effectiveAccessPolicyWithoutOptimisticState,
+                    }) =>
+                        minAccessLevel(
+                            getAccountAccessLevelAssumingSpaceAccess(
+                                effectiveAccessPolicyWithOptimisticState,
+                                currentAccount?.id,
+                            ),
+                            getAccountAccessLevelAssumingSpaceAccess(
+                                effectiveAccessPolicyWithoutOptimisticState,
+                                currentAccount?.id,
+                            ),
+                        ),
+                ),
+            ]);
+        }, [
+            capabilities.isCreatedCollectionFromGhostTaskPrivate,
+            currentAccount?.id,
+            query,
+            taskEntryStore,
+        ]),
     );
 
     // The difference between `hasEditAccessLevel` and `capabilities.isReadOnly` is
@@ -1862,6 +1902,7 @@ function TaskRowView(
                         store={store}
                         query={query}
                         task={task}
+                        isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                         onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}

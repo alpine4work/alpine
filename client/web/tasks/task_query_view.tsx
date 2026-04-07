@@ -374,6 +374,10 @@ export function TaskQueryView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    // TODO(calebmer): We could check if the filters mean we're looking at only private
+                    // tasks or not but that's some complicated code to write and if this flag is the
+                    // only use case it's not worth it.
+                    isCreatedCollectionFromGhostTaskPrivate: true,
                 };
             } else {
                 return {
@@ -383,6 +387,10 @@ export function TaskQueryView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    // TODO(calebmer): We could check if the filters mean we're looking at only private
+                    // tasks or not but that's some complicated code to write and if this flag is the
+                    // only use case it's not worth it.
+                    isCreatedCollectionFromGhostTaskPrivate: true,
                 };
             }
         }, [routeLayout]),

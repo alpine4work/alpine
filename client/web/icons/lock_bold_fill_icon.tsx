@@ -10,11 +10,13 @@ export function LockBoldFillIcon({
     size,
     className,
     style,
+    "aria-label": ariaLabel,
 }: {
     color?: string;
     size?: string | number;
     className?: string;
     style?: CSSProperties;
+    "aria-label"?: string;
 }) {
     const {
         color: contextColor,
@@ -30,6 +32,8 @@ export function LockBoldFillIcon({
             version="1.1"
             viewBox="0 0 256 256"
             fill={color ?? contextColor}
+            role={ariaLabel ? "img" : undefined}
+            aria-label={ariaLabel}
             {...context}
             className={className}
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to

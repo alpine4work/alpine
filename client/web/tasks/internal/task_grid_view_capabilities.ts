@@ -15,9 +15,35 @@
  * clear.
  */
 export type TaskGridViewCapabilities = {
+    /**
+     * Are all the rows in this grid view read-only because the user doesn't have edit
+     * access to the grid view?
+     *
+     * In some cases, individual rows may be read-only while the rest of the grid is
+     * editable. For example, `<TaskQueryView>`. Where there may be tasks in a
+     * collection you have only have view permission for mixed with tasks in a
+     * collection you have edit permission for.
+     */
     isReadOnly: boolean;
+
+    /**
+     * Does this grid view render parent task titles for subtasks? True basically
+     * everywhere except `<TaskDetailView>` where the tasks are implicitly subtasks of
+     * the `<TaskDetailView>`.
+     */
     hasParentTaskTitle: boolean;
+
+    /**
+     * Should the task title wrap onto multiple lines?
+     */
     hasMultilineTitle: boolean;
+
+    /**
+     * If you open the collection field in a ghost task in this row and create a
+     * collection inline (which also serves to create the ghost task) then is the
+     * created collection private?
+     */
+    isCreatedCollectionFromGhostTaskPrivate: boolean;
 } & ( // Can't set both `hasDenseFields` and `hasColumns` to true.
     | {
           hasDenseFields: false;

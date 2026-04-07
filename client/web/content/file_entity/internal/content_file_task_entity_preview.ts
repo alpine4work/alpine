@@ -7,7 +7,8 @@ import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_st
 import {calendarBlankIconSvg} from "~/client/web/icons/calendar_blank_icon_svg.js";
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
-import {lockIconSvg} from "~/client/web/icons/lock_icon_svg.js";
+import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {inputPlaceholderFontWeight, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,
@@ -29,7 +30,10 @@ import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {Store} from "~/shared/store/store.js";
 import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
@@ -44,6 +48,7 @@ export function renderContentFileTaskEntityPreview(
         platform,
         spacingScale,
         accountRegistry,
+        siteRegistry,
         currentDate,
     }: {
         fileEntity: FileEntityModel;
@@ -52,11 +57,19 @@ export function renderContentFileTaskEntityPreview(
         platform: Platform;
         spacingScale: SpacingScale;
         accountRegistry: AccountRegistry;
+        siteRegistry: SiteRegistry;
         currentDate: CalendarDate;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskEntityModelSchema);
     const task = fileEntity.task;
+
+    const referencedSiteById = new Map(
+        filterMapIterable(fileEntity.referencedSites, site => {
+            if (!site.ok) return;
+            return [site.value.id, site.value] as const;
+        }),
+    );
 
     const {
         scaledContainerHtml,
@@ -128,7 +141,7 @@ export function renderContentFileTaskEntityPreview(
                     alignItems: "center",
                     gap: "1.5",
                     paddingBottom: "0.5",
-                    color: "grey-60",
+                    color: "grey-50",
                 }),
             );
 
@@ -143,9 +156,7 @@ export function renderContentFileTaskEntityPreview(
 
             if (fileEntity.parent.rootTask.type === "Unauthorized") {
                 parentBreadcrumbsTaskTitleHtml.appendChild(
-                    createSvgHtmlGenerator(
-                        lockIconSvg({className: sprinkles({width: "3", height: "3"})}),
-                    ),
+                    createSvgHtmlGenerator(lockBoldFillIconSvg({size: spacing["2.5"]})),
                 );
 
                 parentBreadcrumbsTaskTitleHtml.appendChild(new HtmlTextGenerator("Private"));
@@ -407,9 +418,29 @@ export function renderContentFileTaskEntityPreview(
                     );
 
                     for (const collection of collectionRow) {
+                        const accessPolicy = collection.getAccessPolicy();
+                        let isPrivate = false;
+                        switch (accessPolicy.type) {
+                            case "Local": {
+                                isPrivate = !accessPolicy.defaultGrant;
+                                break;
+                            }
+                            case "Site": {
+                                isPrivate = !get(
+                                    siteRegistry.getSiteStore(
+                                        assertExists(referencedSiteById.get(accessPolicy.siteId)),
+                                    ),
+                                ).accessPolicy.defaultGrant;
+                                break;
+                            }
+                            default:
+                                throw exhaustive(accessPolicy);
+                        }
+
                         collectionRowHtml.appendChild(
                             renderTaskCollectionChipBase({
                                 color: collection.getColor(),
+                                isPrivate,
                                 name: collection.getName(),
                             }),
                         );

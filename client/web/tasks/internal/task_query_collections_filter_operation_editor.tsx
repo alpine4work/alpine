@@ -18,11 +18,13 @@ import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_qu
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/web/tasks/internal/use_search_task_collections_by_affinity.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -482,6 +484,13 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
                     continue;
                 }
 
+                const referencedAccessPolicySiteData =
+                    collection.rawData.accessPolicy.value.type === "Site"
+                        ? (assertExists(queryReferencesForUrlGrant).siteById.get(
+                              collection.rawData.accessPolicy.value.siteId,
+                          ) ?? null)
+                        : null;
+
                 // The collection model doesn't include the open task count. To avoid an additional
                 // network request we decide to not show task count collections referenced by the
                 // query for a URL granted view.
@@ -489,6 +498,20 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
                     openTaskCount: 0,
                     lastTaskAddedTime: null,
                     collection,
+                    // TODO(#sites): Integration test this code path. The following steps should be
+                    // sufficient:
+                    //
+                    // 1. Create a site with two task collections (collection A and collection B).
+                    // 2. Create some tasks. Two that are only in collection A, two that are only in
+                    //    collection B, and two that are in collection A and collection B.
+                    // 3. Share the site via URL.
+                    // 4. With an anonymous actor, open collection A in the site.
+                    // 5. Add a filter for tasks with collection B.
+                    //
+                    // If that all works, this code is good!
+                    referencedAccessPolicySite: referencedAccessPolicySiteData
+                        ? new SitePreviewModel(referencedAccessPolicySiteData)
+                        : null,
                 };
 
                 searchedItems.push({
@@ -554,7 +577,13 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
         }
 
         return searchedItems;
-    }, [initialCollectionIds, initialCollectionResults, items, searchedCollectionsForUrlGrant]);
+    }, [
+        initialCollectionIds,
+        initialCollectionResults,
+        items,
+        queryReferencesForUrlGrant,
+        searchedCollectionsForUrlGrant,
+    ]);
 
     return shouldLoadItems && items === null
         ? {isLoading: true as const}

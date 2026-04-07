@@ -9,6 +9,7 @@ import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/re
 import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {
     postContentViewHeaderAvatarSize,
     postContentViewHeaderDesktopPostMetadataPaddingLeft,
@@ -43,6 +44,7 @@ export function renderContentFilePostEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -61,6 +63,7 @@ export function renderContentFilePostEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -203,6 +206,7 @@ export function renderContentFilePostEntityPreview(
             accountRegistry,
             searchEntityRegistry,
             fileRegistry,
+            siteRegistry,
             currentAccount,
             // If we render files/tables inside the preview make sure they have an
             // appropriately scaled block width (important for row of 3 recursive docs use

@@ -72,9 +72,11 @@ const TaskRowCollectionsCellForwardRefMemo = memo(forwardRef(TaskRowCollectionsC
 export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
 
 function TaskCollectionChipWithNavigation({
+    store,
     collection,
     nameMaxWidth,
 }: {
+    store: TaskClientReadonlyStore;
     collection: TaskCollectionModel;
     nameMaxWidth?: Spacing;
 }) {
@@ -84,6 +86,7 @@ function TaskCollectionChipWithNavigation({
 
     return (
         <TaskCollectionChip
+            store={store}
             collection={collection}
             nameMaxWidth={nameMaxWidth}
             onPress={() => {
@@ -145,6 +148,7 @@ function TaskRowCollectionsCell(
         store,
         query,
         task,
+        isCreatedCollectionPrivate,
         onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
@@ -154,6 +158,7 @@ function TaskRowCollectionsCell(
         store: TaskClientReadonlyStore;
         query: TaskClientQuery | null;
         task: TaskModel | null;
+        isCreatedCollectionPrivate: boolean;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
@@ -422,6 +427,7 @@ function TaskRowCollectionsCell(
                                 }}
                             >
                                 <TaskCollectionChipWithNavigation
+                                    store={store}
                                     collection={collection}
                                     // We need to set a max width for the name or else really really long names will
                                     // cause flex items with a ridiculously large `flex-basis` (given `flex-basis` is
@@ -449,6 +455,7 @@ function TaskRowCollectionsCell(
                     store={store}
                     query={query}
                     task={task}
+                    isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                     onClose={() => {

@@ -11,6 +11,7 @@ import {renderContentFileDocumentEntityPreview} from "~/client/web/content/file_
 import {normalizeHtmlForFileEntityTest} from "~/client/web/content/file_entity/internal/test_helpers/normalize_html_for_file_entity_test.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -108,6 +109,7 @@ describe("renderContentFileDocumentEntityPreview - HTML Snapshots", () => {
         accountRegistry: getAccountRegistry(spaceId),
         searchEntityRegistry: getSearchEntityRegistry(spaceId),
         fileRegistry: getFileRegistry(spaceId),
+        siteRegistry: getSiteRegistry(spaceId),
         currentAccount: null,
         transformScale: 1,
         routeLayout: "narrow" as const,

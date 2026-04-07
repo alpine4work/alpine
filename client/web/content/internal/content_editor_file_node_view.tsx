@@ -42,6 +42,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -333,6 +334,7 @@ export function createContentEditorFileNodeViewConstructor({
                             accountRegistry: getAccountRegistry(spaceId),
                             searchEntityRegistry: getSearchEntityRegistry(spaceId),
                             fileRegistry: getFileRegistry(spaceId),
+                            siteRegistry: getSiteRegistry(spaceId),
                             currentAccount: getCurrentAccount(),
                             blockWidth: blockWidthPx,
                             transformScale: 1,

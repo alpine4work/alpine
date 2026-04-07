@@ -6,6 +6,7 @@ import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_
 import {AppContext} from "~/client/web/context/app_context.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -39,6 +40,7 @@ export type ContentFileEntityRenderers = {
                 accountRegistry: AccountRegistry;
                 searchEntityRegistry: SearchEntityRegistry;
                 fileRegistry: FileRegistry;
+                siteRegistry: SiteRegistry;
                 currentAccount: AccountModel | null;
                 blockWidth: number;
                 transformScale: number;

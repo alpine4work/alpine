@@ -96,10 +96,7 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     referencedAccounts: Schema.array(AccountModel.schema),
     referencedSites: Schema.array(
         Schema.result(
-            Schema.object({
-                ok: Schema.value(true),
-                value: SitePreviewModel.schema,
-            }),
+            Schema.object({ok: Schema.value(true), value: SitePreviewModel.schema}),
             Schema.object({ok: Schema.value(false), error: ErrorSchema}),
         ),
     ),

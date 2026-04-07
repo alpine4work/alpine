@@ -17,6 +17,7 @@ import {checkIconSvg} from "~/client/web/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/web/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -74,6 +75,7 @@ export function renderContentToHtmlStoreForTest(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         spacingScale,
         platform,
@@ -90,6 +92,7 @@ export function renderContentToHtmlStoreForTest(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         spacingScale: SpacingScale;
         platform: Platform;
@@ -111,6 +114,7 @@ export function renderContentToHtmlStoreForTest(
             accountRegistry,
             searchEntityRegistry,
             fileRegistry,
+            siteRegistry,
             currentAccount,
             blockWidth: convertRemLengthToPx(contentStyles.blockMaxWidth[platform], spacingScale),
             transformScale: 1,
@@ -158,6 +162,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         blockWidth,
         transformScale,
@@ -182,6 +187,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         blockWidth: number;
         transformScale: number;
@@ -534,6 +540,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         accountRegistry,
                         searchEntityRegistry,
                         fileRegistry,
+                        siteRegistry,
                         currentAccount,
                         blockWidth: currentBlockWidth,
                         transformScale,

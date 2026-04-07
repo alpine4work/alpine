@@ -1,7 +1,7 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
-import {CaretLeft, Lock} from "phosphor-react";
+import {CaretLeft} from "phosphor-react";
 import {Fragment, Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
 import {
     AllSelection,
@@ -39,6 +39,7 @@ import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_k
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
@@ -1882,7 +1883,10 @@ function TaskRowTitleParentTaskTitle({
                 {parentPreview.rootTaskEntry.task === null ? (
                     // Null tasks are treated as if they're permission denied errors.
                     <div className={parentTaskTitlePermissionDeniedClassName}>
-                        <Lock size={spacing["3"]} className={parentTaskTitleIconClassName} />
+                        <LockBoldFillIcon
+                            size={spacing["2.5"]}
+                            className={parentTaskTitleIconClassName}
+                        />
                         <div className={parentTaskTitleTextClassName}>Private</div>
                     </div>
                 ) : (

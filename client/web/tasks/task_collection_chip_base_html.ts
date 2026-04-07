@@ -1,3 +1,5 @@
+import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
+import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {Sprinkles, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -72,6 +74,19 @@ export const taskCollectionChipBaseNameGradientClassName = sprinkles({
     width: "1.5",
 });
 
+export const taskCollectionChipLockIconClassName = sprinkles({
+    flexShrink: "0",
+    marginLeft: "0.5",
+    marginRight: "1",
+    fill: "grey-40",
+});
+
+export const taskCollectionChipLockIconWithoutColorClassName = sprinkles({
+    flexShrink: "0",
+    marginRight: "1",
+    fill: "grey-40",
+});
+
 /**
  * Renders a task collection chip to an `HtmlElementGenerator` object. For
  * rendering chips in `<ContentEditor>` where we can't render React UI.
@@ -83,16 +98,21 @@ export const taskCollectionChipBaseNameGradientClassName = sprinkles({
 // `<TaskCollectionChipBase>` for code that renders chips in React.
 export function renderTaskCollectionChipBase({
     color,
+    isPrivate,
     name,
     nameMaxWidth,
 }: {
     color: ThemeColor | null;
+    isPrivate: boolean;
     name: string;
     nameMaxWidth?: Spacing;
 }): HtmlElementGenerator {
     const backgroundColor = colorSchemeVars["grey-5"];
 
     const chipHtml = new HtmlElementGenerator("div");
+    if (process.env.NODE_ENV !== "production") {
+        chipHtml.setAttribute("data-testid", "TaskCollectionChip");
+    }
     chipHtml.setAttribute(
         "class",
         color !== null
@@ -137,6 +157,21 @@ export function renderTaskCollectionChipBase({
         "style",
         `background: linear-gradient(to right, transparent, ${backgroundColor} ${spacing["0.5"]})`,
     );
+
+    if (isPrivate) {
+        nameContainerHtml.appendChild(
+            createSvgHtmlGenerator(
+                lockBoldFillIconSvg({
+                    size: spacing["2.5"],
+                    ariaLabel: "Private lock icon",
+                    className:
+                        color !== null
+                            ? taskCollectionChipLockIconClassName
+                            : taskCollectionChipLockIconWithoutColorClassName,
+                }),
+            ),
+        );
+    }
 
     nameContainerHtml.appendChild(new HtmlTextGenerator(name));
 

@@ -17,6 +17,7 @@ import {Reporter} from "~/client/web/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/site_registry.js";
 import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,
@@ -52,6 +53,7 @@ export function renderContentFileChannelEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -70,6 +72,7 @@ export function renderContentFileChannelEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -265,6 +268,7 @@ export function renderContentFileChannelEntityPreview(
                     accountRegistry,
                     searchEntityRegistry,
                     fileRegistry,
+                    siteRegistry,
                     currentAccount,
                     // If we render files/tables inside the preview make sure they have an
                     // appropriately scaled block width (important for row of 3 recursive docs use

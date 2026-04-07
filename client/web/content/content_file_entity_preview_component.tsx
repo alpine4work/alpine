@@ -20,6 +20,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -56,6 +57,7 @@ export function ContentFileEntityPreview({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
+    const siteRegistry = useSiteRegistry();
     const currentDate = useCurrentDate();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
@@ -82,6 +84,7 @@ export function ContentFileEntityPreview({
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale: 1,
@@ -122,6 +125,7 @@ export function ContentFileEntityPreview({
         platform,
         routeLayout,
         searchEntityRegistry,
+        siteRegistry,
         space.id,
         spacingScale,
         width,

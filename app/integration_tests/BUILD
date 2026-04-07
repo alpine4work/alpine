@@ -52,6 +52,7 @@ ts_playwright_tests(
         "session/onboarding_desktop.spec.ts": ["webkit_mobile"],
         "session/sign_up_feed_entries_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_collection_share_desktop.spec.ts": ["webkit_mobile"],
+        "tasks/task_collection_lock_icon_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_detail_view_comments_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_detail_view_project_layout_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_detail_view_share_effective_access_policy_desktop.spec.ts": ["webkit_mobile"],

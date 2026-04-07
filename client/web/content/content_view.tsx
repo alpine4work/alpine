@@ -64,6 +64,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
@@ -316,6 +317,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
+    const siteRegistry = useSiteRegistry();
     const reporter = useReporter();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
@@ -537,6 +539,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 blockWidth,
                 transformScale,
@@ -583,6 +586,7 @@ export function ContentView<Content extends ContentWithReferences>({
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         spaceContext?.currentAccount,
         blockWidth,
         transformScale,

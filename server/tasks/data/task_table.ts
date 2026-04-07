@@ -69,6 +69,7 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {
     AuthorizeSpaceAccessContext,
@@ -8405,9 +8406,10 @@ export async function getTaskGridViewExpansionState(
     return item?.state ?? null;
 }
 
-function createTaskCollectionModelSearchResultFromItem(
+async function createTaskCollectionModelSearchResultFromItem(
+    context: ServerActionContext,
     collectionItem: TaskCollectionEssentialAttributesItem,
-): TaskCollectionModelSearchResult {
+): Promise<TaskCollectionModelSearchResult> {
     return {
         openTaskCount: collectionItem.openTaskCount,
         lastTaskAddedTime: collectionItem.lastTaskAddedTime,
@@ -8422,6 +8424,10 @@ function createTaskCollectionModelSearchResultFromItem(
             color: collectionItem.color,
             accessPolicy: collectionItem.accessPolicy,
         }),
+        referencedAccessPolicySite:
+            collectionItem.accessPolicy.value.type === "Site"
+                ? await getSitePreview(context, collectionItem.accessPolicy.value.siteId)
+                : null,
     };
 }
 
@@ -8490,7 +8496,7 @@ export async function getTaskCollectionSearchResult(
     // collection search index might be out of date.
     await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
 
-    return createTaskCollectionModelSearchResultFromItem(collectionItem);
+    return createTaskCollectionModelSearchResultFromItem(context, collectionItem);
 }
 
 /**
@@ -8523,7 +8529,10 @@ export async function getTaskCollectionSearchResultIfPossible(
     );
     if (!result.ok) return result;
 
-    return {ok: true, value: createTaskCollectionModelSearchResultFromItem(collectionItem)};
+    return {
+        ok: true,
+        value: await createTaskCollectionModelSearchResultFromItem(context, collectionItem),
+    };
 }
 
 export async function getTaskCommentParentContent(
