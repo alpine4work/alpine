@@ -196,6 +196,7 @@ test("can\u2019t resize an image with a session actor", async () => {
 
     expect(file).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: file.id,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -237,6 +238,7 @@ test("can\u2019t resize an image with a token that\u2019s not from edge service 
 
     expect(file).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: file.id,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -302,6 +304,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/jpeg",
                     contentLength: 33102,
@@ -425,6 +428,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/png",
                     contentLength: 76547,
@@ -517,6 +521,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/png",
                     contentLength: 103683,
@@ -613,6 +618,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
                 expect(file).toEqual(
                     new FileModel({
+                        spaceId: space.id,
                         id: file.id,
                         contentType: "image/gif",
                         contentLength: 118405,
@@ -674,6 +680,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/apng",
                     contentLength: 61968,
@@ -932,6 +939,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/avif",
                     contentLength: 74432,
@@ -1054,6 +1062,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/avif",
                     contentLength: 24923,
@@ -1149,6 +1158,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             // FFmpeg.
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/avif",
                     contentLength: 10448,
@@ -1183,6 +1193,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/webp",
                     contentLength: 60260,
@@ -1305,6 +1316,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/webp",
                     contentLength: 22500,
@@ -1398,6 +1410,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             expect(file).toEqual(
                 new FileModel({
+                    spaceId: space.id,
                     id: file.id,
                     contentType: "image/svg+xml",
                     contentLength: 4701,
@@ -1452,6 +1465,7 @@ test("can resize a HEIC image\u2019s preview", async () => {
 
     expect(file).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: file.id,
             contentType: "image/heif",
             contentLength: 88109,
@@ -1600,6 +1614,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
     expect(file).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: file.id,
             contentType: "image/avif",
             contentLength: 108552,
@@ -1744,6 +1759,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
     expect(file).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: file.id,
             contentType: "image/avif",
             contentLength: 140556,

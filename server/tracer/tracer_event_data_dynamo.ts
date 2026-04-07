@@ -74,7 +74,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Deploy", ["Deploy"]],
     ["Documents", ["Document", "DocumentCommentThread"]],
     ["Feed", ["FeedCandidates", "FeedAccountCandidates", "Feed"]],
-    ["Files", ["Space", "File"]],
+    ["Files", ["Space", "File", "File2"]],
     ["Forum", ["Channel", "Post", "Account"]],
     ["ForumRealtime", ["Channel", "Post", "Realtime", "Graveyard"]],
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],

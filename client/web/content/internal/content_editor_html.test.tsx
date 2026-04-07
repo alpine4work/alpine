@@ -1668,6 +1668,7 @@ test("file row (one file)", async () => {
                     signedUrlSearch: "?exp=1727963596&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -1740,6 +1741,7 @@ test("file row (one file, image type)", async () => {
                     signedUrlSearch: "?exp=1727880757&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694vd0kf4fdbwb7f1jqtzgt7g"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -1788,6 +1790,7 @@ test("file row (one file, video type)", async () => {
                     signedUrlSearch: "?exp=1727880767&sig=test-video",
                     file: new FileModel({
                         id: assertId("0694vdm01x4ngm31kmm41wsg3m"),
+                        spaceId: space.id,
                         contentType: "video/mp4",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -1837,6 +1840,7 @@ test("file row (one file, audio type)", async () => {
                     signedUrlSearch: "?exp=1727880774&sig=test-audio",
                     file: new FileModel({
                         id: assertId("0694vdt0nc1d3zr0vh2j2jrtvg"),
+                        spaceId: space.id,
                         contentType: "audio/mp4",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -1946,6 +1950,7 @@ test("file row (two files)", async () => {
                     signedUrlSearch: "?exp=1727963615&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4mxds3kj518c0dygx272c"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -1966,6 +1971,7 @@ test("file row (two files)", async () => {
                     signedUrlSearch: "?exp=1727963629&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4myryc3289pwhcnwt7f7r"),
+                        spaceId: space.id,
                         contentType: "image/heif",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2028,6 +2034,7 @@ test("file row (three files)", async () => {
                     signedUrlSearch: "?exp=1727963706&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4nwky4vgc8ep46mzz5th8"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2048,6 +2055,7 @@ test("file row (three files)", async () => {
                     signedUrlSearch: "?exp=1727963711&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4phegz57116pce7eg5j30"),
+                        spaceId: space.id,
                         contentType: "image/heif",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2078,6 +2086,7 @@ test("file row (three files)", async () => {
                     signedUrlSearch: "?exp=1727963716&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4q3yh9765742w7305p0fg"),
+                        spaceId: space.id,
                         contentType: "image/png",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2128,6 +2137,7 @@ test("file float (left direction)", async () => {
                     signedUrlSearch: "?exp=1727963748&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4sk2v7sxcrpdd9qdxxx78"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2178,6 +2188,7 @@ test("file float (right direction)", async () => {
                     signedUrlSearch: "?exp=1727963751&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4v4se8v5pxdk7j5adnecm"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2240,6 +2251,7 @@ test("table with fileRowTable (one file)", async () => {
                     signedUrlSearch: "?exp=1727963596&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2311,6 +2323,7 @@ test("table with fileRowTable (mixed content)", async () => {
                     signedUrlSearch: "?exp=1727963596&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2331,6 +2344,7 @@ test("table with fileRowTable (mixed content)", async () => {
                     signedUrlSearch: "?exp=1727963615&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4mxds3kj518c0dygx272c"),
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,
@@ -2351,6 +2365,7 @@ test("table with fileRowTable (mixed content)", async () => {
                     signedUrlSearch: "?exp=1727963711&sig=test-image",
                     file: new FileModel({
                         id: assertId("0694v4phegz57116pce7eg5j30"),
+                        spaceId: space.id,
                         contentType: "image/heif",
                         contentLength: 1200 ** 2,
                         isUploading: false,

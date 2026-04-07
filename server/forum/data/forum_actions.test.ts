@@ -6875,6 +6875,7 @@ test("will attach referenced files to post when creating from draft", async () =
     ).toEqual(
         new FileModel({
             id: file.id,
+            spaceId: space.id,
             contentType: "image/png",
             contentLength: 5232,
             isUploading: false,

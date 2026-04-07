@@ -8,7 +8,9 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+
+const spaceId = generateId<SpaceId>();
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -29,6 +31,7 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
 ]);
 
 const standardFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -44,6 +47,7 @@ const standardFile = new FileModel({
 });
 
 const largeFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -59,6 +63,7 @@ const largeFile = new FileModel({
 });
 
 const tallFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -75,6 +80,7 @@ const tallFile = new FileModel({
 
 // iPhone screenshot size
 const phoneScreenshotFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -91,6 +97,7 @@ const phoneScreenshotFile = new FileModel({
 
 // Cinema "scope" 4k resolution
 const cinemaScopeFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -107,6 +114,7 @@ const cinemaScopeFile = new FileModel({
 
 // Cinema "scope" 4k resolution (vertical)
 const cinemaScopeVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -122,6 +130,7 @@ const cinemaScopeVerticalFile = new FileModel({
 });
 
 const iconFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -137,6 +146,7 @@ const iconFile = new FileModel({
 });
 
 const moderateVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -152,6 +162,7 @@ const moderateVerticalFile = new FileModel({
 });
 
 const moderateHorizontalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -167,6 +178,7 @@ const moderateHorizontalFile = new FileModel({
 });
 
 const extremeVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -182,6 +194,7 @@ const extremeVerticalFile = new FileModel({
 });
 
 const extremeHorizontalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -197,6 +210,7 @@ const extremeHorizontalFile = new FileModel({
 });
 
 const audioFile1 = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "audio/mp4",
     contentLength: 100,
@@ -212,6 +226,7 @@ const audioFile1 = new FileModel({
 });
 
 const audioFile2 = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "audio/mp4",
     contentLength: 100,

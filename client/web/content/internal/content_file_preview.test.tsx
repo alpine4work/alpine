@@ -103,6 +103,7 @@ test("will refresh signed URL when it\u2019s about to expire", async () => {
                     signedUrlSearch: `?exp=${expirationTime1Seconds}&sig=test-image-a`,
                     file: new FileModel({
                         id: fileId,
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 1200 ** 2,
                         isUploading: false,

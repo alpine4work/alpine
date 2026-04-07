@@ -357,6 +357,7 @@ test("can perform a multipart upload", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "application/octet-stream",
             contentLength: 2.5e8,
@@ -535,6 +536,7 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "application/octet-stream",
             contentLength: 2.5e8,
@@ -694,6 +696,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "application/octet-stream",
             contentLength: 2.5e8,

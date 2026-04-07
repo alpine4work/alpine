@@ -187,6 +187,7 @@ test("can start uploading and processing files", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -222,6 +223,7 @@ test("can start uploading and processing files", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -257,6 +259,7 @@ test("can start uploading and processing files", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -348,6 +351,7 @@ test("can finish file processing preview size and preview placeholder", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -371,6 +375,7 @@ test("can finish file processing preview size and preview placeholder", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -392,6 +397,7 @@ test("can finish file processing preview size and preview placeholder", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -420,6 +426,7 @@ test("can finish file processing preview size and preview placeholder in any ord
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -441,6 +448,7 @@ test("can finish file processing preview size and preview placeholder in any ord
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -464,6 +472,7 @@ test("can finish file processing preview size and preview placeholder in any ord
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -498,6 +507,7 @@ test("can\u2019t finish file preview processing with a different account", async
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -560,6 +570,7 @@ test("can\u2019t finish file preview processing with a different account", async
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -587,6 +598,7 @@ test("can\u2019t finish file preview processing for files without a preview", as
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -614,6 +626,7 @@ test("can\u2019t finish file preview processing for files without a preview", as
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -651,6 +664,7 @@ test("can finish file preview processing if file processing has already complete
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -677,6 +691,7 @@ test("can finish file preview processing if file processing has already complete
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -716,6 +731,7 @@ test("can finish file preview processing if file processing has already complete
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -740,6 +756,7 @@ test("can finish file preview processing if file processing has already complete
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -772,6 +789,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -797,6 +815,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -822,6 +841,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -848,6 +868,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -871,6 +892,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -894,6 +916,7 @@ test("can finish file preview processing for the same data twice", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
@@ -922,6 +945,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -946,6 +970,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -968,6 +993,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -991,6 +1017,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1026,6 +1053,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1051,6 +1079,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1078,6 +1107,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1107,6 +1137,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1138,6 +1169,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1163,6 +1195,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1192,6 +1225,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1219,6 +1253,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/pdf",
                 contentLength: 100,
@@ -1253,6 +1288,7 @@ test("can\u2019t finish file preview image processing with a different account",
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1278,6 +1314,7 @@ test("can\u2019t finish file preview image processing with a different account",
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1306,6 +1343,7 @@ test("can\u2019t finish file preview image processing for files without a previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -1325,6 +1363,7 @@ test("can\u2019t finish file preview image processing for files without a previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -1347,6 +1386,7 @@ test("can\u2019t finish file preview image processing for files without a previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -1371,6 +1411,7 @@ test("can\u2019t finish file preview image processing for files without a previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -1416,6 +1457,7 @@ test("can finish file preview image processing if file processing has already co
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1440,6 +1482,7 @@ test("can finish file preview image processing if file processing has already co
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1469,6 +1512,7 @@ test("can finish file preview image processing for the same data twice", async (
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1492,6 +1536,7 @@ test("can finish file preview image processing for the same data twice", async (
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1518,6 +1563,7 @@ test("can finish file preview image processing for the same data twice", async (
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -1549,6 +1595,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1574,6 +1621,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1597,6 +1645,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1621,6 +1670,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1644,6 +1694,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1730,6 +1781,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "video/webm",
                 contentLength: 100,
@@ -1754,6 +1806,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "video/webm",
                 contentLength: 100,
@@ -1788,6 +1841,7 @@ test("can finish file processing preview size (and video duration), preview plac
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1817,6 +1871,7 @@ test("can finish file processing preview size (and video duration), preview plac
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1840,6 +1895,7 @@ test("can finish file processing preview size (and video duration), preview plac
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1864,6 +1920,7 @@ test("can finish file processing preview size (and video duration), preview plac
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1888,6 +1945,7 @@ test("can finish file processing preview size (and video duration), preview plac
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -1976,6 +2034,7 @@ test("can finish file processing preview size (including video duration), previe
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "video/webm",
                 contentLength: 100,
@@ -2000,6 +2059,7 @@ test("can finish file processing preview size (including video duration), previe
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "video/webm",
                 contentLength: 100,
@@ -2035,6 +2095,7 @@ test("can\u2019t finish file preview video duration processing with a different 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2056,6 +2117,7 @@ test("can\u2019t finish file preview video duration processing with a different 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2084,6 +2146,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -2099,6 +2162,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -2121,6 +2185,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2142,6 +2207,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2170,6 +2236,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2200,6 +2267,7 @@ test("can\u2019t finish file preview video duration processing for files without
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2248,6 +2316,7 @@ test("can\u2019t finish file preview video duration processing if file processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2269,6 +2338,7 @@ test("can\u2019t finish file preview video duration processing if file processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2290,6 +2360,7 @@ test("can\u2019t finish file preview video duration processing if file processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2340,6 +2411,7 @@ test("can\u2019t finish file preview video duration processing if file processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2361,6 +2433,7 @@ test("can\u2019t finish file preview video duration processing if file processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2391,6 +2464,7 @@ test("can finish file preview video duration processing for the same data twice"
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2411,6 +2485,7 @@ test("can finish file preview video duration processing for the same data twice"
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2431,6 +2506,7 @@ test("can finish file preview video duration processing for the same data twice"
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2451,6 +2527,7 @@ test("can finish file preview video duration processing for the same data twice"
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2480,6 +2557,7 @@ test("can\u2019t finish file preview video duration processing for the same data
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2500,6 +2578,7 @@ test("can\u2019t finish file preview video duration processing for the same data
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2529,6 +2608,7 @@ test("can\u2019t finish file preview video duration processing for the same data
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2558,6 +2638,7 @@ test("can finish file preview video duration processing for the same data twice 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2578,6 +2659,7 @@ test("can finish file preview video duration processing for the same data twice 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2598,6 +2680,7 @@ test("can finish file preview video duration processing for the same data twice 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "video/webm",
             contentLength: 100,
@@ -2627,6 +2710,7 @@ test("can finish file processing image preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2648,6 +2732,7 @@ test("can finish file processing image preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2678,6 +2763,7 @@ test("can finish file processing preview with error after processing preview siz
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2702,6 +2788,7 @@ test("can finish file processing preview with error after processing preview siz
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2723,6 +2810,7 @@ test("can finish file processing preview with error after processing preview siz
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2753,6 +2841,7 @@ test("can finish file with processed preview size after processing preview error
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2774,6 +2863,7 @@ test("can finish file with processed preview size after processing preview error
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2800,6 +2890,7 @@ test("can finish file with processed preview size after processing preview error
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2830,6 +2921,7 @@ test("can finish file with processed preview placeholder after processing previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2851,6 +2943,7 @@ test("can finish file with processed preview placeholder after processing previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2875,6 +2968,7 @@ test("can finish file with processed preview placeholder after processing previe
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2905,6 +2999,7 @@ test("can finish file with processed preview image after processing preview erro
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2926,6 +3021,7 @@ test("can finish file with processed preview image after processing preview erro
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2951,6 +3047,7 @@ test("can finish file with processed preview image after processing preview erro
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -2981,6 +3078,7 @@ test("can finish file processing preview with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3002,6 +3100,7 @@ test("can finish file processing preview with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3025,6 +3124,7 @@ test("can finish file processing preview with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3056,6 +3156,7 @@ test("can\u2019t finish file preview processing with error with a different acco
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3079,6 +3180,7 @@ test("can\u2019t finish file preview processing with error with a different acco
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3107,6 +3209,7 @@ test("can\u2019t finish file preview processing with error for files without a p
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -3124,6 +3227,7 @@ test("can\u2019t finish file preview processing with error for files without a p
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -3146,6 +3250,7 @@ test("can finish file processing audio preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -3166,6 +3271,7 @@ test("can finish file processing audio preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -3195,6 +3301,7 @@ test("can finish file processing code preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -3214,6 +3321,7 @@ test("can finish file processing code preview with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -3260,6 +3368,7 @@ test("can finish file preview processing with error if file processing has alrea
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3282,6 +3391,7 @@ test("can finish file preview processing with error if file processing has alrea
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -3311,6 +3421,7 @@ test("can finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3332,6 +3443,7 @@ test("can finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3359,6 +3471,7 @@ test("can\u2019t finish file uploading twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3380,6 +3493,7 @@ test("can\u2019t finish file uploading twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3415,6 +3529,7 @@ test("can\u2019t finish file uploading as a different account", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3438,6 +3553,7 @@ test("can\u2019t finish file uploading as a different account", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3467,6 +3583,7 @@ test("can finish file processing then finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3490,6 +3607,7 @@ test("can finish file processing then finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3511,6 +3629,7 @@ test("can finish file processing then finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3533,6 +3652,7 @@ test("can finish file processing then finish file uploading", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3563,6 +3683,7 @@ test("can finish file uploading then finish file processing", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3584,6 +3705,7 @@ test("can finish file uploading then finish file processing", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3607,6 +3729,7 @@ test("can finish file uploading then finish file processing", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3628,6 +3751,7 @@ test("can finish file uploading then finish file processing", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3658,6 +3782,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3681,6 +3806,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3702,6 +3828,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3723,6 +3850,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -3751,6 +3879,7 @@ test("can finish processing file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -3773,6 +3902,7 @@ test("can finish processing file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -3803,6 +3933,7 @@ test("can finish processing file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -3831,6 +3962,7 @@ test("can finish processing file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -3860,6 +3992,7 @@ test("can finish processing file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -3898,6 +4031,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -3924,6 +4058,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -3948,6 +4083,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -3978,6 +4114,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4009,6 +4146,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4046,6 +4184,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4072,6 +4211,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4096,6 +4236,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4120,6 +4261,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4151,6 +4293,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4188,6 +4331,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4214,6 +4358,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4238,6 +4383,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4263,6 +4409,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4288,6 +4435,7 @@ test("can finish processing file alternative in any order", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
@@ -4324,6 +4472,7 @@ test("can finish processing preview image file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
@@ -4348,6 +4497,7 @@ test("can finish processing preview image file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
@@ -4370,6 +4520,7 @@ test("can finish processing preview image file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
@@ -4393,6 +4544,7 @@ test("can finish processing preview image file alternative", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
@@ -4431,6 +4583,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4457,6 +4610,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4482,6 +4636,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4512,6 +4667,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4549,6 +4705,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4574,6 +4731,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4606,6 +4764,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4636,6 +4795,7 @@ test("can finish processing preview image file alternative in any order", async 
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
@@ -4673,6 +4833,7 @@ test("can\u2019t finish processing file alternative as another account", async (
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4697,6 +4858,7 @@ test("can\u2019t finish processing file alternative as another account", async (
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4725,6 +4887,7 @@ test("can finish processing file alternative twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4747,6 +4910,7 @@ test("can finish processing file alternative twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4775,6 +4939,7 @@ test("can finish processing file alternative twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4809,6 +4974,7 @@ test("can\u2019t finish processing file alternative for a file with no alternati
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -4833,6 +4999,7 @@ test("can\u2019t finish processing file alternative for a file with no alternati
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -4861,6 +5028,7 @@ test("can\u2019t finish processing an alternative preview image for a file with 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -4886,6 +5054,7 @@ test("can\u2019t finish processing an alternative preview image for a file with 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/pdf",
             contentLength: 100,
@@ -4914,6 +5083,7 @@ test("can finish processing file alternative if preview image is alternative", a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4937,6 +5107,7 @@ test("can finish processing file alternative if preview image is alternative", a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4965,6 +5136,7 @@ test("can finish processing file alternative if preview image is alternative", a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -4999,6 +5171,7 @@ test("can finish processing file alternative preview image if alternative is alr
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5021,6 +5194,7 @@ test("can finish processing file alternative preview image if alternative is alr
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5050,6 +5224,7 @@ test("can finish processing file alternative preview image if alternative is alr
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5087,6 +5262,7 @@ test("can finish processing file alternative with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5108,6 +5284,7 @@ test("can finish processing file alternative with error", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5140,6 +5317,7 @@ test("can finish processing file alternative with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5161,6 +5339,7 @@ test("can finish processing file alternative with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5186,6 +5365,7 @@ test("can finish processing file alternative with error twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5218,6 +5398,7 @@ test("can finish processing file alternative with error after finished processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5240,6 +5421,7 @@ test("can finish processing file alternative with error after finished processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5267,6 +5449,7 @@ test("can finish processing file alternative with error after finished processin
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5301,6 +5484,7 @@ test("can finish processing file alternative after finished processing alternati
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5322,6 +5506,7 @@ test("can finish processing file alternative after finished processing alternati
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5348,6 +5533,7 @@ test("can finish processing file alternative after finished processing alternati
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5381,6 +5567,7 @@ test("can\u2019t finish processing file alternative with error as the wrong sess
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5404,6 +5591,7 @@ test("can\u2019t finish processing file alternative with error as the wrong sess
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5432,6 +5620,7 @@ test("can finish processing file alternative with error as the right system acto
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5453,6 +5642,7 @@ test("can finish processing file alternative with error as the right system acto
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5486,6 +5676,7 @@ test("can\u2019t finish processing file alternative with error as the wrong syst
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5509,6 +5700,7 @@ test("can\u2019t finish processing file alternative with error as the wrong syst
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5537,6 +5729,7 @@ test("can\u2019t finish processing file alternative with error as an anonymous a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5560,6 +5753,7 @@ test("can\u2019t finish processing file alternative with error as an anonymous a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
@@ -5591,6 +5785,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5611,6 +5806,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5635,6 +5831,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5669,6 +5866,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5693,6 +5891,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5717,6 +5916,7 @@ test("can finish processing file audio preview", async () => {
             await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
         ).toEqual(
             new FileModel({
+                spaceId: space.id,
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
@@ -5751,6 +5951,7 @@ test("can\u2019t finish processing file audio preview duration with the wrong se
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5771,6 +5972,7 @@ test("can\u2019t finish processing file audio preview duration with the wrong se
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5798,6 +6000,7 @@ test("can finish processing file audio preview duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5816,6 +6019,7 @@ test("can finish processing file audio preview duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5834,6 +6038,7 @@ test("can finish processing file audio preview duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5861,6 +6066,7 @@ test("can finish processing file audio preview duration when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5879,6 +6085,7 @@ test("can finish processing file audio preview duration when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5901,6 +6108,7 @@ test("can finish processing file audio preview duration when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5924,6 +6132,7 @@ test("can finish processing file audio preview duration when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -5956,6 +6165,7 @@ test("can\u2019t finish processing file audio preview duration for file without 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -5971,6 +6181,7 @@ test("can\u2019t finish processing file audio preview duration for file without 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -5993,6 +6204,7 @@ test("can\u2019t finish processing file audio preview duration for file with an 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6013,6 +6225,7 @@ test("can\u2019t finish processing file audio preview duration for file with an 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6041,6 +6254,7 @@ test("can\u2019t finish processing file audio preview metadata with the wrong se
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6065,6 +6279,7 @@ test("can\u2019t finish processing file audio preview metadata with the wrong se
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6092,6 +6307,7 @@ test("can finish processing file audio preview metadata twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6114,6 +6330,7 @@ test("can finish processing file audio preview metadata twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6140,6 +6357,7 @@ test("can finish processing file audio preview metadata twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6171,6 +6389,7 @@ test("can finish processing file audio preview metadata when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6189,6 +6408,7 @@ test("can finish processing file audio preview metadata when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6211,6 +6431,7 @@ test("can finish processing file audio preview metadata when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6238,6 +6459,7 @@ test("can finish processing file audio preview metadata when preview is finished
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6270,6 +6492,7 @@ test("can\u2019t finish processing file audio preview metadata for file without 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -6289,6 +6512,7 @@ test("can\u2019t finish processing file audio preview metadata for file without 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -6311,6 +6535,7 @@ test("can\u2019t finish processing file audio preview metadata for file with an 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6335,6 +6560,7 @@ test("can\u2019t finish processing file audio preview metadata for file with an 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6362,6 +6588,7 @@ test("can\u2019t finish processing file image preview size for file with an audi
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6387,6 +6614,7 @@ test("can\u2019t finish processing file image preview size for file with an audi
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6414,6 +6642,7 @@ test("can\u2019t finish processing file image preview placeholder for file with 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6437,6 +6666,7 @@ test("can\u2019t finish processing file image preview placeholder for file with 
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6464,6 +6694,7 @@ test("can\u2019t finish processing file image preview content for file with an a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6488,6 +6719,7 @@ test("can\u2019t finish processing file image preview content for file with an a
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6515,6 +6747,7 @@ test("can\u2019t finish processing file image preview video duration for file wi
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6535,6 +6768,7 @@ test("can\u2019t finish processing file image preview video duration for file wi
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
@@ -6562,6 +6796,7 @@ test("can finish processing file code preview content", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6582,6 +6817,7 @@ test("can finish processing file code preview content", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6610,6 +6846,7 @@ test("can\u2019t finish processing file code preview content with the wrong sess
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6632,6 +6869,7 @@ test("can\u2019t finish processing file code preview content with the wrong sess
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6658,6 +6896,7 @@ test("can finish processing code preview content duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6678,6 +6917,7 @@ test("can finish processing code preview content duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6699,6 +6939,7 @@ test("can finish processing code preview content duration twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
@@ -6726,6 +6967,7 @@ test("can\u2019t finish processing file code preview content for file without pr
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -6741,6 +6983,7 @@ test("can\u2019t finish processing file code preview content for file without pr
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "application/octet-stream",
             contentLength: 100,
@@ -6763,6 +7006,7 @@ test("can\u2019t finish processing file code preview content for file with an im
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6783,6 +7027,7 @@ test("can\u2019t finish processing file code preview content for file with an im
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6811,6 +7056,7 @@ test("system action from the wrong space can\u2019t access file", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6848,6 +7094,7 @@ test("only the uploader account can access their file", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -6933,6 +7180,7 @@ test("can get file from attachment after it\u2019s been attached", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7036,6 +7284,7 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7261,6 +7510,7 @@ test("can\u2019t attach file if you don\u2019t have edit access to the target", 
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7340,6 +7590,7 @@ test("can attach file to new target", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7419,6 +7670,7 @@ test("can attach file to new target as the uploader", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7601,6 +7853,7 @@ test("can get file from attachment after it\u2019s been attached when starting u
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7643,6 +7896,7 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7761,6 +8015,7 @@ test("can detach file as uploader", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7832,6 +8087,7 @@ test("can detach file as non-uploader", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7903,6 +8159,7 @@ test("can\u2019t detach file without view access", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7935,6 +8192,7 @@ test("can\u2019t detach file without view access", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -7988,6 +8246,7 @@ test("can\u2019t detach file without edit access", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
@@ -8020,6 +8279,7 @@ test("can\u2019t detach file without edit access", async () => {
         ),
     ).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,

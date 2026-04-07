@@ -1117,6 +1117,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1129,6 +1130,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1178,6 +1180,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1190,6 +1193,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1266,6 +1270,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1278,6 +1283,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1327,6 +1333,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1339,6 +1346,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,

@@ -3,13 +3,14 @@ import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_conten
 import {FileHasPreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type FileModelData = SchemaType<typeof FileModelDataSchema>;
 
 export const FileModelDataSchema = Schema.object({
     id: Schema.id<FileId>(),
+    spaceId: Schema.id<SpaceId>(),
     contentType: FileContentTypeSchema,
     contentLength: Schema.integer,
     isUploading: Schema.boolean,
@@ -40,6 +41,7 @@ export class FileModel {
     // Immutable data for the file. Since this data doesn't change you don't have to
     // access it through `FileRegistry` or `initialData`.
     public readonly id: FileId;
+    public readonly spaceId: SpaceId;
     public readonly contentType: FileContentType;
     public readonly contentLength: number;
 
@@ -51,6 +53,7 @@ export class FileModel {
 
     constructor(initialData: FileModelData) {
         this.id = initialData.id;
+        this.spaceId = initialData.spaceId;
         this.contentType = initialData.contentType;
         this.contentLength = initialData.contentLength;
         this.initialData = initialData;

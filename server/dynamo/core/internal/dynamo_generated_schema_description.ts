@@ -7709,7 +7709,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "referenceId": "97bf7d2e"
                                             }
                                         },
                                         "optional": true
@@ -8274,7 +8275,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                             }
                                                         }
                                                     }
-                                                }
+                                                },
+                                                "referenceId": "550077d4"
                                             }
                                         },
                                         "optional": false
@@ -8522,6 +8524,310 @@ export const dynamoGeneratedSchemaDescription: {
                             "childSortRangeByType": {}
                         }
                     }
+                },
+                "File2": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "fileId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "contentType": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "af264040"
+                                        },
+                                        "optional": false
+                                    },
+                                    "contentLength": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "uploaderId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "isUploading": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "alternative": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "97bf7d2e"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "hasProcessedNullAlternative": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": true
+                                        },
+                                        "optional": true
+                                    },
+                                    "preview": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "550077d4"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "ChatMessagesAttachmentTarget": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "chatId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "DocumentAttachmentTarget": {
+                            "id": 2,
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "documentId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "DocumentCommentsAttachmentTarget": {
+                            "id": 3,
+                            "orderKey": "a3",
+                            "sortKeyAttributeByKey": {
+                                "documentId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "PostAttachmentTarget": {
+                            "id": 4,
+                            "orderKey": "a4",
+                            "sortKeyAttributeByKey": {
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "PostDraftAttachmentTarget": {
+                            "id": 5,
+                            "orderKey": "a5",
+                            "sortKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                },
+                                "draftId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "PostCommentsAttachmentTarget": {
+                            "id": 6,
+                            "orderKey": "a6",
+                            "sortKeyAttributeByKey": {
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "TaskNotesAttachmentTarget": {
+                            "id": 7,
+                            "orderKey": "a7",
+                            "sortKeyAttributeByKey": {
+                                "taskId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "TaskCommentsAttachmentTarget": {
+                            "id": 8,
+                            "orderKey": "a8",
+                            "sortKeyAttributeByKey": {
+                                "taskId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
                 }
             },
             "indexes": [
@@ -8531,6 +8837,24 @@ export const dynamoGeneratedSchemaDescription: {
                         "type": "Separate"
                     },
                     "overloadByName": {
+                        "FilesBySpace": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "File2",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "fileId": {
+                                    "type": "Id"
+                                }
+                            }
+                        },
                         "PostDraftFileAttachments": {
                             "itemTypes": [
                                 {
@@ -8542,6 +8866,27 @@ export const dynamoGeneratedSchemaDescription: {
                                 "spaceId": {
                                     "type": "Id"
                                 },
+                                "accountId": {
+                                    "type": "Id"
+                                },
+                                "draftId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "fileId": {
+                                    "type": "Id"
+                                }
+                            }
+                        },
+                        "PostDraftFile2Attachments": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "File2",
+                                    "sortRangeType": "PostDraftAttachmentTarget"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
                                 "accountId": {
                                     "type": "Id"
                                 },

@@ -177,6 +177,11 @@ export const FilesTable = DynamoTableSchema.new({
             ],
         },
         {
+            /**
+             * MAJOR NOTE: This partition is no longer used! See File2 below.
+             *
+             * This partition should be removed when we're sure we no longer need it.
+             */
             name: "File",
             partitionKeyAttributes: {
                 spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
@@ -258,14 +263,217 @@ export const FilesTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            // TODO: Rename to "File" to match the old "File" partition when we have that
+            // ability.
+            name: "File2",
+            partitionKeyAttributes: {
+                fileId: DynamoKeyAttributeSchema.id<FileId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The space this file belongs to.
+                         */
+                        spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * The content type of this file.
+                         *
+                         * The file's content type doesn't change after upload. If we don't know the file's
+                         * type after upload we set it to `application/octet-stream` (which means unknown
+                         * binary file). This means if we later add support for a content type, previously
+                         * uploaded files won't get support. Only newly uploaded files.
+                         */
+                        contentType: FileContentTypeSchema,
+
+                        /**
+                         * The length of the file in bytes.
+                         */
+                        contentLength: Schema.integer,
+
+                        /**
+                         * Which account uploaded this file?
+                         */
+                        uploaderId: Schema.id<AccountId>(),
+
+                        /**
+                         * Is the file content currently uploading? True before we've finished saving the
+                         * file's content to Cloudflare R2. False afterwards.
+                         *
+                         * Just because the file is done uploading doesn't mean it's done processing.
+                         * `isUploading` may be false while `preview.isProcessing` is true.
+                         */
+                        isUploading: Schema.boolean,
+
+                        /**
+                         * An (ideally lossless) alternative to the file we can render on the client. We
+                         * support many more document types than what the client can actually render. For
+                         * example, the user may upload a `.tiff` image but `.tiff` images can't be
+                         * rendered in a web browser. Or the user may upload a Microsoft Word document but
+                         * we need to convert such a document to `.pdf` before we can render it. This
+                         * property records whether the file has an alternative.
+                         *
+                         * If non-null the file has an alternative that'll be rendered instead of the main
+                         * file itself. If `isImagePreviewContent` is true then the alternative is the same
+                         * as what's in `preview.content`. (`isImagePreviewContent` being true implies
+                         * there must be a `preview.content`.)
+                         *
+                         * The alternative is only rendered in the fullscreen file viewer. Though a preview
+                         * image may be generated from the alternative file.
+                         *
+                         * - If `alternative` has finished uploading and `isImagePreviewContent` is false
+                         *   then the alternative file is stored in Cloudflare R2 with the key:
+                         *   `${spaceId}/${fileId}-alternative`.
+                         *
+                         * - If `alternative` has finished uploading and `isImagePreviewContent` is true
+                         *   then the alternative file is stored in Cloudflare R2 with the key:
+                         *   `${spaceId}/${fileId}-preview`.
+                         */
+                        alternative: FileAlternativeSchema.nullable().default(null),
+
+                        /**
+                         * True if `alternative` is now null but at some point in time `alternative` was
+                         * set to `{isProcessing: true}`. This happens for the `video/mp4` and `audio/mp4`
+                         * content types which might be web safe or web unsafe depending on the codecs
+                         * used. So we set `alternative: {isProcessing: true}` until we figure out the
+                         * codecs. If we have web safe codecs then we'll set `alternative` to `null` and
+                         * this property to `true`.
+                         */
+                        hasProcessedNullAlternative: Schema.value(true).optional(),
+
+                        /**
+                         * A visual preview image for the file. Previews are a scaled down, often
+                         * non-interactive, display of a file. For example files displayed in a document
+                         * image gallery are previews.
+                         *
+                         * If the user clicks on a file it then opens up a fullscreen file viewer where
+                         * they'll see their file in full resolution.
+                         *
+                         * Ideally, every file has a preview. But some files don't have a useful visual
+                         * representation. For example, audio files or unknown binary files. If a file
+                         * doesn't have a preview then this object will be null.
+                         *
+                         * See the documentation on `FilePreview` for more information.
+                         *
+                         * If `preview.content` is available then the preview file is stored in Cloudflare
+                         * R2 with the key: `${spaceId}/${fileId}-preview`.
+                         */
+                        preview: FilePreviewSchema.nullable(),
+                    }),
+                },
+                {
+                    name: "ChatMessagesAttachmentTarget",
+                    sortKeyAttributes: {
+                        chatId: DynamoKeyAttributeSchema.id<ChatId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "DocumentAttachmentTarget",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "DocumentCommentsAttachmentTarget",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "PostAttachmentTarget",
+                    sortKeyAttributes: {
+                        postId: DynamoKeyAttributeSchema.id<PostId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "PostDraftAttachmentTarget",
+                    sortKeyAttributes: {
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                        draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "PostCommentsAttachmentTarget",
+                    sortKeyAttributes: {
+                        postId: DynamoKeyAttributeSchema.id<PostId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "TaskNotesAttachmentTarget",
+                    sortKeyAttributes: {
+                        taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "TaskCommentsAttachmentTarget",
+                    sortKeyAttributes: {
+                        taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+            ],
+        },
     ],
 });
 
+export const FilesBySpaceIndex = FilesTable.addIndex({
+    name: "FilesBySpace",
+    itemTypes: [{partitionType: "File2", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+    },
+    sortKeyAttributes: {
+        fileId: DynamoKeyAttributeSchema.id<FileId>(),
+    },
+});
+
+// Old index kept for backwards compatibility. Reads have moved to
+// PostDraftFile2AttachmentsIndex. This index will be removed in a future PR that
+// cleans up the old "File" partition.
 export const PostDraftFileAttachmentsIndex = FilesTable.addIndex({
     name: "PostDraftFileAttachments",
     itemTypes: [{partitionType: "File", sortRangeType: "PostDraftAttachmentTarget"}],
     partitionKeyAttributes: {
         spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+        draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
+    },
+    sortKeyAttributes: {
+        fileId: DynamoKeyAttributeSchema.id<FileId>(),
+    },
+});
+
+export const PostDraftFile2AttachmentsIndex = FilesTable.addIndex({
+    name: "PostDraftFile2Attachments",
+    itemTypes: [{partitionType: "File2", sortRangeType: "PostDraftAttachmentTarget"}],
+    partitionKeyAttributes: {
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
         draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
     },

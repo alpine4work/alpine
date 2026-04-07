@@ -414,7 +414,10 @@ Content-Length: 33102\r\n\
         socketText
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
-            .replace(/,"file":\{"id":"[^"]*"/m, ',"file":{"id":"..."'),
+            .replace(
+                /,"file":\{"id":"[^"]*","spaceId":"[^"]*"/m,
+                ',"file":{"id":"...","spaceId":"..."',
+            ),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/json\r\n\
@@ -422,7 +425,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -436,6 +439,7 @@ chunk\r\n\
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -660,6 +664,7 @@ Content-Length: 33102\r\n\
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -755,6 +760,7 @@ Content-Length: 33102\r\n\
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -784,7 +790,10 @@ Content-Length: 33102\r\n\
         socketText
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
-            .replace(/,"file":\{"id":"[^"]*"/m, ',"file":{"id":"..."'),
+            .replace(
+                /,"file":\{"id":"[^"]*","spaceId":"[^"]*"/m,
+                ',"file":{"id":"...","spaceId":"..."',
+            ),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/json\r\n\
@@ -792,7 +801,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
+{"ok":true,"signedUrlSearch":"?sig=test","file":{"id":"...","spaceId":"...","contentType":"image/jpeg","contentLength":33102,"isUploading":false,"alternative":null,"preview":{"type":"Image","isProcessing":true,"size":null,"placeholder":null}}}\r\n\
 chunk\r\n\
 \r\n\
 `);
@@ -803,6 +812,7 @@ chunk\r\n\
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: fileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -842,6 +852,7 @@ test("can\u2019t process invalid image data", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/png",
             contentLength: 100000,
@@ -861,6 +872,7 @@ test("can\u2019t process invalid image data", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/png",
             contentLength: 100000,
@@ -904,6 +916,7 @@ test("can\u2019t process image with the wrong content type", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/png",
             contentLength: 33102,
@@ -923,6 +936,7 @@ test("can\u2019t process image with the wrong content type", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/png",
             contentLength: 33102,
@@ -966,6 +980,7 @@ test("can upload and process image", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -985,6 +1000,7 @@ test("can upload and process image", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: responseBody.file.id,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -1032,6 +1048,7 @@ test("can upload and process large image", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: expect.any(String),
             contentType: "image/jpeg",
             contentLength: 2274056,
@@ -1051,6 +1068,7 @@ test("can upload and process large image", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: responseBody.file.id,
             contentType: "image/jpeg",
             contentLength: 2274056,
@@ -1098,6 +1116,7 @@ test("can upload image with a provided id", async () => {
         ok: true,
         signedUrlSearch: "?sig=test",
         file: new FileModel({
+            spaceId: space.id,
             id: providedFileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -1117,6 +1136,7 @@ test("can upload image with a provided id", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: providedFileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -1165,6 +1185,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
             ok: true,
             signedUrlSearch: "?sig=test",
             file: new FileModel({
+                spaceId: space.id,
                 id: providedFileId,
                 contentType: "image/jpeg",
                 contentLength: 33102,
@@ -1185,6 +1206,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
 
     expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
         new FileModel({
+            spaceId: space.id,
             id: providedFileId,
             contentType: "image/jpeg",
             contentLength: 33102,
@@ -1225,7 +1247,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
         expect(responseBody).toEqual({
             ok: false,
             error: new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
+                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed, None]",
             ),
         });
     }

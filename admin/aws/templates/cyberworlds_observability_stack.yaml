@@ -1136,6 +1136,8 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__files__partition__file__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__files__partition__file2__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__forum__partition_type
                           Type: string
                         - Name: dynamodb__table__forum__partition__channel__sort_range_type

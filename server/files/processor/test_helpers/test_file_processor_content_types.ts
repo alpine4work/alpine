@@ -309,6 +309,7 @@ export function testFileProcessorContentTypes(
 
                             expect(file).toEqual(
                                 new FileModel({
+                                    spaceId: space.id,
                                     id: file.id,
                                     contentType: contentType as FileContentType,
                                     contentLength: expect.any(Number),

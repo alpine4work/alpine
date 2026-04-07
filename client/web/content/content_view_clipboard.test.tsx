@@ -89,6 +89,7 @@ const testDocument: DocumentContentWithReferences = {
                     signedUrlSearch: "?exp=1728432335&iss=app&aud=edg&sig=test-img1",
                     file: new FileModel({
                         id: file1Id,
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 2274056,
                         isUploading: false,
@@ -109,6 +110,7 @@ const testDocument: DocumentContentWithReferences = {
                     signedUrlSearch: "?exp=1728432338&iss=app&aud=edg&sig=test-img2",
                     file: new FileModel({
                         id: file2Id,
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 15353789,
                         isUploading: false,

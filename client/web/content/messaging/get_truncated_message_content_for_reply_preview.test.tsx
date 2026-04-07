@@ -58,6 +58,7 @@ function createTestFile(contentType: string): {
         signedUrlSearch: "",
         file: new FileModel({
             id: generateChronologicalId<FileId>(),
+            spaceId,
             contentType: contentType as any,
             contentLength: 100,
             isUploading: false,
