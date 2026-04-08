@@ -1,7 +1,5 @@
-import {AgentWebPageKeyObject} from "~/server/agents/web/agent_web_page_key.js";
 import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
 import {
@@ -15,8 +13,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-
-// NOCOMMIT: Pagination???
 
 export type AgentWebPageLink =
     | {
@@ -32,19 +28,16 @@ export type AgentWebPageLink =
           readonly title: string;
       }
     | {
-          readonly type: "ChatMessages";
+          readonly type: "Chat";
           readonly id: ChatId;
-          readonly preview:
-              | {
-                    readonly type: "Title";
-                    readonly title: string;
-                }
-              | {
-                    readonly type: "Message";
-                    readonly index: number;
-                    readonly authorShortName: string;
-                    readonly bodySnippet: string;
-                };
+          readonly title: string;
+      }
+    | {
+          readonly type: "ChatMessage";
+          readonly id: ChatId;
+          readonly index: number;
+          readonly authorShortName: string;
+          readonly bodySnippet: string;
       }
     | {
           readonly type: "Document";
@@ -52,29 +45,24 @@ export type AgentWebPageLink =
           readonly title: string;
       }
     | {
-          readonly type: "DocumentMessages";
+          readonly type: "DocumentMessage";
           readonly id: DocumentId;
           readonly threadId: DocumentCommentThreadId;
-          readonly preview: {
-              readonly index: number;
-              readonly authorShortName: string;
-              readonly bodySnippet: string;
-          };
+          readonly index: number;
+          readonly authorShortName: string;
+          readonly bodySnippet: string;
       }
     | {
-          readonly type: "PostMessages";
+          readonly type: "Post";
           readonly id: PostId;
-          readonly preview:
-              | {
-                    readonly type: "Title";
-                    readonly title: string;
-                }
-              | {
-                    readonly type: "Message";
-                    readonly index: number;
-                    readonly authorShortName: string;
-                    readonly bodySnippet: string;
-                };
+          readonly title: string;
+      }
+    | {
+          readonly type: "PostMessage";
+          readonly id: PostId;
+          readonly index: number;
+          readonly authorShortName: string;
+          readonly bodySnippet: string;
       }
     | {
           readonly type: "Task";
@@ -83,13 +71,11 @@ export type AgentWebPageLink =
           readonly status: ApiTaskStatus;
       }
     | {
-          readonly type: "TaskMessages";
+          readonly type: "TaskMessage";
           readonly id: TaskId;
-          readonly preview: {
-              readonly index: number;
-              readonly authorShortName: string;
-              readonly bodySnippet: string;
-          };
+          readonly index: number;
+          readonly authorShortName: string;
+          readonly bodySnippet: string;
       }
     | {
           readonly type: "TaskCollection";
@@ -97,7 +83,37 @@ export type AgentWebPageLink =
           readonly title: string;
       };
 
-assertAssignableTypes<AgentWebPageLink, AgentWebPageKeyObject>();
+/**
+ * Used to determine if two links point to the same underlying data.
+ */
+export function printAgentWebPageLinkKey(key: AgentWebPageLink): string {
+    switch (key.type) {
+        case "Account":
+            return `Account:${key.id}`;
+        case "Channel":
+            return `Channel:${key.id}`;
+        case "Chat":
+            return `Chat:${key.id}`;
+        case "ChatMessage":
+            return `ChatMessage:${key.id}-${key.index}`;
+        case "Document":
+            return `Document:${key.id}`;
+        case "DocumentMessage":
+            return `DocumentMessage:${key.id}-${key.threadId}-${key.index}`;
+        case "Post":
+            return `Post:${key.id}`;
+        case "PostMessage":
+            return `PostMessage:${key.id}-${key.index}`;
+        case "Task":
+            return `Task:${key.id}`;
+        case "TaskMessage":
+            return `TaskMessage:${key.id}-${key.index}`;
+        case "TaskCollection":
+            return `TaskCollection:${key.id}`;
+        default:
+            throw exhaustive(key);
+    }
+}
 
 /**
  * Prints a human readable path for an agent web page link. When a page link is
@@ -108,14 +124,23 @@ assertAssignableTypes<AgentWebPageLink, AgentWebPageKeyObject>();
  * we'll increment `dedupeNumber` and try to print a new path until we find a
  * unique path.
  */
-export function printAgentWebPageLinkPath(link: AgentWebPageLink, dedupeNumber: number): string {
-    const path = actuallyPrintAgentWebPageLinkPath(link, dedupeNumber);
+export function printAgentWebPageLinkPathname(
+    link: AgentWebPageLink,
+    dedupeNumber: number,
+): string {
+    const path = actuallyPrintAgentWebPageLinkPathname(link, dedupeNumber);
 
     // Validation in development and tests that we actually use `dedupeNumber` to
     // create a unique path.
     if (process.env.NODE_ENV !== "production") {
+        // The printed string should look like a URL pathname! Without search params and
+        // without a hash.
+        assert(path.startsWith("/"));
+        assert(!path.includes("?"));
+        assert(!path.includes("#"));
+
         assert(
-            path !== actuallyPrintAgentWebPageLinkPath(link, dedupeNumber + 1),
+            path !== actuallyPrintAgentWebPageLinkPathname(link, dedupeNumber + 1),
             "Printed agent web page path must include dedupe number",
         );
     }
@@ -123,7 +148,10 @@ export function printAgentWebPageLinkPath(link: AgentWebPageLink, dedupeNumber: 
     return path;
 }
 
-function actuallyPrintAgentWebPageLinkPath(link: AgentWebPageLink, dedupeNumber: number): string {
+function actuallyPrintAgentWebPageLinkPathname(
+    link: AgentWebPageLink,
+    dedupeNumber: number,
+): string {
     const dedupe = dedupeNumber > 1 ? `-${dedupeNumber}` : "";
 
     switch (link.type) {
@@ -137,41 +165,29 @@ function actuallyPrintAgentWebPageLinkPath(link: AgentWebPageLink, dedupeNumber:
         case "Channel": {
             return `/channel/${slugify(link.title)}${dedupe}`;
         }
-        case "ChatMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return `/chat/${slugify(link.preview.title)}${dedupe}`;
-                }
-                case "Message": {
-                    return `/chat/${slugify(link.preview.authorShortName)}-${slugify(link.preview.bodySnippet)}${dedupe}`;
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
+        case "Chat": {
+            return `/chat/${slugify(link.title)}${dedupe}`;
+        }
+        case "ChatMessage": {
+            return `/chat/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Document": {
             return `/document/${slugify(link.title)}${dedupe}`;
         }
-        case "DocumentMessages": {
-            return `/document-thread/${slugify(link.preview.authorShortName)}-${slugify(link.preview.bodySnippet)}${dedupe}`;
+        case "DocumentMessage": {
+            return `/document-thread/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
-        case "PostMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return `/post/${slugify(link.preview.title)}${dedupe}`;
-                }
-                case "Message": {
-                    return `/post/${slugify(link.preview.authorShortName)}-${slugify(link.preview.bodySnippet)}${dedupe}`;
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
+        case "Post": {
+            return `/post/${slugify(link.title)}${dedupe}`;
+        }
+        case "PostMessage": {
+            return `/post/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Task": {
             return `/task/${slugify(link.title)}${dedupe}`;
         }
-        case "TaskMessages": {
-            return `/task-comments/${slugify(link.preview.authorShortName)}-${slugify(link.preview.bodySnippet)}${dedupe}`;
+        case "TaskMessage": {
+            return `/task-comments/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "TaskCollection": {
             return `/task-collection/${slugify(link.title)}${dedupe}`;
@@ -209,32 +225,20 @@ export function printAgentWebPageLinkLabel(link: AgentWebPageLink): string {
         case "TaskCollection": {
             return link.title;
         }
-        case "ChatMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return link.preview.title;
-                }
-                case "Message": {
-                    return `${link.preview.authorShortName}: ${link.preview.bodySnippet}`;
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
+        case "Chat": {
+            return link.title;
         }
-        case "DocumentMessages": {
-            return `${link.preview.authorShortName}: ${link.preview.bodySnippet}`;
+        case "ChatMessage": {
+            return `${link.authorShortName}: ${link.bodySnippet}`;
         }
-        case "PostMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return link.preview.title;
-                }
-                case "Message": {
-                    return `${link.preview.authorShortName}: ${link.preview.bodySnippet}`;
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
+        case "DocumentMessage": {
+            return `${link.authorShortName}: ${link.bodySnippet}`;
+        }
+        case "Post": {
+            return link.title;
+        }
+        case "PostMessage": {
+            return `${link.authorShortName}: ${link.bodySnippet}`;
         }
         case "Task": {
             // Intentionally not including whether the task is active in this label. Keeping
@@ -242,8 +246,8 @@ export function printAgentWebPageLinkLabel(link: AgentWebPageLink): string {
             // active.
             return `${link.title} ${link.status.type === "Open" ? "(Open)" : "(Closed)"}`;
         }
-        case "TaskMessages": {
-            return `${link.preview.authorShortName}: ${link.preview.bodySnippet}`;
+        case "TaskMessage": {
+            return `${link.authorShortName}: ${link.bodySnippet}`;
         }
         default:
             throw exhaustive(link);

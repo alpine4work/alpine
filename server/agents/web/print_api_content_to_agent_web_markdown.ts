@@ -1,10 +1,10 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, RootContent} from "mdast";
-import {printAgentWebPageKey} from "~/server/agents/web/agent_web_page_key.js";
 import {
+    printAgentWebPageLinkKey,
     printAgentWebPageLinkLabel,
-    printAgentWebPageLinkPath,
+    printAgentWebPageLinkPathname,
 } from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
@@ -135,25 +135,24 @@ async function traverseApiContentMarkdownNode(
 
             return storage.mutex.withLock(async () => {
                 const pageLink = createApiTargetAgentWebPageLink(mentionElement.target);
-
-                const pageKey = printAgentWebPageKey(pageLink);
+                const pageKey = printAgentWebPageLinkKey(pageLink);
 
                 let dedupeNumber = 1;
-                let pageLinkPath = printAgentWebPageLinkPath(pageLink, dedupeNumber);
+                let pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
 
-                let actualPageKey = await storage.pageLinkByPath.get(pageLinkPath);
+                let actualPageLink = await storage.pageLinkByPathname.get(pageLinkPathname);
 
                 while (
-                    actualPageKey !== undefined &&
-                    printAgentWebPageKey(actualPageKey) !== pageKey
+                    actualPageLink !== undefined &&
+                    printAgentWebPageLinkKey(actualPageLink) !== pageKey
                 ) {
                     dedupeNumber++;
-                    pageLinkPath = printAgentWebPageLinkPath(pageLink, dedupeNumber);
-                    actualPageKey = await storage.pageLinkByPath.get(pageLinkPath);
+                    pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
+                    actualPageLink = await storage.pageLinkByPathname.get(pageLinkPathname);
                 }
 
-                if (actualPageKey === undefined) {
-                    await storage.pageLinkByPath.put(pageLinkPath, pageLink);
+                if (actualPageLink === undefined) {
+                    await storage.pageLinkByPathname.put(pageLinkPathname, pageLink);
                 }
 
                 const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);
@@ -164,6 +163,8 @@ async function traverseApiContentMarkdownNode(
                     mentionElement.target.type === "Account" && mentionElement.isAccountShortName
                         ? mentionElement.target.shortName
                         : originalPageLinkLabel;
+
+                let pageLinkPath = pageLinkPathname;
 
                 // If we weren't able to encode the fact that this is a short account mention by
                 // using the short account name in the label, then add a hash part to the path.

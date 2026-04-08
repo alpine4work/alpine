@@ -1,21 +1,14 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
-import {
-    AgentWebSessionStorage,
-    AgentWebSessionStorageCollection,
-} from "~/server/agents/web/agent_web_session_storage.js";
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
-import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
+import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -50,41 +43,7 @@ const exampleTruncatedUrlWithHash =
 const otherExampleUrlWithHash =
     exampleUrlWithHash.slice(0, 70) + "ZZZ" + exampleUrlWithHash.slice(73);
 
-const temporaryStorage = new TemporaryDurableObjectStorage();
-
-afterEach(async () => {
-    await temporaryStorage.deleteAll();
-});
-
-let nextOrderKey = initialOrderKey;
-
-function createAgentWebSessionStorageCollection<
-    Key extends string,
-    Value,
->(): AgentWebSessionStorageCollection<Key, Value> {
-    const orderKey = nextOrderKey;
-    nextOrderKey = generateOrderKeyBetween(nextOrderKey, null);
-
-    const collection = new DurableObjectStorageCollection<Key, Value>(orderKey);
-
-    return {
-        get: collection.get.bind(collection, temporaryStorage),
-        put: collection.put.bind(collection, temporaryStorage),
-        list: collection.list.bind(collection, temporaryStorage),
-    };
-}
-
-const storage: AgentWebSessionStorage = {
-    spaceId,
-    mutex: new Mutex(),
-    pageLinkByPath: createAgentWebSessionStorageCollection(),
-    urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
-    dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
-    documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
-    documentCommentThreadIdByNumber: createAgentWebSessionStorageCollection(),
-    tableWidthByTruncatedWidth: createAgentWebSessionStorageCollection(),
-    tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
-};
+const storage = createAgentWebSessionStorageForTest(spaceId);
 
 const testCases: Array<{
     only?: CommitBlocker;

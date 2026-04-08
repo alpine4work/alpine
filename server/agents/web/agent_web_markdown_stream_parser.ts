@@ -4,6 +4,7 @@ import {BlockContent, DefinitionContent, Html, Root, RootContent} from "mdast";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,
@@ -505,21 +506,13 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                 // This link looks like a mention, let's add the correct link to the Markdown tree
                 // before parsing into content.
                 if (!/[a-zA-Z0-9]+:/.test(node.url)) {
-                    let path = node.url;
-
-                    // Add a leading slash in case the LLM forgot to add one.
-                    if (!path.startsWith("/")) path = `/${path}`;
-
-                    // Remove the hash part of the URL before resolving. Just like in an actual web
-                    // server! The hash part is only visible to the client, it's not visible to the
-                    // server. So it doesn't change server resolution.
-                    path = path.replace(/#.*$/, "");
+                    const {pathname} = normalizeAgentWebPath(node.url);
 
                     // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
                     // mentionable, `pageLink` will be null. We need to build a plain link for non
                     // mentionable content and we also need to swap the label so something more user
                     // friendly (`mentionLabel`).
-                    const pageLink = await storage.pageLinkByPath.get(path);
+                    const pageLink = await storage.pageLinkByPathname.get(pathname);
 
                     if (!pageLink) return node;
 

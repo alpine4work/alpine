@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/fast-check",
         "//server/cloudflare",
         "//shared/api/markdown/test_helpers",
+        "//server/agents/web/test_helpers",
     ],
     # IMPORTANT: We try to keep the first-party dependency list for our agent
     # service family pretty small. Since long term, we want an ecosystem of
