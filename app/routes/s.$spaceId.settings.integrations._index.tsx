@@ -24,7 +24,6 @@ import {
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {hasNotionImportFeature} from "~/shared/spaces/has_notion_import_feature.js";
 
 // We don't need to reload if the URL doesn't change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -42,7 +41,7 @@ interface IntegrationData {
     name: string;
     tagline: string;
     icon: React.ReactNode;
-    isAvailable: (spaceId: SpaceId) => boolean;
+    isAvailable: boolean | ((spaceId: SpaceId) => boolean);
 }
 
 const integrations: Array<IntegrationData> = [
@@ -51,14 +50,14 @@ const integrations: Array<IntegrationData> = [
         name: "Slack",
         tagline: "Get notifications in Slack",
         icon: <SlackLogo />,
-        isAvailable: () => true,
+        isAvailable: true,
     },
     {
         slug: "notion",
         name: "Notion",
         tagline: "Import documents from Notion",
         icon: <NotionLogo />,
-        isAvailable: hasNotionImportFeature,
+        isAvailable: true,
     },
 ];
 
@@ -66,7 +65,12 @@ export default function SpaceIntegrationListSettingsRoute() {
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
     const availableIntegrations = useMemo(
-        () => integrations.filter(integration => integration.isAvailable(space.id)),
+        () =>
+            integrations.filter(integration =>
+                typeof integration.isAvailable === "function"
+                    ? integration.isAvailable(space.id)
+                    : integration.isAvailable,
+            ),
         [space.id],
     );
 

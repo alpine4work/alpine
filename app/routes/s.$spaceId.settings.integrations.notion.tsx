@@ -22,14 +22,13 @@ import {getAllNotionImportsForSpace} from "~/server/importer/notion/get_notion_i
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountIfExists} from "~/server/spaces/get_account.js";
-import {NotFoundError} from "~/shared/error/error.js";
+
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {hasNotionImportFeature} from "~/shared/spaces/has_notion_import_feature.js";
 
 const LoaderSchema = Schema.object({
     notionImports: Schema.array(LocalNotionImportItemSchema),
@@ -39,10 +38,6 @@ const LoaderSchema = Schema.object({
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-
-    if (!hasNotionImportFeature(spaceId)) {
-        throw new NotFoundError("Page not found");
-    }
 
     const notionImports = await getAllNotionImportsForSpace(context, {spaceId});
 
