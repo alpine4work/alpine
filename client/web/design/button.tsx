@@ -34,6 +34,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
+import {Color} from "~/shared/design/core/colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -94,6 +95,11 @@ function Button(
          * Which styles should we apply to the variant?
          */
         variant?: ButtonVariant;
+
+        /**
+         * Override the text color set by the variant.
+         */
+        color?: Color;
 
         /**
          * An optional icon element rendered next to the button label.
@@ -331,6 +337,7 @@ function Button(
         focusRingOffset,
         isTabbable = true,
         isFocusable = true,
+        color: colorFromProps,
         onHoverStart,
         onHoverEnd,
     } = props;
@@ -715,6 +722,10 @@ function Button(
         }
         default:
             throw exhaustive(variant);
+    }
+
+    if (colorFromProps) {
+        styles = {...styles, color: colorFromProps};
     }
 
     const isOutlineVariant = variant === "outline";

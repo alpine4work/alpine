@@ -18,17 +18,25 @@ import {fontSizes} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {ErrorBase} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {notionImportFileRetentionDays} from "~/shared/importer/notion/notion_import_file_retention.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 import {getNotionImport, retryNotionImport} from "~/shared/rpc/notion_import_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
+export type NotionImportItemForCard = Omit<LocalNotionImportItem, "status"> & {
+    status: Extract<
+        LocalNotionImportItem["status"],
+        {type: "Failed" | "Success" | "Processing" | "ProcessQueued"}
+    >;
+};
+
 export function NotionImportItemCard({
     initialItem,
     startedByAccount,
 }: {
-    initialItem: LocalNotionImportItem;
+    initialItem: NotionImportItemForCard;
     startedByAccount: AccountModel;
 }) {
     const appContext = useAppContext();
@@ -74,8 +82,17 @@ export function NotionImportItemCard({
                 return;
             }
 
+            const {status} = notionImport;
+            assert(
+                status.type === "Success" ||
+                    status.type === "Failed" ||
+                    status.type === "Processing" ||
+                    status.type === "ProcessQueued",
+            );
+
             setItem({
                 ...notionImport,
+                status,
                 notionImportId: item.notionImportId,
             });
 
@@ -126,7 +143,8 @@ export function NotionImportItemCard({
         currentTimeRoundedToNearestTenMinutes.getTime() -
             notionImportFileRetentionDays * 24 * 60 * 60 * 1000,
     );
-    const canRetry = isFailed && item.createdTime >= retentionCutoff;
+    const canRetry =
+        isFailed && item.createdTime >= retentionCutoff && item.teamspaceImportOptions != null;
 
     const handleRetry = async () => {
         if (!canRetry || isRetrying) return;
@@ -180,6 +198,14 @@ export function NotionImportItemCard({
 
     const progressEstimate = useStore(progressStoreRef.current.estimate);
 
+    const hasAnyImported =
+        result != null &&
+        Array.from(result.teamspaces.values()).some(
+            ts =>
+                ts.documents.imported > 0 ||
+                Array.from(ts.files.values()).some(f => f.imported > 0),
+        );
+
     const importedTeamspaces = (item.teamspaceImportOptions ?? []).filter(
         ts => ts.option.type !== "DoNotImport",
     );
@@ -222,8 +248,9 @@ export function NotionImportItemCard({
                         {progressEstimate ? (
                             <>
                                 {progressEstimate.percentComplete < 100 &&
-                                    progressEstimate.timeRemainingDisplay &&
-                                    progressEstimate.timeRemainingDisplay}
+                                    (hasAnyImported
+                                        ? (progressEstimate.timeRemainingDisplay ?? "Importing…")
+                                        : "Starting…")}
                                 {progressEstimate.percentComplete >= 100 &&
                                     progressEstimate.timeElapsedDisplay && (
                                         <>
@@ -236,7 +263,7 @@ export function NotionImportItemCard({
                             isPollingError ? (
                                 "Something went wrong"
                             ) : (
-                                "Importing…"
+                                "Starting…"
                             )
                         ) : isFailed ? (
                             "Failed"
@@ -275,7 +302,7 @@ export function NotionImportItemCard({
                 </Box>
             )}
 
-            {isFailed && item.status.error && (
+            {item.status.type === "Failed" && item.status.error && (
                 <Box fontSize="75" color="red-70">
                     {item.status.error}
                 </Box>
@@ -297,9 +324,6 @@ export function NotionImportItemCard({
                                 name={hideTeamspaceNames ? undefined : ts.teamspaceName}
                                 isPrivate={ts.option.type === "Private"}
                                 stats={result?.teamspaces.get(ts.teamspaceId)}
-                                isComplete={
-                                    item.status.type === "Success" || item.status.type === "Failed"
-                                }
                             />
                         </Box>
                     ))}
@@ -328,12 +352,10 @@ function NotionImportTeamspaceSummary({
     name,
     isPrivate,
     stats,
-    isComplete,
 }: {
     name: string | undefined;
     isPrivate: boolean;
     stats: TeamspaceStats | undefined;
-    isComplete: boolean;
 }) {
     const {locale} = useClientInfo();
 
@@ -370,8 +392,6 @@ function NotionImportTeamspaceSummary({
         }
     }
 
-    if (!name && parts.length === 0 && !isComplete) return null;
-
     return (
         <>
             {name && (
@@ -395,7 +415,7 @@ function NotionImportTeamspaceSummary({
                     {name ? " imported" : "Imported"} {joinPrettyConjunctionList(parts, "and")}
                 </>
             ) : (
-                isComplete && <>{name ? " nothing" : "Nothing"} imported</>
+                <>{name ? " nothing" : "Nothing"} imported</>
             )}
         </>
     );

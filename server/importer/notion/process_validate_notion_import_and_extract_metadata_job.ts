@@ -168,16 +168,18 @@ export async function processValidateNotionImportAndExtractMetadataJob(
             context,
             {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
             item => {
-                const existingItem = assertExists(item);
+                // The import may have been cancelled while validation was running. If the item no
+                // longer exists, exit gracefully instead of throwing.
+                if (!item) return null;
 
-                if (existingItem.status.type !== "Validating") {
+                if (item.status.type !== "Validating") {
                     throw new FailedPreconditionError(
                         "Status is not in the correct state for validation",
                     );
                 }
 
                 return {
-                    ...existingItem,
+                    ...item,
                     workspaceName: metadata.workspaceName,
                     teamspaceImportOptions,
                     status: {type: "Validated", result},

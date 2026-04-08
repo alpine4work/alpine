@@ -46,8 +46,16 @@ export function NotionImportUploadSection({
 
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const consecutivePollingFailuresRef = useRef(0);
-    const sentCreateNotionImportRequestRef = useRef(false);
     const [isPollingError, setIsPollingError] = useState(false);
+
+    // Tracks the in-flight upload before the server has acknowledged it and polling
+    // begins. Once polling starts, `activeImport` (derived from reducer state or the
+    // loader) takes over as the source of truth. Also serves as a guard against
+    // duplicate upload requests (non-null means in-flight).
+    const activeNotionImportUploadRef = useRef<{
+        xhrRequests: Array<XMLHttpRequest>;
+        id: NotionImportId;
+    } | null>(null);
 
     const activeImport = state.currentImport ?? activeImportFromLoader;
 
@@ -181,8 +189,7 @@ export function NotionImportUploadSection({
 
     const handleFileSelect = useCallback(
         async (file: File) => {
-            if (sentCreateNotionImportRequestRef.current) return;
-            sentCreateNotionImportRequestRef.current = true;
+            if (activeNotionImportUploadRef.current) return;
 
             setIsPollingError(false);
             consecutivePollingFailuresRef.current = 0;
@@ -198,6 +205,8 @@ export function NotionImportUploadSection({
                         contentLength: file.size,
                     },
                 );
+
+                activeNotionImportUploadRef.current = {xhrRequests: [], id: notionImportId};
 
                 // Upload file in chunks using S3 multipart upload. Each part is 100 MB
                 // (`importMultipartUploadPartSize`). We use XHR instead of fetch so we can track
@@ -253,6 +262,7 @@ export function NotionImportUploadSection({
                             const blob = file.slice(start, end);
 
                             const xhr = new XMLHttpRequest();
+                            activeNotionImportUploadRef.current?.xhrRequests.push(xhr);
 
                             xhr.upload.addEventListener("progress", event => {
                                 if (event.lengthComputable) {
@@ -336,7 +346,7 @@ export function NotionImportUploadSection({
                     reporter.displayError("Couldn\u2019t upload file", error);
                 }
             } finally {
-                sentCreateNotionImportRequestRef.current = false;
+                activeNotionImportUploadRef.current = null;
             }
         },
         [appContext, reporter, space.id, startPolling],
@@ -375,6 +385,32 @@ export function NotionImportUploadSection({
         }
     };
 
+    const makeCancelImportNetworkRequest = async (notionImportId: NotionImportId) => {
+        if (isCanceling) return;
+
+        try {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+            }
+
+            await cancelNotionImport(appContext, {
+                spaceId: space.id,
+                notionImportId,
+            });
+
+            dispatch({type: "CancelComplete"});
+            await revalidate();
+        } catch (error) {
+            dispatch({type: "CancelFailed"});
+            if (error instanceof ErrorBase) {
+                reporter.displayError("Couldn\u2019t cancel import", error);
+            }
+        } finally {
+            activeNotionImportUploadRef.current = null;
+        }
+    };
+
     const handleCancelImport = async () => {
         if (!activeImport || isCanceling) return;
 
@@ -388,25 +424,30 @@ export function NotionImportUploadSection({
 
         dispatch({type: "BeginCancel"});
 
-        try {
-            if (pollingRef.current) {
-                clearInterval(pollingRef.current);
-                pollingRef.current = null;
-            }
+        await makeCancelImportNetworkRequest(activeImport.notionImportId);
+    };
 
-            await cancelNotionImport(appContext, {
-                spaceId: space.id,
-                notionImportId: activeImport.notionImportId,
-            });
+    const handleCancelUploadOrValidation = async () => {
+        if (isCanceling) return;
 
-            dispatch({type: "CancelComplete"});
-            await revalidate();
-        } catch (error) {
-            dispatch({type: "CancelFailed"});
-            if (error instanceof ErrorBase) {
-                reporter.displayError("Couldn\u2019t cancel import", error);
-            }
+        // If we have an activeImport, use the standard cancel path.
+        if (activeImport) {
+            await handleCancelImport();
+            return;
         }
+
+        // During upload before polling has started, cancel using the ref-tracked import ID
+        // and abort in-flight XHRs.
+        const activeUpload = activeNotionImportUploadRef.current;
+        if (!activeUpload) return;
+
+        dispatch({type: "BeginCancel"});
+
+        for (const xhr of activeUpload.xhrRequests) {
+            xhr.abort();
+        }
+
+        await makeCancelImportNetworkRequest(activeUpload.id);
     };
 
     // Show the upload box when there's no active import, OR when validating
@@ -426,10 +467,12 @@ export function NotionImportUploadSection({
                 isDisabled={!!activeImport}
                 isUploading={isUploading}
                 isValidating={isValidating}
+                isCanceling={isCanceling}
                 isPollingError={isPollingError}
                 selectedFileName={selectedFileName}
                 uploadProgress={uploadProgress}
                 onFileSelect={handleFileSelect}
+                onCancel={handleCancelUploadOrValidation}
             />
         );
     }
@@ -466,7 +509,8 @@ export function NotionImportUploadSection({
                             fontSize="100"
                             height="9"
                             paddingX="3"
-                            variant="quiet"
+                            variant="outline"
+                            color="grey-60"
                             isPending={isCanceling}
                             pressErrorTitle="Couldn&#x2019;t cancel import"
                             onPress={async () => {
@@ -507,18 +551,22 @@ function NotionImportUploadBox({
     isDisabled: isDisabledFromProps,
     isUploading,
     isValidating,
+    isCanceling,
     isPollingError,
     selectedFileName,
     uploadProgress,
     onFileSelect,
+    onCancel,
 }: {
     isDisabled: boolean;
     isUploading: boolean;
     isValidating: boolean;
+    isCanceling: boolean;
     isPollingError: boolean;
     selectedFileName: string | null;
     uploadProgress: number;
     onFileSelect: (file: File) => void | Promise<void>;
+    onCancel: () => void | Promise<void>;
 }) {
     const platform = usePlatform();
 
@@ -659,7 +707,7 @@ function NotionImportUploadBox({
                                 className={`${sprinkles({color: "grey-50"})} ${spinAnimationClassName}`}
                             />
                             <Spacer space="2" />
-                            <Box fontSize="75" color="grey-60">
+                            <Box fontSize="75" color="grey-80">
                                 Uploading {selectedFileName}…
                             </Box>
                             <Spacer space="1" />
@@ -670,6 +718,19 @@ function NotionImportUploadBox({
                             >
                                 {Math.min(99, Math.round(uploadProgress * 100))}%
                             </Box>
+                            <Spacer space="5" />
+                            <Button
+                                fontSize="75"
+                                height="7"
+                                paddingX="3"
+                                variant="outline"
+                                color="grey-60"
+                                isPending={isCanceling}
+                                pressErrorTitle="Couldn&#x2019;t cancel upload"
+                                onPress={onCancel}
+                            >
+                                Cancel
+                            </Button>
                         </>
                     ) : isValidating && !isPollingError ? (
                         <>
@@ -678,9 +739,22 @@ function NotionImportUploadBox({
                                 className={`${sprinkles({color: "grey-50"})} ${spinAnimationClassName}`}
                             />
                             <Spacer space="2" />
-                            <Box fontSize="75" color="grey-60">
+                            <Box fontSize="75" color="grey-80">
                                 Validating {selectedFileName}…
                             </Box>
+                            <Spacer space="5" />
+                            <Button
+                                fontSize="75"
+                                height="7"
+                                paddingX="3"
+                                variant="outline"
+                                color="grey-60"
+                                isPending={isCanceling}
+                                pressErrorTitle="Couldn&#x2019;t cancel validation"
+                                onPress={onCancel}
+                            >
+                                Cancel
+                            </Button>
                         </>
                     ) : isPollingError ? (
                         <>

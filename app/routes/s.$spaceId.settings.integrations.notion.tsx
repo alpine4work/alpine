@@ -4,7 +4,10 @@ import {Box} from "~/client/web/design/box.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {NotionLogo} from "~/client/web/icons/socials/notion_logo.js";
 import {NotionImportHelpSection} from "~/client/web/importers/notion/notion_import_help_section.js";
-import {NotionImportItemCard} from "~/client/web/importers/notion/notion_import_item_card.js";
+import {
+    NotionImportItemCard,
+    NotionImportItemForCard,
+} from "~/client/web/importers/notion/notion_import_item_card.js";
 import {LocalNotionImportItemSchema} from "~/client/web/importers/notion/notion_import_types.js";
 import {NotionImportUploadSection} from "~/client/web/importers/notion/notion_import_upload_section.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -84,7 +87,7 @@ export default function SpaceNotionIntegrationSettingsRoute() {
     const completedOrProcessingImports = useMemo(() => {
         return [...notionImports]
             .filter(
-                item =>
+                (item): item is NotionImportItemForCard =>
                     item.status.type === "ProcessQueued" ||
                     item.status.type === "Processing" ||
                     item.status.type === "Success" ||
