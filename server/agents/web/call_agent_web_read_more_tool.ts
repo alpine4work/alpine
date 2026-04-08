@@ -53,7 +53,11 @@ export async function callAgentWebReadMoreTool(
         });
     }
 
-    return truncateAgentWebReadResponse(readResponse, {offsetLine, limitBytes});
+    return truncateAgentWebReadResponse(readResponse, {
+        offsetLine,
+        limitBytes,
+        isReadMoreTool: true,
+    });
 }
 
 export function truncateAgentWebReadResponse(
@@ -67,9 +71,11 @@ export function truncateAgentWebReadResponse(
     {
         offsetLine,
         limitBytes,
+        isReadMoreTool,
     }: {
         offsetLine: number;
         limitBytes: number;
+        isReadMoreTool: boolean;
     },
 ) {
     const decoder = new TextDecoder();
@@ -95,12 +101,12 @@ export function truncateAgentWebReadResponse(
             binarySearchLessThanOrEqual(newlineByteIndexes, offsetByteIndex + limitBytes),
         );
 
-        // Trim adjacent newline characters until we find the last non-newline byte.
-        while (newlineByteIndexResult.index > 0) {
-            const previousNewlineByteIndex = newlineByteIndexes[newlineByteIndexResult.index - 1]!;
-            if (previousNewlineByteIndex === newlineByteIndexResult.value - 1) {
+        // Consume newline characters until we find the last non-newline byte.
+        while (newlineByteIndexResult.index < newlineByteIndexes.length) {
+            const previousNewlineByteIndex = newlineByteIndexes[newlineByteIndexResult.index + 1]!;
+            if (previousNewlineByteIndex === newlineByteIndexResult.value + 1) {
                 newlineByteIndexResult = {
-                    index: newlineByteIndexResult.index - 1,
+                    index: newlineByteIndexResult.index + 1,
                     value: previousNewlineByteIndex,
                 };
             } else {
@@ -117,7 +123,7 @@ export function truncateAgentWebReadResponse(
         if (newlineByteIndexResult.value > offsetByteIndex + limitBytes / 2) {
             truncatedResponseBytes = responseBytes.subarray(
                 offsetByteIndex,
-                newlineByteIndexResult.value,
+                newlineByteIndexResult.value + 1,
             );
 
             lastNewlineIndex = newlineByteIndexResult.index;
@@ -144,7 +150,11 @@ export function truncateAgentWebReadResponse(
 
         truncationString += ` of ${newlineByteIndexes.length}.`;
 
-        truncationString += ` Use the \`read_more\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
+        if (!isReadMoreTool) {
+            truncationString += ` Call the \`read_more\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
+        } else {
+            truncationString += ` Use \`offset\` of ${newlineByteIndexResult.index + 2}`;
+        }
 
         if (!isTruncatedAtNewline && offsetLine === lastNewlineIndex) {
             truncationString += ` and a higher \`limit\``;
@@ -152,7 +162,7 @@ export function truncateAgentWebReadResponse(
 
         truncationString += ` to continue.`;
 
-        responseString += `\n\n(${truncationString})`;
+        responseString += `(${truncationString})`;
     }
 
     return responseString;

@@ -10,7 +10,6 @@ import {
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
-import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -105,7 +104,7 @@ export async function callAgentWebReadTool(
     } else {
         return truncateAgentWebReadResponse(
             {responseBytes, newlineByteIndexes},
-            {offsetLine: 0, limitBytes},
+            {offsetLine: 0, limitBytes, isReadMoreTool: false},
         );
     }
 }

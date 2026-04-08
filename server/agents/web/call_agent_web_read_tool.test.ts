@@ -86,5 +86,5 @@ test("truncates the returned response but caches the full response", async () =>
 
 Paragraph 01 detail detail detail detail detail detail.
 
-(Response truncated, 1.08kb remaining. Showing lines 1-3 of 41. Use the \`read_more\` tool with an \`offset\` of 4 to continue.)`);
+(Response truncated, 1.08kb remaining. Showing lines 1-4 of 41. Call the \`read_more\` tool with an \`offset\` of 5 to continue.)`);
 });
