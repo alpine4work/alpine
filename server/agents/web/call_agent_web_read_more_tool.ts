@@ -82,9 +82,9 @@ export function truncateAgentWebReadResponse(
         let truncationString = `End of file.`;
 
         if (offsetLine === newlineByteIndexes.length - 1) {
-            truncationString += `. Showing line ${offsetLine + 1}`;
+            truncationString += ` Showing line ${offsetLine + 1}`;
         } else {
-            truncationString += `. Showing lines ${offsetLine + 1}-${newlineByteIndexes.length}`;
+            truncationString += ` Showing lines ${offsetLine + 1}-${newlineByteIndexes.length}`;
         }
 
         truncationString += ` of ${newlineByteIndexes.length}.`;
@@ -92,7 +92,7 @@ export function truncateAgentWebReadResponse(
         responseString += `\n\n(${truncationString})`;
     } else {
         let newlineByteIndexResult = assertExists(
-            binarySearchLessThanOrEqual(newlineByteIndexes, limitBytes),
+            binarySearchLessThanOrEqual(newlineByteIndexes, offsetByteIndex + limitBytes),
         );
 
         // Trim adjacent newline characters until we find the last non-newline byte.
@@ -108,27 +108,49 @@ export function truncateAgentWebReadResponse(
             }
         }
 
+        let truncatedResponseBytes;
+        let lastNewlineIndex;
+        let isTruncatedAtNewline;
+
         // Only truncate to the last newline if we'll return at least half of the limit.
         // Otherwise, truncate exactly at the limit.
         if (newlineByteIndexResult.value > offsetByteIndex + limitBytes / 2) {
-            responseBytes = responseBytes.subarray(offsetByteIndex, newlineByteIndexResult.value);
+            truncatedResponseBytes = responseBytes.subarray(
+                offsetByteIndex,
+                newlineByteIndexResult.value,
+            );
+
+            lastNewlineIndex = newlineByteIndexResult.index;
+            isTruncatedAtNewline = true;
         } else {
-            responseBytes = responseBytes.subarray(offsetByteIndex, limitBytes);
+            truncatedResponseBytes = responseBytes.subarray(
+                offsetByteIndex,
+                offsetByteIndex + limitBytes,
+            );
+
+            lastNewlineIndex = newlineByteIndexResult.index + 1;
+            isTruncatedAtNewline = false;
         }
 
-        responseString = decoder.decode(responseBytes);
+        responseString = decoder.decode(truncatedResponseBytes);
 
-        let truncationString = `Response truncated to ${printAgentWebBytes(limitBytes)}.`;
+        let truncationString = `Response truncated, ${printAgentWebBytes(responseBytes.length - offsetByteIndex - truncatedResponseBytes.length)} remaining.`;
 
-        if (offsetLine === newlineByteIndexResult.index) {
-            truncationString += `. Showing line ${offsetLine + 1}`;
+        if (offsetLine === lastNewlineIndex) {
+            truncationString += ` Showing line ${offsetLine + 1}`;
         } else {
-            truncationString += `. Showing lines ${offsetLine + 1}-${newlineByteIndexResult.index + 1}`;
+            truncationString += ` Showing lines ${offsetLine + 1}-${lastNewlineIndex + 1}`;
         }
 
         truncationString += ` of ${newlineByteIndexes.length}.`;
 
-        truncationString += ` Use the \`read_more\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2} to continue.`;
+        truncationString += ` Use the \`read_more\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
+
+        if (!isTruncatedAtNewline && offsetLine === lastNewlineIndex) {
+            truncationString += ` and a higher \`limit\``;
+        }
+
+        truncationString += ` to continue.`;
 
         responseString += `\n\n(${truncationString})`;
     }

@@ -10,6 +10,7 @@ import {
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -20,7 +21,7 @@ export async function callAgentWebReadTool(
     context: AgentWebContext,
     {path: originalPath, limit: limitBytesString}: {path: string; limit: string},
 ) {
-    const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
+    const {path, pathname} = normalizeAgentWebPath(originalPath);
     const limitBytes = parseAgentWebBytes(limitBytesString);
 
     const pageLink = await context.storage.pageLinkByPathname.get(pathname);
@@ -53,7 +54,7 @@ export async function callAgentWebReadTool(
     // a plugin that simply returns the `mdast` AST which Prettier understands how to
     // print. This way we don't have to call `printMarkdownTree()` only for Prettier to
     // immediately parse it back into an AST.
-    let responseString = await prettier.format("", {
+    let responseString = await prettier.format("ignored", {
         parser: "mdast",
         endOfLine: "lf",
         printWidth: 80,

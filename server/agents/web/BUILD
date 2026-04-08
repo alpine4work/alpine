@@ -2,10 +2,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "web",
+    visibility = ["//server/agents:__subpackages__"],
     test_deps = [
         "//:node_modules/fast-check",
+        "//server/agents/api/test_helpers",
         "//server/cloudflare",
         "//shared/api/markdown/test_helpers",
+        "//shared/tracer/dev",
         "//server/agents/web/test_helpers",
     ],
     # IMPORTANT: We try to keep the first-party dependency list for our agent
