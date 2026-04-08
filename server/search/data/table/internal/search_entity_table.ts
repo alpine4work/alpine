@@ -1,6 +1,5 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {Id} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
@@ -367,8 +366,3 @@ export const AccountSearchFavoriteEntitiesIndex = SearchEntityTable.addIndex({
     // Only include favorited items in this index.
     filter: item => typeof item.favoriteOrderKey === "string",
 });
-
-export function getSearchEntityTableForTest() {
-    assert(import.meta.jest);
-    return SearchEntityTable;
-}

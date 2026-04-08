@@ -315,6 +315,7 @@ export async function convertExtractedNotionDataToEntities(
                                     creatorId: startedByAccountId,
                                     content: documentContent,
                                     createFeedEntry: false,
+                                    skipAffinityPointAssignment: true,
                                     from: {type: "Importer", source: {type: "Notion"}},
                                 }),
                         );

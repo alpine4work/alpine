@@ -134,6 +134,7 @@ export async function createNotionImportCsvDatabaseDocument(
             creatorId,
             content: documentContent,
             createFeedEntry: false,
+            skipAffinityPointAssignment: true,
             from: {type: "Importer", source: {type: "Notion"}},
         }),
     );

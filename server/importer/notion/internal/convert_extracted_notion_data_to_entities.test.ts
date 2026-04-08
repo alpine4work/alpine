@@ -21,6 +21,7 @@ import {
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
+import {getSearchEntityTableForTest} from "~/server/search/data/table/get_search_entity_table_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -203,8 +204,62 @@ async function createTestMappedReferencesResult(config: {
     };
 }
 
+const SearchEntityTable = getSearchEntityTableForTest();
+
 describe("convertExtractedNotionDataToEntities", () => {
     describe("basic document creation", () => {
+        test("does not assign affinity points to imported documents", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+            const mappedResult = await createTestMappedReferencesResult({
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test Teamspace",
+                        importOption: {type: "Private"},
+                        documents: [
+                            {
+                                filePath: "My Page abc12345678901234567890abcdef123.md",
+                                id: documentId,
+                                markdown: "# My Page\n\nThis is the content.",
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            // Imported documents should not get affinity points assigned. Only teamspace root
+            // documents should get affinity points.
+            expect(
+                await SearchEntityTable.getItemIfExists(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${documentId}`,
+                }),
+            ).toBeNull();
+        });
+
         test("creates a single document from notion import", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();

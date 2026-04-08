@@ -383,6 +383,7 @@ export async function createDocument(
         content,
         consistency,
         createFeedEntry = true,
+        skipAffinityPointAssignment = false,
         from,
     }: {
         id?: DocumentId;
@@ -391,6 +392,7 @@ export async function createDocument(
         content?: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
         createFeedEntry?: boolean;
+        skipAffinityPointAssignment?: boolean;
         from?: DocumentCreatorFrom;
     },
 ): Promise<{
@@ -555,22 +557,24 @@ export async function createDocument(
         {delaySeconds: newIndexSearchEntityJob.delaySeconds},
     );
 
-    context.process.waitUntil(
-        // Special interaction that adds a bunch more points then normal interactions. So
-        // newly created documents are always easily accessible in the search affinity
-        // list.
-        markSearchAffinityCreateDocumentEntityInteraction(
-            // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
-            // `createDocument()` returns. We don't need to expect strong read consistency
-            // here.
-            context.dynamo.unexpectStrongReadConsistency(),
-            {
-                spaceId,
-                documentId,
-                creatorId,
-            },
-        ),
-    );
+    if (!skipAffinityPointAssignment) {
+        context.process.waitUntil(
+            // Special interaction that adds a bunch more points then normal interactions. So
+            // newly created documents are always easily accessible in the search affinity
+            // list.
+            markSearchAffinityCreateDocumentEntityInteraction(
+                // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
+                // `createDocument()` returns. We don't need to expect strong read consistency
+                // here.
+                context.dynamo.unexpectStrongReadConsistency(),
+                {
+                    spaceId,
+                    documentId,
+                    creatorId,
+                },
+            ),
+        );
+    }
 
     return {
         id: documentId,

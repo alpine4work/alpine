@@ -4,7 +4,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSearchEntityTableForTest} from "~/server/search/data/table/internal/search_entity_table.js";
+import {getSearchEntityTableForTest} from "~/server/search/data/table/get_search_entity_table_for_test.js";
 import {
     addSearchAffinityEntityActiveTaskAssigneePoints,
     assignSearchAffinityEntityDerivedAttributes,
