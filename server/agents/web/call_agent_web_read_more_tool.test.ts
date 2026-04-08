@@ -6,9 +6,10 @@ import {
 } from "~/server/agents/web/call_agent_web_read_more_tool.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -46,10 +47,6 @@ function createReadResponseFromString(responseString: string): {
     };
 }
 
-function parseSuggestedOffset(responseString: string): number {
-    return Number(assertExists(responseString.match(/`offset` of ([0-9]+)/)?.[1]));
-}
-
 test("paginates through a long document across multiple read_more calls", async () => {
     const documentId = generateId<DocumentId>();
 
@@ -70,29 +67,159 @@ test("paginates through a long document across multiple read_more calls", async 
         path: "/document/long-document",
         limit: "50b",
     });
-    const firstOffset = parseSuggestedOffset(firstResponse);
 
-    expect(firstResponse).toContain("Response truncated, 751b remaining.");
+    expect(firstResponse).toEqual(`\
+# Long Document
+
+Paragraph 1: alpha beta gamma.
+
+(Response truncated, 751b remaining. Showing lines 1-3 of 49. Use the \`read_more\` tool with an \`offset\` of 4 to continue.)`);
 
     const secondResponse = await callAgentWebReadMoreTool(context, {
         path: "/document/long-document",
-        offset: firstOffset,
+        offset: 4,
         limit: "50b",
     });
-    const secondOffset = parseSuggestedOffset(secondResponse);
 
-    expect(secondResponse).toContain("Response truncated, 719b remaining.");
-    expect(secondResponse).toMatch(/^.+\n\n\(Response truncated/s);
-    expect(secondOffset).toBeGreaterThan(firstOffset);
+    expect(secondResponse).toEqual(`\
+
+Paragraph 2: alpha beta gamma.
+
+(Response truncated, 719b remaining. Showing lines 4-5 of 49. Use the \`read_more\` tool with an \`offset\` of 6 to continue.)`);
 
     const finalResponse = await callAgentWebReadMoreTool(context, {
         path: "/document/long-document",
-        offset: secondOffset,
+        offset: 6,
         limit: "10kb",
     });
 
-    expect(finalResponse).toContain("End of file.");
-    expect(finalResponse).not.toContain("Response truncated");
+    expect(finalResponse).toEqual(`\
+
+Paragraph 3: alpha beta gamma.
+
+Paragraph 4: alpha beta gamma.
+
+Paragraph 5: alpha beta gamma.
+
+Paragraph 6: alpha beta gamma.
+
+Paragraph 7: alpha beta gamma.
+
+Paragraph 8: alpha beta gamma.
+
+Paragraph 9: alpha beta gamma.
+
+Paragraph 10: alpha beta gamma.
+
+Paragraph 11: alpha beta gamma.
+
+Paragraph 12: alpha beta gamma.
+
+Paragraph 13: alpha beta gamma.
+
+Paragraph 14: alpha beta gamma.
+
+Paragraph 15: alpha beta gamma.
+
+Paragraph 16: alpha beta gamma.
+
+Paragraph 17: alpha beta gamma.
+
+Paragraph 18: alpha beta gamma.
+
+Paragraph 19: alpha beta gamma.
+
+Paragraph 20: alpha beta gamma.
+
+Paragraph 21: alpha beta gamma.
+
+Paragraph 22: alpha beta gamma.
+
+Paragraph 23: alpha beta gamma.
+
+Paragraph 24: alpha beta gamma.
+
+(End of file. Showing lines 6-49 of 49.)`);
+});
+
+test("iterates through realistic wikipedia content one page at a time", async () => {
+    const documentId = generateId<DocumentId>();
+    const path = "/document/youtube";
+
+    await context.storage.pageLinkByPathname.put(path, {
+        type: "Document",
+        id: documentId,
+        title: "YouTube",
+    });
+
+    api.mockGetDocument(spaceId, documentId, {
+        title: "YouTube",
+        content: intoApiContent(wikipediaYoutubeDocumentContent.get(), {
+            getAccountMentionTitleIfExists: () => undefined,
+            getSearchEntityMentionTitleIfExists: () => undefined,
+            getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+        }),
+    });
+
+    const firstResponseString = await callAgentWebReadTool(context, {
+        path,
+        limit: "2kb",
+    });
+
+    expect(firstResponseString).toEqual(`\
+# YouTube
+
+YouTube is an American online video sharing and social media platform headquartered in San Bruno, California, United States. Accessible worldwide, it was launched on February 14, 2005, by Steve Chen, Chad Hurley, and Jawed Karim. It is owned by Google and is the second most visited website in the world, after Google Search. YouTube has more than 2.5 billion monthly users, who collectively watch more than one billion hours of videos every day. As of May 2019, videos were being uploaded to the platform at a rate of more than 500 hours of content per minute.
+
+In October 2006, YouTube was bought by Google for $1.65 billion. Google’s ownership of YouTube expanded the site’s business model, expanding from generating revenue from advertisements alone to offering paid content such as movies and exclusive content produced by YouTube. It also offers YouTube Premium, a paid subscription option for watching content without ads. YouTube also approved creators to participate in Google’s AdSense program, which seeks to generate more revenue for both parties. In 2021, YouTube’s annual advertising revenue increased to $28.8 billion, an increase in revenue of $9 billion from the previous year. YouTube reported revenue of $29.2 billion in 2022.
+
+Since its purchase by Google, YouTube has expanded beyond the core website into mobile apps, network television, and the ability to link with other platforms. Video categories on YouTube include music videos, video clips, news, short films, feature films, songs, documentaries, movie trailers, teasers, live streams, vlogs, and more. Most content is generated by individuals, including collaborations between YouTubers and corporate sponsors. Established media corporations such as Disney, Paramount, NBCUniversal, and Warner Bros. Discovery have also created and expanded their corporate YouTube channels to advertise to a greater audience.
+
+(Response truncated, 3.64kb remaining. Showing lines 1-7 of 21. Use the \`read_more\` tool with an \`offset\` of 8 to continue.)`);
+
+    const secondResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 8,
+        limit: "2kb",
+    });
+
+    expect(secondResponseString).toEqual(`\
+
+YouTube has had unprecedented social impact, influencing popular culture, internet trends, and creating multimillionaire celebrities. Despite its growth and success, it has been widely criticized for allegedly facilitating the spread of misinformation, the sharing of copyrighted content, routinely violating its users’ privacy, enabling censorship, endangering child safety and wellbeing, and for its inconsistent or incorrect implementation of platform guidelines.
+
+## History
+
+YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim. The trio were early employees of PayPal, which left them enriched after the company was bought by eBay. Hurley had studied design at the Indiana University of Pennsylvania, and Chen and Karim studied computer science together at the University of Illinois Urbana-Champaign.
+
+According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen’s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party “was probably very strengthened by marketing ideas around creating a story that was very digestible”.
+
+(Response truncated, 2.29kb remaining. Showing lines 8-15 of 21. Use the \`read_more\` tool with an \`offset\` of 16 to continue.)`);
+
+    const thirdResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 16,
+        limit: "2kb",
+    });
+
+    expect(thirdResponseString).toEqual(`\
+
+YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube’s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled “Me at the zoo”, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.
+
+YouTube was not the first video-sharing site on the Internet; Vimeo was launched in November 2004, though that site remained a side project of its developers from CollegeHumor. The week of YouTube’s launch, NBC-Universal’s Saturday Night Live ran a skit ”Lazy Sunday” by The Lonely Island. Besides helping to bolster ratings and long-term viewership for Saturday Night Live, ”Lazy Sunday”’s status as an early viral video helped establish YouTube as an important website. Unofficial uploads of the skit to YouTube drew in more than five million collective views by February 2006 before they were removed when NBCUniversal requested it two months later based on copyright concerns. Despite eventually being taken down, these duplicate uploads of the skit helped popularize YouTube’s reach and led to the upload of more third-party content. The site grew rapidly; in July 2006, the company announced that more than 65,000 new videos were being uploaded every day and that the site was receiving 100 million video views per day.
+
+(Response truncated, 345b remaining. Showing lines 16-19 of 21. Use the \`read_more\` tool with an \`offset\` of 20 to continue.)`);
+
+    const fourthResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 20,
+        limit: "2kb",
+    });
+
+    expect(fourthResponseString).toEqual(`\
+
+The choice of the name www.youtube.com led to problems for a similarly named website, www.utube.com. That site’s owner, Universal Tube & Rollform Equipment, filed a lawsuit against YouTube in November 2006 after being regularly overloaded by people looking for YouTube. Universal Tube subsequently changed its website to www.utubeonline.com.
+
+(End of file. Showing lines 20-21 of 21.)`);
 });
 
 test("uses normalized path when reading cached responses", async () => {
@@ -120,8 +247,12 @@ test("uses normalized path when reading cached responses", async () => {
         limit: "10kb",
     });
 
-    expect(responseString).toContain("# Path Normalized");
-    expect(responseString).toContain("End of file.");
+    expect(responseString).toEqual(`\
+# Path Normalized
+
+Only one paragraph.
+
+(End of file. Showing lines 1-3 of 3.)`);
 });
 
 test("throws when read response does not exist", async () => {

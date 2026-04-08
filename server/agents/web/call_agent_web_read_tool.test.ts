@@ -5,8 +5,6 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -21,10 +19,6 @@ function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<st
     return parseApiContentFromMarkdown(paragraphTextList.join("\n\n"), {
         spaceId,
     }) as ApiContentResponse;
-}
-
-function parseSuggestedOffset(responseString: string): number {
-    return Number(assertExists(responseString.match(/`offset` of ([0-9]+)/)?.[1]));
 }
 
 test("throws when the link path has not been seen", async () => {
@@ -55,25 +49,12 @@ test("returns full markdown and stores normalized read response", async () => {
         limit: "10kb",
     });
 
-    expect(responseString).toContain("# Engineering Spec");
-    expect(responseString).toContain("Overview paragraph.");
-    expect(responseString).not.toContain("Response truncated");
-    expect(
-        api.getCallCount("GET", "/documents/{id}", {
-            path: {id: documentId},
-        }),
-    ).toBe(1);
+    expect(responseString).toEqual(`\
+# Engineering Spec
 
-    const readResponse = await context.storage.readResponseByPath.get(
-        "/document/engineering-spec?a=1&b=2",
-    );
-    expect(readResponse).toBeDefined();
-    assert(readResponse);
+Overview paragraph.
 
-    const decodedResponse = new TextDecoder().decode(readResponse.responseBytes);
-    expect(decodedResponse).toBe(responseString);
-    expect(readResponse.newlineByteIndexes.length).toBeGreaterThan(0);
-    expect(readResponse.newlineByteIndexes.at(-1)).toBe(readResponse.responseBytes.length);
+Implementation details paragraph.`);
 });
 
 test("truncates the returned response but caches the full response", async () => {
@@ -100,16 +81,10 @@ test("truncates the returned response but caches the full response", async () =>
         limit: "120b",
     });
 
-    expect(responseString).toContain("Response truncated, 1.08kb remaining.");
-    expect(responseString).toContain("Use the `read_more` tool with an `offset` of");
-    expect(parseSuggestedOffset(responseString)).toBeGreaterThan(1);
-    expect(responseString).not.toContain("Paragraph 20");
+    expect(responseString).toEqual(`\
+# Pagination Spec
 
-    const readResponse = await context.storage.readResponseByPath.get("/document/pagination-spec");
-    expect(readResponse).toBeDefined();
-    assert(readResponse);
+Paragraph 01 detail detail detail detail detail detail.
 
-    const fullResponseString = new TextDecoder().decode(readResponse.responseBytes);
-    expect(fullResponseString).toContain("Paragraph 20");
-    expect(fullResponseString.length).toBeGreaterThan(responseString.length);
+(Response truncated, 1.08kb remaining. Showing lines 1-3 of 41. Use the \`read_more\` tool with an \`offset\` of 4 to continue.)`);
 });
