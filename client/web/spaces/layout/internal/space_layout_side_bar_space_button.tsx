@@ -14,7 +14,6 @@ import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_co
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function SpaceLayoutSideBarSpaceButton() {
@@ -75,19 +74,15 @@ export function SpaceLayoutSideBarSpaceButton() {
                         await rootNavigate(`/s/${space.id}/settings/bots`);
                     },
                 },
-                ...(hasIntegrationsSettingsFeature(space.id)
-                    ? [
-                          {
-                              icon: <SquaresFour />,
-                              size: cast<MenuSize>("lg"),
-                              label: "Integrations",
-                              pressErrorTitle: "Couldn\u2019t open integrations settings",
-                              onPress: async () => {
-                                  await rootNavigate(`/s/${space.id}/settings/integrations`);
-                              },
-                          },
-                      ]
-                    : []),
+                {
+                    icon: <SquaresFour />,
+                    size: cast<MenuSize>("lg"),
+                    label: "Integrations",
+                    pressErrorTitle: "Couldn\u2019t open integrations settings",
+                    onPress: async () => {
+                        await rootNavigate(`/s/${space.id}/settings/integrations`);
+                    },
+                },
                 [
                     {
                         hasChildren: true,

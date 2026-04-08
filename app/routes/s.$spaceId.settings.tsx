@@ -23,7 +23,6 @@ import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 
@@ -312,16 +311,14 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                         rootNavigate(`/s/${space.id}/settings/bots`);
                                     }}
                                 />
-                                {hasIntegrationsSettingsFeature(space.id) && (
-                                    <SettingsNavigationItem
-                                        icon={<SquaresFour />}
-                                        label="Integrations"
-                                        isActive={nextRoute === "integrations"}
-                                        onPressStart={() => {
-                                            rootNavigate(`/s/${space.id}/settings/integrations`);
-                                        }}
-                                    />
-                                )}
+                                <SettingsNavigationItem
+                                    icon={<SquaresFour />}
+                                    label="Integrations"
+                                    isActive={nextRoute === "integrations"}
+                                    onPressStart={() => {
+                                        rootNavigate(`/s/${space.id}/settings/integrations`);
+                                    }}
+                                />
                             </ul>
                         </nav>
                     </Box>,

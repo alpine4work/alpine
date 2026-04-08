@@ -8,7 +8,6 @@ import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 
 export function meta() {
     return [{title: `Settings${metaTitlePostfix}`}];
@@ -90,16 +89,14 @@ export default function MobileSpaceSettingsRoute() {
                             await rootNavigate(`/s/${space.id}/settings/bots`);
                         }}
                     />
-                    {hasIntegrationsSettingsFeature(space.id) && (
-                        <MobileSettingsRow
-                            icon={<SquaresFour />}
-                            label="Integrations"
-                            pressErrorTitle="Couldn&#x2019;t open integrations settings"
-                            onPress={async () => {
-                                await rootNavigate(`/s/${space.id}/settings/integrations`);
-                            }}
-                        />
-                    )}
+                    <MobileSettingsRow
+                        icon={<SquaresFour />}
+                        label="Integrations"
+                        pressErrorTitle="Couldn&#x2019;t open integrations settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/integrations`);
+                        }}
+                    />
                 </Box>
             </Box>
         </SpaceRouteScrollView>
