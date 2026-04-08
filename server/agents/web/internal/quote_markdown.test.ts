@@ -1,4 +1,4 @@
-import {quoteMarkdown} from "~/server/agents/web/pages/internal/quote_markdown.js";
+import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 
 test("quotes plain text content", () => {
     expect(quoteMarkdown([{type: "text", value: "Hello, world!"}])).toBe("“Hello, world!”");

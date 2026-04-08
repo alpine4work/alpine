@@ -18,6 +18,8 @@ ts_project(
     deps = [
         "//:node_modules/@types/mdast",
         "//:node_modules/htmlparser2",
+        "//:node_modules/prettier",
+        "//:node_modules/pretty-bytes",
         "//server/agents/api",
         "//shared/api/markdown",
         "//shared/api/specification",

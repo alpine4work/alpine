@@ -54,7 +54,7 @@ export interface AgentWebSessionStorage {
      * Map of paths (e.g. `/document/tech-spec`) to the underlying resource that path
      * represents (e.g. a `DocumentId`).
      */
-    readonly pageLinkByPath: AgentWebSessionStorageCollection<string, AgentWebPageLink>;
+    readonly pageLinkByPathname: AgentWebSessionStorageCollection<string, AgentWebPageLink>;
 
     /**
      * Map of truncated URLs (e.g. `https://example.com/a/…/f`) to the full URL (e.g.
@@ -124,6 +124,34 @@ export interface AgentWebSessionStorage {
     readonly tableColumnWidthsByTruncatedColumnWidths: AgentWebSessionStorageCollection<
         string,
         ReadonlyArray<number>
+    >;
+
+    /**
+     * Responses for a `read` tool call based on the path that was used. Every time
+     * `read` is called we re-read the link from Alpine. Then tools like `update` and
+     * `read_more` use the cached response to process that result.
+     *
+     * Results in this cache expire (currently they expire after an hour). This forces
+     * agents with long lived sessions (like OpenClaw) to re-`read` links to get the
+     * latest data before `update`ing.
+     *
+     * The underlying storage implementation is strongly encouraged to remove entries
+     * from this collection when they expire to save on storage costs.
+     *
+     * - `read_more` is used to paginate through the response. The initial `read` tool
+     *   call truncates the response to a fixed number of bytes.
+     *
+     * - `update` is used to update data in Alpine. The agent uses a find-and-replace
+     *   tool effectively to update content then we diff that with the cached response
+     *   to determine what actually needs to be updated.
+     */
+    readonly readResponseByPath: AgentWebSessionStorageCollection<
+        string,
+        {
+            readonly expirationTime: Date;
+            readonly responseBytes: Uint8Array;
+            readonly newlineByteIndexes: ReadonlyArray<number>;
+        }
     >;
 }
 
