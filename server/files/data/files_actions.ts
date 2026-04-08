@@ -262,6 +262,14 @@ function createFile2ItemFromFileItem(item: FileItem): File2Item {
 const maxFileTotalContentLengthForSpace = 5e9;
 
 /**
+ * The upper bound of "infinite" file uploads for a space (250GB). During our
+ * import process, we allow files to be uploaded beyond the space's limit, but we
+ * shouldn't allow an unlimited number of files. If someone hits this limit, we
+ * should have them contact us.
+ */
+const dangerousMaxFileTotalContentLengthForSpaceWithAllowedOverage = 250e9;
+
+/**
  * Which services are allowed to upload files.
  *
  * We only allow file uploads from EdgeService (client uploads) and ImporterService
@@ -305,6 +313,7 @@ export async function startUploadingFile(
         fileId?: FileId | null;
         contentType: FileContentType;
         contentLength: number;
+        dangerouslyAllowSpaceLimitOverage?: boolean;
     },
 ): Promise<{fileId: FileId}>;
 export async function startUploadingFile(
@@ -315,12 +324,19 @@ export async function startUploadingFile(
         contentType,
         contentLength,
         attachTargetAuthorizer = null,
+        dangerouslyAllowSpaceLimitOverage = false,
     }: {
         spaceId: SpaceId;
         fileId?: FileId | null;
         contentType: FileContentType;
         contentLength: number;
         attachTargetAuthorizer?: FileAuthorizer | null;
+        /**
+         * This allows us to upload files beyond the space's limit. This is used by
+         * importers to temporarily allow us to upload files beyond the space's limit. This
+         * is dangerous and should only be used in limited cases.
+         */
+        dangerouslyAllowSpaceLimitOverage?: boolean;
     },
 ): Promise<{fileId: FileId}> {
     await authorizeSpaceAccess(context, spaceId);
@@ -401,19 +417,20 @@ export async function startUploadingFile(
             // We also disable the file limit for our own space.
             spaceId !== alpineCompanyKnownSpaceId;
 
+        const maxFileTotalContentLength = dangerouslyAllowSpaceLimitOverage
+            ? dangerousMaxFileTotalContentLengthForSpaceWithAllowedOverage
+            : maxFileTotalContentLengthForSpace;
+
         // We allow one file to be uploaded beyond the space's max content length. This
         // allows us to say "you've reached your limit" in our error message.
-        if (
-            isFileLimitEnforced &&
-            fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace
-        ) {
+        if (isFileLimitEnforced && fileTotalsItem.contentLength > maxFileTotalContentLength) {
             throw new InvalidArgumentError(
                 `Uploading files beyond our ${prettyBytes(
-                    maxFileTotalContentLengthForSpace,
+                    maxFileTotalContentLength,
                 )} limit is currently unsupported. Eventually we should: 1) Increase the limit for paying customers, 2) Archive old uploaded files to create more space`,
                 {
                     displayMessage: errorDisplayMessage`This space has exceeded its ${prettyBytes(
-                        maxFileTotalContentLengthForSpace,
+                        maxFileTotalContentLength,
                     )} storage limit. Can\u2019t upload more files. To raise this space\u2019s storage limit contact ${
                         errorDisplayMessage.supportLink
                     }.`,

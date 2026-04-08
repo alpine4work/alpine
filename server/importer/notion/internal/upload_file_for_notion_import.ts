@@ -105,6 +105,7 @@ export async function uploadFileForNotionImport(
                 fileId,
                 contentType,
                 contentLength,
+                dangerouslyAllowSpaceLimitOverage: true,
             });
 
             // Upload the file content to Cloudflare R2. Skip if using the empty test R2 client
