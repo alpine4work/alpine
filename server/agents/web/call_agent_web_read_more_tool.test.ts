@@ -140,6 +140,93 @@ Paragraph 24: alpha beta gamma.
 (End of file. Showing lines 7-49 of 49.)`);
 });
 
+test("paginates through a long GFM table across multiple read_more calls", async () => {
+    const path = "/document/release-matrix-table";
+    const tableResponseString = `\
+# Release Matrix
+
+| Milestone | Owner | Status |
+| - | - | - |
+| M01 API schema freeze | Platform | Done |
+| M02 Query planner rollout | Search | In Progress |
+| M03 Inbox notification polish | Comms | Planned |
+| M04 Document AI suggestions | Docs | In Progress |
+| M05 Agent memory sync | Agents | Planned |
+| M06 Notification digests | Comms | Planned |
+| M07 Permissions hardening | Security | In Review |
+| M08 Search ranking tuning | Search | Planned |
+| M09 Feed relevance update | Feed | Planned |
+| M10 Realtime cursor optimizations | Realtime | In Progress |
+| M11 Import migration tooling | Platform | Planned |
+| M12 Workspace archive flow | Docs | Planned |`;
+
+    await context.storage.readResponseByPath.put(path, {
+        expirationTime: new Date(Date.now() + 60_000),
+        ...createReadResponseFromString(tableResponseString),
+    });
+
+    const firstResponseString = truncateAgentWebReadResponse(
+        createReadResponseFromString(tableResponseString),
+        {offsetLine: 0, limitBytes: 180, isReadMoreTool: false},
+    );
+
+    expect(firstResponseString).toEqual(`\
+# Release Matrix
+
+| Milestone | Owner | Status |
+| - | - | - |
+| M01 API schema freeze | Platform | Done |
+| M02 Query planner rollout | Search | In Progress |
+(Response truncated, 510b remaining. Showing lines 1-6 of 16. Call the \`read_more\` tool with an \`offset\` of 7 to continue.)`);
+
+    const secondResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 7,
+        limit: "180b",
+    });
+
+    expect(secondResponseString).toEqual(`\
+| M03 Inbox notification polish | Comms | Planned |
+| M04 Document AI suggestions | Docs | In Progress |
+| M05 Agent memory sync | Agents | Planned |
+(Response truncated, 360b remaining. Showing lines 7-9 of 16. Use \`offset\` of 10 to continue.)`);
+
+    const thirdResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 10,
+        limit: "180b",
+    });
+
+    expect(thirdResponseString).toEqual(`\
+| M06 Notification digests | Comms | Planned |
+| M07 Permissions hardening | Security | In Review |
+| M08 Search ranking tuning | Search | Planned |
+(Response truncated, 211b remaining. Showing lines 10-12 of 16. Use \`offset\` of 13 to continue.)`);
+
+    const fourthResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 13,
+        limit: "180b",
+    });
+
+    expect(fourthResponseString).toEqual(`\
+| M09 Feed relevance update | Feed | Planned |
+| M10 Realtime cursor optimizations | Realtime | In Progress |
+| M11 Import migration tooling | Platform | Planned |
+(Response truncated, 47b remaining. Showing lines 13-15 of 16. Use \`offset\` of 16 to continue.)`);
+
+    const fifthResponseString = await callAgentWebReadMoreTool(context, {
+        path,
+        offset: 16,
+        limit: "180b",
+    });
+
+    expect(fifthResponseString).toEqual(`\
+| M12 Workspace archive flow | Docs | Planned |
+
+(End of file. Showing line 16 of 16.)`);
+});
+
 test("iterates through realistic wikipedia content one page at a time", async () => {
     const documentId = generateId<DocumentId>();
     const path = "/document/youtube";

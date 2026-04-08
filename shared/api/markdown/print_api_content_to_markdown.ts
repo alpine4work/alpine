@@ -34,6 +34,7 @@ import {
     ApiMentionTarget,
     ApiPreviewTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -689,10 +690,12 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
     // `<table>`s anyway.
     if (element.width !== 1 || element.columns.some(column => column.width !== 1)) return null;
 
+    let columnCount = 0;
     const rows: Array<TableRow> = [];
 
     for (let rowIndex = 0; rowIndex < Math.max(1, element.rows.length); rowIndex++) {
         const row = element.rows[rowIndex] ?? {cells: []};
+        columnCount = Math.max(columnCount, row.cells.length);
 
         const cells: Array<TableCell> = [];
         rows.push({type: "tableRow", children: cells});
@@ -745,6 +748,7 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
 
     return {
         type: "table",
+        align: createArrayWithLength(columnCount, () => null),
         children: rows,
     };
 }

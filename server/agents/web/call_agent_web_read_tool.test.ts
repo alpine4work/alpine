@@ -88,3 +88,40 @@ Paragraph 01 detail detail detail detail detail detail.
 
 (Response truncated, 1.08kb remaining. Showing lines 1-4 of 41. Call the \`read_more\` tool with an \`offset\` of 5 to continue.)`);
 });
+
+test("reads GFM table content without crashing prettier formatting", async () => {
+    const documentId = generateId<DocumentId>();
+
+    await context.storage.pageLinkByPathname.put("/document/roadmap-table", {
+        type: "Document",
+        id: documentId,
+        title: "Roadmap Table",
+    });
+
+    api.mockGetDocument(spaceId, documentId, {
+        title: "Roadmap Table",
+        content: parseApiContentFromMarkdown(
+            `\
+| Milestone | Owner | Status |
+| - | - | - |
+| API schema freeze | Platform | Done |
+| Query planner rollout | Search | In Progress |
+| Inbox polish | Comms | Planned |`,
+            {spaceId},
+        ) as ApiContentResponse,
+    });
+
+    const responseString = await callAgentWebReadTool(context, {
+        path: "/document/roadmap-table",
+        limit: "10kb",
+    });
+
+    expect(responseString).toEqual(`\
+# Roadmap Table
+
+| Milestone             | Owner    | Status      |
+| --------------------- | -------- | ----------- |
+| API schema freeze     | Platform | Done        |
+| Query planner rollout | Search   | In Progress |
+| Inbox polish          | Comms    | Planned     |`);
+});
