@@ -4,6 +4,7 @@ import {
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -123,6 +124,16 @@ export async function authenticateActorContextModule(
                 return SystemActorContextModule.dangerouslyNew(
                     serviceName,
                     authorizationHeaderPayload.spaceId,
+                );
+            }
+            case "ImpersonatedAccount": {
+                const systemActorContextModule = SystemActorContextModule.dangerouslyNew(
+                    serviceName,
+                    authorizationHeaderPayload.spaceId,
+                );
+                return ImpersonatedAccountActorContextModule.dangerouslyNew(
+                    systemActorContextModule,
+                    authorizationHeaderPayload.accountId,
                 );
             }
             case "Anonymous": {

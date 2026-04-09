@@ -4,9 +4,11 @@ import {
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
@@ -55,6 +57,32 @@ export async function createActorContextModuleFromAuthorizationHeader(
             return SystemActorContextModule.dangerouslyNew(
                 serviceName,
                 authorizationHeaderPayload.spaceId,
+            );
+        }
+        case "ImpersonatedAccount": {
+            if (spaceId !== authorizationHeaderPayload.spaceId) {
+                throw new PermissionDeniedError(
+                    "Impersonated account actor doesn\u2019t have access to space",
+                );
+            }
+            const systemActorContextModule = SystemActorContextModule.dangerouslyNew(
+                serviceName,
+                authorizationHeaderPayload.spaceId,
+            );
+            const isMember = await isAccountMemberOfSpaceWithoutAuthorization(
+                context,
+                authorizationHeaderPayload.spaceId,
+                authorizationHeaderPayload.accountId,
+            );
+            if (!isMember) {
+                throw new PermissionDeniedError(
+                    "Impersonated account isn\u2019t a member of space",
+                );
+            }
+
+            return ImpersonatedAccountActorContextModule.dangerouslyNew(
+                systemActorContextModule,
+                authorizationHeaderPayload.accountId,
             );
         }
         case "Anonymous": {

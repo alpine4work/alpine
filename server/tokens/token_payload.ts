@@ -30,6 +30,12 @@ export type SystemTokenPayload = {
     readonly spaceId: SpaceId;
 };
 
+export type ImpersonatedAccountTokenPayload = {
+    readonly type: "ImpersonatedAccount";
+    readonly accountId: AccountId;
+    readonly spaceId: SpaceId;
+};
+
 export type AnonymousTokenPayload = {
     readonly type: "Anonymous";
 };
@@ -62,6 +68,7 @@ export type BotTokenPayloadScope =
 export type TokenPayload =
     | SessionTokenPayload
     | SystemTokenPayload
+    | ImpersonatedAccountTokenPayload
     | AnonymousTokenPayload
     | BotTokenPayload;
 
@@ -70,6 +77,8 @@ export const TokenPayloadSchema = Schema.object({
     aid: Schema.id<AccountId>().optional(),
     // "w" stands for "workspace" since "s" for "space" is taken.
     wid: Schema.id<SpaceId>().optional(),
+    // "i" stands for "impersonated account".
+    iid: Schema.id<AccountId>().optional(),
     ano: Schema.value(1).optional(),
     sco: Schema.string.optional(),
 })
@@ -80,6 +89,8 @@ export const TokenPayloadSchema = Schema.object({
                     return {sid: payload.sessionId, aid: payload.accountId};
                 case "System":
                     return {wid: payload.spaceId};
+                case "ImpersonatedAccount":
+                    return {iid: payload.accountId, wid: payload.spaceId};
                 case "Anonymous":
                     return {ano: 1};
                 case "Bot": {
@@ -114,6 +125,19 @@ export const TokenPayloadSchema = Schema.object({
                     spaceId: payload.wid,
                     accountId: payload.aid,
                     scope,
+                };
+            }
+            if (payload.iid !== undefined) {
+                if (payload.wid === undefined)
+                    throw new InvalidArgumentError("Token payload is missing required `wid` claim");
+
+                if (payload.aid !== undefined)
+                    throw new InvalidArgumentError("Token payload has unexpected `aid` claim");
+
+                return {
+                    type: "ImpersonatedAccount",
+                    accountId: payload.iid,
+                    spaceId: payload.wid,
                 };
             }
 

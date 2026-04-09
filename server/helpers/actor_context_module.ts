@@ -4,7 +4,7 @@ import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -478,9 +478,11 @@ export class ImpersonatedAccountActorContextModule
     }
 
     public getTokenPayload(): TokenPayload {
-        // NOTE(calebmer): We don't need cross-service communication for impersonated
-        // actors right now but may need the capability in the future.
-        throw new InternalError("Can\u2019t create token for impersonated account actor");
+        return {
+            type: "ImpersonatedAccount",
+            accountId: this._accountId,
+            spaceId: this._spaceId,
+        };
     }
 
     public getPropagatedData(): TracerEventData {

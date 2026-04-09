@@ -16,6 +16,7 @@ import {
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -524,6 +525,12 @@ async function createDurableObjectActorContextModule(
         }
         case "System": {
             return SystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId);
+        }
+        case "ImpersonatedAccount": {
+            return ImpersonatedAccountActorContextModule.dangerouslyNew(
+                SystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId),
+                payload.accountId,
+            );
         }
         case "Anonymous": {
             return AnonymousActorContextModule.dangerouslyNew(serviceName);

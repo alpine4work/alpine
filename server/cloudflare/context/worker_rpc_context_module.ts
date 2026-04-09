@@ -300,6 +300,8 @@ function getTokenPayloadKey(tokenPayload: TokenPayload): string {
             return `Session:${tokenPayload.sessionId}`;
         case "System":
             return `System:${tokenPayload.spaceId}`;
+        case "ImpersonatedAccount":
+            return `ImpersonatedAccount:${tokenPayload.spaceId}:${tokenPayload.accountId}`;
         case "Anonymous":
             return "Anonymous";
         case "Bot": {

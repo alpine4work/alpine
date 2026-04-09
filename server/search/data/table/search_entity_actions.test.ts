@@ -727,6 +727,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
@@ -951,6 +957,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
