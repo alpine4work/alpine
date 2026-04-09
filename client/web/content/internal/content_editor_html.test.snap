@@ -2857,6 +2857,7 @@ exports[`account long mention 1`] = `
                     <img
                       alt="Pink cat who’s happy"
                       draggable="false"
+                      style="width: 5rem; height: 5rem"
                     />
                   </span>
                 </span>
@@ -2930,6 +2931,7 @@ exports[`account short mention 1`] = `
                     <img
                       alt="Pink cat who’s happy"
                       draggable="false"
+                      style="width: 5rem; height: 5rem"
                     />
                   </span>
                 </span>

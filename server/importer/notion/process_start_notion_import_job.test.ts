@@ -84,7 +84,9 @@ async function createSystemActionWithFile(
     importKey: string,
     fileData?: Uint8Array,
 ) {
-    const importer = new TestImporterContextModule();
+    const importer = new TestImporterContextModule({
+        getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+    });
     if (fileData) {
         await importer.setUploadedFile(importKey, fileData);
     }

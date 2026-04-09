@@ -1,8 +1,9 @@
 import {CalendarDateTime, today} from "@internationalized/date";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
 import {uploadScenarioFile} from "~/admin/scenarios/internal/upload_scenario_file.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -10,6 +11,7 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
@@ -24,7 +26,9 @@ export async function createFictionalAmbrookDemoChannel(
         chatGpt,
         hollyEvergreen,
         elleKappaTan,
-    }: FictionalAmbrookAccounts,
+    }: DemoSpaceAccounts & {
+        chatGpt: TestBotAccount;
+    },
 ) {
     debug("Creating channel");
 
@@ -73,17 +77,20 @@ export async function createFictionalAmbrookDemoChannel(
     const channel = await TestChannel.create(cassCade, {
         name: "Marketing",
         access: "Public",
-        description: markdown`
+        description: Mustache.render(
+            markdown`
 📣 Brainstorm and share ideas for outreach, social content, campaigns, and growth. Everything from
 big-picture strategy to post drafts lives here.
 
 Refer to
 [Social Content Calendar](https://alpine.inc/s/{{spaceId}}/tasks/collections/{{collectionId}}?mention)
 for the current plan.
-        `({
-            spaceId: space.id,
-            collectionId: collection.id,
-        }),
+            `,
+            {
+                spaceId: space.id,
+                collectionId: collection.id,
+            },
+        ),
     });
 
     // The button looks better unsubscribed in the demo screenshot.
@@ -106,31 +113,31 @@ for the current plan.
             uploadScenarioFile(
                 tokenAgent,
                 roseCompas,
-                "unsplash/fictional_ambrook_inspiration_6.jpg",
+                "fictional_ambrook_unsplash_inspiration_6.jpg",
                 {type: "Post", postId: lastPost.id},
             ),
             uploadScenarioFile(
                 tokenAgent,
                 roseCompas,
-                "unsplash/fictional_ambrook_inspiration_7.jpg",
+                "fictional_ambrook_unsplash_inspiration_7.jpg",
                 {type: "Post", postId: lastPost.id},
             ),
             uploadScenarioFile(
                 tokenAgent,
                 roseCompas,
-                "unsplash/fictional_ambrook_inspiration_8.jpg",
+                "fictional_ambrook_unsplash_inspiration_8.jpg",
                 {type: "Post", postId: lastPost.id},
             ),
             uploadScenarioFile(
                 tokenAgent,
                 roseCompas,
-                "unsplash/fictional_ambrook_inspiration_9.jpg",
+                "fictional_ambrook_unsplash_inspiration_9.jpg",
                 {type: "Post", postId: lastPost.id},
             ),
             uploadScenarioFile(
                 tokenAgent,
                 roseCompas,
-                "unsplash/fictional_ambrook_inspiration_1.jpg",
+                "fictional_ambrook_unsplash_inspiration_1.jpg",
                 {type: "Post", postId: lastPost.id},
             ),
         ]);
@@ -189,7 +196,7 @@ for the current plan.
 Our first foray into podcast advertising is going great! We’re seeing a lot more sign ups than we
 expected coming from the campaign’s vanity URLs. What are some of the podcasts y’all listen to that
 you think we should buy ad spots on next month?
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime.add({hours: 1, minutes: 21}).toDate(timeZone),
             },

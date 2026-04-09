@@ -1,7 +1,7 @@
 import {CalendarDateTime, today} from "@internationalized/date";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -12,6 +12,7 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {
     InboxChannelPostsEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
@@ -27,7 +28,7 @@ export async function createFictionalAmbrookDemoInbox({
     cliffWeathers,
     roseCompas,
     hollyEvergreen,
-}: FictionalAmbrookAccounts) {
+}: DemoSpaceAccounts) {
     debug("Creating inbox");
 
     const timeZone = getCurrentTimeZone();
@@ -66,7 +67,7 @@ export async function createFictionalAmbrookDemoInbox({
             cliffWeathers,
             markdown`
 I updated our content calendar task collection for June:
-            `(),
+            `,
             {
                 overrideCreatedTime: new CalendarDateTime(
                     currentDate.year,
@@ -82,7 +83,7 @@ I updated our content calendar task collection for June:
             roseCompas,
             markdown`
 Blah blah blah.
-            `(),
+            `,
             {
                 overrideCreatedTime: new CalendarDateTime(
                     currentDate.year,
@@ -116,7 +117,7 @@ Blah blah blah.
                 Our first foray into podcast advertising is going great! We’re seeing a lot more
                 sign ups than we expected coming from the campaign’s vanity URLs. What are some of
                 the podcasts y’all listen to that you think we should buy ad spots on next month?
-            `(),
+            `,
             {
                 overrideCreatedTime: new CalendarDateTime(
                     currentDate.year,
@@ -161,13 +162,16 @@ Blah blah blah.
 
         await task.createComment(
             cliffWeathers,
-            markdown`
+            Mustache.render(
+                markdown`
 [Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) are you sure
 we have publicity rights for this customer?
-            `({
-                spaceId: space.id,
-                cassCadeAccountId: demoAccount.account.id,
-            }),
+                `,
+                {
+                    spaceId: space.id,
+                    cassCadeAccountId: demoAccount.account.id,
+                },
+            ),
         );
     }
 
@@ -185,7 +189,8 @@ we have publicity rights for this customer?
     const document = await TestDocument.create(demoAccount, {
         access: "Public",
         title: "Q2 Product Roadmap",
-        body: markdown`
+        body: Mustache.render(
+            markdown`
 | Project                  | DRI                                                                       | Priority <span hidden data-column-widths="4,3,2"/> |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |
 | Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-blue">Low</mark>            |
@@ -233,12 +238,14 @@ structured records, ready to review, tag, and export.
 - Reduce manual keying of totals/dates/vendor for both operators and bookkeepers
 
 - Make it trivial to pull complete, exportable support for expenses at month‑end and year‑end
-        `({
-            spaceUrl: `https://alpine.inc/s/${space.id}`,
-            masonClayAccountId: masonClay.account.id,
-            elleKappaTanAccountId: elleKappaTan.account.id,
-            cassCadeAccountId: cassCade.account.id,
-        }),
+            `,
+            {
+                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                masonClayAccountId: masonClay.account.id,
+                elleKappaTanAccountId: elleKappaTan.account.id,
+                cassCadeAccountId: cassCade.account.id,
+            },
+        ),
     });
 
     {
@@ -248,7 +255,7 @@ structured records, ready to review, tag, and export.
             markdown`
 This project should be high priority! It’s a feature our customers are constantly asking us for.
 What can we deprioritize to get this done this quarter?
-            `(),
+            `,
             {
                 overrideCreatedTime: new CalendarDateTime(
                     currentDate.year,
@@ -310,7 +317,7 @@ What can we deprioritize to get this done this quarter?
         markdown`
 Reminder, open enrollment is ending soon! Log onto our HR portal and make sure your health insurance
 information is up to date.
-        `(),
+        `,
     );
 
     await waitFor(5);

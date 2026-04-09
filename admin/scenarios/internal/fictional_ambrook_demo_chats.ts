@@ -1,8 +1,9 @@
 import {CalendarDateTime, today} from "@internationalized/date";
 import {addSeconds} from "date-fns";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
@@ -12,12 +13,15 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
 export async function createFictionalAmbrookDemoChats(
     tokenAgent: TokenAgent,
-    accounts: FictionalAmbrookAccounts,
+    accounts: DemoSpaceAccounts & {
+        chatGpt: TestBotAccount;
+    },
 ) {
     return runAllPromises([
         createFictionalAmbrookDemoChat1(tokenAgent, accounts),
@@ -27,7 +31,13 @@ export async function createFictionalAmbrookDemoChats(
 
 async function createFictionalAmbrookDemoChat1(
     tokenAgent: TokenAgent,
-    {cassCade, elleKappaTan, mattRHorn}: FictionalAmbrookAccounts,
+    {
+        cassCade,
+        elleKappaTan,
+        mattRHorn,
+    }: DemoSpaceAccounts & {
+        chatGpt: TestBotAccount;
+    },
 ) {
     debug("Creating chat 1");
 
@@ -44,7 +54,7 @@ async function createFictionalAmbrookDemoChat1(
         markdown`
 hey i know you’re probably still off the grid on your adventure but just lmk when you’re back in
 civilization
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.toDate(timeZone),
         },
@@ -52,17 +62,20 @@ civilization
 
     const firstMessage = await chat.sendMessage(
         cassCade,
-        markdown`
+        Mustache.render(
+            markdown`
 Hi Elle! I finally made it back to land today
 
 There were some weather delays which is why I didn’t respond sooner, but everything is good! I’m
 pretty tired but I’ll send you +
 [Matt](https://alpine.inc/s/{{spaceId}}/accounts/{{mattRHornAccountId}}?mention=short) the
 sorted/tagged customer feedback as soon as I can
-        `({
-            spaceId: space.id,
-            mattRHornAccountId: mattRHorn.account.id,
-        }),
+            `,
+            {
+                spaceId: space.id,
+                mattRHornAccountId: mattRHorn.account.id,
+            },
+        ),
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 12}).toDate(timeZone),
         },
@@ -72,7 +85,7 @@ sorted/tagged customer feedback as soon as I can
         elleKappaTan,
         markdown`
 im not surprised, 15 days of sea kayaking is probably exhausting for anyone!
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 15}).toDate(timeZone),
             parent: {
@@ -91,7 +104,7 @@ im not surprised, 15 days of sea kayaking is probably exhausting for anyone!
         cassCade,
         markdown`
 Totally. All worth it, though
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 16}).toDate(timeZone),
         },
@@ -101,7 +114,7 @@ Totally. All worth it, though
         elleKappaTan,
         markdown`
 🚣🚣🚣
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 17}).toDate(timeZone),
         },
@@ -111,7 +124,7 @@ Totally. All worth it, though
         elleKappaTan,
         markdown`
 sorry one last q, any ideas for what project i work on next?
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 17}).toDate(timeZone),
         },
@@ -138,7 +151,7 @@ Not sure. Before going I was thinking the receipt uploader, but I wonder if the 
 actually more important
 
 I’ll send you some more thoughts tomorrow
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 18}).toDate(timeZone),
         },
@@ -165,7 +178,13 @@ I’ll send you some more thoughts tomorrow
 
 async function createFictionalAmbrookDemoChat2(
     tokenAgent: TokenAgent,
-    {cassCade, cliffWeathers, chatGpt}: FictionalAmbrookAccounts,
+    {
+        cassCade,
+        cliffWeathers,
+        chatGpt,
+    }: DemoSpaceAccounts & {
+        chatGpt: TestBotAccount;
+    },
 ) {
     debug("Creating chat 2");
 
@@ -177,15 +196,18 @@ async function createFictionalAmbrookDemoChat2(
 
     await chat.sendMessage(
         cliffWeathers,
-        markdown`
+        Mustache.render(
+            markdown`
 [ChatGPT](https://alpine.inc/s/{{spaceId}}/accounts/{{chatGptAccountId}}?mention) please sort and
 tag the feedback in
 [Customer Feedback from Sales](https://alpine.inc/s/{{spaceId}}/documents/{{documentId}}?mention).
-        `({
-            spaceId: space.id,
-            chatGptAccountId: chatGpt.id,
-            documentId: document.id,
-        }),
+            `,
+            {
+                spaceId: space.id,
+                chatGptAccountId: chatGpt.id,
+                documentId: document.id,
+            },
+        ),
     );
 
     const streamMessage = await chat.sendMessage(chatGpt.action(chat.getBotScope()), "", {
@@ -216,7 +238,7 @@ Absolutely. I’ll read and group the feedback into clear themes.
 
     Needs: flexible units (acre/block/enterprise), cost allocation support, lender/investor-friendly
     outputs.
-        `(),
+        `,
         {
             overrideCreatedTime: addSeconds(new Date(), 22),
         },
@@ -242,7 +264,7 @@ Absolutely. I’ll read and group the feedback into clear themes.
         cassCade,
         markdown`
 Nice, I can use this. Thanks Cliff
-        `(),
+        `,
     );
 
     // Make sure Cass's message clears the loud notification.

@@ -10,7 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
-export async function uploadScenarioBotAvatar(
+export async function uploadDemoSpaceBotAvatar(
     tokenAgent: TokenAgent,
     session: TestSession,
     botId: BotId,
@@ -19,7 +19,7 @@ export async function uploadScenarioBotAvatar(
     const contentType = assertExists(getPathFileContentTypeIfExists(path));
 
     const file = await fs.readFile(
-        joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures", path),
+        joinPath(runfilesPath, "cyberworlds/admin/environment/demo_space/fixtures", path),
     );
 
     await fetchWithTracer(

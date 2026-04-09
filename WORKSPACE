@@ -643,8 +643,8 @@ http_archive(
 
 http_archive(
     name = "rules_rust",
-    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.68.1/rules_rust-0.68.1.tar.gz"],
     integrity = "sha256-yKqAbPYGZnmsI0YyQe6ArWkiZdrQRl9RERy74wuJA1I=",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.68.1/rules_rust-0.68.1.tar.gz"],
 )
 
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
@@ -675,3 +675,11 @@ crates_repository(
 load("@swc_plugin_crates//:defs.bzl", "crate_repositories")
 
 crate_repositories()
+
+# =========================================================================== #
+#                             Marketing resources                             #
+# =========================================================================== #
+
+load("//admin/marketing/2026_04_scalable_demos:scalable_demo_repositories.bzl", "scalable_demo_repositories")
+
+scalable_demo_repositories()

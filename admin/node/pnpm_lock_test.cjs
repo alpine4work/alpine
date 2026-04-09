@@ -70,7 +70,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // `aws-cdk` to `packageExtensions` that we can't easily resolve but shouldn't
     // cause issues.
     ["agent-base", ["6.0.2", "7.1.3"]],
-    ["ajv", ["6.12.6", "8.17.1"]],
+    ["ajv", ["6.12.6", "8.18.0"]],
     ["https-proxy-agent", ["5.0.1", "7.0.6"]],
     ["json-schema-traverse", ["0.4.1", "1.0.0"]],
     ["mute-stream", ["0.0.8", "1.0.0"]],
@@ -130,7 +130,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["ora", ["5.4.1", "8.2.0"]],
     ["pathe", ["1.1.2", "2.0.3"]],
     ["pkg-types", ["1.1.1", "2.3.0"]],
-    ["prettier", ["2.8.8", "3.7.4"]],
+    ["prettier", ["2.8.8", "3.8.1"]],
     ["restore-cursor", ["3.1.0", "5.1.0"]],
 
     // NOTE(calebmer, 2025-09-20): Duplicate packages after upgrading TypeScript to
@@ -139,6 +139,30 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // NOTE(calebmer, 2025-09-20): Duplicate packages after React to version 19.
     ["dom-accessibility-api", ["0.5.14", "0.6.3"]],
+
+    // NOTE(calebmer, 2026-03-31): Duplicate packages after installing Remotion.
+    ["ajv-formats", ["2.1.1", "3.0.1"]],
+    ["ast-types", ["0.13.4", "0.16.1"]],
+    ["es-module-lexer", ["1.5.2", "2.0.0"]],
+    ["get-stream", ["5.2.0", "6.0.1"]],
+    ["jest-worker", ["27.5.1", "29.6.3"]],
+    ["loader-utils", ["2.0.2", "3.2.1"]],
+    ["react-refresh", ["0.14.0", "0.18.0"]],
+    ["tr46", ["1.0.1", "3.0.0"]],
+    ["webidl-conversions", ["4.0.2", "7.0.0"]],
+    ["whatwg-url", ["7.1.0", "11.0.0"]],
+    ["yauzl", ["2.10.0", "3.2.0"]],
+    ["zod", ["3.25.76", "4.3.6"]],
+
+    // NOTE(calebmer, 2026-04-02): Duplicate packages after installing `concurrently`
+    // and `serve`.
+    ["bytes", ["3.0.0", "3.1.2"]],
+    ["content-disposition", ["0.5.2", "0.5.4"]],
+    ["is-port-reachable", ["3.1.0", "4.0.0"]],
+    ["mime-db", ["1.33.0", "1.52.0", "1.54.0"]],
+    ["mime-types", ["2.1.18", "2.1.35", "3.0.1"]],
+    ["negotiator", ["0.6.3", "0.6.4", "1.0.0"]],
+    ["range-parser", ["1.2.0", "1.2.1"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this test. We
     // did a quick skim to see if there were any packages we use where duplicate
@@ -158,8 +182,8 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["brace-expansion", ["1.1.11", "2.0.1"]],
     ["buffer", ["4.9.2", "5.6.0", "5.7.1", "6.0.3"]],
     ["cacache", ["15.3.0", "17.1.4"]],
-    ["camelcase", ["5.3.1", "6.3.0"]],
-    ["chalk", ["4.1.2", "5.6.2"]],
+    ["camelcase", ["5.3.1", "6.3.0", "7.0.1"]],
+    ["chalk", ["4.1.2", "5.0.1", "5.6.2"]],
     ["chownr", ["1.1.4", "2.0.0"]],
     ["cliui", ["7.0.4", "8.0.1"]],
     ["color-convert", ["0.5.3", "2.0.1"]],
@@ -172,7 +196,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["debug", ["2.6.9", "3.2.7", "4.3.7", "4.4.3"]],
     ["dedent", ["0.7.0", "1.5.3"]],
     ["doctrine", ["2.1.0", "3.0.0"]],
-    ["dotenv", ["10.0.0", "16.0.3"]],
+    ["dotenv", ["10.0.0", "16.0.3", "17.3.1"]],
     ["emoji-regex", ["8.0.0", "9.2.2", "10.5.0"]],
     ["entities", ["4.5.0", "6.0.1"]],
     ["escape-string-regexp", ["2.0.0", "4.0.0", "5.0.0"]],
@@ -229,7 +253,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["micromark", ["3.1.0", "4.0.0"]],
     ["mime", ["1.6.0", "2.6.0", "3.0.0"]],
     ["mimic-fn", ["2.1.0", "4.0.0"]],
-    ["minimatch", ["3.1.2", "5.1.1", "9.0.5", "10.0.1"]],
+    ["minimatch", ["3.1.5", "5.1.1", "9.0.5", "10.0.1"]],
     ["minipass", ["3.3.4", "7.1.2"]],
     ["ms", ["2.0.0", "2.1.3"]],
     ["npm-run-path", ["4.0.1", "5.1.0"]],
@@ -237,7 +261,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["p-limit", ["2.3.0", "3.1.0"]],
     ["p-locate", ["4.1.0", "5.0.0"]],
     ["path-key", ["3.1.1", "4.0.0"]],
-    ["path-to-regexp", ["0.1.7", "6.3.0"]],
+    ["path-to-regexp", ["0.1.7", "3.3.0", "6.3.0"]],
     ["pretty-format", ["27.5.1", "29.6.3"]],
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
@@ -246,11 +270,11 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["resolve-from", ["4.0.0", "5.0.0"]],
     ["resolve", ["1.22.8", "2.0.0-next.5"]],
     ["safe-buffer", ["5.1.2", "5.2.1"]],
-    ["semver", ["6.3.1", "7.7.1"]],
+    ["semver", ["6.3.1", "7.5.3", "7.7.1"]],
     ["signal-exit", ["3.0.7", "4.1.0"]],
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],
-    ["source-map", ["0.6.1", "0.7.6"]],
+    ["source-map", ["0.6.1", "0.7.3", "0.7.6", "0.8.0-beta.0"]],
     ["ssri", ["8.0.1", "10.0.6"]],
     ["string-width", ["4.2.3", "5.1.2", "7.2.0"]],
     ["string_decoder", ["1.1.1", "1.3.0"]],
@@ -260,7 +284,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["supports-color", ["7.2.0", "8.1.1", "10.2.2"]],
     ["tsconfig-paths", ["3.14.1", "4.2.0"]],
     ["tslib", ["2.4.0", "2.6.3"]],
-    ["type-fest", ["0.20.2", "0.21.3", "4.41.0"]],
+    ["type-fest", ["0.20.2", "0.21.3", "2.19.0", "4.41.0"]],
     ["type", ["1.2.0", "2.7.2"]],
     ["undici", ["5.28.4", "6.17.0"]],
     ["unique-filename", ["1.1.1", "3.0.0"]],

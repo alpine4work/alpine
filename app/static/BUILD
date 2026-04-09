@@ -235,5 +235,6 @@ js_run_binary(
         "files/icons/task_brand_icon_light.png",
     ],
     chdir = package_name(),
+    progress_message = "Generating icon PNGs",
     tool = ":generate_icon_pngs",
 )

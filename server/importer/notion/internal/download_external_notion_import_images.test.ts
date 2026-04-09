@@ -4,6 +4,7 @@ import {join as joinPath} from "path";
 import {downloadExternalNotionImportImages} from "~/server/importer/notion/internal/download_external_notion_import_images.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {UnknownError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -46,7 +47,9 @@ function createFailingFetch(): typeof fetch {
 }
 
 async function setupAndRun(markdownFiles: Record<string, string>, fetchFn: typeof fetch) {
-    const context = new TestImporterContextModule();
+    const context = new TestImporterContextModule({
+        getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+    });
     const diskKey = `test-${generateId()}`;
 
     const files: Record<string, Uint8Array> = {};

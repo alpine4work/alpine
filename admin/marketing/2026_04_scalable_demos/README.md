@@ -1,0 +1,92 @@
+# Scalable Demo Content Format
+
+We want to be posting lots of content on social media. As a small team, the only way to do this
+sustainably (while also spending most of our time on product, sales, etc.) is to build a scalable
+content format. This package includes the code that supports our daily demo format which we started
+posting April 2026.
+
+## Remotion
+
+We use Remotion for generating videos. You can start Remotion Studio like this:
+
+```bash
+admin/marketing/2026_04_scalable_demos/remotion_studio.sh
+```
+
+Whenever you need to update the available assets run:
+
+```bash
+bazel build //admin/marketing/2026_04_scalable_demos:public
+```
+
+This will also show you the list of assets available via the `remotionFile()` helper function.
+
+> **Note:** This doesn't run files through our Bazel TS → JS build pipeline. All other code in our
+> monorepo is compiled to JS through Bazel (via SWC with custom plugins). For convenience, we make
+> an exception for this marketing code which is compiled entirely through Remotion. Anything that
+> depends on our custom SWC plugins won't work in Remotion's studio environment.
+
+## Demos
+
+Each demo lives in `demos`. A demo has the name `${number}_${name}`. `number` is an incrementing
+integer we add to make sure all our demos are listed in the order they were created. `name` is a
+unique name for the demo.
+
+Demos have the following parts:
+
+- `demos/${number}_${name}_demo_recorder.ts`: This uses Playwright and our integration test
+  environment to setup the app for a demo screen recording (could be one or more videos). Add demo
+  data and add instructions for how the human should pilot the app in the screen recording. Run the
+  recorder with
+  `bazel run //admin/marketing/2026_04_scalable_demos:${number}_${name}_demo_recorder`. This will
+  use Playwright to launch a browser and will wait for the human to take the screen recording.
+
+- `scalable_demo_repositories.bzl` contains the map `SCALABLE_DEMOS_REPOSITORIES` which is all our
+  source video assets. The workflow is:
+    1. You (typically a human, not a coding agent) use the recorder to take a screen recording.
+    2. You (typically a human, not a coding agent) upload the video asset to the
+       [`2026_04_scalable_demos` folder on Google Drive](https://drive.google.com/drive/folders/1Uv1E0DEcgCn7PZTDzfIcmfTh-VvTpgEB?usp=drive_link).
+       By convention we like to name our video assets `recording_${takeNumber}.mov`.
+    3. Add the link to the uploaded video asset to `SCALABLE_DEMOS_REPOSITORIES`. This file will be
+       made available to Remotion. If the video is in the `.mov` format then we convert it to
+       `.webm`.
+    4. The video is now available in Remotion via `remotionFile()` using the file name from
+       `SCALABLE_DEMOS_REPOSITORIES`.
+
+- `demos/${number}_${name}_demo_composition.tsx`: The Remotion composition used for rendering the
+  final demo video. You need to import this file in `scalable_demos_remotion_root.tsx` and add a new
+  `<Composition>` component. This `*_demo_composition.tsx` file should ONLY export a Remotion
+  composition React component. This makes iteration with React Refresh a lot nicer since React
+  Refresh only needs to hot reload the composition component when it changes instead of the entire
+  Remotion studio (which may happen if you export anything else, e.g. a number or string or object).
+
+- `demos/${number}_${name}_demo_shared.ts`: A place for constants shared between the
+  `*_demo_recorder.ts`, `*_demo_composition.tsx`, and `scalable_demos_remotion_root.tsx` files. For
+  example, you may want to share the demo viewport width between `*_demo_recorder.ts` and
+  `*_demo_composition.tsx`. Or the demo duration in frames between `*_demo_composition.tsx` and
+  `scalable_demos_remotion_root.tsx`. (Video duration must be defined in
+  `scalable_demos_remotion_root.tsx`, when it changes the entire Remotion studio must re-render.)
+
+- `bazel run //admin/marketing/2026_04_scalable_demos:content_prompt` uses the Claude Code CLI to
+  help you generate X and LinkedIn text for your demo. Run the command, it's interactive, select the
+  platform, and select the demo. The way it works is it uses the `*_demo_recorder.ts` code you wrote
+  to understand what the demo is about. So make sure the `instructions` in your `*_demo_recorder.ts`
+  file are useful both for humans and for agents!
+
+## Style guide
+
+- The demo recordings should be incredibly precise. Pay attention to every detail. Mouse movements,
+  spacing, timestamps, everything. Every pixel on screen should be considered. If there are weird
+  loading glitches, you can cut them out in editing. (Example: `002_image_gallery_demo`.)
+
+- Videos should feel natural when looped. It's ok if there's a jump cut when the video is looped but
+  ideally you return the UI to something close to its original state (if possible) and you leave the
+  mouse in a similar place as to where you started. I (@calebmer) like to put a sticky note on my
+  monitor while recording to help me remember where the mouse should start/end in a recording.
+  (Example: `003_task_progress_wheel_demo`.)
+
+- Try to keep the mouse cursor inside the recording bounds. The final video emulates a window on top
+  of a desktop background. If the mouse leaves the recording frame (and doesn't show up over the
+  background image) it breaks the illusion. Sometimes it's unavoidable and the mouse has to leave
+  the recording but generally try keeping the mouse cursor in frame. (Example:
+  `003_task_progress_wheel_demo`.)

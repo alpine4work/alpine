@@ -1,6 +1,7 @@
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
 import {FictionalAmbrookSprintTasks} from "~/admin/scenarios/internal/fictional_ambrook_sprint_tasks.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -22,7 +23,9 @@ export async function createFictionalAmbrookSuggestions(
         elleKappaTan,
         masonClay,
         hollyEvergreen,
-    }: FictionalAmbrookAccounts,
+    }: DemoSpaceAccounts & {
+        chatGpt: TestBotAccount;
+    },
     {
         sprintCollection,
         lastSprintCollection,

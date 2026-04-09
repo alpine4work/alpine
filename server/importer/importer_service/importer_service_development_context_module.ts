@@ -2,7 +2,6 @@ import envPaths from "env-paths";
 import {mkdir, stat} from "fs/promises";
 import {join as joinPath} from "path";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
-
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
 import {DataLossError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -20,19 +19,19 @@ const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
  * Run `dev path data` to see the data directory path on your machine.
  */
 export class ImporterServiceDevelopmentContextModule extends ImporterServiceContextModuleBase {
-    private readonly _localUploadPath?: string;
+    private readonly _getLocalUploadPath?: () => string;
 
-    constructor({localUploadPath}: {localUploadPath?: string} = {}) {
+    constructor({getLocalUploadPath}: {getLocalUploadPath?: () => string} = {}) {
         super();
         assert(
             process.env.NODE_ENV !== "production",
             "ImporterServiceDevelopmentContextModule should not be used in production",
         );
-        this._localUploadPath = localUploadPath;
+        this._getLocalUploadPath = getLocalUploadPath;
     }
 
     private _getBasePath(): string {
-        return this._localUploadPath ?? devDataPath;
+        return this._getLocalUploadPath?.() ?? devDataPath;
     }
 
     private _getUploadPath(importKey: string): string {
@@ -70,7 +69,7 @@ export class ImporterServiceDevelopmentContextModule extends ImporterServiceCont
 
     fork(): ImporterServiceDevelopmentContextModule {
         return new ImporterServiceDevelopmentContextModule({
-            localUploadPath: this._localUploadPath,
+            getLocalUploadPath: this._getLocalUploadPath,
         });
     }
 }

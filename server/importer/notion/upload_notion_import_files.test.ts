@@ -23,6 +23,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -129,7 +130,9 @@ describe("uploadNotionImportFiles", () => {
     test("uploads files to R2 and creates file records", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
         const testDiskPath = "test-upload-files";
 
         // Create test file content.
@@ -215,7 +218,9 @@ describe("uploadNotionImportFiles", () => {
     test("skips files that already exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
         const testDiskPath = "test-skip-existing";
 
         // Create test file content.
@@ -286,7 +291,9 @@ describe("uploadNotionImportFiles", () => {
     test("skips files that do not exist on disk", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
         const testDiskPath = "test-missing-files";
 
         // Set up unzipped files - only one file exists.
@@ -360,7 +367,9 @@ describe("uploadNotionImportFiles", () => {
     test("skips files without a teamspace", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
         const testDiskPath = "test-no-teamspace";
 
         const imageContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -433,7 +442,9 @@ describe("uploadNotionImportFiles", () => {
     test("handles empty filesToUpload", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
 
         const mappedReferencesResult: NotionImportMappedReferencesResult = {
             notionWorkspaceId: "test-workspace",
@@ -469,7 +480,9 @@ describe("uploadNotionImportFiles", () => {
     test("uploads files concurrently with rotating pool", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
-        const importerModule = new TestImporterContextModule();
+        const importerModule = new TestImporterContextModule({
+            getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+        });
         const testDiskPath = "test-concurrent";
 
         // Create multiple test files of different sizes.

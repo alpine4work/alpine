@@ -1,8 +1,8 @@
+import Mustache from "mustache";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
 import {uploadScenarioFile} from "~/admin/scenarios/internal/upload_scenario_file.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -10,12 +10,13 @@ import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_cont
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
 export async function createFictionalAmbrookDemoDocument(
     tokenAgent: TokenAgent,
-    {cassCade, elleKappaTan, masonClay}: FictionalAmbrookAccounts,
+    {cassCade, elleKappaTan, masonClay}: DemoSpaceAccounts,
 ) {
     debug("Creating document");
 
@@ -43,7 +44,7 @@ Our customers live in receipts: fuel, feed, parts, repairs, lodging. Today, end 
 and shoeboxes, then get <!-- dumped on an accountant once or twice a year. That leads to missing
 documents, manual data entry, and a constant lag between spending money and understanding where it
 went. -->
-            `(),
+            `,
         }),
         TestDocument.create(cassCade, {
             title: "PAD PRD",
@@ -57,7 +58,7 @@ to show true profitability per acre. It combines transaction data (sales, inputs
 production data <!-- (yields, planted acres), and simple allocations (e.g., equipment or labor by
 field) into a visual view: maps, tables, and trends that make it obvious which acres are
 underperforming and which management changes are working. -->
-            `(),
+            `,
         }),
         TestDocument.create(cassCade, {
             title: "Grants Navigator",
@@ -70,7 +71,7 @@ Goals:
 
 - Help producers discover programs they qualify for
 - Reduce time to go from “I’ve heard <!-- of this grant” to a complete application -->
-            `(),
+            `,
         }),
     ]);
 
@@ -106,7 +107,8 @@ Goals:
         // },
         // ```
 
-        body: markdown`
+        body: Mustache.render(
+            markdown`
 In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We’re going to add a couple features for larger businesses this quarter.
@@ -120,13 +122,15 @@ quarter. We’re going to add a couple features for larger businesses this quart
 # Inspiration
 
 Some photos of the farms we helped last quarter to get us hyped for Q2!
-        `({
-            spaceUrl: `https://alpine.inc/s/${space.id}`,
-            otherDocumentId: otherDocument.id,
-            elleKappaTanAccountId: elleKappaTan.account.id,
-            cassCadeAccountId: cassCade.account.id,
-            masonClayAccountId: masonClay.account.id,
-        }),
+            `,
+            {
+                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                otherDocumentId: otherDocument.id,
+                elleKappaTanAccountId: elleKappaTan.account.id,
+                cassCadeAccountId: cassCade.account.id,
+                masonClayAccountId: masonClay.account.id,
+            },
+        ),
     });
 
     await document.access.grantDefault(cassCade);
@@ -134,23 +138,23 @@ Some photos of the farms we helped last quarter to get us hyped for Q2!
     debug("Created document");
 
     const [file1, file2, file3, file4, file5] = await runAllPromises([
-        uploadScenarioFile(tokenAgent, cassCade, "unsplash/fictional_ambrook_inspiration_1.jpg", {
+        uploadScenarioFile(tokenAgent, cassCade, "fictional_ambrook_unsplash_inspiration_1.jpg", {
             type: "Document",
             documentId: document.id,
         }),
-        uploadScenarioFile(tokenAgent, cassCade, "unsplash/fictional_ambrook_inspiration_2.jpg", {
+        uploadScenarioFile(tokenAgent, cassCade, "fictional_ambrook_unsplash_inspiration_2.jpg", {
             type: "Document",
             documentId: document.id,
         }),
-        uploadScenarioFile(tokenAgent, cassCade, "unsplash/fictional_ambrook_inspiration_3.jpg", {
+        uploadScenarioFile(tokenAgent, cassCade, "fictional_ambrook_unsplash_inspiration_3.jpg", {
             type: "Document",
             documentId: document.id,
         }),
-        uploadScenarioFile(tokenAgent, cassCade, "unsplash/fictional_ambrook_inspiration_4.jpg", {
+        uploadScenarioFile(tokenAgent, cassCade, "fictional_ambrook_unsplash_inspiration_4.jpg", {
             type: "Document",
             documentId: document.id,
         }),
-        uploadScenarioFile(tokenAgent, cassCade, "unsplash/fictional_ambrook_inspiration_5.jpg", {
+        uploadScenarioFile(tokenAgent, cassCade, "fictional_ambrook_unsplash_inspiration_5.jpg", {
             type: "Document",
             documentId: document.id,
         }),

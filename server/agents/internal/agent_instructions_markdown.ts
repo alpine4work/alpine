@@ -16,6 +16,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
  * Since the template string needs to be named `markdown` to be correctly formatted
  * by Prettier.
  */
+// TODO: Port this to use the new `shared/helpers/string/markdown.ts` utility.
 export function agentInstructionsMarkdown(
     template: TemplateStringsArray,
     ...substitutions: Array<unknown>

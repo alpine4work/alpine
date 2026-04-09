@@ -1,4 +1,8 @@
 import {Page} from "playwright";
+import {
+    createDemoSpaceWithoutUploadingAvatars,
+    uploadDemoSpaceAvatars,
+} from "~/admin/environment/demo_space/create_demo_space.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {createFictionalAmbrookDemoAgents} from "~/admin/scenarios/internal/fictional_ambrook_demo_agents.js";
 import {createFictionalAmbrookDemoChannel} from "~/admin/scenarios/internal/fictional_ambrook_demo_channel.js";
@@ -7,12 +11,10 @@ import {createFictionalAmbrookDemoDocument} from "~/admin/scenarios/internal/fic
 import {createFictionalAmbrookDemoFeed} from "~/admin/scenarios/internal/fictional_ambrook_demo_feed.js";
 import {createFictionalAmbrookDemoInbox} from "~/admin/scenarios/internal/fictional_ambrook_demo_inbox.js";
 import {createFictionalAmbrookHeroFeed} from "~/admin/scenarios/internal/fictional_ambrook_hero_feed.js";
-import {
-    createFictionalAmbrookSpace,
-    uploadFictionalAmbrookAvatars,
-} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
 import {createFictionalAmbrookSprintTasks} from "~/admin/scenarios/internal/fictional_ambrook_sprint_tasks.js";
 import {createFictionalAmbrookSuggestions} from "~/admin/scenarios/internal/fictional_ambrook_suggestions.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
@@ -39,10 +41,25 @@ export async function createLandingPageScenario(
     context: TestContext,
     {tokenAgent}: {tokenAgent: TokenAgent},
 ) {
-    const {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress} =
-        await createFictionalAmbrookSpace(context);
+    const {
+        space,
+        accounts: accountsWithoutChatGpt,
+        cassCadeEmailAddress,
+        roseCompasEmailAddress,
+    } = await createDemoSpaceWithoutUploadingAvatars(context);
 
-    const {cassCade, roseCompas} = accounts;
+    const {cassCade, roseCompas} = accountsWithoutChatGpt;
+
+    const chatGpt = await (async () => {
+        // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
+        // There's a file in `scenario_chatgpt_avatar.png` that we're not currently using.
+        // We need to figure out a way to get avatars uploaded for bots for test scenarios.
+        const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
+
+        return bot.instantiate(roseCompas);
+    })();
+
+    const accounts = {...accountsWithoutChatGpt, chatGpt};
 
     // Before doing anything else, put a subtle notification in Cass's inbox. That way
     // if we archive any other inbox entries while taking screenshots it won't trigger
@@ -91,7 +108,7 @@ export async function createLandingPageScenario(
         createFictionalAmbrookDemoAgents(accounts),
         createFictionalAmbrookDemoFeed(accounts),
         createFictionalAmbrookHeroFeed(accounts),
-        uploadFictionalAmbrookAvatars(tokenAgent, accounts),
+        uploadDemoSpaceAvatars(tokenAgent, accounts),
     ]);
 
     const spaceSideBarWidth = 56;

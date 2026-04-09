@@ -16,6 +16,7 @@ import {getAccountRegistry} from "~/client/web/accounts/account_registry_context
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
@@ -44,7 +45,7 @@ export async function exportDocumentContent({
     string: string;
     html: string;
 }> {
-    const apiContent = intoApiContent(content.doc, {
+    let apiContent = intoApiContent(content.doc, {
         getAccountMentionTitleIfExists: (accountId, {isShort}) => {
             const account = content.references.accountById.get(accountId);
             if (!account) return;
@@ -73,6 +74,27 @@ export async function exportDocumentContent({
             if (!entity || entity.isPrivate) return;
             if (entity.entity.initialData.media?.type !== "TaskDisplayStatus") return;
             return entity.entity.initialData.media.displayStatus;
+        },
+    });
+
+    apiContent = visitAndProduceApiContent(apiContent, {
+        visitBlockElement: element => {
+            // Remove table and column widths from the content. Our table/column width
+            // Markdown/HTML syntax is non-standard. Better to not include it in the export so
+            // the user gets a clean export.
+            if (
+                element.type === "Table" &&
+                (element.width !== 1 || element.columns.some(column => column.width !== 1))
+            ) {
+                element.width = 1;
+                element.columns = element.columns.map(column => ({...column, width: 1}));
+            }
+        },
+        visitInlineElement: element => {
+            // Remove all comment marks from the content before converting to Markdown.
+            if (element.marks?.find(mark => mark.type === "Comment")) {
+                element.marks = element.marks.filter(mark => mark.type !== "Comment");
+            }
         },
     });
 

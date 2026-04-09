@@ -4,6 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "icons",
     visibility = [
+        "//admin:__subpackages__",
         "//app:__subpackages__",
         "//client/web:__subpackages__",
     ],
@@ -11,7 +12,6 @@ ts_project(
         ":icon_svgs",
         "//:node_modules/@types/react",
         "//:node_modules/react",
-        "//client/web/styles",
         "//shared/design",
         "//shared/helpers",
         "//shared/reactions",

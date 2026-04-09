@@ -346,6 +346,7 @@ def ts_lint_and_format_test(
             entry_point = "//admin/eslint:eslint_test_file",
             data = _dedupe_labels(lint_srcs + [
                 "//:node_modules/@remix-run/eslint-config",
+                "//:node_modules/@remotion/eslint-plugin",
                 "//:node_modules/@typescript-eslint/eslint-plugin",
                 "//:node_modules/eslint",
                 "//:node_modules/eslint-plugin-cyberworlds",

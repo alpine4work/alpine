@@ -94,6 +94,10 @@
         "@remix-run/react": "2.9.2",
         "@remix-run/router": "1.16.1",
         "@remix-run/server-runtime": "2.9.2",
+        "@remotion/cli": "4.0.443",
+        "@remotion/eslint-plugin": "4.0.443",
+        "@remotion/media": "4.0.443",
+        "@remotion/renderer": "4.0.443",
         "@replit/codemirror-lang-csharp": "^6.2.0",
         "@replit/codemirror-lang-solidity": "^6.0.2",
         "@resvg/resvg-js": "^2.6.0",
@@ -180,6 +184,7 @@
         "color": "^4.2.3",
         "compromise": "^14.10.1",
         "compromise-dates": "^3.4.2",
+        "concurrently": "^9.2.1",
         "constructs": "^10.1.143",
         "cookie": "^1.1.1",
         "d3-interpolate": "^3.0.1",
@@ -300,8 +305,10 @@
         "react-router": "6.23.1",
         "react-router-dom": "6.23.1",
         "react-stately": "3.27.0",
+        "remotion": "4.0.443",
         "remove-accents": "^0.5.0",
         "scheduler": "^0.27.0",
+        "serve": "^14.2.6",
         "serve-static": "^1.15.0",
         "set-cookie-parser": "^2.6.0",
         "sharp": "0.33.5",
@@ -332,7 +339,7 @@
         "yargs": "^17.7.2",
         "yauzl": "^3.2.0",
         "yjs": "^13.6.6",
-        "zod": "^3.25.76"
+        "zod": "^4.3.6"
     },
     "pnpm": {
         "updateNotifier": false,
@@ -375,7 +382,11 @@
             "@img/sharp-libvips-darwin-x64@1.0.4": "file:admin/vendor/libvips/libvips-darwin-x86_64",
             "@img/sharp-libvips-linux-arm64@1.0.4": "file:admin/vendor/libvips/libvips-linux-arm64",
             "@img/sharp-libvips-linux-x64@1.0.4": "file:admin/vendor/libvips/libvips-linux-x86_64",
-            "@aws-cdk/cloudformation-diff@2.180.0>@aws-cdk/service-spec-types": "0.0.133"
+            "@aws-cdk/cloudformation-diff@2.180.0>@aws-cdk/service-spec-types": "0.0.133",
+            "@remotion/bundler@4.0.443>esbuild@0.25.0": "0.25.10",
+            "@remotion/studio-server@4.0.443>@babel/parser@7.24.1": "7.28.4",
+            "@remotion/eslint-plugin@4.0.443>@typescript-eslint/utils": "8.44.0",
+            "rollup@4.21.0>@types/estree@1.0.5": "1.0.8"
         },
         "patchedDependencies": {
             "outdent@0.8.0": "admin/patches/outdent@0.8.0.patch",

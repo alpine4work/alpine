@@ -57,3 +57,6 @@ CLAUDE.local.md
 
 # Rust
 target
+
+# Remotion Studio render output
+/out

@@ -53,7 +53,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
     describe("downloadAndUnzipImportToDisk", () => {
         test("unzips file with index.html at root", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             // Create a zip with index.html at root
@@ -75,7 +75,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("unzips file with subdirectory structure", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             // Create a zip with subdirectory structure
@@ -103,7 +103,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("returns unzip directory when index.html not found", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             // Create a zip without index.html
@@ -125,7 +125,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("throws DataLossError when zip file not found", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             await expect(
@@ -135,7 +135,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("does not extract nested zip files automatically", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             // Create a nested zip
@@ -160,7 +160,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
     describe("listUnzippedFiles", () => {
         test("lists all files recursively", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             const zipData = zipSync({
@@ -187,7 +187,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("returns empty array for nonexistent path", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             const files = await module.listUnzippedFiles({
@@ -201,7 +201,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
     describe("readUnzippedFile", () => {
         test("reads file content from unzipped directory", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             const pageContent = "# My Test Page\n\nSome content here.";
@@ -226,7 +226,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("reads nested file", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             const nestedContent = "# Nested Page";
@@ -251,7 +251,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
 
         test("returns null for nonexistent file", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
 
             const zipData = zipSync({
@@ -276,7 +276,7 @@ describe("ImporterServiceDevelopmentContextModule", () => {
     describe("fork", () => {
         test("returns a new instance with same config", async () => {
             const module = new ImporterServiceDevelopmentContextModule({
-                localUploadPath: workspacePath,
+                getLocalUploadPath: () => workspacePath,
             });
             const forked = module.fork();
 

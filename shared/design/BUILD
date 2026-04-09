@@ -2,7 +2,11 @@ load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 CORE_SRCS = glob(
-    ["core/**/*.ts"],
+    [
+        "core/**/*.ts",
+        "core/**/*.tsx",
+    ],
+    allow_empty = True,
     exclude = ["core/**/*.test.ts"],
 )
 
@@ -29,7 +33,11 @@ ts_project(
 ts_project(
     name = "design",
     srcs = glob(
-        ["**/*.ts"],
+        [
+            "**/*.ts",
+            "**/*.tsx",
+        ],
+        allow_empty = True,
         exclude = CORE_SRCS + ["**/*.test.ts"],
     ),
     visibility = ["//visibility:public"],
@@ -42,6 +50,7 @@ ts_project(
         "//:node_modules/color",
         "//:node_modules/d3-interpolate",
         "//:node_modules/date-fns",
+        "//:node_modules/react",
         "//shared/helpers",
     ],
 )

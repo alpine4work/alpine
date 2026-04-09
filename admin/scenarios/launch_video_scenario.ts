@@ -3,16 +3,18 @@ import {
     decode as decodeO200kBaseTokens,
     encode as encodeO200kBaseTokens,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
+import Mustache from "mustache";
 import {
-    FictionalAmbrookAccounts,
-    createFictionalAmbrookSpace,
-    uploadFictionalAmbrookAvatars,
-} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
+    DemoSpaceAccounts,
+    createDemoSpaceWithoutUploadingAvatars,
+    uploadDemoSpaceAvatars,
+} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createFictionalAmbrookSprintTasks} from "~/admin/scenarios/internal/fictional_ambrook_sprint_tasks.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
 import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
+import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     addSearchAffinityEntityPointsForTest,
@@ -36,6 +38,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -43,8 +46,12 @@ export async function createLaunchVideoScenario(
     context: TestContext,
     {tokenAgent}: {tokenAgent: TokenAgent},
 ) {
-    const {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress} =
-        await createFictionalAmbrookSpace(context);
+    const {
+        space,
+        accounts: accountsWithoutChatGpt,
+        cassCadeEmailAddress,
+        roseCompasEmailAddress,
+    } = await createDemoSpaceWithoutUploadingAvatars(context);
 
     const {
         cassCade,
@@ -54,8 +61,18 @@ export async function createLaunchVideoScenario(
         mattRHorn,
         cliffWeathers,
         hollyEvergreen,
-        chatGpt,
-    } = accounts;
+    } = accountsWithoutChatGpt;
+
+    const chatGpt = await (async () => {
+        // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
+        // There's a file in `scenario_chatgpt_avatar.png` that we're not currently using.
+        // We need to figure out a way to get avatars uploaded for bots for test scenarios.
+        const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
+
+        return bot.instantiate(roseCompas);
+    })();
+
+    const accounts = {...accountsWithoutChatGpt, chatGpt};
 
     const [
         {
@@ -102,7 +119,7 @@ export async function createLaunchVideoScenario(
             return chat;
         })(),
 
-        uploadFictionalAmbrookAvatars(tokenAgent, accounts),
+        uploadDemoSpaceAvatars(tokenAgent, accounts),
     ]);
 
     await runAllPromises([
@@ -273,7 +290,9 @@ export async function createLaunchVideoScenario(
 }
 
 /* eslint-disable cyberworlds/string-quotes */
-async function createLaunchVideoFeed(originalAccounts: FictionalAmbrookAccounts) {
+async function createLaunchVideoFeed(
+    originalAccounts: DemoSpaceAccounts & {chatGpt: TestBotAccount},
+) {
     const originalContext = originalAccounts.cassCade.context;
 
     const promiseWaiter = new PromiseWaiter();
@@ -291,7 +310,7 @@ async function createLaunchVideoFeed(originalAccounts: FictionalAmbrookAccounts)
 
     const accounts = mapObjectValues(originalAccounts, account =>
         account.withContext(context),
-    ) as FictionalAmbrookAccounts;
+    ) as DemoSpaceAccounts & {chatGpt: TestBotAccount};
 
     return actuallyCreateLaunchVideoFeed(promiseWaiter, accounts);
 }
@@ -307,7 +326,7 @@ async function actuallyCreateLaunchVideoFeed(
         hollyEvergreen,
         cliffWeathers,
         chatGpt,
-    }: FictionalAmbrookAccounts,
+    }: DemoSpaceAccounts & {chatGpt: TestBotAccount},
 ) {
     const {space} = roseCompas;
 
@@ -369,7 +388,7 @@ Follow-ups:
 4. Post-deploy smoke test that enqueues a canary image.
 
 Thanks to Mason and Cass for rapid triage.
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({days: 1})
@@ -404,7 +423,7 @@ syncs later.
 
 **Q: My receipt is upside down, how do I fix it?**\\\n A: If a receipt looks crooked, tap "Retake"
 to auto-straighten.
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({days: 1})
@@ -468,7 +487,7 @@ field when they receive them. Comment on ideas you like!
 | Reprocess older images when text-recognition models improve                        | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
 | Monthly export: zipped images plus CSV for your accountant                         | <mark class="highlight-orange">Medium</mark> | <mark class="highlight-green">LG</mark>  |
 | "First-run" guided capture that teaches framing in three screens                   | <mark class="highlight-blue">Low</mark>      | <mark class="highlight-blue">SM</mark>   |
-        `(),
+        `,
     });
 
     {
@@ -734,7 +753,7 @@ We wrapped the final QA pass on Receipt Scanner v2 today and the build is stagin
 last round of field tests on low-signal routes, we plan to flip the feature flag for 25% of accounts
 on June 3 and ramp to 100% by midweek, so please watch for odd crops, slower-than-usual syncs, or
 vendor misreads and drop repro steps in release-watch so the team can chase fixes quickly.
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({days: 1})
@@ -783,7 +802,7 @@ Tone and style:
 CTA:
 
 - Start a 14-day trial. No credit card required.
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({days: 1})
@@ -826,7 +845,7 @@ InternalError: Assertion failure
     at async callLoaderOrAction (node_modules/@remix-run/router/dist/router.cjs.js:4521:16)
     at async loadRouteData (node_modules/@remix-run/router/dist/router.cjs.js:3904:19)
 ~~~
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({hours: 1})
@@ -854,7 +873,7 @@ wow what a terrible error message. we should add a recommendation to the style g
 for assertions
 
 i'll try to reproduce locally…
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime
                     .subtract({hours: 1})
@@ -871,7 +890,8 @@ i'll try to reproduce locally…
 
     await engineeringChannel.createPost(
         cassCade,
-        markdown`
+        Mustache.render(
+            markdown`
 Below are the first five pilot programs we\u2019re mapping, plus owners and key dates.
 
 | Program                               | Launch Tier | Owner                                                               | Key Deadline |
@@ -886,13 +906,15 @@ Feedback needed
 
 - Should we default the checklist to "producer view" or "advisor view" first?
 - Any missing fields for operation type or acreage bands?
-        `({
-            accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
-            cassCadeAccountId: cassCade.account.id,
-            elleKappaTanAccountId: elleKappaTan.account.id,
-            masonClayAccountId: masonClay.account.id,
-            mattRHornAccountId: mattRHorn.account.id,
-        }),
+            `,
+            {
+                accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
+                cassCadeAccountId: cassCade.account.id,
+                elleKappaTanAccountId: elleKappaTan.account.id,
+                masonClayAccountId: masonClay.account.id,
+                mattRHornAccountId: mattRHorn.account.id,
+            },
+        ),
         {
             overrideCreatedTime: baseTime.subtract({minutes: 15}).toDate(timeZone),
         },
@@ -919,7 +941,7 @@ What\u2019s next
 
 Small win: a producer in Nebraska cut weekly sorting time from 90 to 25 minutes after adopting tags.
 Nice work, team!
-            `(),
+            `,
             {
                 overrideCreatedTime: baseTime.subtract({minutes: 9}).toDate(timeZone),
             },
@@ -944,14 +966,17 @@ Nice work, team!
         // this.
         const post = await fundraisingChannel.createPost(
             cassCade,
-            markdown`
+            Mustache.render(
+                markdown`
 Remember we're meeting with Audacious Ventures in _five minutes_. Make sure you're ready
 [Rose](https://alpine.inc/s/{{spaceId}}/accounts/{{roseCompasAccountId}}?mention=short). This is the
 big one! You got this!
-            `({
-                spaceId: space.id,
-                roseCompasAccountId: roseCompas.account.id,
-            }),
+                `,
+                {
+                    spaceId: space.id,
+                    roseCompasAccountId: roseCompas.account.id,
+                },
+            ),
             {
                 overrideCreatedTime: baseTime.subtract({minutes: 6}).toDate(timeZone),
             },
@@ -991,7 +1016,7 @@ async function createLaunchVideoDocuments({
     mattRHorn,
     cliffWeathers,
     hollyEvergreen,
-}: FictionalAmbrookAccounts) {
+}: DemoSpaceAccounts) {
     const {space} = roseCompas;
 
     const [
@@ -1014,7 +1039,8 @@ async function createLaunchVideoDocuments({
                 },
 
                 title: "Pitch Deck (Series A)",
-                body: markdown`
+                body: Mustache.render(
+                    markdown`
 Agriculture is a $2T market in the US alone. We\u2019ve demonstrated our accounting software works
 for small family business farms. We\u2019re raising a series A to accelerate our move up market.
 
@@ -1037,16 +1063,18 @@ for small family business farms. We\u2019re raising a series A to accelerate our
 - [Matt R. Horn]({{accountsBaseUrl}}/{{mattRHornAccountId}}?mention) (Founding Designer)
 - [Cliff Weathers]({{accountsBaseUrl}}/{{cliffWeathersAccountId}}?mention) (Sales)
 - [Holly Evergreen]({{accountsBaseUrl}}/{{hollyEvergreenAccountId}}?mention) (HR)
-                `({
-                    accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
-                    roseCompasAccountId: roseCompas.account.id,
-                    cassCadeAccountId: cassCade.account.id,
-                    masonClayAccountId: masonClay.account.id,
-                    elleKappaTanAccountId: elleKappaTan.account.id,
-                    mattRHornAccountId: mattRHorn.account.id,
-                    cliffWeathersAccountId: cliffWeathers.account.id,
-                    hollyEvergreenAccountId: hollyEvergreen.account.id,
-                }),
+                    `,
+                    {
+                        accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
+                        roseCompasAccountId: roseCompas.account.id,
+                        cassCadeAccountId: cassCade.account.id,
+                        masonClayAccountId: masonClay.account.id,
+                        elleKappaTanAccountId: elleKappaTan.account.id,
+                        mattRHornAccountId: mattRHorn.account.id,
+                        cliffWeathersAccountId: cliffWeathers.account.id,
+                        hollyEvergreenAccountId: hollyEvergreen.account.id,
+                    },
+                ),
             });
 
             await document.access.grantUrl(roseCompas);

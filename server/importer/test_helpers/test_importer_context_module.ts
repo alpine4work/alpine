@@ -93,7 +93,7 @@ export type WaitUntilAndEscalateToSystemContext = (
  * in arrays that tests can inspect to verify imports were triggered.
  */
 export class TestImporterContextModule extends ImporterServiceContextModuleBase {
-    private readonly _basePath: string;
+    private readonly _getLocalUploadPath: () => string;
     private readonly _waitUntilCallback: WaitUntilAndEscalateToSystemContext | null;
 
     /**
@@ -122,18 +122,19 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
      * initialization). If not provided, the module just tracks calls without running
      * anything.
      */
-    constructor(
+    constructor({
+        getLocalUploadPath,
+        waitUntilAndEscalateToSystemContext,
+    }: {
+        getLocalUploadPath: () => string;
         waitUntilAndEscalateToSystemContext?:
             | WaitUntilAndEscalateToSystemContext
-            | (() => WaitUntilAndEscalateToSystemContext),
-    ) {
+            | (() => WaitUntilAndEscalateToSystemContext);
+    }) {
         super();
         assert(process.env.NODE_ENV === "test");
 
-        // Use TEST_TMPDIR provided by Bazel for disk operations
-        const testTmpDir = process.env.TEST_TMPDIR;
-        assert(testTmpDir, "TEST_TMPDIR must be set in test environment");
-        this._basePath = testTmpDir;
+        this._getLocalUploadPath = getLocalUploadPath;
 
         // Resolve the callback eagerly since the context module is frozen after
         // construction.
@@ -155,11 +156,11 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
     }
 
     private _getUploadPath(importKey: string): string {
-        return joinPath(this._basePath, "import-uploads", importKey);
+        return joinPath(this._getLocalUploadPath(), "import-uploads", importKey);
     }
 
     private _getUnzipPath(importKey: string): string {
-        return joinPath(this._basePath, "import-unzipped", importKey);
+        return joinPath(this._getLocalUploadPath(), "import-unzipped", importKey);
     }
 
     async createMultipartUpload({
@@ -307,7 +308,7 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
         diskPath: string,
         files: Record<string, Uint8Array>,
     ): Promise<void> {
-        const fullPath = joinPath(this._basePath, "import-unzipped", diskPath);
+        const fullPath = joinPath(this._getLocalUploadPath(), "import-unzipped", diskPath);
 
         for (const [relativePath, content] of Object.entries(files)) {
             const filePath = joinPath(fullPath, relativePath);
@@ -323,7 +324,7 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
      * setUnzippedFiles with a key and need the real path.
      */
     public getUnzippedFilesPath(diskPath: string): string {
-        return joinPath(this._basePath, "import-unzipped", diskPath);
+        return joinPath(this._getLocalUploadPath(), "import-unzipped", diskPath);
     }
 
     /**
@@ -331,11 +332,14 @@ export class TestImporterContextModule extends ImporterServiceContextModuleBase 
      * location.
      */
     public createServiceModule(): TestImporterServiceContextModule {
-        return new TestImporterServiceContextModule(this._basePath);
+        return new TestImporterServiceContextModule(this._getLocalUploadPath());
     }
 
     fork(): TestImporterContextModule {
-        // Pass the already-resolved callback directly, not a factory.
-        return new TestImporterContextModule(this._waitUntilCallback ?? undefined);
+        return new TestImporterContextModule({
+            getLocalUploadPath: this._getLocalUploadPath,
+            // Pass the already-resolved callback directly, not a factory.
+            waitUntilAndEscalateToSystemContext: this._waitUntilCallback ?? undefined,
+        });
     }
 }

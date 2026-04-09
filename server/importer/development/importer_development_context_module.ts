@@ -292,7 +292,10 @@ export function createDevelopmentEscalateToImporterServiceContext({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
             actor: SystemActorContextModule.dangerouslyNew("ImporterService", spaceId),
-            importerService: new ImporterServiceDevelopmentContextModule({localUploadPath}),
+            importerService: new ImporterServiceDevelopmentContextModule({
+                getLocalUploadPath:
+                    typeof localUploadPath === "string" ? () => localUploadPath : undefined,
+            }),
         });
     };
 }

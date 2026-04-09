@@ -1,12 +1,13 @@
 import {CalendarDateTime, today} from "@internationalized/date";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
@@ -16,7 +17,7 @@ export async function createFictionalAmbrookDemoFeed({
     elleKappaTan,
     cliffWeathers,
     masonClay,
-}: FictionalAmbrookAccounts) {
+}: DemoSpaceAccounts) {
     debug("Creating feed");
 
     const {space} = cassCade;
@@ -58,7 +59,7 @@ Follow-ups:
 4. Post-deploy smoke test that enqueues a canary image.
 
 Thanks to Mason and Cass for rapid triage.
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime
                 .subtract({days: 1})
@@ -80,7 +81,7 @@ syncs later.
 
 **Q: My receipt is upside down, how do I fix it?**\\\n A: If a receipt looks crooked, tap
 “Auto-rotate” to straighten the image.
-        `(),
+        `,
         {
             overrideCreatedTime: baseTime
                 .subtract({days: 1})
@@ -102,7 +103,8 @@ syncs later.
     const document = await TestDocument.create(cassCade, {
         access: "Public",
         title: "Q2 Product Roadmap",
-        body: markdown`
+        body: Mustache.render(
+            markdown`
 In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We’re going to add a couple features for larger businesses this quarter.
@@ -112,13 +114,15 @@ quarter. We’re going to add a couple features for larger businesses this quart
 | Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-blue">Low</mark>            |
 | Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>            |
 | Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
-        `({
-            spaceUrl: `https://alpine.inc/s/${space.id}`,
-            otherDocumentId: otherDocument.id,
-            masonClayAccountId: masonClay.account.id,
-            elleKappaTanAccountId: elleKappaTan.account.id,
-            cassCadeAccountId: cassCade.account.id,
-        }),
+            `,
+            {
+                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                otherDocumentId: otherDocument.id,
+                masonClayAccountId: masonClay.account.id,
+                elleKappaTanAccountId: elleKappaTan.account.id,
+                cassCadeAccountId: cassCade.account.id,
+            },
+        ),
     });
 
     await document.updateContentPreview();

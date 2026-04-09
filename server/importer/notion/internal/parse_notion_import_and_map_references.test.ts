@@ -17,6 +17,7 @@ import {
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
@@ -32,7 +33,9 @@ async function parseNotionImportWithTestContext(
     notionImportItem: NotionImportItem,
 ): Promise<NotionImportMappedReferencesResult | null> {
     const importKey = notionImportItem.importKey;
-    const importer = new TestImporterContextModule();
+    const importer = new TestImporterContextModule({
+        getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+    });
     await importer.setUploadedFile(importKey, zip);
 
     const {diskPathToUnzippedFiles} = await importer.downloadAndUnzipImportToDisk({importKey});

@@ -1,7 +1,8 @@
 import {CalendarDateTime, today} from "@internationalized/date";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
@@ -12,6 +13,7 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
@@ -23,7 +25,9 @@ export async function createFictionalAmbrookHeroFeed({
     roseCompas,
     chatGpt,
     hollyEvergreen,
-}: FictionalAmbrookAccounts) {
+}: DemoSpaceAccounts & {
+    chatGpt: TestBotAccount;
+}) {
     debug("Creating feed");
 
     const {space} = cassCade;
@@ -47,7 +51,8 @@ export async function createFictionalAmbrookHeroFeed({
 
                 const post = await engineeringChannel.createPost(
                     masonClay,
-                    markdown`
+                    Mustache.render(
+                        markdown`
 [ChatGPT](https://alpine.inc/s/{{spaceId}}/accounts/{{chatGptAccountId}}?mention) please write an
 executive summary of everything the engineering team worked in Q1 2026 and whether we met our
 estimates from
@@ -55,12 +60,14 @@ estimates from
 
 cc [Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) let’s use
 this for our retro today
-                    `({
-                        spaceId: space.id,
-                        chatGptAccountId: chatGpt.id,
-                        roadmapDocumentId: roadmapDocument.id,
-                        cassCadeAccountId: cassCade.account.id,
-                    }),
+                        `,
+                        {
+                            spaceId: space.id,
+                            chatGptAccountId: chatGpt.id,
+                            roadmapDocumentId: roadmapDocument.id,
+                            cassCadeAccountId: cassCade.account.id,
+                        },
+                    ),
                     {
                         overrideCreatedTime: baseTime
                             .subtract({days: 1})
@@ -147,13 +154,16 @@ this for our retro today
 
                 const post = await kudosChannel.createPost(
                     hollyEvergreen,
-                    markdown`
+                    Mustache.render(
+                        markdown`
 Kudos to [Matt R Horn](https://alpine.inc/s/{{spaceId}}/accounts/{{mattRHornAccountId}}?mention) for
 designing our offsite swag. It looks soooo good!!
-                    `({
-                        spaceId: space.id,
-                        mattRHornAccountId: mattRHorn.account.id,
-                    }),
+                        `,
+                        {
+                            spaceId: space.id,
+                            mattRHornAccountId: mattRHorn.account.id,
+                        },
+                    ),
                     {
                         overrideCreatedTime: baseTime
                             .subtract({days: 1})

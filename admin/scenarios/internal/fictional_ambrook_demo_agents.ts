@@ -1,12 +1,14 @@
 import {addSeconds} from "date-fns";
+import Mustache from "mustache";
+import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {FictionalAmbrookAccounts} from "~/admin/scenarios/internal/fictional_ambrook_space.js";
-import {markdown} from "~/admin/scenarios/internal/markdown.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
 
@@ -17,7 +19,9 @@ export async function createFictionalAmbrookDemoAgents({
     elleKappaTan,
     mattRHorn,
     roseCompas,
-}: FictionalAmbrookAccounts) {
+}: DemoSpaceAccounts & {
+    chatGpt: TestBotAccount;
+}) {
     debug("Creating message");
 
     const {space} = cassCade;
@@ -96,7 +100,7 @@ without knowing anything about the underlying payments vendor.
 
 - Implement complex revenue analytics (MRR, churn, etc.). We will expose the primitives needed for
   future analytics work, but not build dashboards here.
-                `(),
+                `,
                 /* eslint-enable cyberworlds/string-quotes */
             });
 
@@ -161,7 +165,7 @@ without knowing anything about the underlying payments vendor.
                 markdown`
 Please read this document, summarize all the comments people have left (including comments from the
 post I shared this in), and create followup tasks for me.
-                `(),
+                `,
             );
 
             const streamMessage = await chat.sendMessage(chatGpt.action(chat.getBotScope()), "", {
@@ -178,7 +182,8 @@ post I shared this in), and create followup tasks for me.
             await streamMessage.putStreamPart(
                 chatGpt.action(chat.getBotScope()),
                 1,
-                markdown`
+                Mustache.render(
+                    markdown`
 Here’s how the feedback clusters and what to do with it:
 
 - **Tighten the technical contract:** Engineers asked for a clear definition of the plan object and
@@ -198,12 +203,14 @@ Followup tasks:
 - [Document billing migration risks](https://alpine.inc/s/{{spaceId}}/tasks/{{task2Id}}?mention)
 
 - [Add a business impact & analytics section](https://alpine.inc/s/{{spaceId}}/tasks/{{task3Id}}?mention)
-                `({
-                    spaceId: space.id,
-                    task1Id: task1.id,
-                    task2Id: task2.id,
-                    task3Id: task3.id,
-                }),
+                    `,
+                    {
+                        spaceId: space.id,
+                        task1Id: task1.id,
+                        task2Id: task2.id,
+                        task3Id: task3.id,
+                    },
+                ),
                 {
                     overrideCreatedTime: addSeconds(new Date(), 41),
                 },

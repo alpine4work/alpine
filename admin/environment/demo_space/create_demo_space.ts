@@ -1,8 +1,6 @@
+import {uploadDemoSpaceAccountAvatar} from "~/admin/environment/demo_space/upload_demo_space_account_avatar.js";
+import {uploadDemoSpaceAvatar} from "~/admin/environment/demo_space/upload_demo_space_avatar.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {uploadScenarioAccountAvatar} from "~/admin/scenarios/internal/upload_scenario_account_avatar.js";
-import {uploadScenarioSpaceAvatar} from "~/admin/scenarios/internal/upload_scenario_space_avatar.js";
-import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -10,9 +8,20 @@ import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_a
 
 const debug = createDebug(import.meta.url);
 
-export type FictionalAmbrookAccounts = Awaited<ReturnType<typeof createFictionalAmbrookAccounts>>;
+export type DemoSpaceAccounts = Awaited<ReturnType<typeof createDemoSpaceAccounts>>;
 
-export async function createFictionalAmbrookSpace(context: TestContext) {
+export async function createDemoSpace(context: TestContext, tokenAgent: TokenAgent) {
+    const {space, accounts} = await createDemoSpaceWithoutUploadingAvatars(context);
+
+    await runAllPromises([
+        uploadDemoSpaceAvatars(tokenAgent, accounts),
+        uploadDemoSpaceAccountAvatars(tokenAgent, accounts),
+    ]);
+
+    return {space, accounts};
+}
+
+export async function createDemoSpaceWithoutUploadingAvatars(context: TestContext) {
     debug("Creating space");
 
     const space = await TestSpace.create(context, {
@@ -22,7 +31,7 @@ export async function createFictionalAmbrookSpace(context: TestContext) {
         name: "Alpine",
     });
 
-    const accounts = await createFictionalAmbrookAccounts(space);
+    const accounts = await createDemoSpaceAccounts(space);
 
     debug("Created accounts");
 
@@ -57,30 +66,22 @@ export async function createFictionalAmbrookSpace(context: TestContext) {
     return {space, accounts, cassCadeEmailAddress, roseCompasEmailAddress};
 }
 
-export async function uploadFictionalAmbrookAvatars(
-    tokenAgent: TokenAgent,
-    accounts: FictionalAmbrookAccounts,
-) {
+export async function uploadDemoSpaceAvatars(tokenAgent: TokenAgent, accounts: DemoSpaceAccounts) {
     await runAllPromises([
-        uploadScenarioSpaceAvatar(
+        uploadDemoSpaceAvatar(
             tokenAgent,
             accounts.cassCade,
             "light",
-            "scenario_space_avatar_light.svg",
+            "demo_space_avatar_light.svg",
         ),
-        uploadScenarioSpaceAvatar(
-            tokenAgent,
-            accounts.cassCade,
-            "dark",
-            "scenario_space_avatar_dark.svg",
-        ),
-        uploadFictionalAmbrookAccountAvatars(tokenAgent, accounts),
+        uploadDemoSpaceAvatar(tokenAgent, accounts.cassCade, "dark", "demo_space_avatar_dark.svg"),
+        uploadDemoSpaceAccountAvatars(tokenAgent, accounts),
     ]);
 
     debug("Uploaded avatars");
 }
 
-async function createFictionalAmbrookAccounts(space: TestSpace) {
+async function createDemoSpaceAccounts(space: TestSpace) {
     const roseCompasPromise = space.createSession({
         name: "Rose Compás",
         role: "Owner",
@@ -127,35 +128,23 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
             name: "Holly Evergreen",
             reactionCharacter: {type: "Tulip", variant: "Pink"},
         }),
-
-        // AI
-        chatGpt: (async () => {
-            // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
-            // There's a file in `scenario_chatgpt_avatar.png` that we're not currently using.
-            // We need to figure out a way to get avatars uploaded for bots for test scenarios.
-            const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
-
-            const roseCompas = await roseCompasPromise;
-
-            return bot.instantiate(roseCompas);
-        })(),
     });
 }
 
-export async function uploadFictionalAmbrookAccountAvatars(
+export async function uploadDemoSpaceAccountAvatars(
     tokenAgent: TokenAgent,
-    accounts: FictionalAmbrookAccounts,
+    accounts: DemoSpaceAccounts,
 ) {
-    const upload = (name: Exclude<keyof FictionalAmbrookAccounts, "chatGpt">, path: string) =>
-        uploadScenarioAccountAvatar(tokenAgent, accounts[name], path);
+    const upload = (name: Exclude<keyof DemoSpaceAccounts, "chatGpt">, path: string) =>
+        uploadDemoSpaceAccountAvatar(tokenAgent, accounts[name], path);
 
     await runAllPromises([
-        upload("cassCade", "scenario_cass_cade_avatar.png"),
-        upload("roseCompas", "scenario_rose_compas_avatar.png"),
-        upload("mattRHorn", "scenario_matt_r_horn_avatar.png"),
-        upload("masonClay", "scenario_mason_clay_avatar.png"),
-        upload("elleKappaTan", "scenario_elle_kappa_tan_avatar.png"),
-        upload("cliffWeathers", "scenario_cliff_weathers_avatar.png"),
-        upload("hollyEvergreen", "scenario_holly_evergreen_avatar.png"),
+        upload("cassCade", "demo_space_cass_cade_avatar.png"),
+        upload("roseCompas", "demo_space_rose_compas_avatar.png"),
+        upload("mattRHorn", "demo_space_matt_r_horn_avatar.png"),
+        upload("masonClay", "demo_space_mason_clay_avatar.png"),
+        upload("elleKappaTan", "demo_space_elle_kappa_tan_avatar.png"),
+        upload("cliffWeathers", "demo_space_cliff_weathers_avatar.png"),
+        upload("hollyEvergreen", "demo_space_holly_evergreen_avatar.png"),
     ]);
 }

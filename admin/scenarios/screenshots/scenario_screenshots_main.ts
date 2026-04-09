@@ -3,9 +3,9 @@ import "~/server/helpers/node/register_noop_react_refresh.js";
 import fs from "fs/promises";
 import {join as joinPath, resolve as resolvePath} from "path";
 import {chromium, devices} from "playwright";
+import {uploadDemoSpaceBotAvatar} from "~/admin/environment/demo_space/upload_demo_space_bot_avatar.js";
 import {withIntegrationTestEnvironment} from "~/admin/environment/test/integration/with_integration_test_environment.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {uploadScenarioBotAvatar} from "~/admin/scenarios/internal/upload_scenario_bot_avatar.js";
 import {createLandingPageScenario} from "~/admin/scenarios/landing_page_scenario.js";
 import {seedTestMockChatGptBot} from "~/server/bots/seed_test_bots.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
@@ -53,7 +53,7 @@ async function main() {
                 }),
             ]);
 
-            await uploadScenarioBotAvatar(
+            await uploadDemoSpaceBotAvatar(
                 services.getAppServiceTokenAgent(),
                 admin,
                 getDynamoSeedConstants().mockChatGptBotId,

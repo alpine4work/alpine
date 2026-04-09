@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/gpt-tokenizer",
         "//:node_modules/mustache",
         "//:node_modules/playwright",
+        "//admin/environment/demo_space",
         "//admin/environment/development",
         "//admin/helpers",
         "//server/chat/test_helpers",
@@ -48,6 +49,6 @@ js_binary(
     env = {
         "NODE_ENV": "development",
         "ADMIN_SCRIPT": "scenarios",
-        "DEBUG": "admin/scenarios/*",
+        "DEBUG": "admin/scenarios/*,admin/environment/*",
     },
 )

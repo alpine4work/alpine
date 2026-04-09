@@ -669,11 +669,13 @@ export function actuallyCreateUnitTestEnvironment(
         // startNotionImport use TestImporterContextModule without a callback. Only tests
         // that actually want to run import processing should pass a callback. See
         // TestImporterContextModule for details.
-        importer: new TestImporterContextModule(),
+        importer: new TestImporterContextModule({
+            getLocalUploadPath: getTemporaryDirectoryPath,
+        }),
         // Importer service module for tests that need to read uploaded files. Uses
         // TEST_TMPDIR provided by Bazel for test isolation.
         importerService: new ImporterServiceDevelopmentContextModule({
-            localUploadPath: assertExists(process.env.TEST_TMPDIR),
+            getLocalUploadPath: getTemporaryDirectoryPath,
         }),
         slack: new NoopSlackContextModule(),
     });

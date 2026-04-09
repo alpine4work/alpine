@@ -61,10 +61,10 @@ exports[`desktop direct-chat-with-big-emoji-and-merge 1`] = `
                       class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                     >
                       <img
-                        class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                         draggable="false"
                         alt="Olive yeti who’s happy"
                         src="data:image/svg+xml,SVG"
+                        style="width: 5rem; height: 5rem"
                       />
                     </span>
                   </span>
@@ -122,10 +122,10 @@ exports[`desktop direct-chat-with-big-emoji-and-merge 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -399,10 +399,10 @@ exports[`desktop private-room-chat-with-parent-and-deleted-message 1`] = `
                         class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                       >
                         <img
-                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                           draggable="false"
                           alt="Green tree who’s happy"
                           src="data:image/svg+xml,SVG"
+                          style="width: 5rem; height: 5rem"
                         />
                       </span>
                     </span>
@@ -459,10 +459,10 @@ exports[`desktop private-room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -535,10 +535,10 @@ exports[`desktop private-room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Green tree who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -791,10 +791,10 @@ exports[`desktop room-chat-with-parent-and-deleted-message 1`] = `
                         class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                       >
                         <img
-                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                           draggable="false"
                           alt="Green tree who’s happy"
                           src="data:image/svg+xml,SVG"
+                          style="width: 5rem; height: 5rem"
                         />
                       </span>
                     </span>
@@ -851,10 +851,10 @@ exports[`desktop room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -927,10 +927,10 @@ exports[`desktop room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Green tree who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -1046,10 +1046,10 @@ exports[`mobile direct-chat-with-big-emoji-and-merge 1`] = `
                       class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                     >
                       <img
-                        class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                         draggable="false"
                         alt="Olive yeti who’s happy"
                         src="data:image/svg+xml,SVG"
+                        style="width: 5rem; height: 5rem"
                       />
                     </span>
                   </span>
@@ -1107,10 +1107,10 @@ exports[`mobile direct-chat-with-big-emoji-and-merge 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -1384,10 +1384,10 @@ exports[`mobile private-room-chat-with-parent-and-deleted-message 1`] = `
                         class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                       >
                         <img
-                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                           draggable="false"
                           alt="Green tree who’s happy"
                           src="data:image/svg+xml,SVG"
+                          style="width: 5rem; height: 5rem"
                         />
                       </span>
                     </span>
@@ -1444,10 +1444,10 @@ exports[`mobile private-room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -1520,10 +1520,10 @@ exports[`mobile private-room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Green tree who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -1776,10 +1776,10 @@ exports[`mobile room-chat-with-parent-and-deleted-message 1`] = `
                         class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                       >
                         <img
-                          class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                           draggable="false"
                           alt="Green tree who’s happy"
                           src="data:image/svg+xml,SVG"
+                          style="width: 5rem; height: 5rem"
                         />
                       </span>
                     </span>
@@ -1836,10 +1836,10 @@ exports[`mobile room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-1_default__HASH sprinkles_left_0.5_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Olive yeti who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>
@@ -1912,10 +1912,10 @@ exports[`mobile room-chat-with-parent-and-deleted-message 1`] = `
                           class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
                         >
                           <img
-                            class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
                             draggable="false"
                             alt="Green tree who’s happy"
                             src="data:image/svg+xml,SVG"
+                            style="width: 5rem; height: 5rem"
                           />
                         </span>
                       </span>

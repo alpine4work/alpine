@@ -142,6 +142,7 @@ module.exports = {
         "testing-library",
         "react-compiler",
         "react-refresh",
+        "@remotion",
     ],
     reportUnusedDisableDirectives: true,
     globals: {
@@ -548,6 +549,10 @@ module.exports = {
                 // don't really create UI strings in CSS files.
                 "cyberworlds/string-quotes": "off",
             },
+        },
+        {
+            files: ["admin/marketing/**/*.{ts,tsx}"],
+            extends: ["plugin:@remotion/recommended"],
         },
     ],
 };
