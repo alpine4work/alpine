@@ -8,6 +8,10 @@ import {
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {
+    AgentWebPageWithMetadata,
+    intoAgentWebPageMetadata,
+} from "~/server/agents/web/agent_web_page.js";
+import {
     AgentWebPageLinkKeyObject,
     printAgentWebPageLinkKey,
 } from "~/server/agents/web/agent_web_page_link_key.js";
@@ -15,7 +19,6 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_read_more_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
-    AgentWebDocumentPageWithMetadata,
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -125,8 +128,8 @@ export async function callAgentWebReadTool(
         newlineByteIndexes.push(responseBytes.length);
 
         await context.storage.readResponseByPath.put(path, {
-            pageLinkKey,
             expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
+            pageMetadata: intoAgentWebPageMetadata(page),
             responseBytes,
             newlineByteIndexes,
         });
@@ -141,8 +144,6 @@ export async function callAgentWebReadTool(
         }
     });
 }
-
-type AgentWebPageWithMetadata = AgentWebDocumentPageWithMetadata;
 
 function readAgentWebPageLink(
     // We intentionally use the "without storage" type since this function shouldn't be

@@ -1,14 +1,29 @@
+import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {
+    parseAgentWebDocumentPage,
+    updateAgentWebDocumentPage,
+} from "~/server/agents/web/pages/agent_web_document_page.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
+    getErrorCode,
 } from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {
+    concatErrorDisplayMessages,
+    errorDisplayMessage,
+} from "~/shared/error/error_display_message.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 // NOCOMMIT: Test multiple `updates`
@@ -191,15 +206,120 @@ export async function callAgentWebUpdateTool(
             newNewlineByteIndexes.push(newResponseBytes.length);
         }
 
-        // NOCOMMIT: Actually perform the update!
+        const decoder = new TextDecoder();
+
+        // Not all updates are going to be atomic. If we make an update that's not atomic
+        // and it fails then we need to know if part of the update succeeded. If part of
+        // the update succeeded then we need to delete our entry from `readResponseByPath`
+        // since it's invalid. The agent will need to re-read the path.
+        //
+        // TODO(calebmer, #agent-web): Once we have an update that might have a partial
+        // success then write a test to make sure in the partial success case we clean
+        // `readResponseByPath`!
+        let isPartialSuccess = false;
+
+        const contextWithPartialSuccessDetection: AgentWebContext = {
+            ...context,
+            api: {
+                get: context.api.get.bind(context.api),
+                put: async (...args: any): Promise<any> => {
+                    // eslint-disable-next-line prefer-spread
+                    const value = await context.api.put.apply(context.api, args);
+                    isPartialSuccess = true;
+                    return value;
+                },
+                post: async (...args: any): Promise<any> => {
+                    // eslint-disable-next-line prefer-spread
+                    const value = await context.api.post.apply(context.api, args);
+                    isPartialSuccess = true;
+                    return value;
+                },
+                delete: async (...args: any): Promise<any> => {
+                    // eslint-disable-next-line prefer-spread
+                    const value = await context.api.delete.apply(context.api, args);
+                    isPartialSuccess = true;
+                    return value;
+                },
+                patch: async (...args: any): Promise<any> => {
+                    // eslint-disable-next-line prefer-spread
+                    const value = await context.api.patch.apply(context.api, args);
+                    isPartialSuccess = true;
+                    return value;
+                },
+            },
+        };
+
+        let newPageMetadata: AgentWebPageMetadata;
+
+        try {
+            newPageMetadata = await updateAgentWebPageLink(
+                contextWithPartialSuccessDetection,
+                readResponse.pageMetadata,
+                new Lazy(() => {
+                    const oldResponseString = decoder.decode(readResponse.responseBytes);
+                    return parseMarkdownTree(oldResponseString);
+                }),
+                (() => {
+                    const newResponseString = decoder.decode(newResponseBytes);
+                    return parseMarkdownTree(newResponseString);
+                })(),
+            );
+        } catch (error) {
+            if (!isPartialSuccess) throw error;
+
+            // Delete the read response since we don't know which parts of the update were
+            // successful and which parts failed!
+            await context.storage.readResponseByPath.delete(path);
+
+            const errorCode = getErrorCode(error);
+            const ErrorConstructor = getErrorConstructorForCode(errorCode);
+            const displayMessage = getErrorDisplayMessage(error);
+
+            // Modify the `displayMessage` so the agent knows the update was a partial success
+            // and that it needs to call `read` again since just trying `update` again won't
+            // work because we deleted the entry from `readResponseByPath`.
+            throw new ErrorConstructor(
+                (error instanceof Error ? error.message : String(error)) +
+                    " (PARTIAL SUCCESS: some of this update was persisted)",
+                {
+                    cause: error,
+                    displayMessage: concatErrorDisplayMessages(
+                        displayMessage,
+                        errorDisplayMessage` (This update was a partial success. You must call the \`read\` tool again for \`${originalPath}\` to find out which parts of the update were successful.)`,
+                    ),
+                },
+            );
+        }
 
         // Allow future `read_more` calls and future `update` calls to operate on the
         // updated response we just wrote to the database.
         await context.storage.readResponseByPath.put(path, {
-            pageLinkKey: readResponse.pageLinkKey,
             expirationTime: readResponse.expirationTime,
+            pageMetadata: newPageMetadata,
             responseBytes: newResponseBytes,
             newlineByteIndexes: newNewlineByteIndexes!,
         });
     });
+}
+
+async function updateAgentWebPageLink(
+    context: AgentWebContext,
+    oldPageMetadata: AgentWebPageMetadata,
+    // Lazily compute the `oldResponse` since sometimes we don't need it.
+    oldResponse: Lazy<Root>,
+    newResponse: Root,
+): Promise<AgentWebPageMetadata> {
+    switch (oldPageMetadata.type) {
+        case "Document": {
+            const newPage = await parseAgentWebDocumentPage(
+                context.storage,
+                oldPageMetadata.id,
+                newResponse,
+            );
+
+            return updateAgentWebDocumentPage(context, oldPageMetadata, newPage);
+        }
+        default:
+            throw exhaustive(oldPageMetadata);
+    }
 }

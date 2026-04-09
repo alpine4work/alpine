@@ -29,6 +29,7 @@ export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebS
         return {
             get: collection.get.bind(collection, temporaryStorage),
             put: collection.put.bind(collection, temporaryStorage),
+            delete: collection.delete.bind(collection, temporaryStorage),
             list: collection.list.bind(collection, temporaryStorage),
         };
     }
@@ -37,6 +38,7 @@ export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebS
         spaceId,
         mutex: new Mutex(),
         pageLinkByPathname: createAgentWebSessionStorageCollection(),
+        latestPageLinkPathnameByKey: createAgentWebSessionStorageCollection(),
         urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
         dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
         documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),
@@ -44,6 +46,7 @@ export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebS
         tableWidthByTruncatedWidth: createAgentWebSessionStorageCollection(),
         tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
         readResponseByPath: createAgentWebSessionStorageCollection(),
+        readResponseMutexByPath: new Map(),
     };
 
     return storage;

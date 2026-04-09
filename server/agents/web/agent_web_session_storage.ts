@@ -1,3 +1,4 @@
+import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -159,8 +160,8 @@ export interface AgentWebSessionStorage {
     readonly readResponseByPath: AgentWebSessionStorageCollection<
         string,
         {
-            readonly pageLinkKey: AgentWebPageLinkKey;
             readonly expirationTime: Date;
+            readonly pageMetadata: AgentWebPageMetadata;
             readonly responseBytes: Uint8Array;
             readonly newlineByteIndexes: ReadonlyArray<number>;
         }
@@ -180,5 +181,6 @@ export interface AgentWebSessionStorage {
 export interface AgentWebSessionStorageCollection<Key extends string, Value> {
     get(key: Key): Promise<Value | undefined>;
     put(key: Key, value: Value): Promise<void>;
+    delete(key: Key): Promise<boolean>;
     list(options?: {prefix?: string}): Promise<Map<Key, Value>>;
 }

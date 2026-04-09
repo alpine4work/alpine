@@ -56,9 +56,8 @@ import {
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
-    ErrorBase,
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
@@ -390,10 +389,7 @@ async function withCursorAgentMessageStreamSession<Value>(
         } catch (error) {
             // If an error was thrown then update the stream with the error message.
 
-            const displayMessage =
-                error instanceof ErrorBase
-                    ? (error.displayMessage ?? defaultErrorDisplayMessage)
-                    : defaultErrorDisplayMessage;
+            const displayMessage = getErrorDisplayMessage(error);
 
             await createStreamPart({
                 type: "Content",

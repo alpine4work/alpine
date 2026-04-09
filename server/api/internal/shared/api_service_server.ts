@@ -927,7 +927,7 @@ export async function createApiServiceRequestListener(
 
                 // If there's no display message, always return a 500. Expected errors should
                 // always include a display message.
-                if (!(error instanceof ErrorBase && error.displayMessage)) {
+                if (!(error instanceof ErrorBase) || error.displayMessage === undefined) {
                     status = 500;
                     displayMessage = defaultErrorDisplayMessage;
                 } else {

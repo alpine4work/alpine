@@ -1,8 +1,5 @@
 import {Parent, Root} from "mdast";
-import {
-    AgentWebContext,
-    AgentWebContextWithoutStorage,
-} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
@@ -20,10 +17,12 @@ export type AgentWebDocumentPage = {
 };
 
 export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
-    readonly metadata: {
-        readonly id: DocumentId;
-        readonly version: number;
-    };
+    readonly metadata: AgentWebDocumentPageMetadata;
+};
+
+export type AgentWebDocumentPageMetadata = {
+    readonly id: DocumentId;
+    readonly version: number;
 };
 
 export async function readAgentWebDocumentPage(
@@ -42,6 +41,32 @@ export async function readAgentWebDocumentPage(
             id,
             version: document.version,
         },
+    };
+}
+
+export async function updateAgentWebDocumentPage(
+    context: AgentWebContextWithoutStorage,
+    {id, version: oldVersion}: AgentWebDocumentPageMetadata,
+    newPage: AgentWebDocumentPage,
+): Promise<AgentWebDocumentPageMetadata & {type: "Document"}> {
+    // NOCOMMIT: Make sure we test that this endpoint is idempotent!
+    const {
+        data: {document},
+    } = await context.api.put(context.span, "/documents/{id}", {
+        params: {path: {id}},
+        body: {
+            document: {
+                version: oldVersion,
+                title: newPage.title,
+                content: newPage.content,
+            },
+        },
+    });
+
+    return {
+        type: "Document",
+        id,
+        version: document.version,
     };
 }
 

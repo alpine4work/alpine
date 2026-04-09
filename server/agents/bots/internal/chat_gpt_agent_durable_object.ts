@@ -83,10 +83,9 @@ import {
     ApiMentionResponse,
     ApiMessageRoomTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
-    ErrorBase,
     FailedPreconditionError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
@@ -931,15 +930,10 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                                 console.error("Agent function call failed:", result.error);
                             }
 
-                            const displayMessage =
-                                result.error instanceof ErrorBase
-                                    ? result.error.displayMessage
-                                    : undefined;
-
                             output = `Error: \`${
                                 functionCall.name
                             }\` function call failed. ${renderErrorDisplayMessageForChatGptAgent(
-                                displayMessage ?? defaultErrorDisplayMessage,
+                                getErrorDisplayMessage(result.error),
                             )}`;
                         }
 
