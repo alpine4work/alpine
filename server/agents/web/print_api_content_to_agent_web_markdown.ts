@@ -2,10 +2,10 @@ import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, RootContent} from "mdast";
 import {
-    printAgentWebPageLinkKey,
     printAgentWebPageLinkLabel,
     printAgentWebPageLinkPathname,
 } from "~/server/agents/web/agent_web_page_link.js";
+import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
 import {
@@ -17,10 +17,12 @@ import {
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -135,24 +137,38 @@ async function traverseApiContentMarkdownNode(
 
             return storage.mutex.withLock(async () => {
                 const pageLink = createApiTargetAgentWebPageLink(mentionElement.target);
-                const pageKey = printAgentWebPageLinkKey(pageLink);
+                const pageLinkKey = printAgentWebPageLinkKey(pageLink);
 
                 let dedupeNumber = 1;
                 let pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
 
-                let actualPageLink = await storage.pageLinkByPathname.get(pageLinkPathname);
+                const [initialActualPageLink, latestPageLinkPathname] = await runAllPromises([
+                    storage.pageLinkByPathname.get(pageLinkPathname),
+                    storage.latestPageLinkPathnameByKey.get(pageLinkKey),
+                ]);
+
+                let actualPageLink = initialActualPageLink;
 
                 while (
                     actualPageLink !== undefined &&
-                    printAgentWebPageLinkKey(actualPageLink) !== pageKey
+                    printAgentWebPageLinkKey(actualPageLink) !== pageLinkKey
                 ) {
                     dedupeNumber++;
                     pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
                     actualPageLink = await storage.pageLinkByPathname.get(pageLinkPathname);
                 }
 
-                if (actualPageLink === undefined) {
+                if (actualPageLink === undefined || !isDeepEqual(actualPageLink, pageLink)) {
                     await storage.pageLinkByPathname.put(pageLinkPathname, pageLink);
+                }
+
+                // We write in sequence instead of in parallel because if we load
+                // `pageLinkPathname` from `latestPageLinkPathnameByKey` and it doesn't exist in
+                // `pageLinkByPathname` the agent is going to have a bad time. Since we'll throw a
+                // redirection error followed by a not found error when the agent tries to read the
+                // redirection.
+                if (latestPageLinkPathname !== pageLinkPathname) {
+                    await storage.latestPageLinkPathnameByKey.put(pageLinkKey, pageLinkPathname);
                 }
 
                 const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);

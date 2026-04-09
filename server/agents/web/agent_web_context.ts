@@ -7,3 +7,5 @@ export type AgentWebContext = {
     readonly storage: AgentWebSessionStorage;
     readonly span: TracerSpan;
 };
+
+export type AgentWebContextWithoutStorage = Omit<AgentWebContext, "storage">;

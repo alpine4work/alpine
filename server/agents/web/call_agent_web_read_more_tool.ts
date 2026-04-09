@@ -1,13 +1,10 @@
 import {parseAgentWebBytes, printAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 
 export async function callAgentWebReadMoreTool(
     context: AgentWebContext,
@@ -31,15 +28,8 @@ export async function callAgentWebReadMoreTool(
     const readResponse = await context.storage.readResponseByPath.get(path);
 
     if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
-        const expirationDuration = printPrettyNumber(
-            defaultLocale,
-            agentWebReadResponseExpirationHours,
-            "hour",
-            {smallNumbersAsWords: true},
-        );
-
         throw new NotFoundError("Read response not found or expired", {
-            displayMessage: errorDisplayMessage`The \`read\` tool hasn\u2019t been called recently for path \`${originalPath}\`. Please call the \`read\` tool first for the path and then call the \`read_more\` tool to see anything truncated by the \`read\` tool. You can only call the \`read_more\` tool for ${expirationDuration} after you call the \`read\` tool for a given path.`,
+            displayMessage: errorDisplayMessage`Can\u2019t call the \`read_more\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${originalPath}\` then call the \`read_more\` tool again.`,
         });
     }
 

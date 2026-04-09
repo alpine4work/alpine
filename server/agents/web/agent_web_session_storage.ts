@@ -1,4 +1,5 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -55,6 +56,16 @@ export interface AgentWebSessionStorage {
      * represents (e.g. a `DocumentId`).
      */
     readonly pageLinkByPathname: AgentWebSessionStorageCollection<string, AgentWebPageLink>;
+
+    /**
+     * The latest path (e.g. `/document/tech-spec`) for a given page key. If you try
+     * reading a pathname for this key that's not the latest pathname then we throw an
+     * error.
+     */
+    readonly latestPageLinkPathnameByKey: AgentWebSessionStorageCollection<
+        AgentWebPageLinkKey,
+        string
+    >;
 
     /**
      * Map of truncated URLs (e.g. `https://example.com/a/…/f`) to the full URL (e.g.
@@ -148,11 +159,18 @@ export interface AgentWebSessionStorage {
     readonly readResponseByPath: AgentWebSessionStorageCollection<
         string,
         {
+            readonly pageLinkKey: AgentWebPageLinkKey;
             readonly expirationTime: Date;
             readonly responseBytes: Uint8Array;
             readonly newlineByteIndexes: ReadonlyArray<number>;
         }
     >;
+
+    /**
+     * If you need to manipulate a given read tool call response, it's recommended to
+     * claim a lock on the path to avoid weird race conditions.
+     */
+    readonly readResponseMutexByPath: Map<string, Mutex>;
 }
 
 /**

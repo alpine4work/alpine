@@ -1,5 +1,8 @@
 import {Parent, Root} from "mdast";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {
+    AgentWebContext,
+    AgentWebContextWithoutStorage,
+} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
@@ -11,21 +14,34 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebDocumentPage = {
+    readonly type: "Document";
     readonly title: string;
     readonly content: ApiContentResponse;
 };
 
+export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
+    readonly metadata: {
+        readonly id: DocumentId;
+        readonly version: number;
+    };
+};
+
 export async function readAgentWebDocumentPage(
-    context: AgentWebContext,
+    context: AgentWebContextWithoutStorage,
     id: DocumentId,
-): Promise<AgentWebDocumentPage> {
+): Promise<AgentWebDocumentPageWithMetadata> {
     const {
         data: {document},
     } = await context.api.get(context.span, "/documents/{id}", {params: {path: {id}}});
 
     return {
+        type: "Document",
         title: document.title,
         content: document.content,
+        metadata: {
+            id,
+            version: document.version,
+        },
     };
 }
 
@@ -87,8 +103,5 @@ export async function parseAgentWebDocumentPage(
         documentId: id,
     });
 
-    return {
-        title,
-        content,
-    };
+    return {type: "Document", title, content};
 }

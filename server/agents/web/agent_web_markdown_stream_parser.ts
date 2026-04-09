@@ -512,9 +512,9 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // mentionable, `pageLink` will be null. We need to build a plain link for non
                     // mentionable content and we also need to swap the label so something more user
                     // friendly (`mentionLabel`).
-                    const pageLink = await storage.pageLinkByPathname.get(pathname);
+                    const pageLinkKey = await storage.pageLinkByPathname.get(pathname);
 
-                    if (!pageLink) return node;
+                    if (!pageLinkKey) return node;
 
                     const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
                         storage.spaceId,

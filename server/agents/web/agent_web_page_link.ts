@@ -1,5 +1,7 @@
+import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.js";
 import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
 import {
@@ -83,37 +85,7 @@ export type AgentWebPageLink =
           readonly title: string;
       };
 
-/**
- * Used to determine if two links point to the same underlying data.
- */
-export function printAgentWebPageLinkKey(key: AgentWebPageLink): string {
-    switch (key.type) {
-        case "Account":
-            return `Account:${key.id}`;
-        case "Channel":
-            return `Channel:${key.id}`;
-        case "Chat":
-            return `Chat:${key.id}`;
-        case "ChatMessage":
-            return `ChatMessage:${key.id}-${key.index}`;
-        case "Document":
-            return `Document:${key.id}`;
-        case "DocumentMessage":
-            return `DocumentMessage:${key.id}-${key.threadId}-${key.index}`;
-        case "Post":
-            return `Post:${key.id}`;
-        case "PostMessage":
-            return `PostMessage:${key.id}-${key.index}`;
-        case "Task":
-            return `Task:${key.id}`;
-        case "TaskMessage":
-            return `TaskMessage:${key.id}-${key.index}`;
-        case "TaskCollection":
-            return `TaskCollection:${key.id}`;
-        default:
-            throw exhaustive(key);
-    }
-}
+assertAssignableTypes<AgentWebPageLink, AgentWebPageLinkKeyObject>();
 
 /**
  * Prints a human readable path for an agent web page link. When a page link is
