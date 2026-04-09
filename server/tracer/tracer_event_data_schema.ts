@@ -680,6 +680,7 @@ const TracerEventDataSchema = {
         },
     },
     search: {
+        entityId: Schema.string,
         index: {
             embeddingChunks: {
                 scheduled: Schema.boolean,

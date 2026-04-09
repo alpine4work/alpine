@@ -1752,6 +1752,8 @@ Resources:
                           Type: int
                         - Name: importer__uploaded__audio_total_size
                           Type: int
+                        - Name: search__entity_id
+                          Type: string
                         - Name: search__index__embedding_chunks__scheduled
                           Type: boolean
                         - Name: search__index__embedding_chunks__force_metadata_update

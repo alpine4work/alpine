@@ -205,6 +205,7 @@ import {
     parseSearchDynamicEntityId,
     parseSearchMentionEntityId,
     printSearchDynamicEntityId,
+    printSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 import {
@@ -1863,6 +1864,14 @@ export async function searchByKeywords(
         hits.map(async (hit): Promise<SearchEntityResultModel> => {
             const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
 
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(context, "searchByKeywords", spaceId, entityId);
+
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we can
             // render:
@@ -2254,6 +2263,7 @@ export async function searchBySemantics(
     assert(queryEmbeddingVector);
 
     const accessPolicy = await getOpensearchActorAccessQueryClause(context, spaceId, "Semantic");
+
     const {hits} = await context.opensearch.searchWithoutSource(
         SearchEntityEmbeddingChunkIndex,
         spaceId,
@@ -2318,6 +2328,14 @@ export async function searchBySemantics(
     const results = await runAllPromises(
         hits.map(async (hit): Promise<SearchEntityResultModel | null> => {
             const entityId = assertExists(hit.fields["entity.id"]?.[0]);
+
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(context, "searchBySemantics", spaceId, entityId);
 
             // If we've already seen this entity, return null. We only return one result per
             // entity and only the result with the highest score. The first entity we see
@@ -2448,6 +2466,95 @@ export async function searchBySemantics(
     );
 
     return results.filter(isNonNullable);
+}
+
+/**
+ * Randomly spot check search entities to make sure we actually have access and we
+ * don't have incorrect `accessPolicy`s indexed in OpenSearch.
+ *
+ * This spot check will sometimes have false positives. For example, right after
+ * the user makes a previously public entity private it may take us a bit to update
+ * the search index. It's ok if the search index isn't updated for ~5min after an
+ * access policy update. So spot check errors are only an issue if we're seeing a
+ * large volume of spot check errors sustained over time. (False positives should
+ * go away after a minute or so.)
+ */
+function spotCheckSearchEntityAccess(
+    context: ServerActionContext,
+    searchFunctionName: string,
+    spaceId: SpaceId,
+    entityId: SearchDynamicEntityId,
+) {
+    // NOTE(calebmer): We're starting by spot checking 100% of search results. We may
+    // turn this down to 10% or 1% in the future.
+    if (Math.random() > 1) return;
+
+    const entityIdObject = parseSearchDynamicEntityId(entityId);
+    let mentionEntityId: SearchMentionEntityId | null;
+
+    switch (entityIdObject.type) {
+        case "Account":
+            // If you have access to the space (which we assume) then you have access to all
+            // accounts in the space and so we don't need a spot check.
+            mentionEntityId = null;
+            break;
+        case "Document":
+        case "Channel":
+        case "Chat":
+        case "Task":
+        case "TaskCollection":
+        case "Post":
+            mentionEntityId = printSearchMentionEntityId(entityIdObject);
+            break;
+        case "Site":
+            // TODO(#sites): Implement
+            throw new UnimplementedError("Site mentions not implemented");
+        case "DocumentComment":
+            mentionEntityId = `Document:${entityIdObject.documentId}`;
+            break;
+        case "PostComment":
+            mentionEntityId = `Post:${entityIdObject.postId}`;
+            break;
+        case "ChatMessage":
+            mentionEntityId = `Chat:${entityIdObject.chatId}`;
+            break;
+        case "TaskComment":
+            mentionEntityId = `Task:${entityIdObject.taskId}`;
+            break;
+        default:
+            throw exhaustive(entityIdObject);
+    }
+
+    // Skip entities which don't need a spot check.
+    if (mentionEntityId === null) return;
+
+    const handleSpanName = `Spot check search result authorization from ${searchFunctionName}`;
+
+    context.process.waitUntil(
+        context.tracer.withSpan(`Handle: ${handleSpanName}`, async (context, span) => {
+            span.addPropagatedData({context: {handler: handleSpanName, spaceId}});
+            span.addData({search: {entityId}});
+
+            const entityResult = await fallbackGetSearchEntityBaseIfPossible(
+                // It's expected that `fallbackGetSearchEntityBaseIfPossible()` loads everything at
+                // strong consistency. Add that assertion here.
+                context.dynamo.expectStrongReadConsistency(),
+                spaceId,
+                mentionEntityId,
+                new Set(),
+            );
+
+            if (!entityResult) {
+                throw new NotFoundError("Spot check failed: entity not found");
+            }
+
+            if (entityResult.isPrivate) {
+                throw new PermissionDeniedError(
+                    "Spot check failed: actor can\u2019t access entity",
+                );
+            }
+        }),
+    );
 }
 
 async function prepareSearchEntityMediaForResult(
@@ -3629,6 +3736,14 @@ export async function searchMentionByKeywords(
         hits.map(async hit => {
             assert(isSearchMentionEntityId(hit.id));
 
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(context, "searchMentionByKeywords", spaceId, hit.id);
+
             const title = hit.fields.title?.[0] ?? null;
             const titleVersion = hit.fields.titleVersion?.[0] ?? null;
             const hitMedia = hit.fields.media?.[0] ?? null;
@@ -3801,6 +3916,19 @@ export async function searchChannelsByKeywords(
 
             const channelId = hit.id.slice(8) as ChannelId;
 
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(
+                context,
+                "searchChannelsByKeywords",
+                spaceId,
+                `Channel:${channelId}`,
+            );
+
             // Data in the search index may be stale and the account may have lost access to
             // the channel. Don't return the channel if the user lost access.
             const channelResult = await getChannelIfPossible(context, channelId);
@@ -3948,6 +4076,14 @@ export async function searchRoomChatsByKeywords(
             const hitMedia = hit.fields.media?.[0] ?? null;
             const hitTitle = hit.fields.title?.[0] ?? null;
             const hitTitleVersion = hit.fields.titleVersion?.[0] ?? null;
+
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(context, "searchRoomChatsByKeywords", spaceId, hitId);
 
             const media = hitMedia
                 ? await prepareSearchEntityMediaForResult(context, spaceId, hitId, hitMedia)
@@ -4154,6 +4290,19 @@ export async function searchTaskCollectionsByKeywords(
             if (!hit.id.startsWith("TaskCollection:")) return null;
 
             const collectionId = hit.id.slice(15) as TaskCollectionId;
+
+            // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
+            // authorization. We rely on our indexing pipeline to update OpenSearch when
+            // `AccessPolicy`s change. But since this pipeline is complicated, there's a real
+            // risk we have the wrong `AccessPolicy` indexed! So when we get results back from
+            // OpenSearch, we perform ocassional spot checks to double check entity access
+            // against an authoritative source (typically DynamoDB).
+            spotCheckSearchEntityAccess(
+                context,
+                "searchTaskCollectionsByKeywords",
+                spaceId,
+                `TaskCollection:${collectionId}`,
+            );
 
             const result = await getTaskCollectionSearchResultIfPossible(context, collectionId);
             if (!result) return null;

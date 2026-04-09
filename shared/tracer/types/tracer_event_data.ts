@@ -1972,6 +1972,9 @@ export type TracerEventData = {
 
     /** Information regarding our search system. */
     readonly search?: {
+        /** Any `SearchEntityId`. */
+        readonly entityId?: string;
+
         /** Information regarding search indexing. */
         readonly index?: {
             /** Information regarding search embedding chunk indexing. */

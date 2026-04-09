@@ -557,3 +557,12 @@ export function parseSearchMentionEntityId(
         readonly type: SearchMentionEntityType;
     };
 }
+
+/**
+ * Print a `SearchMentionEntityId` from its more convenient to use object format.
+ */
+export function printSearchMentionEntityId(
+    idObject: SearchDynamicEntityIdObject & {readonly type: SearchMentionEntityType},
+): SearchMentionEntityId {
+    return printSearchDynamicEntityId(idObject) as SearchMentionEntityId;
+}
