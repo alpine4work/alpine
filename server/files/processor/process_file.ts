@@ -60,7 +60,7 @@ export async function processFile(
 ) {
     span.addPropagatedData({context: {spaceId, fileId}});
 
-    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
+    const fileUploader = await getFileUploaderAsUploader(context, fileId);
     const contentLength = fileUploader.getContentLength();
 
     span.addPropagatedData({context: {accountId: fileUploader.uploaderId}});

@@ -3073,14 +3073,12 @@ test("can\u2019t add comment mark to `fileRow` node in a document", async () => 
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file1.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file2.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -3155,14 +3153,12 @@ test("can add comment mark to `file` node in a document with `fileRow` as a pare
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file1.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file2.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -3234,7 +3230,6 @@ test("can\u2019t add comment mark to `fileRowTable` node in a document", async (
     const file = await TestFile.create(session);
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -3364,7 +3359,6 @@ test("can add comment mark to `file` node in a document with `fileRowTable` as a
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -4429,7 +4423,6 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -9151,7 +9144,6 @@ test("can add comment mark to `file` node in a document with comment access leve
 
     await attachFileAsUploader(
         session1.action(),
-        space.id,
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
@@ -16524,7 +16516,6 @@ describe("Comments", () => {
 
         await attachFileAsUploader(
             session.action(),
-            space.id,
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
         );
@@ -16642,7 +16633,6 @@ describe("Comments", () => {
 
         await attachFileAsUploader(
             session.action(),
-            space.id,
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
         );
@@ -19130,7 +19120,6 @@ describe("duplicateDocument", () => {
         const file = await TestFile.create(session);
         await attachFileAsUploader(
             session.action(),
-            space.id,
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
         );

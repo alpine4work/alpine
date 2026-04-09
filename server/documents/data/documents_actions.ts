@@ -678,7 +678,7 @@ export async function duplicateDocument(
         // file attachments complete.
         await runAllPromises(
             mapIterable(fileIds, fileId =>
-                attachFileFromAttachment(context, spaceId, fileId, {
+                attachFileFromAttachment(context, fileId, {
                     from: FileDocumentAuthorizer.bind({
                         type: "Document",
                         documentId: sourceDocumentId,
@@ -2978,7 +2978,6 @@ export async function updateDocumentContent(
                         isId<FileId>(fileId)
                             ? getFileFromAttachment(
                                   context,
-                                  internalDocument.spaceId,
                                   fileId,
                                   FileDocumentAuthorizer.bind({
                                       type: "DocumentComments",
@@ -4817,7 +4816,6 @@ export async function createDocumentComment(
                         isId<FileId>(fileId)
                             ? getFileFromAttachment(
                                   context,
-                                  spaceId,
                                   fileId,
                                   FileDocumentAuthorizer.bind({
                                       type: "DocumentComments",

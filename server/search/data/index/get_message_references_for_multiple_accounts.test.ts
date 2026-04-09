@@ -280,7 +280,7 @@ test("only loads a file from DynamoDB once no matter how many accounts we\u2019r
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 5 : accountCount + 6,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(3);
+        expect(getDynamoExecuteActionCount()).toEqual(4);
         expect(getOpensearchExecuteOperationCount()).toEqual(0);
     }
 });
@@ -731,7 +731,7 @@ test("can have one account fail to load data while other accounts successfully l
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 5 : accountCount + 6,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(3);
+        expect(getDynamoExecuteActionCount()).toEqual(4);
         expect(getOpensearchExecuteOperationCount()).toEqual(0);
     }
 });

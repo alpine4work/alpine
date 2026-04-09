@@ -133,7 +133,7 @@ export async function createPost(
                 throw new FailedPreconditionError("Must create post from draft to attach files");
             }
 
-            await attachFileFromAttachment(context, postItem.spaceId, fileId, {
+            await attachFileFromAttachment(context, fileId, {
                 from: FilePostAuthorizer.bind({
                     type: "PostDraft",
                     accountId: postItem.authorId,
@@ -281,7 +281,6 @@ function afterCreatePost(
                 fileIds.map(fileId =>
                     detachFile(
                         context,
-                        postItem.spaceId,
                         fileId,
                         FilePostAuthorizer.bind({
                             type: "PostDraft",

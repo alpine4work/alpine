@@ -4292,7 +4292,7 @@ export function duplicateTaskAndAllChildren(
             await runAllPromises(
                 flatMapIterable(attachFiles, ({fromTaskId, toTaskId, fileIds}) =>
                     mapIterable(fileIds, fileId =>
-                        attachFileFromAttachment(context, taskItem.spaceId, fileId, {
+                        attachFileFromAttachment(context, fileId, {
                             from: FileTaskAuthorizer.bind({
                                 type: "TaskNotes",
                                 taskId: fromTaskId,
@@ -6097,7 +6097,6 @@ export async function createTaskComment(
                         isId<FileId>(fileId)
                             ? getFileFromAttachment(
                                   context,
-                                  spaceId,
                                   fileId,
                                   FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
                                   {consistency},

@@ -218,7 +218,6 @@ function sendChatMessageForAccount(
                             isId<FileId>(fileId)
                                 ? getFileFromAttachment(
                                       context,
-                                      item.attributesItem.spaceId,
                                       fileId,
                                       FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
                                       {consistency},

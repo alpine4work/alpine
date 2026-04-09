@@ -159,7 +159,6 @@ export async function createPostComment(
                             isId<FileId>(fileId)
                                 ? getFileFromAttachment(
                                       context,
-                                      postItem.spaceId,
                                       fileId,
                                       FilePostAuthorizer.bind({type: "PostComments", postId}),
                                       {consistency},

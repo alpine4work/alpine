@@ -325,7 +325,6 @@ export class TestDocument {
     public async attachFile(session: TestSpaceSession, file: TestFile) {
         await attachFileAsUploader(
             session.action(),
-            this.space.id,
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: this.id}),
         );

@@ -1128,7 +1128,6 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await attachFileAsUploader(
                 context.action(session1),
-                space.id,
                 fileId,
                 getRoomFileAuthorizer(room.key),
             );
@@ -1174,19 +1173,16 @@ export function testMessagingImplementation<RoomKey extends string>(
             await runAllPromises([
                 attachFileAsUploader(
                     context.action(session1),
-                    space.id,
                     file1Id,
                     getRoomFileAuthorizer(room.key),
                 ),
                 attachFileAsUploader(
                     context.action(session1),
-                    space.id,
                     file2Id,
                     getRoomFileAuthorizer(room.key),
                 ),
                 attachFileAsUploader(
                     context.action(session1),
-                    space.id,
                     file3Id,
                     getRoomFileAuthorizer(room.key),
                 ),
@@ -1252,7 +1248,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [generateChronologicalId()],
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("File not found"));
+            ).rejects.toThrow("File not found");
 
             await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),
@@ -1269,7 +1265,6 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await attachFileAsUploader(
                 context.action(session1),
-                space.id,
                 fileId,
                 getRoomFileAuthorizer(room2.key),
             );
@@ -1302,7 +1297,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                     fileIds: [fileId],
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("File not found"));
+            ).rejects.toThrow(new PermissionDeniedError("File isn\u2019t attached to target"));
 
             await expectGetMessageAndGetMessagePayloadToThrow(
                 context.action(session1),

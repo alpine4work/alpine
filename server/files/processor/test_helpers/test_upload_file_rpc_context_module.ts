@@ -61,7 +61,7 @@ export class TestUploadFileRpcContextModule extends RpcContextModuleBase<ServerS
                 typeof fileRpcDefinitions.getFileWithoutSignedUrlAsUploader
             > = anyInput;
 
-            const file = await getFileAsUploader(this._context, input.spaceId, input.fileId);
+            const file = await getFileAsUploader(this._context, input.fileId);
 
             return {
                 file,

@@ -437,7 +437,7 @@ chunk\r\n\
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: fileId,
@@ -659,10 +659,10 @@ Content-Length: 33102\r\n\
     );
 
     await waitForExpect(async () => {
-        await getFileAsUploader(space.systemAction(), space.id, fileId);
+        await getFileAsUploader(space.systemAction(), fileId);
     });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: fileId,
@@ -755,10 +755,10 @@ Content-Length: 33102\r\n\
     );
 
     await waitForExpect(async () => {
-        await getFileAsUploader(space.systemAction(), space.id, fileId);
+        await getFileAsUploader(space.systemAction(), fileId);
     });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: fileId,
@@ -810,7 +810,7 @@ chunk\r\n\
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: fileId,
@@ -870,7 +870,7 @@ test("can\u2019t process invalid image data", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), responseBody.file.id)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: expect.any(String),
@@ -934,7 +934,7 @@ test("can\u2019t process image with the wrong content type", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), responseBody.file.id)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: expect.any(String),
@@ -998,7 +998,7 @@ test("can upload and process image", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), responseBody.file.id)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: responseBody.file.id,
@@ -1066,7 +1066,7 @@ test("can upload and process large image", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, responseBody.file.id)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), responseBody.file.id)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: responseBody.file.id,
@@ -1134,7 +1134,7 @@ test("can upload image with a provided id", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), providedFileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: providedFileId,
@@ -1204,7 +1204,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), providedFileId)).toEqual(
         new FileModel({
             spaceId: space.id,
             id: providedFileId,
@@ -1287,7 +1287,7 @@ test("can upload image with a provided that has a time way before the current ti
         ),
     });
 
-    await expect(getFileAsUploader(space.systemAction(), space.id, providedFileId)).rejects.toThrow(
+    await expect(getFileAsUploader(space.systemAction(), providedFileId)).rejects.toThrow(
         new NotFoundError("File not found"),
     );
 });
@@ -1326,7 +1326,7 @@ test("can upload image with a provided `FileId` that has a time way after the cu
         ),
     });
 
-    await expect(getFileAsUploader(space.systemAction(), space.id, providedFileId)).rejects.toThrow(
+    await expect(getFileAsUploader(space.systemAction(), providedFileId)).rejects.toThrow(
         new NotFoundError("File not found"),
     );
 });

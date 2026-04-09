@@ -283,7 +283,7 @@ export async function getContentFileReference(
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,
 ): Promise<{type: "File"; signedUrlSearch: string; file: FileModel} | null> {
-    let file = await getFileIfExistsFromAttachment(context, spaceId, fileId, fileAuthorizer, {
+    let file = await getFileIfExistsFromAttachment(context, fileId, fileAuthorizer, {
         consistency: "Eventual",
     });
 
@@ -298,7 +298,7 @@ export async function getContentFileReference(
     // preview since at least the layout will be stable even if we don't have e.g. the
     // image preview's placeholder.
     if (!file || getFileModelDataAttachReadiness(file.initialData) === "PreviewUnavailable") {
-        file = await getFileIfExistsFromAttachment(context, spaceId, fileId, fileAuthorizer, {
+        file = await getFileIfExistsFromAttachment(context, fileId, fileAuthorizer, {
             consistency: "Strong",
         });
     }

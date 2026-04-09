@@ -787,7 +787,6 @@ export class TestTask extends TestCommentRoomBase {
     public async attachFile(session: TestSpaceSession, file: TestFile) {
         await attachFileAsUploader(
             session.action(),
-            this.space.id,
             file.id,
             FileTaskAuthorizer.bind({type: "TaskNotes", taskId: this.id}),
         );

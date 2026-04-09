@@ -415,7 +415,6 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                                 const [file, signedUrl] = await runAllPromises([
                                     getFileFromAttachment(
                                         context,
-                                        item.spaceId,
                                         fileId,
                                         FilePostAuthorizer.bind({
                                             type: "Post",

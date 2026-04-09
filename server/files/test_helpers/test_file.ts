@@ -60,7 +60,7 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         withoutProcessJobForTest: true,
     });
 
-    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
+    const fileUploader = await getFileUploaderAsUploader(context, fileId);
 
     await fileUploader.finishProcessingImagePreviewSize(context, {
         width: 1000,
@@ -105,7 +105,7 @@ export class TestFile {
     }
 
     public get(): Promise<FileModel> {
-        return getFileAsUploader(this.space.systemAction(), this.space.id, this.id);
+        return getFileAsUploader(this.space.systemAction(), this.id);
     }
 
     public async from(session: TestSession, fileAuthorizer: FileAuthorizer): Promise<TestFile> {
@@ -113,16 +113,16 @@ export class TestFile {
         // `FileAuthorizer`, and that the session has access to the `FileAuthorizer`'s
         // target. If these conditions are true we can create a `TestFile` from the
         // `FileAuthorizer` target.
-        await getFileFromAttachment(session.action(), this.space.id, this.id, fileAuthorizer);
+        await getFileFromAttachment(session.action(), this.id, fileAuthorizer);
 
         return new TestFile(this.context, this.space, this.id, fileAuthorizer);
     }
 
     public async attach(session: TestSession, fileAuthorizer: FileAuthorizer) {
         if (this._fromAuthorizer === null) {
-            await attachFileAsUploader(session.action(), this.space.id, this.id, fileAuthorizer);
+            await attachFileAsUploader(session.action(), this.id, fileAuthorizer);
         } else {
-            await attachFileFromAttachment(session.action(), this.space.id, this.id, {
+            await attachFileFromAttachment(session.action(), this.id, {
                 from: this._fromAuthorizer,
                 to: fileAuthorizer,
             });

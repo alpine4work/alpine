@@ -20,7 +20,7 @@ import {
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
     FilesTable,
-    PostDraftFileAttachmentsIndex,
+    PostDraftFile2AttachmentsIndex,
 } from "~/server/files/data/internal/files_table.js";
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -61,144 +61,55 @@ import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
  * methods here.
  */
 
-type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
+type FileItem = DynamoTableItemType<typeof FilesTable, "File2", "Attributes">;
 
 type FileAttachmentTargetItemKey = DynamoTableItemKeyType<
-    typeof FilesTable,
-    "File",
-    `${string}AttachmentTarget`
->;
-
-type File2Item = DynamoTableItemType<typeof FilesTable, "File2", "Attributes">;
-
-type File2AttachmentTargetItemKey = DynamoTableItemKeyType<
     typeof FilesTable,
     "File2",
     `${string}AttachmentTarget`
 >;
 
-function getFile2AttachmentTargetItemKey(
-    fileId: FileId,
-    target: FileAttachmentTarget,
-): File2AttachmentTargetItemKey {
-    switch (target.type) {
-        case "ChatMessages": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "ChatMessagesAttachmentTarget",
-                fileId,
-                chatId: target.chatId,
-            };
-        }
-        case "Document": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "DocumentAttachmentTarget",
-                fileId,
-                documentId: target.documentId,
-            };
-        }
-        case "DocumentComments": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "DocumentCommentsAttachmentTarget",
-                fileId,
-                documentId: target.documentId,
-            };
-        }
-        case "Post": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "PostAttachmentTarget",
-                fileId,
-                postId: target.postId,
-            };
-        }
-        case "PostDraft": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "PostDraftAttachmentTarget",
-                fileId,
-                accountId: target.accountId,
-                draftId: target.draftId,
-            };
-        }
-        case "PostComments": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "PostCommentsAttachmentTarget",
-                fileId,
-                postId: target.postId,
-            };
-        }
-        case "TaskNotes": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "TaskNotesAttachmentTarget",
-                fileId,
-                taskId: target.taskId,
-            };
-        }
-        case "TaskComments": {
-            return {
-                partitionType: "File2",
-                sortRangeType: "TaskCommentsAttachmentTarget",
-                fileId,
-                taskId: target.taskId,
-            };
-        }
-        default:
-            throw exhaustive(target);
-    }
-}
-
 function getFileAttachmentTargetItemKey(
-    spaceId: SpaceId,
     fileId: FileId,
     target: FileAttachmentTarget,
 ): FileAttachmentTargetItemKey {
     switch (target.type) {
         case "ChatMessages": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "ChatMessagesAttachmentTarget",
-                spaceId,
                 fileId,
                 chatId: target.chatId,
             };
         }
         case "Document": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "DocumentAttachmentTarget",
-                spaceId,
                 fileId,
                 documentId: target.documentId,
             };
         }
         case "DocumentComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "DocumentCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 documentId: target.documentId,
             };
         }
         case "Post": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostAttachmentTarget",
-                spaceId,
                 fileId,
                 postId: target.postId,
             };
         }
         case "PostDraft": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostDraftAttachmentTarget",
-                spaceId,
                 fileId,
                 accountId: target.accountId,
                 draftId: target.draftId,
@@ -206,27 +117,24 @@ function getFileAttachmentTargetItemKey(
         }
         case "PostComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 postId: target.postId,
             };
         }
         case "TaskNotes": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "TaskNotesAttachmentTarget",
-                spaceId,
                 fileId,
                 taskId: target.taskId,
             };
         }
         case "TaskComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "TaskCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 taskId: target.taskId,
             };
@@ -236,12 +144,14 @@ function getFileAttachmentTargetItemKey(
     }
 }
 
-function createFile2ItemFromFileItem(item: FileItem): File2Item {
+function createOldFileItemFromFileItem(
+    item: FileItem,
+): DynamoTableItemType<typeof FilesTable, "Space", "File"> {
     return {
-        partitionType: "File2",
-        sortRangeType: "Attributes",
-        fileId: item.fileId,
+        partitionType: "Space",
+        sortRangeType: "File",
         spaceId: item.spaceId,
+        fileId: item.fileId,
         contentType: item.contentType,
         contentLength: item.contentLength,
         uploaderId: item.uploaderId,
@@ -250,6 +160,90 @@ function createFile2ItemFromFileItem(item: FileItem): File2Item {
         hasProcessedNullAlternative: item.hasProcessedNullAlternative,
         preview: item.preview,
     };
+}
+
+function getOldFileAttachmentTargetItemKey(
+    spaceId: SpaceId,
+    fileId: FileId,
+    target: FileAttachmentTarget,
+): DynamoTableItemKeyType<typeof FilesTable, "File", `${string}AttachmentTarget`> {
+    switch (target.type) {
+        case "ChatMessages": {
+            return {
+                partitionType: "File",
+                sortRangeType: "ChatMessagesAttachmentTarget",
+                spaceId,
+                fileId,
+                chatId: target.chatId,
+            };
+        }
+        case "Document": {
+            return {
+                partitionType: "File",
+                sortRangeType: "DocumentAttachmentTarget",
+                spaceId,
+                fileId,
+                documentId: target.documentId,
+            };
+        }
+        case "DocumentComments": {
+            return {
+                partitionType: "File",
+                sortRangeType: "DocumentCommentsAttachmentTarget",
+                spaceId,
+                fileId,
+                documentId: target.documentId,
+            };
+        }
+        case "Post": {
+            return {
+                partitionType: "File",
+                sortRangeType: "PostAttachmentTarget",
+                spaceId,
+                fileId,
+                postId: target.postId,
+            };
+        }
+        case "PostDraft": {
+            return {
+                partitionType: "File",
+                sortRangeType: "PostDraftAttachmentTarget",
+                spaceId,
+                fileId,
+                accountId: target.accountId,
+                draftId: target.draftId,
+            };
+        }
+        case "PostComments": {
+            return {
+                partitionType: "File",
+                sortRangeType: "PostCommentsAttachmentTarget",
+                spaceId,
+                fileId,
+                postId: target.postId,
+            };
+        }
+        case "TaskNotes": {
+            return {
+                partitionType: "File",
+                sortRangeType: "TaskNotesAttachmentTarget",
+                spaceId,
+                fileId,
+                taskId: target.taskId,
+            };
+        }
+        case "TaskComments": {
+            return {
+                partitionType: "File",
+                sortRangeType: "TaskCommentsAttachmentTarget",
+                spaceId,
+                fileId,
+                taskId: target.taskId,
+            };
+        }
+        default:
+            throw exhaustive(target);
+    }
 }
 
 /**
@@ -476,10 +470,10 @@ export async function startUploadingFile(
         }
 
         const fileItem: FileItem = {
-            partitionType: "Space",
-            sortRangeType: "File",
-            spaceId,
+            partitionType: "File2",
+            sortRangeType: "Attributes",
             fileId,
+            spaceId,
             contentType,
             contentLength,
             uploaderId: context.actor.getPossiblyBotAccountId(),
@@ -495,28 +489,28 @@ export async function startUploadingFile(
                 contentLength: fileTotalsItem.contentLength + contentLength,
             }),
 
-            // Don't allow creating duplicate files when providing a `FileId`.
+            // Write to new File2 partition (primary)
             providedFileId
                 ? FilesTable.transactionCreateItem(fileItem)
                 : FilesTable.transactionCreateOrReplaceItem(fileItem),
 
-            // Dual-write to File2 partition
-            FilesTable.transactionCreateOrReplaceItem(createFile2ItemFromFileItem(fileItem)),
+            // Dual-write to old Space/File partition
+            FilesTable.transactionCreateOrReplaceItem(createOldFileItemFromFileItem(fileItem)),
 
             ...(attachTargetAuthorizer
                 ? [
-                      // Attachment target on old File partition
+                      // Attachment target on new File2 partition
                       FilesTable.transactionCreateOrReplaceItem({
-                          ...getFileAttachmentTargetItemKey(
+                          ...getFileAttachmentTargetItemKey(fileId, attachTargetAuthorizer.target),
+                          createdTime: new Date(),
+                      }),
+                      // Dual-write attachment to old File partition
+                      FilesTable.transactionCreateOrReplaceItem({
+                          ...getOldFileAttachmentTargetItemKey(
                               spaceId,
                               fileId,
                               attachTargetAuthorizer.target,
                           ),
-                          createdTime: new Date(),
-                      }),
-                      // Dual-write attachment target to File2 partition
-                      FilesTable.transactionCreateOrReplaceItem({
-                          ...getFile2AttachmentTargetItemKey(fileId, attachTargetAuthorizer.target),
                           createdTime: new Date(),
                       }),
                   ]
@@ -562,14 +556,14 @@ export async function finishUploadingAndStartProcessingFile(
     }
 
     return context.dynamo.retryTransaction(async context => {
-        let item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+        let item = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Eventual",
         });
 
         // In case there's an eventual consistency lag, retry reading the item with strong
         // consistency.
         if (!item) {
-            item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+            item = await getFileItemIfExistsAsUploader(context, fileId, {
                 consistency: "Strong",
             });
         }
@@ -595,11 +589,9 @@ export async function finishUploadingAndStartProcessingFile(
             isUploading: false,
         };
 
-        // Dual-write: update the old item (respects updateLockVersion) and unconditionally
-        // write the new File2 item in a single transaction.
         await DynamoTableSchema.executeTransaction(context, [
             FilesTable.transactionDirectlyUpdateItem(item),
-            FilesTable.transactionCreateOrReplaceItem(createFile2ItemFromFileItem(item)),
+            FilesTable.transactionCreateOrReplaceItem(createOldFileItemFromFileItem(item)),
         ]);
 
         const {hasAlternative, hasPreview} =
@@ -632,17 +624,16 @@ export async function finishUploadingAndStartProcessingFile(
  */
 export async function getFileUploaderAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
 ): Promise<FileUploader> {
-    let fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+    let fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
         consistency: "Eventual",
     });
 
     // If we weren't able to find a file that might be because of eventual consistency
     // lag. Try again with strong consistency.
     if (!fileItem) {
-        fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+        fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Strong",
         });
     }
@@ -730,10 +721,10 @@ export class FileUploader {
     }
 
     /**
-     * Update the file item and dual-write to File2 in a single transaction. The old
-     * item uses `transactionDirectlyUpdateItem` (respects `updateLockVersion`) and the
-     * new File2 item uses `transactionCreateOrReplaceItem` (unconditional, since the
-     * item may not exist yet).
+     * Update the file item on the File2 partition and dual-write to the old Space/File
+     * partition in a single transaction. The File2 item uses
+     * `transactionDirectlyUpdateItem` (respects `updateLockVersion`) and the old item
+     * uses `transactionCreateOrReplaceItem` (unconditional).
      *
      * Retries on version conflicts via `retryTransaction`.
      */
@@ -743,9 +734,8 @@ export class FileUploader {
     ) {
         await this._item.withLock(async itemRef => {
             const fileItemKey = {
-                partitionType: "Space" as const,
-                sortRangeType: "File" as const,
-                spaceId: this.spaceId,
+                partitionType: "File2" as const,
+                sortRangeType: "Attributes" as const,
                 fileId: this.fileId,
             };
             let hasAttempted = false;
@@ -766,7 +756,9 @@ export class FileUploader {
 
                 await DynamoTableSchema.executeTransaction(context, [
                     FilesTable.transactionDirectlyUpdateItem(newItem),
-                    FilesTable.transactionCreateOrReplaceItem(createFile2ItemFromFileItem(newItem)),
+                    FilesTable.transactionCreateOrReplaceItem(
+                        createOldFileItemFromFileItem(newItem),
+                    ),
                 ]);
 
                 return newItem;
@@ -1351,7 +1343,7 @@ export class FileUploader {
     }
 }
 
-const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>({
+const FileItemContextCache = new DynamoContextCache<FileId, FileItem | null>({
     // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
     // the actor is.
     whenActorChanges: "DangerouslyShare",
@@ -1359,17 +1351,15 @@ const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, File
 
 function getFileItemIfExistsWithCache(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
-    return FileItemContextCache.get(context, consistency, `${spaceId}:${fileId}`, consistency =>
+    return FileItemContextCache.get(context, consistency, fileId, consistency =>
         FilesTable.getItemIfExists(
             context,
             {
-                partitionType: "Space",
-                sortRangeType: "File",
-                spaceId,
+                partitionType: "File2",
+                sortRangeType: "Attributes",
                 fileId,
             },
             {consistency},
@@ -1379,11 +1369,10 @@ function getFileItemIfExistsWithCache(
 
 async function getFileItemIfExistsAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
-    const item = await getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency});
+    const item = await getFileItemIfExistsWithCache(context, fileId, {consistency});
     if (!item) return null;
 
     switch (context.actor.type) {
@@ -1431,11 +1420,10 @@ async function getFileItemIfExistsAsUploader(
  */
 export async function getFileIfExistsAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel | null> {
-    const item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, options);
+    const item = await getFileItemIfExistsAsUploader(context, fileId, options);
     if (!item) return null;
     return createFileModelFromItem(item);
 }
@@ -1450,11 +1438,10 @@ export async function getFileIfExistsAsUploader(
  */
 export async function getFileAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel> {
-    const file = await getFileIfExistsAsUploader(context, spaceId, fileId, options);
+    const file = await getFileIfExistsAsUploader(context, fileId, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
 }
@@ -1468,7 +1455,7 @@ export function getFileIfExistsAsSystem(
 
     // `getFileIfExistsAsUploader()` works for system actors. This is a convenience
     // function with a nicer name for system actors.
-    return getFileIfExistsAsUploader(context, context.actor.getSpaceId(), fileId, options);
+    return getFileIfExistsAsUploader(context, fileId, options);
 }
 
 export function getFileAsSystem(
@@ -1480,7 +1467,7 @@ export function getFileAsSystem(
 
     // `getFileAsUploader()` works for system actors. This is a convenience function
     // with a nicer name for system actors.
-    return getFileAsUploader(context, context.actor.getSpaceId(), fileId, options);
+    return getFileAsUploader(context, fileId, options);
 }
 
 /**
@@ -1493,7 +1480,6 @@ export function getFileAsSystem(
  */
 export async function getFileIfExistsFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
     {
@@ -1504,17 +1490,14 @@ export async function getFileIfExistsFromAttachment(
         accessLevel?: "View" | "Edit";
     } = {},
 ): Promise<FileModel | null> {
-    const [item, , targetItem] = await runAllPromises([
-        getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
+    const [item, targetItem] = await runAllPromises([
+        getFileItemIfExistsWithCache(context, fileId, {consistency}),
 
-        // 1. Make sure we have access to the file's attachment target
-        targetAuthorizer.authorizeTargetAccess(context, spaceId, accessLevel),
-
-        // 2. Make sure the file is actually attached to the provided target
+        // Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
-                getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+                getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
                 {
                     consistency,
                     // It's ok to call this function when expecting strong read consistency. This
@@ -1527,7 +1510,7 @@ export async function getFileIfExistsFromAttachment(
             if (!targetItem && consistency === "Eventual") {
                 targetItem = await FilesTable.getItemIfExists(
                     context,
-                    getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+                    getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
                     {consistency: "Strong"},
                 );
             }
@@ -1536,6 +1519,8 @@ export async function getFileIfExistsFromAttachment(
         })(),
     ]);
     if (!item) return null;
+
+    await targetAuthorizer.authorizeTargetAccess(context, item.spaceId, accessLevel);
 
     if (!targetItem) {
         throw new PermissionDeniedError("File isn\u2019t attached to target");
@@ -1566,18 +1551,11 @@ function createFileModelFromItem(item: FileItem) {
  */
 export async function getFileFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
     options?: {consistency?: DynamoCacheReadConsistency; accessLevel?: "View" | "Edit"},
 ): Promise<FileModel> {
-    const file = await getFileIfExistsFromAttachment(
-        context,
-        spaceId,
-        fileId,
-        targetAuthorizer,
-        options,
-    );
+    const file = await getFileIfExistsFromAttachment(context, fileId, targetAuthorizer, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
 }
@@ -1595,39 +1573,27 @@ export async function getFileFromAttachment(
  */
 export async function attachFileAsUploader(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
 ): Promise<FileModel> {
-    const [file] = await runAllPromises([
-        // Make sure the file exists and our actor is the uploader.
-        //
-        // If we can't read the file with eventual consistency then retry with strong
-        // consistency in case the file was just created and we're observing an eventual
-        // consistency lag.
-        (async () => {
-            const file = await getFileIfExistsAsUploader(context, spaceId, fileId, {
-                consistency: "Eventual",
-            });
-            if (file) return file;
+    const file = await (async () => {
+        const file = await getFileIfExistsAsUploader(context, fileId, {
+            consistency: "Eventual",
+        });
+        if (file) return file;
+        return getFileAsUploader(context, fileId, {consistency: "Strong"});
+    })();
 
-            return getFileAsUploader(context, spaceId, fileId, {
-                consistency: "Strong",
-            });
-        })(),
-
-        // Make sure we have access to the new file authorizer.
-        targetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
-    ]);
+    await targetAuthorizer.authorizeTargetAccess(context, file.spaceId, "Edit");
 
     // Dual-write attachment to both partitions
     await DynamoTableSchema.executeTransaction(context, [
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+            ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
             createdTime: new Date(),
         }),
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFile2AttachmentTargetItemKey(fileId, targetAuthorizer.target),
+            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, targetAuthorizer.target),
             createdTime: new Date(),
         }),
     ]);
@@ -1657,11 +1623,11 @@ export async function attachFileToDocumentAsSystem(
     // Dual-write attachment to both partitions
     await DynamoTableSchema.executeTransaction(context, [
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(spaceId, fileId, {type: "Document", documentId}),
+            ...getFileAttachmentTargetItemKey(fileId, {type: "Document", documentId}),
             createdTime: new Date(),
         }),
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFile2AttachmentTargetItemKey(fileId, {type: "Document", documentId}),
+            ...getOldFileAttachmentTargetItemKey(spaceId, fileId, {type: "Document", documentId}),
             createdTime: new Date(),
         }),
     ]);
@@ -1677,11 +1643,10 @@ export async function attachFileToDocumentAsSystem(
  */
 export async function attachFileFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {
-        from: fromTargetAuthorizer,
-        to: toTargetAuthorizer,
+        from,
+        to,
         dangerouslySkipToAuthorizeTargetAccess,
     }: {
         from: FileAuthorizer;
@@ -1689,31 +1654,19 @@ export async function attachFileFromAttachment(
         dangerouslySkipToAuthorizeTargetAccess?: boolean;
     },
 ): Promise<FileModel> {
-    const [file] = await runAllPromises([
-        // Make sure the file exists with the provided authorizer.
-        getFileFromAttachment(context, spaceId, fileId, fromTargetAuthorizer),
+    const file = await getFileFromAttachment(context, fileId, from);
 
-        // Make sure we have access to the new file authorizer.
-        //
-        // Allow skipping this authorization check. Useful if we're attaching a file to an
-        // entity that's about to be created. It's not even that dangerous to allow file
-        // attachments to an entity you don't have access to. An "attached" file isn't
-        // rendered unless the underlying entity references the file. If the actor can't
-        // update the underlying entity then the unused attached file will eventually be
-        // garbage collected away.
-        !dangerouslySkipToAuthorizeTargetAccess
-            ? toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit")
-            : null,
-    ]);
+    if (!dangerouslySkipToAuthorizeTargetAccess) {
+        await to.authorizeTargetAccess(context, file.spaceId, "Edit");
+    }
 
-    // Dual-write attachment to both partitions
     await DynamoTableSchema.executeTransaction(context, [
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(spaceId, fileId, toTargetAuthorizer.target),
+            ...getFileAttachmentTargetItemKey(fileId, to.target),
             createdTime: new Date(),
         }),
         FilesTable.transactionCreateOrReplaceItem({
-            ...getFile2AttachmentTargetItemKey(fileId, toTargetAuthorizer.target),
+            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, to.target),
             createdTime: new Date(),
         }),
     ]);
@@ -1727,22 +1680,23 @@ export async function attachFileFromAttachment(
  */
 export async function detachFile(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
 ): Promise<void> {
     // Make sure the file exists with the provided authorizer. This will call
     // `targetAuthorizer.authorizeTargetAccess()`.
-    await getFileFromAttachment(context, spaceId, fileId, targetAuthorizer, {accessLevel: "Edit"});
+    const file = await getFileFromAttachment(context, fileId, targetAuthorizer, {
+        accessLevel: "Edit",
+    });
 
     // Delete from both partitions
     await runAllPromises([
         FilesTable.deleteItemWithKeyIfExists(context, {
-            ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+            ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
             createdTime: new Date(),
         }),
         FilesTable.deleteItemWithKeyIfExists(context, {
-            ...getFile2AttachmentTargetItemKey(fileId, targetAuthorizer.target),
+            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, targetAuthorizer.target),
             createdTime: new Date(),
         }),
     ]);
@@ -1764,8 +1718,8 @@ export async function getPostDraftFileAttachments(
 
     return arrayFromAsyncIterable(
         mapAsyncIterableIterator(
-            PostDraftFileAttachmentsIndex.query(context, {
-                partitionKey: {spaceId, accountId, draftId},
+            PostDraftFile2AttachmentsIndex.query(context, {
+                partitionKey: {accountId, draftId},
                 limit: "All",
             }),
             item => item.fileId,

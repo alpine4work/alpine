@@ -6853,7 +6853,6 @@ test("will attach referenced files to post when creating from draft", async () =
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file.id,
         FilePostAuthorizer.bind({type: "PostDraft", accountId: session.account.id, draftId}),
     );
@@ -6868,7 +6867,6 @@ test("will attach referenced files to post when creating from draft", async () =
     expect(
         await getFileFromAttachment(
             session.action(),
-            space.id,
             file.id,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),

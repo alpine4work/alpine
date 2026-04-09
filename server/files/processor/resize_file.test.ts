@@ -182,7 +182,7 @@ async function uploadFileForTest(
     // Wait for the file to be processed...
     await ProcessContextModule.waitForTestTasks();
 
-    return getFileAsUploader(session.action(), session.space.id, fileId);
+    return getFileAsUploader(session.action(), fileId);
 }
 
 test("can\u2019t resize an image with a session actor", async () => {

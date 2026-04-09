@@ -994,13 +994,11 @@ test("will respond optimistically with a comment thread with files even if it ha
     await runAllPromises([
         attachFileAsUploader(
             session1.action(),
-            space.id,
             file1Id,
             FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),
         attachFileAsUploader(
             session1.action(),
-            space.id,
             file2Id,
             FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),

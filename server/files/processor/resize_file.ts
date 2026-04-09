@@ -186,7 +186,7 @@ export async function resizeFile(
 
         const outputPath = joinPath(temporaryDirectoryPath, "output.avif");
 
-        const file = await getFileIfExistsAsUploader(context, spaceId, fileId);
+        const file = await getFileIfExistsAsUploader(context, fileId);
 
         if (!file) {
             return new Response("404 Not Found", {
