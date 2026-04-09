@@ -21,9 +21,7 @@ test("alphabetizes search params in the returned searchParams object", () => {
 });
 
 test("preserves repeated-key value order while alphabetizing keys", () => {
-    expect(normalizeAgentWebPath("/search?b=2&a=1&b=1&a=0").path).toBe(
-        "/search?a=1&a=0&b=2&b=1",
-    );
+    expect(normalizeAgentWebPath("/search?b=2&a=1&b=1&a=0").path).toBe("/search?a=1&a=0&b=2&b=1");
 });
 
 test("uses JavaScript default string ordering for key alphabetization", () => {

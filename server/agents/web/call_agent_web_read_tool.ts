@@ -65,8 +65,6 @@ export async function callAgentWebReadTool(
         //
         // `latestPageLinkPathnameForKey` may be undefined in certain race conditions
         // because it's written after we write to `pageLinkByPathname`.
-        //
-        // NOCOMMIT: Test redirection!
         if (
             latestPageLinkPathnameForKey !== undefined &&
             latestPageLinkPathnameForKey !== pathname

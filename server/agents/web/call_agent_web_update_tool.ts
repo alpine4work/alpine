@@ -26,7 +26,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
-// NOCOMMIT: Test multiple `updates`
 export async function callAgentWebUpdateTool(
     context: AgentWebContext,
     {
@@ -34,7 +33,6 @@ export async function callAgentWebUpdateTool(
         updates,
     }: {
         path: string;
-        // NOCOMMIT: Document how the caller should implement batching
         updates: ReadonlyArray<{
             old: string;
             new: string;
