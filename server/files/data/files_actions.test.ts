@@ -8187,7 +8187,12 @@ test("can get all files attached to post draft", async () => {
     await attachFileAsUploader(
         session1.action(),
         file2Uploader.fileId,
-        FilePostAuthorizer.bind({type: "PostDraft", accountId: session1.account.id, draftId}),
+        FilePostAuthorizer.bind({
+            type: "PostDraft",
+            spaceId: space.id,
+            accountId: session1.account.id,
+            draftId,
+        }),
     );
 
     expect(
@@ -8218,7 +8223,12 @@ test("can get all files attached to post draft", async () => {
 
     await attachFileFromAttachment(session1.action(), file1Uploader.fileId, {
         from: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
-        to: FilePostAuthorizer.bind({type: "PostDraft", accountId: session1.account.id, draftId}),
+        to: FilePostAuthorizer.bind({
+            type: "PostDraft",
+            spaceId: space.id,
+            accountId: session1.account.id,
+            draftId,
+        }),
     });
 
     expect(

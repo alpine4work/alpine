@@ -602,7 +602,7 @@ export const DocumentsTable = DynamoTableSchema.new({
 const FileDocumentAuthorizer = FileAuthorizer.new(
     DocumentsTable,
     "Document",
-    (context, target, spaceId, expectedAccessLevel) =>
+    (context, target, expectedAccessLevel) =>
         authorizeDocumentAccess(context, target.documentId, expectedAccessLevel),
 );
 

@@ -528,11 +528,7 @@ class FileAuthorizer<Bound extends boolean = true> {
     public readonly target: If<Bound, FileAttachmentTarget, null>;
     public readonly authorizeTargetAccess: If<
         Bound,
-        (
-            context: ServerActionContext,
-            spaceId: SpaceId,
-            expectedAccessLevel: "View" | "Edit",
-        ) => Promise<void>,
+        (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
         null
     >;
 
@@ -540,11 +536,7 @@ class FileAuthorizer<Bound extends boolean = true> {
         target: If<Bound, FileAttachmentTarget, null>,
         authorizeTargetAccess: If<
             Bound,
-            (
-                context: ServerActionContext,
-                spaceId: SpaceId,
-                expectedAccessLevel: "View" | "Edit",
-            ) => Promise<void>,
+            (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
             null
         >,
     ) {
@@ -558,7 +550,6 @@ class FileAuthorizer<Bound extends boolean = true> {
         authorizeTargetAccess: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
-            spaceId: SpaceId,
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
@@ -577,7 +568,6 @@ class FileAuthorizerUnbound<
     private readonly _authorizeTargetAccess: (
         context: ServerActionContext,
         target: FileAttachmentTargetByArea[Area],
-        spaceId: SpaceId,
         expectedAccessLevel: "View" | "Edit",
     ) => Promise<unknown>;
 
@@ -587,7 +577,6 @@ class FileAuthorizerUnbound<
         authorizeTargetAccess: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
-            spaceId: SpaceId,
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
@@ -644,8 +633,8 @@ class FileAuthorizerUnbound<
     }
 
     public bind(target: FileAttachmentTargetByArea[Area]) {
-        return new FileAuthorizer(target, async (context, spaceId, expectedAccessLevel) => {
-            await this._authorizeTargetAccess(context, target, spaceId, expectedAccessLevel);
+        return new FileAuthorizer(target, async (context, expectedAccessLevel) => {
+            await this._authorizeTargetAccess(context, target, expectedAccessLevel);
         });
     }
 }

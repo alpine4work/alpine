@@ -370,8 +370,13 @@ export function PostCreator({
                                 doc.lastChild!.childCount === 1
                             }
                             fileAttachmentTarget={useMemo(
-                                () => ({type: "PostDraft", accountId: currentAccount.id, draftId}),
-                                [currentAccount.id, draftId],
+                                () => ({
+                                    type: "PostDraft",
+                                    spaceId: space.id,
+                                    accountId: currentAccount.id,
+                                    draftId,
+                                }),
+                                [space.id, currentAccount.id, draftId],
                             )}
                             onEnsureFileAttachmentTarget={async () => {
                                 clearSaveDebounceTimeoutRef.current?.();

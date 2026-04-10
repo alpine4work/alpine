@@ -247,7 +247,7 @@ export async function startUploadingFile(
             "attachTargetAuthorizer requires ServerAccountActionContext",
         );
 
-        await attachTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit");
+        await attachTargetAuthorizer.authorizeTargetAccess(context, "Edit");
     }
 
     // Only allow file uploads from EdgeService (client uploads) and ImporterService
@@ -1458,10 +1458,13 @@ export async function getFileIfExistsFromAttachment(
         accessLevel?: "View" | "Edit";
     } = {},
 ): Promise<FileModel | null> {
-    const [item, targetItem] = await runAllPromises([
+    const [item, , targetItem] = await runAllPromises([
         getFileItemIfExistsWithCache(context, fileId, {consistency}),
 
-        // Make sure the file is actually attached to the provided target
+        // 1. Make sure we have access to the file's attachment target
+        targetAuthorizer.authorizeTargetAccess(context, accessLevel),
+
+        // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
@@ -1487,8 +1490,6 @@ export async function getFileIfExistsFromAttachment(
         })(),
     ]);
     if (!item) return null;
-
-    await targetAuthorizer.authorizeTargetAccess(context, item.spaceId, accessLevel);
 
     if (!targetItem) {
         throw new PermissionDeniedError("File isn\u2019t attached to target");
@@ -1552,7 +1553,7 @@ export async function attachFileAsUploader(
         return getFileAsUploader(context, fileId, {consistency: "Strong"});
     })();
 
-    await targetAuthorizer.authorizeTargetAccess(context, file.spaceId, "Edit");
+    await targetAuthorizer.authorizeTargetAccess(context, "Edit");
 
     await FilesTable.createOrReplaceItem(context, {
         ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
@@ -1610,7 +1611,7 @@ export async function attachFileFromAttachment(
     const file = await getFileFromAttachment(context, fileId, from);
 
     if (!dangerouslySkipToAuthorizeTargetAccess) {
-        await to.authorizeTargetAccess(context, file.spaceId, "Edit");
+        await to.authorizeTargetAccess(context, "Edit");
     }
 
     await FilesTable.createOrReplaceItem(context, {
@@ -1653,8 +1654,8 @@ export async function getPostDraftFileAttachments(
     targetUnboundAuthorizer: FileAuthorizerUnbound<"Post">,
 ): Promise<Array<FileId>> {
     await targetUnboundAuthorizer
-        .bind({type: "PostDraft", accountId, draftId})
-        .authorizeTargetAccess(context, spaceId, "View");
+        .bind({type: "PostDraft", spaceId, accountId, draftId})
+        .authorizeTargetAccess(context, "View");
 
     return arrayFromAsyncIterable(
         mapAsyncIterableIterator(

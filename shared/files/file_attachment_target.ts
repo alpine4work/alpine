@@ -9,6 +9,7 @@ import {
     DocumentId,
     PostDraftId,
     PostId,
+    SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -31,7 +32,12 @@ export type FileAttachmentTargetByArea = {
         | {readonly type: "DocumentComments"; readonly documentId: DocumentId};
     Post:
         | {readonly type: "Post"; readonly postId: PostId}
-        | {readonly type: "PostDraft"; readonly accountId: AccountId; readonly draftId: PostDraftId}
+        | {
+              readonly type: "PostDraft";
+              readonly spaceId: SpaceId;
+              readonly accountId: AccountId;
+              readonly draftId: PostDraftId;
+          }
         | {readonly type: "PostComments"; readonly postId: PostId};
     Task:
         | {readonly type: "TaskNotes"; readonly taskId: TaskId}
@@ -57,6 +63,7 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
     }),
     PostDraft: Schema.object({
         type: Schema.value("PostDraft"),
+        spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
         draftId: Schema.id<PostDraftId>(),
     }),
@@ -139,11 +146,14 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             return bytes;
         }
         case "PostDraft": {
-            const bytes = new Uint8Array(1 + idByteLength + idByteLength);
+            const bytes = new Uint8Array(1 + idByteLength + idByteLength + idByteLength);
             let byteOffset = 0;
 
             bytes[byteOffset] = 6;
             byteOffset += 1;
+
+            decodeIdInto(target.spaceId, bytes, byteOffset);
+            byteOffset += idByteLength;
 
             decodeIdInto(target.accountId, bytes, byteOffset);
             byteOffset += idByteLength;
@@ -227,13 +237,16 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             return {type: "Post", postId};
         }
         case 6: {
+            const spaceId = encodeId<SpaceId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
             const accountId = encodeId<AccountId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
             const draftId = encodeId<PostDraftId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            return {type: "PostDraft", accountId, draftId};
+            return {type: "PostDraft", spaceId, accountId, draftId};
         }
         case 7: {
             const postId = encodeId<PostId>(bytes, byteOffset);

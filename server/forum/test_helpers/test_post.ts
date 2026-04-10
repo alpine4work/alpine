@@ -193,6 +193,7 @@ export class TestPost extends TestCommentRoomBase {
                         session,
                         FilePostAuthorizer.bind({
                             type: "PostDraft",
+                            spaceId: session.space.id,
                             accountId: session.account.id,
                             draftId: draftId!,
                         }),

@@ -136,6 +136,7 @@ export async function createPost(
             await attachFileFromAttachment(context, fileId, {
                 from: FilePostAuthorizer.bind({
                     type: "PostDraft",
+                    spaceId: postItem.spaceId,
                     accountId: postItem.authorId,
                     draftId,
                 }),
@@ -284,6 +285,7 @@ function afterCreatePost(
                         fileId,
                         FilePostAuthorizer.bind({
                             type: "PostDraft",
+                            spaceId: postItem.spaceId,
                             accountId: postItem.authorId,
                             draftId,
                         }),

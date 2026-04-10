@@ -98,6 +98,7 @@ export async function loader({context: unauthenticatedContext, params, request}:
                     spaceId,
                     FilePostAuthorizer.bind({
                         type: "PostDraft",
+                        spaceId,
                         accountId: context.actor.getAccountId(),
                         draftId,
                     }),

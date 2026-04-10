@@ -591,13 +591,18 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
-    async (context, target, spaceId, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel) => {
         switch (target.type) {
             case "Post":
                 await authorizePostAccess(context, target.postId, expectedAccessLevel);
                 break;
             case "PostDraft":
-                await authorizePostDraftAccess(context, spaceId, target.accountId, target.draftId);
+                await authorizePostDraftAccess(
+                    context,
+                    target.spaceId,
+                    target.accountId,
+                    target.draftId,
+                );
                 break;
             case "PostComments":
                 await authorizePostAccess(context, target.postId, "View");

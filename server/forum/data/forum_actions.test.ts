@@ -6854,7 +6854,12 @@ test("will attach referenced files to post when creating from draft", async () =
     await attachFileAsUploader(
         session.action(),
         file.id,
-        FilePostAuthorizer.bind({type: "PostDraft", accountId: session.account.id, draftId}),
+        FilePostAuthorizer.bind({
+            type: "PostDraft",
+            spaceId: space.id,
+            accountId: session.account.id,
+            draftId,
+        }),
     );
 
     const post = await createPost(session.action(), {

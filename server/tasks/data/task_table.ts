@@ -1047,7 +1047,7 @@ type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 export const FileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
-    async (context, target, spaceId, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel) => {
         switch (target.type) {
             case "TaskNotes":
                 await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);

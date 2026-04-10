@@ -28,6 +28,7 @@ const fileAttachmentTargetByType: {
     },
     PostDraft: {
         type: "PostDraft",
+        spaceId: generateId(),
         accountId: generateId(),
         draftId: generateChronologicalId(),
     },

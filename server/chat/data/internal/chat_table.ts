@@ -315,7 +315,7 @@ export const AccountChatsIndex = ChatTable.addIndex({
 const FileChatAuthorizer = FileAuthorizer.new(
     ChatTable,
     "Chat",
-    (context, target, spaceId, expectedAccessLevel) =>
+    (context, target, expectedAccessLevel) =>
         authorizeChatAccess(context, target.chatId, expectedAccessLevel),
 );
 
