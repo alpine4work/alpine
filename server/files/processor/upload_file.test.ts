@@ -1247,7 +1247,7 @@ test("can\u2019t upload image with the same provided id twice", async () => {
         expect(responseBody).toEqual({
             ok: false,
             error: new FailedPreconditionError(
-                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed, None]",
+                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
             ),
         });
     }

@@ -143,8 +143,6 @@ export async function createNotionImportCsvDatabaseDocument(
     // CSV tables (FileRowTable elements) need attachment records.
     const fileIds = extractFileIdsFromApiContent(apiContent);
     await runAllPromises(
-        [...fileIds].map(fileId =>
-            attachFileToDocumentAsSystem(context, spaceId, fileId, documentId),
-        ),
+        [...fileIds].map(fileId => attachFileToDocumentAsSystem(context, fileId, documentId)),
     );
 }

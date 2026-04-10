@@ -338,7 +338,7 @@ export async function convertExtractedNotionDataToEntities(
                     const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
                     await runAllPromises(
                         [...fileIdsInContent].map(fileId =>
-                            attachFileToDocumentAsSystem(context, spaceId, fileId, documentInfo.id),
+                            attachFileToDocumentAsSystem(context, fileId, documentInfo.id),
                         ),
                     );
 

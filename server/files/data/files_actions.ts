@@ -144,108 +144,6 @@ function getFileAttachmentTargetItemKey(
     }
 }
 
-function createOldFileItemFromFileItem(
-    item: FileItem,
-): DynamoTableItemType<typeof FilesTable, "Space", "File"> {
-    return {
-        partitionType: "Space",
-        sortRangeType: "File",
-        spaceId: item.spaceId,
-        fileId: item.fileId,
-        contentType: item.contentType,
-        contentLength: item.contentLength,
-        uploaderId: item.uploaderId,
-        isUploading: item.isUploading,
-        alternative: item.alternative,
-        hasProcessedNullAlternative: item.hasProcessedNullAlternative,
-        preview: item.preview,
-    };
-}
-
-function getOldFileAttachmentTargetItemKey(
-    spaceId: SpaceId,
-    fileId: FileId,
-    target: FileAttachmentTarget,
-): DynamoTableItemKeyType<typeof FilesTable, "File", `${string}AttachmentTarget`> {
-    switch (target.type) {
-        case "ChatMessages": {
-            return {
-                partitionType: "File",
-                sortRangeType: "ChatMessagesAttachmentTarget",
-                spaceId,
-                fileId,
-                chatId: target.chatId,
-            };
-        }
-        case "Document": {
-            return {
-                partitionType: "File",
-                sortRangeType: "DocumentAttachmentTarget",
-                spaceId,
-                fileId,
-                documentId: target.documentId,
-            };
-        }
-        case "DocumentComments": {
-            return {
-                partitionType: "File",
-                sortRangeType: "DocumentCommentsAttachmentTarget",
-                spaceId,
-                fileId,
-                documentId: target.documentId,
-            };
-        }
-        case "Post": {
-            return {
-                partitionType: "File",
-                sortRangeType: "PostAttachmentTarget",
-                spaceId,
-                fileId,
-                postId: target.postId,
-            };
-        }
-        case "PostDraft": {
-            return {
-                partitionType: "File",
-                sortRangeType: "PostDraftAttachmentTarget",
-                spaceId,
-                fileId,
-                accountId: target.accountId,
-                draftId: target.draftId,
-            };
-        }
-        case "PostComments": {
-            return {
-                partitionType: "File",
-                sortRangeType: "PostCommentsAttachmentTarget",
-                spaceId,
-                fileId,
-                postId: target.postId,
-            };
-        }
-        case "TaskNotes": {
-            return {
-                partitionType: "File",
-                sortRangeType: "TaskNotesAttachmentTarget",
-                spaceId,
-                fileId,
-                taskId: target.taskId,
-            };
-        }
-        case "TaskComments": {
-            return {
-                partitionType: "File",
-                sortRangeType: "TaskCommentsAttachmentTarget",
-                spaceId,
-                fileId,
-                taskId: target.taskId,
-            };
-        }
-        default:
-            throw exhaustive(target);
-    }
-}
-
 /**
  * The total number of bytes you're allowed to store in an Alpine space on the free
  * plan (5 GB). After you exceed this amount we'll start deleting old files. This
@@ -489,28 +387,14 @@ export async function startUploadingFile(
                 contentLength: fileTotalsItem.contentLength + contentLength,
             }),
 
-            // Write to new File2 partition (primary)
             providedFileId
                 ? FilesTable.transactionCreateItem(fileItem)
                 : FilesTable.transactionCreateOrReplaceItem(fileItem),
 
-            // Dual-write to old Space/File partition
-            FilesTable.transactionCreateOrReplaceItem(createOldFileItemFromFileItem(fileItem)),
-
             ...(attachTargetAuthorizer
                 ? [
-                      // Attachment target on new File2 partition
                       FilesTable.transactionCreateOrReplaceItem({
                           ...getFileAttachmentTargetItemKey(fileId, attachTargetAuthorizer.target),
-                          createdTime: new Date(),
-                      }),
-                      // Dual-write attachment to old File partition
-                      FilesTable.transactionCreateOrReplaceItem({
-                          ...getOldFileAttachmentTargetItemKey(
-                              spaceId,
-                              fileId,
-                              attachTargetAuthorizer.target,
-                          ),
                           createdTime: new Date(),
                       }),
                   ]
@@ -589,10 +473,7 @@ export async function finishUploadingAndStartProcessingFile(
             isUploading: false,
         };
 
-        await DynamoTableSchema.executeTransaction(context, [
-            FilesTable.transactionDirectlyUpdateItem(item),
-            FilesTable.transactionCreateOrReplaceItem(createOldFileItemFromFileItem(item)),
-        ]);
+        await FilesTable.directlyUpdateItem(context, item);
 
         const {hasAlternative, hasPreview} =
             fileProcessorDeclarationByContentType[item.contentType];
@@ -721,52 +602,6 @@ export class FileUploader {
     }
 
     /**
-     * Update the file item on the File2 partition and dual-write to the old Space/File
-     * partition in a single transaction. The File2 item uses
-     * `transactionDirectlyUpdateItem` (respects `updateLockVersion`) and the old item
-     * uses `transactionCreateOrReplaceItem` (unconditional).
-     *
-     * Retries on version conflicts via `retryTransaction`.
-     */
-    private async _updateItemWithDualWrite(
-        context: FileProcessorActionContext,
-        update: (item: FileItem) => FileItem,
-    ) {
-        await this._item.withLock(async itemRef => {
-            const fileItemKey = {
-                partitionType: "File2" as const,
-                sortRangeType: "Attributes" as const,
-                fileId: this.fileId,
-            };
-            let hasAttempted = false;
-
-            itemRef.current = await context.dynamo.retryTransaction(async context => {
-                const isInitialAttempt = !hasAttempted;
-                hasAttempted = true;
-
-                const item =
-                    isInitialAttempt && itemRef.current
-                        ? itemRef.current
-                        : await FilesTable.getItem(context, fileItemKey);
-
-                const newItem = update(item);
-
-                // Noop if the update function returned the same reference.
-                if (item === newItem) return item;
-
-                await DynamoTableSchema.executeTransaction(context, [
-                    FilesTable.transactionDirectlyUpdateItem(newItem),
-                    FilesTable.transactionCreateOrReplaceItem(
-                        createOldFileItemFromFileItem(newItem),
-                    ),
-                ]);
-
-                return newItem;
-            });
-        });
-    }
-
-    /**
      * Finish processing the file's alternative if the file has an alternative. If the
      * file was not declared to have an alternative upon creation then this method will
      * throw an error.
@@ -777,37 +612,48 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.alternative) {
-                // Noop if we've already finished processing the alternative. This makes the
-                // function idempotent.
-                if (item.hasProcessedNullAlternative) return item;
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.alternative) {
+                        // Noop if we've already finished processing the alternative. This makes the
+                        // function idempotent.
+                        if (item.hasProcessedNullAlternative) return item;
 
-                throw new InternalError("File doesn\u2019t have an alternative");
-            }
+                        throw new InternalError("File doesn\u2019t have an alternative");
+                    }
 
-            // Noop if we've already finished processing the alternative. This makes the
-            // function idempotent.
-            if (!item.alternative.isProcessing) return item;
+                    // Noop if we've already finished processing the alternative. This makes the
+                    // function idempotent.
+                    if (!item.alternative.isProcessing) return item;
 
-            if (alternative === null) {
-                return {
-                    ...item,
-                    alternative: null,
-                    hasProcessedNullAlternative: true,
-                };
-            } else {
-                return {
-                    ...item,
-                    alternative: {
-                        isProcessing: false,
-                        ok: true,
-                        contentType: alternative.contentType,
-                        contentLength: alternative.contentLength,
-                        isImagePreviewContent: false,
-                    },
-                };
-            }
+                    if (alternative === null) {
+                        return {
+                            ...item,
+                            alternative: null,
+                            hasProcessedNullAlternative: true,
+                        };
+                    } else {
+                        return {
+                            ...item,
+                            alternative: {
+                                isProcessing: false,
+                                ok: true,
+                                contentType: alternative.contentType,
+                                contentLength: alternative.contentLength,
+                                isImagePreviewContent: false,
+                            },
+                        };
+                    }
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -827,73 +673,94 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Image") {
-                throw new InternalError("File doesn\u2019t have an image preview");
-            }
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn\u2019t have an image preview");
+                    }
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
 
-            if (
-                alsoPreviewVideoDuration !== undefined &&
-                item.preview.videoDuration === undefined
-            ) {
-                throw new InternalError("File doesn\u2019t have a image preview video duration");
-            }
+                    if (
+                        alsoPreviewVideoDuration !== undefined &&
+                        item.preview.videoDuration === undefined
+                    ) {
+                        throw new InternalError(
+                            "File doesn\u2019t have a image preview video duration",
+                        );
+                    }
 
-            const newItem: FileItem = {
-                ...item,
-                preview:
-                    item.preview.placeholder !== "Processing" &&
-                    item.preview.content !== "Processing" &&
-                    (item.preview.videoDuration !== "Processing" ||
-                        alsoPreviewVideoDuration !== undefined)
-                        ? {
-                              type: "Image",
-                              isProcessing: false,
-                              ok: true,
-                              // Only update if size is processing. If we've already finished processing size
-                              // then we want to leave the old size in place. This makes the function idempotent.
-                              size: item.preview.size === "Processing" ? size : item.preview.size,
-                              placeholder: item.preview.placeholder,
-                              content: item.preview.content,
-                              videoDuration:
-                                  // Only update if video duration is processing. If we've already finished
-                                  // processing video duration then we want to leave the old video duration in place.
-                                  // This makes the function idempotent.
-                                  (item.preview.videoDuration === "Processing"
-                                      ? (alsoPreviewVideoDuration ?? item.preview.videoDuration)
-                                      : item.preview.videoDuration) as number | undefined,
-                          }
-                        : {
-                              type: "Image",
-                              isProcessing: true,
-                              // Only update if size is processing. If we've already finished processing size
-                              // then we want to leave the old size in place. This makes the function idempotent.
-                              size: item.preview.size === "Processing" ? size : item.preview.size,
-                              placeholder: item.preview.placeholder,
-                              content: item.preview.content,
-                              videoDuration:
-                                  // Only update if video duration is processing. If we've already finished
-                                  // processing video duration then we want to leave the old video duration in place.
-                                  // This makes the function idempotent.
-                                  item.preview.videoDuration === "Processing"
-                                      ? (alsoPreviewVideoDuration ?? item.preview.videoDuration)
-                                      : item.preview.videoDuration,
-                          },
-            };
+                    const newItem: FileItem = {
+                        ...item,
+                        preview:
+                            item.preview.placeholder !== "Processing" &&
+                            item.preview.content !== "Processing" &&
+                            (item.preview.videoDuration !== "Processing" ||
+                                alsoPreviewVideoDuration !== undefined)
+                                ? {
+                                      type: "Image",
+                                      isProcessing: false,
+                                      ok: true,
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
+                                      size:
+                                          item.preview.size === "Processing"
+                                              ? size
+                                              : item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      content: item.preview.content,
+                                      videoDuration:
+                                          // Only update if video duration is processing. If we've already finished
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
+                                          (item.preview.videoDuration === "Processing"
+                                              ? (alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration)
+                                              : item.preview.videoDuration) as number | undefined,
+                                  }
+                                : {
+                                      type: "Image",
+                                      isProcessing: true,
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
+                                      size:
+                                          item.preview.size === "Processing"
+                                              ? size
+                                              : item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      content: item.preview.content,
+                                      videoDuration:
+                                          // Only update if video duration is processing. If we've already finished
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
+                                          item.preview.videoDuration === "Processing"
+                                              ? (alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration)
+                                              : item.preview.videoDuration,
+                                  },
+                    };
 
-            // Optimization: If we left both `item.preview.size` alone and
-            // `item.preview.videoDuration` alone then return the old item to skip a DynamoDB
-            // write.
-            if (isDeepEqualForUnknownValues(newItem, item)) return item;
+                    // Optimization: If we left both `item.preview.size` alone and
+                    // `item.preview.videoDuration` alone then return the old item to skip a DynamoDB
+                    // write.
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
-            return newItem;
+                    return newItem;
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -909,43 +776,54 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Image") {
-                throw new InternalError("File doesn\u2019t have an image preview");
-            }
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn\u2019t have an image preview");
+                    }
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
-            if (item.preview.placeholder !== "Processing") return item;
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.placeholder !== "Processing") return item;
 
-            return {
-                ...item,
-                preview:
-                    item.preview.size !== "Processing" &&
-                    item.preview.content !== "Processing" &&
-                    item.preview.videoDuration !== "Processing"
-                        ? {
-                              type: "Image",
-                              isProcessing: false,
-                              ok: true,
-                              size: item.preview.size,
-                              placeholder,
-                              content: item.preview.content,
-                              videoDuration: item.preview.videoDuration,
-                          }
-                        : {
-                              type: "Image",
-                              isProcessing: true,
-                              size: item.preview.size,
-                              placeholder,
-                              content: item.preview.content,
-                              videoDuration: item.preview.videoDuration,
-                          },
-            };
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.size !== "Processing" &&
+                            item.preview.content !== "Processing" &&
+                            item.preview.videoDuration !== "Processing"
+                                ? {
+                                      type: "Image",
+                                      isProcessing: false,
+                                      ok: true,
+                                      size: item.preview.size,
+                                      placeholder,
+                                      content: item.preview.content,
+                                      videoDuration: item.preview.videoDuration,
+                                  }
+                                : {
+                                      type: "Image",
+                                      isProcessing: true,
+                                      size: item.preview.size,
+                                      placeholder,
+                                      content: item.preview.content,
+                                      videoDuration: item.preview.videoDuration,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -969,70 +847,82 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, (item): FileItem => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Image") {
-                throw new InternalError("File doesn\u2019t have an image preview");
-            }
-            if (item.preview.content === undefined) {
-                throw new InternalError("File doesn\u2019t have image preview content");
-            }
-            if (isAlternative && !item.alternative) {
-                throw new InternalError("File doesn\u2019t have an alternative");
-            }
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                (item): FileItem => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn\u2019t have an image preview");
+                    }
+                    if (item.preview.content === undefined) {
+                        throw new InternalError("File doesn\u2019t have image preview content");
+                    }
+                    if (isAlternative && !item.alternative) {
+                        throw new InternalError("File doesn\u2019t have an alternative");
+                    }
 
-            const newItem: FileItem = {
-                ...item,
-                alternative:
-                    // Only update if the alternative is processing. If we've already finished
-                    // processing the alternative then we want to leave the old alternative in place.
-                    // This makes the function idempotent.
-                    isAlternative &&
-                    item.alternative?.isProcessing &&
-                    (item.preview.content === "Processing" || item.preview.content !== undefined)
-                        ? {
-                              isProcessing: false,
-                              ok: true,
-                              contentType,
-                              contentLength,
-                              isImagePreviewContent: true,
-                          }
-                        : item.alternative,
-                preview:
-                    // Only update if preview content is processing. If we've already finished
-                    // processing the alternative then we want to leave the old alternative in place.
-                    // This makes the function idempotent.
-                    item.preview.isProcessing && item.preview.content === "Processing"
-                        ? item.preview.size !== "Processing" &&
-                          item.preview.placeholder !== "Processing" &&
-                          item.preview.videoDuration !== "Processing"
-                            ? {
-                                  type: "Image",
-                                  isProcessing: false,
-                                  ok: true,
-                                  size: item.preview.size,
-                                  placeholder: item.preview.placeholder,
-                                  content: {contentType, contentLength},
-                                  videoDuration: item.preview.videoDuration,
-                              }
-                            : {
-                                  type: "Image",
-                                  isProcessing: true,
-                                  size: item.preview.size,
-                                  placeholder: item.preview.placeholder,
-                                  content: {contentType, contentLength},
-                                  videoDuration: item.preview.videoDuration,
-                              }
-                        : item.preview,
-            };
+                    const newItem: FileItem = {
+                        ...item,
+                        alternative:
+                            // Only update if the alternative is processing. If we've already finished
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
+                            isAlternative &&
+                            item.alternative?.isProcessing &&
+                            (item.preview.content === "Processing" ||
+                                item.preview.content !== undefined)
+                                ? {
+                                      isProcessing: false,
+                                      ok: true,
+                                      contentType,
+                                      contentLength,
+                                      isImagePreviewContent: true,
+                                  }
+                                : item.alternative,
+                        preview:
+                            // Only update if preview content is processing. If we've already finished
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
+                            item.preview.isProcessing && item.preview.content === "Processing"
+                                ? item.preview.size !== "Processing" &&
+                                  item.preview.placeholder !== "Processing" &&
+                                  item.preview.videoDuration !== "Processing"
+                                    ? {
+                                          type: "Image",
+                                          isProcessing: false,
+                                          ok: true,
+                                          size: item.preview.size,
+                                          placeholder: item.preview.placeholder,
+                                          content: {contentType, contentLength},
+                                          videoDuration: item.preview.videoDuration,
+                                      }
+                                    : {
+                                          type: "Image",
+                                          isProcessing: true,
+                                          size: item.preview.size,
+                                          placeholder: item.preview.placeholder,
+                                          content: {contentType, contentLength},
+                                          videoDuration: item.preview.videoDuration,
+                                      }
+                                : item.preview,
+                    };
 
-            // Optimization: If we left both `item.preview.content` alone and
-            // `item.alternative` alone then return the old item to skip a DynamoDB write.
-            if (isDeepEqualForUnknownValues(newItem, item)) return item;
+                    // Optimization: If we left both `item.preview.content` alone and
+                    // `item.alternative` alone then return the old item to skip a DynamoDB write.
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
-            return newItem;
+                    return newItem;
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1052,50 +942,70 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
+        return this._item.withLock(async itemRef => {
+            if (!itemRef.current.preview) {
                 throw new InternalError("File doesn\u2019t have a preview");
             }
-            if (item.preview.type !== "Image") {
+            if (itemRef.current.preview.type !== "Image") {
                 throw new InternalError("File doesn\u2019t have an image preview");
             }
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn\u2019t have an image preview");
+                    }
 
-            if (item.preview.videoDuration === undefined) {
-                throw new InternalError("File doesn\u2019t have a image preview video duration");
-            }
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (item.preview.videoDuration !== "Processing") return item;
+                    if (item.preview.videoDuration === undefined) {
+                        throw new InternalError(
+                            "File doesn\u2019t have a image preview video duration",
+                        );
+                    }
 
-            return {
-                ...item,
-                preview:
-                    item.preview.size !== "Processing" &&
-                    item.preview.placeholder !== "Processing" &&
-                    item.preview.content !== "Processing"
-                        ? {
-                              type: "Image",
-                              isProcessing: false,
-                              ok: true,
-                              size: item.preview.size,
-                              placeholder: item.preview.placeholder,
-                              content: item.preview.content,
-                              videoDuration,
-                          }
-                        : {
-                              type: "Image",
-                              isProcessing: true,
-                              size: item.preview.size,
-                              placeholder: item.preview.placeholder,
-                              content: item.preview.content,
-                              videoDuration,
-                          },
-            };
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (item.preview.videoDuration !== "Processing") return item;
+
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.size !== "Processing" &&
+                            item.preview.placeholder !== "Processing" &&
+                            item.preview.content !== "Processing"
+                                ? {
+                                      type: "Image",
+                                      isProcessing: false,
+                                      ok: true,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      content: item.preview.content,
+                                      videoDuration,
+                                  }
+                                : {
+                                      type: "Image",
+                                      isProcessing: true,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      content: item.preview.content,
+                                      videoDuration,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1109,37 +1019,48 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Audio") {
-                throw new InternalError("File doesn\u2019t have an audio preview");
-            }
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Audio") {
+                        throw new InternalError("File doesn\u2019t have an audio preview");
+                    }
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
-            if (item.preview.duration !== "Processing") return item;
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.duration !== "Processing") return item;
 
-            return {
-                ...item,
-                preview:
-                    item.preview.metadata !== "Processing"
-                        ? {
-                              type: "Audio",
-                              isProcessing: false,
-                              ok: true,
-                              duration,
-                              metadata: item.preview.metadata,
-                          }
-                        : {
-                              type: "Audio",
-                              isProcessing: true,
-                              duration,
-                              metadata: item.preview.metadata,
-                          },
-            };
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.metadata !== "Processing"
+                                ? {
+                                      type: "Audio",
+                                      isProcessing: false,
+                                      ok: true,
+                                      duration,
+                                      metadata: item.preview.metadata,
+                                  }
+                                : {
+                                      type: "Audio",
+                                      isProcessing: true,
+                                      duration,
+                                      metadata: item.preview.metadata,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1153,37 +1074,48 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Audio") {
-                throw new InternalError("File doesn\u2019t have an audio preview");
-            }
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Audio") {
+                        throw new InternalError("File doesn\u2019t have an audio preview");
+                    }
 
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
-            if (item.preview.metadata !== "Processing") return item;
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.metadata !== "Processing") return item;
 
-            return {
-                ...item,
-                preview:
-                    item.preview.duration !== "Processing"
-                        ? {
-                              type: "Audio",
-                              isProcessing: false,
-                              ok: true,
-                              duration: item.preview.duration,
-                              metadata,
-                          }
-                        : {
-                              type: "Audio",
-                              isProcessing: true,
-                              duration: item.preview.duration,
-                              metadata,
-                          },
-            };
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.duration !== "Processing"
+                                ? {
+                                      type: "Audio",
+                                      isProcessing: false,
+                                      ok: true,
+                                      duration: item.preview.duration,
+                                      metadata,
+                                  }
+                                : {
+                                      type: "Audio",
+                                      isProcessing: true,
+                                      duration: item.preview.duration,
+                                      metadata,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1199,28 +1131,39 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
-            if (item.preview.type !== "Code") {
-                throw new InternalError("File doesn\u2019t have a code preview");
-            }
-
-            // Noop if we've already finished processing the preview. This makes the function
-            // idempotent.
-            if (!item.preview.isProcessing) return item;
-            if (item.preview.content !== "Processing") return item;
-
-            return {
-                ...item,
-                preview: {
-                    type: "Code",
-                    isProcessing: false,
-                    ok: true,
-                    content,
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
                 },
-            };
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
+                    if (item.preview.type !== "Code") {
+                        throw new InternalError("File doesn\u2019t have a code preview");
+                    }
+
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.content !== "Processing") return item;
+
+                    return {
+                        ...item,
+                        preview: {
+                            type: "Code",
+                            isProcessing: false,
+                            ok: true,
+                            content,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1230,27 +1173,38 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.alternative) {
-                // Noop if we've already finished processing the alternative. This makes the
-                // function idempotent.
-                if (item.hasProcessedNullAlternative) return item;
-
-                throw new InternalError("File doesn\u2019t have an alternative");
-            }
-
-            // Noop if we've already finished processing the alternative. This makes the
-            // function idempotent.
-            if (!item.alternative.isProcessing) return item;
-
-            return {
-                ...item,
-                alternative: {
-                    isProcessing: false,
-                    ok: false,
-                    error,
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
                 },
-            };
+                item => {
+                    if (!item.alternative) {
+                        // Noop if we've already finished processing the alternative. This makes the
+                        // function idempotent.
+                        if (item.hasProcessedNullAlternative) return item;
+
+                        throw new InternalError("File doesn\u2019t have an alternative");
+                    }
+
+                    // Noop if we've already finished processing the alternative. This makes the
+                    // function idempotent.
+                    if (!item.alternative.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        alternative: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 
@@ -1260,85 +1214,99 @@ export class FileUploader {
     ) {
         this._authorize(context);
 
-        await this._updateItemWithDualWrite(context, item => {
-            if (!item.preview) {
-                throw new InternalError("File doesn\u2019t have a preview");
-            }
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn\u2019t have a preview");
+                    }
 
-            switch (item.preview.type) {
-                case "Image": {
-                    // Noop if we've already finished processing the preview. This makes the function
-                    // idempotent.
-                    if (!item.preview.isProcessing) return item;
+                    switch (item.preview.type) {
+                        case "Image": {
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
+                            if (!item.preview.isProcessing) return item;
 
-                    return {
-                        ...item,
-                        preview: {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: false,
-                            error,
-                            size: item.preview.size === "Processing" ? "Error" : item.preview.size,
-                            placeholder:
-                                item.preview.placeholder === "Processing"
-                                    ? "Error"
-                                    : item.preview.placeholder,
-                            content:
-                                item.preview.content === "Processing"
-                                    ? "Error"
-                                    : item.preview.content,
-                            videoDuration:
-                                item.preview.videoDuration === "Processing"
-                                    ? "Error"
-                                    : item.preview.videoDuration,
-                        },
-                    };
-                }
-                case "Audio": {
-                    // Noop if we've already finished processing the preview. This makes the function
-                    // idempotent.
-                    if (!item.preview.isProcessing) return item;
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Image",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    size:
+                                        item.preview.size === "Processing"
+                                            ? "Error"
+                                            : item.preview.size,
+                                    placeholder:
+                                        item.preview.placeholder === "Processing"
+                                            ? "Error"
+                                            : item.preview.placeholder,
+                                    content:
+                                        item.preview.content === "Processing"
+                                            ? "Error"
+                                            : item.preview.content,
+                                    videoDuration:
+                                        item.preview.videoDuration === "Processing"
+                                            ? "Error"
+                                            : item.preview.videoDuration,
+                                },
+                            };
+                        }
+                        case "Audio": {
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
+                            if (!item.preview.isProcessing) return item;
 
-                    return {
-                        ...item,
-                        preview: {
-                            type: "Audio",
-                            isProcessing: false,
-                            ok: false,
-                            error,
-                            duration:
-                                item.preview.duration === "Processing"
-                                    ? "Error"
-                                    : item.preview.duration,
-                            metadata:
-                                item.preview.metadata === "Processing"
-                                    ? "Error"
-                                    : item.preview.metadata,
-                        },
-                    };
-                }
-                case "Code": {
-                    // Noop if we've already finished processing the preview. This makes the function
-                    // idempotent.
-                    if (!item.preview.isProcessing) return item;
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Audio",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    duration:
+                                        item.preview.duration === "Processing"
+                                            ? "Error"
+                                            : item.preview.duration,
+                                    metadata:
+                                        item.preview.metadata === "Processing"
+                                            ? "Error"
+                                            : item.preview.metadata,
+                                },
+                            };
+                        }
+                        case "Code": {
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
+                            if (!item.preview.isProcessing) return item;
 
-                    return {
-                        ...item,
-                        preview: {
-                            type: "Code",
-                            isProcessing: false,
-                            ok: false,
-                            error,
-                            content:
-                                item.preview.content === "Processing"
-                                    ? "Error"
-                                    : item.preview.content,
-                        },
-                    };
-                }
-                default:
-                    throw exhaustive(item.preview);
-            }
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Code",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    content:
+                                        item.preview.content === "Processing"
+                                            ? "Error"
+                                            : item.preview.content,
+                                },
+                            };
+                        }
+                        default:
+                            throw exhaustive(item.preview);
+                    }
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 }
@@ -1586,17 +1554,10 @@ export async function attachFileAsUploader(
 
     await targetAuthorizer.authorizeTargetAccess(context, file.spaceId, "Edit");
 
-    // Dual-write attachment to both partitions
-    await DynamoTableSchema.executeTransaction(context, [
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
-            createdTime: new Date(),
-        }),
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, targetAuthorizer.target),
-            createdTime: new Date(),
-        }),
-    ]);
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
+        createdTime: new Date(),
+    });
 
     return file;
 }
@@ -1614,23 +1575,15 @@ export async function attachFileAsUploader(
  */
 export async function attachFileToDocumentAsSystem(
     context: FileProcessorSystemActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     documentId: DocumentId,
 ): Promise<void> {
     context.actor.authorizeSystem();
 
-    // Dual-write attachment to both partitions
-    await DynamoTableSchema.executeTransaction(context, [
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(fileId, {type: "Document", documentId}),
-            createdTime: new Date(),
-        }),
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getOldFileAttachmentTargetItemKey(spaceId, fileId, {type: "Document", documentId}),
-            createdTime: new Date(),
-        }),
-    ]);
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, {type: "Document", documentId}),
+        createdTime: new Date(),
+    });
 }
 
 /**
@@ -1660,16 +1613,10 @@ export async function attachFileFromAttachment(
         await to.authorizeTargetAccess(context, file.spaceId, "Edit");
     }
 
-    await DynamoTableSchema.executeTransaction(context, [
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getFileAttachmentTargetItemKey(fileId, to.target),
-            createdTime: new Date(),
-        }),
-        FilesTable.transactionCreateOrReplaceItem({
-            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, to.target),
-            createdTime: new Date(),
-        }),
-    ]);
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, to.target),
+        createdTime: new Date(),
+    });
 
     return file;
 }
@@ -1685,21 +1632,14 @@ export async function detachFile(
 ): Promise<void> {
     // Make sure the file exists with the provided authorizer. This will call
     // `targetAuthorizer.authorizeTargetAccess()`.
-    const file = await getFileFromAttachment(context, fileId, targetAuthorizer, {
+    await getFileFromAttachment(context, fileId, targetAuthorizer, {
         accessLevel: "Edit",
     });
 
-    // Delete from both partitions
-    await runAllPromises([
-        FilesTable.deleteItemWithKeyIfExists(context, {
-            ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
-            createdTime: new Date(),
-        }),
-        FilesTable.deleteItemWithKeyIfExists(context, {
-            ...getOldFileAttachmentTargetItemKey(file.spaceId, fileId, targetAuthorizer.target),
-            createdTime: new Date(),
-        }),
-    ]);
+    await FilesTable.deleteItemWithKeyIfExists(context, {
+        ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
+        createdTime: new Date(),
+    });
 }
 
 /**
