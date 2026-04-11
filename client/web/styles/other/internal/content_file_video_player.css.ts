@@ -208,8 +208,14 @@ export const videoClassName = style({
     objectPosition: "center top",
     objectFit: "cover",
     selectors: {
+        // Hide the `<video>` until we know playback has started (`playing` adds
+        // `hasPlayedClassName`). Do not use `display: none` here: Safari will often defer
+        // decoding and never fire `playing` on the first load, so the video element stays
+        // hidden. Keeping the video in the render tree with `opacity: 0` allows the
+        // preview to show through and lets WebKit run its decoder.
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
-            display: "none",
+            opacity: 0,
+            pointerEvents: "none",
         },
         [`${containerClassName}${fullscreenClassName} &`]: {
             // When full screened, make sure the user can see the entire video even if it
