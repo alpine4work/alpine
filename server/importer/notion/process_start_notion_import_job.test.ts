@@ -2359,7 +2359,7 @@ ${child2.toReference()}`,
                     await createSystemActionWithFile(space, importKey),
                     notionImportId,
                 ),
-            ).rejects.toThrow("Notion import file not found");
+            ).rejects.toThrow("Import file not found");
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
@@ -2368,7 +2368,7 @@ ${child2.toReference()}`,
             });
             expect(importItem.status).toMatchObject({
                 type: "Failed",
-                error: "Import file not found in S3",
+                error: "Unknown error during import",
             });
         });
     });
