@@ -63,8 +63,6 @@ import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
  *   <child link document>\n- <child link document>\n- ..."
  * - Update all references of the markdown files to the new Alpine fileIds.
  * - Update the status of the import item as we go
- * - TODO: Batch document creation
- *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
  * - TODO: Run teamspace uploaded in parrallel
  *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
  */
@@ -391,14 +389,36 @@ export async function convertExtractedNotionDataToEntities(
                     progressState.incrementDocumentCounter(teamspace.id);
                 }
 
-                await runAllPromises([
-                    ...Object.entries(teamspace.documents).map(([filePath, documentInfo]) =>
-                        createDocumentFromNotionDocument(filePath, documentInfo),
+                // Create documents in batches of 100 rather than all at once.
+                //
+                // Large teamspaces can have a ton of documents. Previously we fired all of them
+                // concurrently via `runAllPromises`, which caused DynamoDB `GetItemBatcher`
+                // timeouts (`DeadlineExceededError: DynamoDB request timed out`). Each document
+                // creation does multiple DynamoDB reads (authorization, space access) and writes
+                // (transaction with 2 items + file attachments). With thousands of concurrent
+                // promises, the batched reads overwhelm DynamoDB's 2-second per-request timeout,
+                // causing the entire import to fail without ever creating a single document.
+                //
+                // Batching to 100 keeps DynamoDB pressure manageable while still parallelizing
+                // within each batch.
+                const documentEntries: Array<() => Promise<void>> = [
+                    ...Object.entries(teamspace.documents).map(
+                        ([filePath, documentInfo]) =>
+                            () =>
+                                createDocumentFromNotionDocument(filePath, documentInfo),
                     ),
-                    ...[...csvDatabaseDocuments.entries()].map(([csvPath, csvDatabaseInfo]) =>
-                        createDocumentFromNotionDatabase(csvPath, csvDatabaseInfo),
+                    ...[...csvDatabaseDocuments.entries()].map(
+                        ([csvPath, csvDatabaseInfo]) =>
+                            () =>
+                                createDocumentFromNotionDatabase(csvPath, csvDatabaseInfo),
                     ),
-                ]);
+                ];
+
+                const batchSize = 100;
+                for (let i = 0; i < documentEntries.length; i += batchSize) {
+                    const batch = documentEntries.slice(i, i + batchSize);
+                    await runAllPromises(batch.map(fn => fn()));
+                }
 
                 // Create a teamspace root document with list of first-layer children
                 try {
