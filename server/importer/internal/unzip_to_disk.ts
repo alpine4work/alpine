@@ -23,6 +23,13 @@ export async function unzipToDisk(
     zipFilePath: string,
     destinationDirectory: string,
 ): Promise<void> {
+    // TODO: delete this log
+    // eslint-disable-next-line no-console
+    console.log(`[unzipToDisk] Opening zip: ${zipFilePath}`);
+    // TODO: delete this log
+    // eslint-disable-next-line no-console
+    console.log(`[unzipToDisk] Destination: ${destinationDirectory}`);
+
     // Without `lazyEntries` yauzl emits every entry as fast as it can read the zip's
     // directory, meaning all files could be decompressed and written to disk in
     // parallel. That opens an unbounded number of file buffers with decompressed data
@@ -37,14 +44,26 @@ export async function unzipToDisk(
         });
     });
 
+    // TODO: delete this log
+    // eslint-disable-next-line no-console
+    console.log(`[unzipToDisk] Zip opened. Entry count: ${zipFile.entryCount}`);
+
     // Extract all entries
     await new Promise<void>((resolve, reject) => {
         let hasError = false;
         let pendingWrites = 0;
         let entriesExhausted = false;
+        let entryCount = 0;
+        let fileCount = 0;
+        let dirSkipCount = 0;
 
         const checkComplete = (): void => {
             if (entriesExhausted && pendingWrites === 0 && !hasError) {
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[unzipToDisk] Complete. Entries seen: ${entryCount}, files written: ${fileCount}, dirs skipped: ${dirSkipCount}`,
+                );
                 zipFile.close();
                 resolve();
             }
@@ -61,11 +80,22 @@ export async function unzipToDisk(
 
         zipFile.on("entry", (entry: yauzl.Entry) => {
             if (hasError) return;
+            entryCount++;
 
             // Skip directory entries
             if (entry.fileName.endsWith("/")) {
+                dirSkipCount++;
                 zipFile.readEntry();
                 return;
+            }
+
+            fileCount++;
+            if (fileCount <= 10 || fileCount % 1000 === 0) {
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[unzipToDisk] Extracting file #${fileCount}: ${entry.fileName} (${entry.uncompressedSize} bytes)`,
+                );
             }
 
             const destinationPath = joinPath(destinationDirectory, entry.fileName);

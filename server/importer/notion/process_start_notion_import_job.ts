@@ -85,6 +85,49 @@ export async function processStartNotionImportJob(
             throw new DataLossError("Notion import file not found in S3");
         }
 
+        // TODO: delete this log
+        // eslint-disable-next-line no-console
+        console.log(`[processStart] Listing files on disk before parsing...`);
+        const allFilesOnDisk = await context.importerService.listUnzippedFiles({
+            diskPathToUnzippedFiles,
+        });
+        const mdFiles = allFilesOnDisk.filter(f => f.endsWith(".md"));
+        const csvFiles = allFilesOnDisk.filter(f => f.endsWith(".csv"));
+        const zipFiles = allFilesOnDisk.filter(f => f.endsWith(".zip"));
+        // TODO: delete this log
+        // eslint-disable-next-line no-console
+        console.log(
+            `[processStart] Files on disk: ${allFilesOnDisk.length} total, ${mdFiles.length} .md, ${csvFiles.length} .csv, ${zipFiles.length} .zip`,
+        );
+        if (mdFiles.length <= 10) {
+            for (const f of mdFiles) {
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(`[processStart]   .md: ${f}`);
+            }
+        } else {
+            for (const f of mdFiles.slice(0, 5)) {
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(`[processStart]   .md: ${f}`);
+            }
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(`[processStart]   ... and ${mdFiles.length - 5} more .md files`);
+        }
+        if (zipFiles.length > 0) {
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(
+                `[processStart] WARNING: ${zipFiles.length} unextracted .zip files on disk!`,
+            );
+            for (const f of zipFiles) {
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(`[processStart]   .zip: ${f}`);
+            }
+        }
+
         const parsedNotionImport = await parseNotionImportAndMapReferences(
             context,
             diskPathToUnzippedFiles,
@@ -96,6 +139,25 @@ export async function processStartNotionImportJob(
                 "Failed to parse Notion export: invalid zip structure or missing workspace metadata",
             );
         }
+
+        // TODO: delete this log
+        // eslint-disable-next-line no-console
+        console.log(`[processStart] Parsed import result:`);
+        // TODO: delete this log
+        // eslint-disable-next-line no-console
+        console.log(`[processStart]   Teamspaces: ${parsedNotionImport.teamspaces.length}`);
+        for (const ts of parsedNotionImport.teamspaces) {
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(
+                `[processStart]   Teamspace ${ts.name} (${ts.id}): ${Object.keys(ts.documents).length} documents`,
+            );
+        }
+        // TODO: delete this log
+        // eslint-disable-next-line no-console
+        console.log(
+            `[processStart]   Files to upload: ${Object.keys(parsedNotionImport.filesToUpload).length}`,
+        );
 
         // Track progress with periodic persistence and update the import status to Success
         // or Failed when done.

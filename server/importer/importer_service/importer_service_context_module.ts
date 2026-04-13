@@ -1,7 +1,7 @@
 import {GetObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import {NodeJsClient} from "@smithy/types";
 import {createWriteStream} from "fs";
-import {mkdir, unlink} from "fs/promises";
+import {mkdir, readdir, stat, unlink} from "fs/promises";
 import {dirname} from "path";
 import {pipeline} from "stream/promises";
 import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
@@ -59,12 +59,42 @@ export class ImporterServiceContextModule extends ImporterServiceContextModuleBa
             await mkdir(dirname(zipFilePath), {recursive: true});
             await pipeline(getObjectResult.Body, createWriteStream(zipFilePath));
 
+            // TODO: delete this log
+            const zipStat = await stat(zipFilePath);
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(
+                `[downloadAndUnzip] Downloaded zip to ${zipFilePath} (${zipStat.size} bytes)`,
+            );
+
             // Unzip to disk
             await mkdir(unzipDir, {recursive: true});
             await unzipToDisk(zipFilePath, unzipDir);
 
+            // TODO: delete this log
+            const extractedEntries = await readdir(unzipDir, {withFileTypes: true});
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(
+                `[downloadAndUnzip] Extracted to ${unzipDir}. Top-level entries: ${extractedEntries.length}`,
+            );
+            for (const entry of extractedEntries) {
+                const entryPath = `${unzipDir}/${entry.name}`;
+                const entrySize = await stat(entryPath)
+                    .then(s => s.size)
+                    .catch(() => -1);
+                // TODO: delete this log
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[downloadAndUnzip]   ${entry.isDirectory() ? "DIR" : "FILE"}: ${entry.name} (${entrySize} bytes)`,
+                );
+            }
+
             // Clean up the zip file
             await unlink(zipFilePath);
+            // TODO: delete this log
+            // eslint-disable-next-line no-console
+            console.log(`[downloadAndUnzip] Deleted original zip. Unzip dir: ${unzipDir}`);
 
             return {diskPathToUnzippedFiles: unzipDir};
         });
