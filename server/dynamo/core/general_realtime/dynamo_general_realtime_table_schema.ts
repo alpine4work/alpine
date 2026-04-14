@@ -192,7 +192,7 @@ const dynamoGeneralRealtimePrivateRealtimePartitionName = "Realtime";
 const dynamoGeneralRealtimePrivateRealtimePartitionConfig = {
     name: dynamoGeneralRealtimePrivateRealtimePartitionName,
     partitionKeyAttributes: {
-        realtimeKey: DynamoKeyAttributeSchema.labelString(),
+        realtimeKey: DynamoKeyAttributeSchema.labelString({maxLength: null}),
     },
     sortRanges: [
         {
@@ -236,15 +236,23 @@ const dynamoGeneralRealtimePrivateGraveyardPartitionName = "Graveyard";
 const dynamoGeneralRealtimePrivateGraveyardPartitionConfig = {
     name: dynamoGeneralRealtimePrivateGraveyardPartitionName,
     partitionKeyAttributes: {
-        deletedPartitionKey: DynamoKeyAttributeSchema.labelString<DynamoItemPartitionKey>(),
+        deletedPartitionKey: DynamoKeyAttributeSchema.labelString<DynamoItemPartitionKey>({
+            maxLength: null,
+        }),
     },
     sortRanges: [
         {
             name: "Gravestone",
             sortKeyAttributes: {
-                deletedSortKey: DynamoKeyAttributeSchema.labelString<DynamoItemSortKey>(),
+                deletedSortKey: DynamoKeyAttributeSchema.labelString<DynamoItemSortKey>({
+                    maxLength: null,
+                }),
             },
-            attributes: Schema.object({}),
+            attributes: Schema.object({
+                // IMPORTANT: We record the version of the gravestone in `updateLockVersion`. If
+                // you're going to undelete this item it must be with a version that's greater than
+                // the gravestone version.
+            }),
         },
     ],
 } as const satisfies DynamoTableSchemaTypes.Partition.ConfigBase;
