@@ -127,20 +127,11 @@ async function handleFetch(
                     });
                 }
                 case "ChatGptWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
-
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    return handleDurableObjectPostRequest(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        request,
+                        "/webhook",
                     );
                 }
                 case "ChatGptConversationState": {
@@ -166,20 +157,11 @@ async function handleFetch(
                     );
                 }
                 case "CursorWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
-
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    return handleDurableObjectPostRequest(
                         span,
                         env.CursorAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        request,
+                        "/webhook",
                     );
                 }
                 case "CursorCloudAgentsWebhook": {
@@ -198,20 +180,11 @@ async function handleFetch(
                     );
                 }
                 case "MockWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
-
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    return handleDurableObjectPostRequest(
                         span,
                         env.MockAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        request,
+                        "/webhook",
                     );
                 }
                 case "MockRecording": {
@@ -269,6 +242,36 @@ async function handleFetch(
             return createSimpleErrorResponse(error);
         }
     });
+}
+
+async function handleDurableObjectPostRequest(
+    span: TracerSpan,
+    durableObjectNamespace: DurableObjectNamespace,
+    request: Request,
+    newUrlPath: string,
+) {
+    if (request.method !== "POST") {
+        return new Response("405 Method Not Allowed", {
+            status: 405,
+            headers: {"content-type": "text/plain"},
+        });
+    }
+
+    const requestBody: ApiBotWebhookRequestBody = await request.json();
+
+    const newUrl = new URL(request.url);
+    newUrl.pathname = newUrlPath;
+
+    return fetchFromDurableObject(
+        span,
+        durableObjectNamespace,
+        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
+        new Request(newUrl, {
+            method: request.method,
+            headers: request.headers,
+            body: JSON.stringify(requestBody),
+        }),
+    );
 }
 
 function fetchFromDurableObject(
