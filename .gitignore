@@ -60,3 +60,7 @@ target
 
 # Remotion Studio render output
 /out
+
+# Agent skill Outputs
+review.md
+docs/superpowers
