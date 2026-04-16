@@ -1,13 +1,11 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
-import {getAllNotionImportsForSpace} from "~/server/importer/notion/get_notion_import.js";
 import {
     NotionImportItem,
     NotionImporterTable,
 } from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -29,20 +27,6 @@ export async function startNotionImport(
     },
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId, "Member");
-
-    const existingImports = await getAllNotionImportsForSpace(context, {spaceId});
-    const inProgressImport = existingImports.find(
-        item => item.status.type === "ProcessQueued" || item.status.type === "Processing",
-    );
-
-    if (inProgressImport) {
-        throw new FailedPreconditionError(
-            `Can\u2019t start import. Another import is already in progress.`,
-            {
-                displayMessage: errorDisplayMessage`Can\u2019t start import. Another import is already in progress.`,
-            },
-        );
-    }
 
     const updatedItem = assertExists(
         await NotionImporterTable.updateItem(

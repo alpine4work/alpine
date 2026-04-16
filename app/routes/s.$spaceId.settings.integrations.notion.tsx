@@ -12,6 +12,7 @@ import {LocalNotionImportItemSchema} from "~/client/web/importers/notion/notion_
 import {NotionImportUploadSection} from "~/client/web/importers/notion/notion_import_upload_section.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
     spaceBotSettingsHeadingGap,
     spaceBotSettingsHeadingHeight,
@@ -60,6 +61,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
 
 export default function SpaceNotionIntegrationSettingsRoute() {
     const platform = usePlatform();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const {notionImports, importAccounts} = useLoaderDataWithSchema(LoaderSchema);
 
@@ -68,14 +70,17 @@ export default function SpaceNotionIntegrationSettingsRoute() {
         [importAccounts],
     );
 
-    // Check if there's an active import from the loader. UploadPending imports are not
-    // considered active since the upload was started by a different session that never
-    // completed.
+    // Check if the current user has an active pre-processing import. Only
+    // pre-processing imports (ValidateQueued, Validating, Validated) from the current
+    // user block the upload UI. UploadPending imports are not considered active since
+    // the upload was started by a different session that never completed.
+    // Processing/Success/Failed imports don't block new imports.
     const activeImportFromLoader = notionImports.find(
         item =>
-            item.status.type !== "Success" &&
-            item.status.type !== "Failed" &&
-            item.status.type !== "UploadPending",
+            item.startedByAccountId === currentAccount.id &&
+            (item.status.type === "ValidateQueued" ||
+                item.status.type === "Validating" ||
+                item.status.type === "Validated"),
     );
 
     // Imports that have progressed past the setup flow (processing, success, failed).

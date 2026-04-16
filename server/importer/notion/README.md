@@ -518,6 +518,8 @@ The client calls `createNotionImport` with the space ID, file name, content type
 length. This:
 
 - Authorizes Member access to the space
+- Checks that the current user doesn't already have a pre-processing import (UploadPending,
+  ValidateQueued, Validating, or Validated) in this space
 - Generates a `NotionImportId` and an import key (`{spaceId}/{importId}`)
 - Initiates an S3 multipart upload and generates presigned URLs for each part
 - Creates an import record in DynamoDB with status `UploadPending`

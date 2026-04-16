@@ -1,11 +1,14 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createImportUploadKey} from "~/server/importer/import_upload_key.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {getAllNotionImportsForSpace} from "~/server/importer/notion/get_notion_import.js";
 import {
     NotionImportItem,
     NotionImporterTable,
 } from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
@@ -33,6 +36,28 @@ export async function createNotionImport(
     importKey: string;
 }> {
     await authorizeSpaceAccess(context, spaceId, "Member");
+
+    const currentAccountId = context.actor.getAccountId();
+    const existingImports = await getAllNotionImportsForSpace(context, {spaceId});
+    const preProcessingImport = existingImports.find(item => {
+        if (item.startedByAccountId !== currentAccountId) return false;
+        const status = item.status.type;
+        return (
+            status === "UploadPending" ||
+            status === "ValidateQueued" ||
+            status === "Validating" ||
+            status === "Validated"
+        );
+    });
+
+    if (preProcessingImport) {
+        throw new FailedPreconditionError(
+            `Can\u2019t create import. You already have an import that hasn\u2019t started processing yet.`,
+            {
+                displayMessage: errorDisplayMessage`Can\u2019t create import. You already have an import that hasn\u2019t started processing yet.`,
+            },
+        );
+    }
 
     const notionImportId = generateId<NotionImportId>();
     const importKey = createImportUploadKey({spaceId, type: "notion", importId: notionImportId});
