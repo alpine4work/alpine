@@ -211,6 +211,84 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "reactionAffinity": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "affinityByEmotion": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "points": {
+                                                                    "valueSchema": {
+                                                                        "type": "Float"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "lastUpdatedTime": {
+                                                                    "valueSchema": {
+                                                                        "type": "Integer"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "top4ReactionEmotions": {
+                                                    "valueSchema": {
+                                                        "type": "Array",
+                                                        "itemSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "emotion": {
+                                                                    "valueSchema": {
+                                                                        "type": "Integer"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "isDefault": {
+                                                                    "valueSchema": {
+                                                                        "type": "Boolean"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            },
+                                                            "referenceId": "c8fe0446"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "top5ReactionEmotions": {
+                                                    "valueSchema": {
+                                                        "type": "Array",
+                                                        "itemSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "c8fe0446"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "top6ReactionEmotions": {
+                                                    "valueSchema": {
+                                                        "type": "Array",
+                                                        "itemSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "c8fe0446"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

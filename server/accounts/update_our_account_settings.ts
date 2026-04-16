@@ -1,15 +1,17 @@
 import {AccountSettingsItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {DynamoItem, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {
     AccountSettingsAction,
     applyAccountSettingsAction,
 } from "~/shared/accounts/accounts_settings.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 
 /**
  * Updates the session actor's settings.
@@ -17,6 +19,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 export async function updateOurAccountSettings(
     context: ServerSessionActionContext,
     action: AccountSettingsAction | ReadonlyArray<AccountSettingsAction>,
+    {clientRequestToken}: {clientRequestToken?: RpcCallId} = {},
 ): Promise<void> {
     const actions = isReadonlyArray(action) ? action : [action];
     if (actions.length === 0) return;
@@ -39,34 +42,46 @@ export async function updateOurAccountSettings(
 
     try {
         await context.with({tracer: new TracerContextModule(spans[0]!.span)}, async context => {
-            let oldAccountSettingsItem: AccountSettingsItem | undefined;
+            let oldAccountSettingsItem = await AccountsTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Settings",
+                accountId: context.actor.getAccountId(),
+            });
+            oldAccountSettingsItem ??= getInitialAccountSettingsItem(context.actor.getAccountId());
 
-            const newAccountSettingsItem = await AccountsTable.updateItem(
-                context,
-                {
+            const newItem = actions.reduce(applyAccountSettingsAction, oldAccountSettingsItem);
+            if (newItem === oldAccountSettingsItem) return oldAccountSettingsItem;
+
+            let newAccountSettingsItem: AccountSettingsItem;
+
+            if (!clientRequestToken) {
+                newAccountSettingsItem = await AccountsTable.directlyUpdateItem(context, {
+                    ...newItem,
                     partitionType: "Account",
                     sortRangeType: "Settings",
                     accountId: context.actor.getAccountId(),
-                },
-                item => {
-                    item ??= getInitialAccountSettingsItem(context.actor.getAccountId());
-                    oldAccountSettingsItem = item;
-
-                    const newItem = actions.reduce(applyAccountSettingsAction, item);
-                    if (newItem === item) return item;
-
-                    return {
+                });
+            } else {
+                // We drop down to an explicit transaction (rather than the simpler
+                // `AccountsTable.updateItem` helper) so we can pass a `clientRequestToken`. That
+                // token is what enforces at-most-once semantics for `UpdateReactionAffinity`,
+                // which is non-idempotent at the reducer level (each call adds +1 point).
+                const transaction = AccountsTable.transactionDirectlyUpdateItem(
+                    DynamoItem.create({
                         ...newItem,
                         partitionType: "Account",
                         sortRangeType: "Settings",
                         accountId: context.actor.getAccountId(),
-                        updateLockVersion: item.updateLockVersion,
-                    };
-                },
-            );
+                        updateLockVersion: oldAccountSettingsItem.updateLockVersion,
+                    }),
+                );
 
-            assert(oldAccountSettingsItem);
-            assert(newAccountSettingsItem);
+                await DynamoTableSchema.executeTransaction(context, [transaction], {
+                    clientRequestToken,
+                });
+
+                newAccountSettingsItem = transaction.newItem;
+            }
 
             if (
                 newAccountSettingsItem.observedTimeZone !== null &&
@@ -78,15 +93,18 @@ export async function updateOurAccountSettings(
                 );
             }
         });
+    } catch (error) {
+        // If the error is an idempotent parameter mismatch error, it means that we've
+        // already processed the request successfully. We should simply noop and return.
+        if (isDynamoIdempotentParameterMismatchError(error)) return;
 
+        for (const {span} of spans) {
+            span.addException(error);
+        }
+        throw error;
+    } finally {
         for (const {finishSpan} of spans) {
             finishSpan();
         }
-    } catch (error) {
-        for (const {span, finishSpan} of spans) {
-            span.addException(error);
-            finishSpan();
-        }
-        throw error;
     }
 }

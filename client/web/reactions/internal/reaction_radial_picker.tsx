@@ -18,10 +18,7 @@ import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
-import {
-    ReactionPickerRef,
-    reactionPickerIconEmotions,
-} from "~/client/web/reactions/internal/reaction_picker_base.js";
+import {ReactionPickerRef} from "~/client/web/reactions/internal/reaction_picker_base.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/web/styles/reaction_shared_styles.js";
@@ -91,7 +88,10 @@ function ReactionRadialPicker(
     },
     ref: Ref<ReactionPickerRef>,
 ) {
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {
+        currentAccount,
+        currentAccountSettings: {reactionAffinity},
+    } = useSpaceContextAndRequireSpaceAccess();
 
     const currentAccountData = useAccountModel(currentAccount);
 
@@ -102,16 +102,35 @@ function ReactionRadialPicker(
         [currentAccount.id, currentAccountData.reactionCharacter],
     );
 
+    const pickerEmotions = useMemo(() => {
+        const orderedEmotions = reactionAffinity.top6ReactionEmotions.map(({emotion}) => emotion);
+
+        // We render the radial picker in a clockwise fashion, so reading from left->right,
+        // top->bottom, the ordering should look like
+        //
+        // ```
+        // 6: top left (default=Celebrate)
+        // 5: mid left (default=Yes)
+        // 4: bottom left (default=Laugh)
+        // 1: bottom right (default=DeadInside)
+        // 2: mid right (default=Shock)
+        // 3: top right (default=Lolsob)
+        // ```
+        //
+        // To accomplist this, we reverse the first half of the list and add the second
+        // half of the list
+        return [...orderedEmotions.slice(0, 3).toReversed(), ...orderedEmotions.slice(3)];
+    }, [reactionAffinity]);
     const missingCurrentAccountReaction: Reaction | null = useMemo(
         () =>
             currentAccountReaction &&
             currentAccountReaction !== "GenericLike" &&
-            reactionPickerIconEmotions.every(
+            pickerEmotions.every(
                 emotion => !areReactionsEqual(currentAccountReaction, {character, emotion}),
             )
                 ? currentAccountReaction
                 : null,
-        [character, currentAccountReaction],
+        [character, currentAccountReaction, pickerEmotions],
     );
 
     const circleContainerRef = useRef<HTMLDivElement>(null);
@@ -296,7 +315,7 @@ function ReactionRadialPicker(
                 onOpenMegaPicker();
             } else {
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
-                const emotion = reactionPickerIconEmotions[emotionIndex]!;
+                const emotion = pickerEmotions[emotionIndex]!;
 
                 const reaction: Reaction =
                     missingCurrentAccountReaction && emotionIndex === 0
@@ -321,6 +340,7 @@ function ReactionRadialPicker(
         onDeleteReaction,
         onOpenMegaPicker,
         onSetReaction,
+        pickerEmotions,
     ]);
 
     // Clean up pointer event listeners on unmount to prevent memory leaks.
@@ -451,7 +471,7 @@ function ReactionRadialPicker(
                                     finalActiveIndex > 4
                                         ? finalActiveIndex - 2
                                         : finalActiveIndex - 1;
-                                const emotion = reactionPickerIconEmotions[emotionIndex]!;
+                                const emotion = pickerEmotions[emotionIndex]!;
 
                                 const reaction: Reaction =
                                     missingCurrentAccountReaction && emotionIndex === 0
@@ -585,7 +605,7 @@ function ReactionRadialPicker(
                             // to get the correct emotion index we need to "skip" index 0 and index 4. This
                             // code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
-                            const emotion = reactionPickerIconEmotions[emotionIndex]!;
+                            const emotion = pickerEmotions[emotionIndex]!;
 
                             const reaction =
                                 missingCurrentAccountReaction && emotionIndex === 0

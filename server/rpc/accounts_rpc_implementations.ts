@@ -75,8 +75,10 @@ export default implementRpcs(definitions, {
 
     updateOurAccountSettings: {
         visibility: ["AppClient"],
-        execute: async (context, input) => {
-            await updateOurAccountSettings(context.actor.authorizeSession(), input.actions);
+        execute: async (context, input, {callId}) => {
+            await updateOurAccountSettings(context.actor.authorizeSession(), input.actions, {
+                clientRequestToken: callId,
+            });
             return {};
         },
     },

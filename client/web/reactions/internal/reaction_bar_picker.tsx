@@ -18,10 +18,7 @@ import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
-import {
-    ReactionPickerRef,
-    reactionPickerIconEmotions,
-} from "~/client/web/reactions/internal/reaction_picker_base.js";
+import {ReactionPickerRef} from "~/client/web/reactions/internal/reaction_picker_base.js";
 import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -30,6 +27,7 @@ import {withoutClearSelectionOnMouseDownClassName} from "~/client/web/styles/sty
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";
@@ -48,7 +46,7 @@ const reactionBarItemGapRem = parseRemLength("1.5");
 const reactionBarPaddingRem = parseRemLength("1");
 
 // Min/max item counts: thumbs up + N emotions + more button
-const minItemCount = 4;
+const minItemCount = 6;
 const maxItemCount = 8;
 
 // Height is padding + item size + padding
@@ -120,7 +118,10 @@ function ReactionBarPicker(
     },
     ref: Ref<ReactionPickerRef>,
 ) {
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {
+        currentAccount,
+        currentAccountSettings: {reactionAffinity},
+    } = useSpaceContextAndRequireSpaceAccess();
     const {screenWidth} = useClientInfo();
     const spacingScale = useSpacingScale();
 
@@ -220,34 +221,50 @@ function ReactionBarPicker(
     const moreButtonIndex = itemCount - 1;
     // Number of emotion icons to show (itemCount minus thumbs up and more button)
     const emotionCount = itemCount - 2;
+
+    const pickerEmotions = useMemo(() => {
+        switch (emotionCount) {
+            case 4:
+                return reactionAffinity.top4ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            case 5:
+                return reactionAffinity.top5ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            case 6:
+                return reactionAffinity.top6ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            default:
+                throw new InvalidArgumentError(`Invalid emotion count: ${emotionCount}`);
+        }
+    }, [reactionAffinity, emotionCount]);
     const barWidthRem = calculateBarWidthRem(itemCount);
 
-    // The primary bar shows `emotionCount` emotions from `reactionPickerIconEmotions`
-    // plus the current account reaction if it's a reaction that is not normally shown
-    // in the primary bar. The expanded bar shows all remaining emotions.
+    // The primary bar shows `emotionCount` emotions from the affinity-sorted picker
+    // emotions plus the current account reaction if it's a reaction that is not
+    // normally shown in the primary bar. The expanded bar shows all remaining
+    // emotions.
     const getReactions = useCallback(() => {
         const extraEmotions = orderedReactionEmotions.filter(
-            emotion => !reactionPickerIconEmotions.includes(emotion),
+            emotion => !pickerEmotions.includes(emotion),
         );
         // True if we do not need to append the current account reaction to the primary
         // bar.
         if (
             !currentAccountReaction ||
             currentAccountReaction === "GenericLike" ||
-            reactionPickerIconEmotions
+            pickerEmotions
                 .slice(0, emotionCount)
                 .some(emotion => areReactionsEqual(currentAccountReaction, {character, emotion}))
         ) {
             return {
                 barReactions: [
-                    ...reactionPickerIconEmotions
-                        .slice(0, emotionCount)
-                        .map(emotion => ({character, emotion})),
+                    ...pickerEmotions.slice(0, emotionCount).map(emotion => ({character, emotion})),
                 ],
                 extraReactions: [
-                    ...reactionPickerIconEmotions
-                        .slice(emotionCount)
-                        .map(emotion => ({character, emotion})),
+                    ...pickerEmotions.slice(emotionCount).map(emotion => ({character, emotion})),
                     ...extraEmotions.map(emotion => ({character, emotion})),
                 ],
             };
@@ -255,12 +272,12 @@ function ReactionBarPicker(
             return {
                 barReactions: [
                     currentAccountReaction,
-                    ...reactionPickerIconEmotions
+                    ...pickerEmotions
                         .slice(0, emotionCount - 1)
                         .map(emotion => ({character, emotion})),
                 ],
                 extraReactions: [
-                    ...reactionPickerIconEmotions
+                    ...pickerEmotions
                         .slice(emotionCount - 1)
                         .map(emotion => ({character, emotion})),
                     ...extraEmotions
@@ -272,7 +289,7 @@ function ReactionBarPicker(
                 ],
             };
         }
-    }, [currentAccountReaction, character, emotionCount]);
+    }, [currentAccountReaction, character, emotionCount, pickerEmotions]);
 
     // Calculate how many emotions fit per row based on bar width
     const extraReactionsRowCount = Math.ceil(extraReactions.length / itemCount);

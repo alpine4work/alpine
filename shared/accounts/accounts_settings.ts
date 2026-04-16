@@ -1,7 +1,16 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    ReactionEmotionAffinitySchema,
+    applyReactionEmotionAffinityDecay,
+    defaultTop4ReactionEmotionsInOrder,
+    defaultTop5ReactionEmotionsInOrder,
+    defaultTop6ReactionEmotionsInOrder,
+} from "~/shared/reactions/reaction_emotion_affinity.js";
+import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -60,6 +69,18 @@ export const AccountSettingsSchema = Schema.object({
      * task is auto-saved and you can close the peek once you're done editing.
      */
     taskPeekStackAutoSaveHint: Schema.object({}).nullable().default({}),
+
+    /**
+     * Tracks how frequently this account uses each reaction emotion. Used to
+     * personalize the reaction picker by showing the user's most-used emotions in the
+     * quick-access preview (instead of a static set of 6).
+     */
+    reactionAffinity: ReactionEmotionAffinitySchema.default({
+        affinityByEmotion: emptyMap,
+        top4ReactionEmotions: defaultTop4ReactionEmotionsInOrder,
+        top5ReactionEmotions: defaultTop5ReactionEmotionsInOrder,
+        top6ReactionEmotions: defaultTop6ReactionEmotionsInOrder,
+    }),
 });
 
 export const initialAccountSettings: AccountSettings = {
@@ -68,6 +89,12 @@ export const initialAccountSettings: AccountSettings = {
     shareActivationHint: {},
     searchEducationHint: {hasOpenedFeed: false},
     taskPeekStackAutoSaveHint: {},
+    reactionAffinity: {
+        affinityByEmotion: emptyMap,
+        top4ReactionEmotions: defaultTop4ReactionEmotionsInOrder,
+        top5ReactionEmotions: defaultTop5ReactionEmotionsInOrder,
+        top6ReactionEmotions: defaultTop6ReactionEmotionsInOrder,
+    },
 };
 
 export type AccountSettingsAction = SchemaType<typeof AccountSettingsActionSchema>;
@@ -96,6 +123,10 @@ export const AccountSettingsActionSchema = Schema.union({
     ResetOnboardingForDev: Schema.object({
         type: Schema.value("ResetOnboardingForDev"),
     }),
+    UpdateReactionAffinity: Schema.object({
+        type: Schema.value("UpdateReactionAffinity"),
+        reaction: ReactionSchema,
+    }),
 });
 
 export function applyAccountSettingsAction(
@@ -105,8 +136,11 @@ export function applyAccountSettingsAction(
     const newSettings = actuallyApplyAccountSettingsAction(oldSettings, action);
 
     // In development and test environments, verify that applying an action is actually
-    // idempotent.
-    if (process.env.NODE_ENV !== "production") {
+    // idempotent. `UpdateReactionAffinity` is excluded because it applies EMA decay
+    // (intentionally non-idempotent at the reducer level). Its idempotency is
+    // guaranteed at the DynamoDB transaction level via `clientRequestToken`
+    // deduplication instead.
+    if (process.env.NODE_ENV !== "production" && action.type !== "UpdateReactionAffinity") {
         assert(
             isDeepEqual(newSettings, actuallyApplyAccountSettingsAction(newSettings, action)),
             "`actuallyApplyAccountSettingsAction()` must be idempotent",
@@ -168,6 +202,15 @@ function actuallyApplyAccountSettingsAction(
                 shareActivationHint: {},
                 searchEducationHint: {hasOpenedFeed: false},
                 taskPeekStackAutoSaveHint: {},
+            };
+        }
+        case "UpdateReactionAffinity": {
+            return {
+                ...settings,
+                reactionAffinity: applyReactionEmotionAffinityDecay(
+                    settings.reactionAffinity,
+                    action.reaction.emotion,
+                ),
             };
         }
         default:

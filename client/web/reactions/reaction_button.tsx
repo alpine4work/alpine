@@ -1,5 +1,5 @@
 import {ThumbsUp} from "phosphor-react";
-import {ReactElement, useMemo, useRef, useState} from "react";
+import {ReactElement, useCallback, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {ContextMenuActions} from "~/client/web/design/context_menu.js";
@@ -173,7 +173,7 @@ export function ReactionButtonBase({
         isPointerDownFromOverlayOpen: boolean;
     }) => ReactElement;
 }) {
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, updateCurrentAccountSettings} = useSpaceContext();
     const platform = usePlatform();
 
     const reactionPickerRef = useRef<ReactionPickerRef>(null);
@@ -182,6 +182,19 @@ export function ReactionButtonBase({
     const [isPointerDownFromOverlayOpen, setIsPointerDownFromOverlayOpen] = useState(false);
 
     const [isMegaPickerOpen, setIsMegaPickerOpen] = useState(false);
+
+    const onSetReactionWithAffinity = useCallback(
+        (reaction: Reaction | "GenericLike") => {
+            onSetReaction(reaction);
+            if (reaction !== "GenericLike") {
+                updateCurrentAccountSettings({
+                    type: "UpdateReactionAffinity",
+                    reaction,
+                });
+            }
+        },
+        [onSetReaction, updateCurrentAccountSettings],
+    );
 
     if (!currentAccount) {
         return children({
@@ -211,7 +224,7 @@ export function ReactionButtonBase({
                             ref={reactionPickerRef}
                             isVisible={isVisible}
                             currentAccountReaction={currentAccountReaction}
-                            onSetReaction={onSetReaction}
+                            onSetReaction={onSetReactionWithAffinity}
                             onDeleteReaction={onDeleteReaction}
                             onCloseWithAnimation={onCloseWithAnimation}
                             isPointerDownFromOverlayOpen={isPointerDownFromOverlayOpen}
@@ -221,7 +234,7 @@ export function ReactionButtonBase({
                             {isMegaPickerOpen ? (
                                 <ReactionMegaPicker
                                     currentAccountReaction={currentAccountReaction}
-                                    onSetReaction={onSetReaction}
+                                    onSetReaction={onSetReactionWithAffinity}
                                     onDeleteReaction={onDeleteReaction}
                                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 />
@@ -241,7 +254,7 @@ export function ReactionButtonBase({
                                         ref={reactionPickerRef}
                                         isVisible={isVisible}
                                         currentAccountReaction={currentAccountReaction}
-                                        onSetReaction={onSetReaction}
+                                        onSetReaction={onSetReactionWithAffinity}
                                         onDeleteReaction={onDeleteReaction}
                                         onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
                                         onCloseWithAnimation={onCloseWithAnimation}
