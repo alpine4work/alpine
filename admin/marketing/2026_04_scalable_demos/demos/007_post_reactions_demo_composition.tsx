@@ -1,50 +1,41 @@
+import {Video} from "@remotion/media";
 import {
-    imageGalleryDemoRecording01FirstFrame,
-    imageGalleryDemoRecording01LastFrame,
-    imageGalleryDemoRecordingHeight,
-    imageGalleryDemoRecordingJumpCuts,
-    imageGalleryDemoRecordingPaddingTop,
-    imageGalleryDemoRecordingWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/demos/002_image_gallery_demo_shared.js";
+    postReactionsDemoExtraHeight,
+    postReactionsDemoRecordingFirstFrame,
+    postReactionsDemoRecordingHeight,
+    postReactionsDemoRecordingLastFrame,
+    postReactionsDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/007_post_reactions_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
 import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
 import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
 import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
-import {VideoWithJumpCuts} from "~/admin/marketing/2026_04_scalable_demos/helpers/video_with_jump_cuts.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
-export function ImageGalleryDemoComposition() {
+export function PostReactionsDemoComposition() {
     return (
         <ScalableDemoCompositionLayout
             spacingScale={scalableDemoNarrowViewportSpacingScale}
-            backgroundImageSrc={remotionFile("rachel_date_background_002.jpeg")}
-            reactionBottom="-10"
-            reactionLeft="4"
-            reaction={{character: {type: "Yeti", variant: "Brown"}, emotion: "Happy"}}
+            backgroundImageSrc={remotionFile("rachel_date_background_007.jpeg")}
+            reactionBottom="-8"
+            reactionLeft="-1"
+            reaction={{character: {type: "Tulip", variant: "Yellow"}, emotion: "Happy"}}
         >
-            <div
-                style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    width: imageGalleryDemoRecordingWidth * 2,
-                    height: imageGalleryDemoRecordingHeight * 2,
-                    paddingTop: imageGalleryDemoRecordingPaddingTop * 2,
-                }}
-            >
+            <div style={{paddingTop: postReactionsDemoExtraHeight * 2}}>
                 <div
                     style={{
                         position: "relative",
                         overflow: "hidden",
-                        width: "100%",
-                        height: "100%",
+                        width: postReactionsDemoRecordingWidth * 2,
+                        height:
+                            (postReactionsDemoRecordingHeight - postReactionsDemoExtraHeight) * 2,
                     }}
                 >
-                    <VideoWithJumpCuts
-                        src={remotionFile("002_image_gallery_demo_recording_01.webm")}
-                        trimBefore={imageGalleryDemoRecording01FirstFrame}
-                        trimAfter={imageGalleryDemoRecording01LastFrame}
-                        trimSections={imageGalleryDemoRecordingJumpCuts}
+                    <Video
+                        src={remotionFile("007_post_reactions_demo_recording_01.webm")}
+                        trimBefore={postReactionsDemoRecordingFirstFrame}
+                        trimAfter={postReactionsDemoRecordingLastFrame}
                         volume={0}
                         style={{
                             position: "absolute",

@@ -28,6 +28,7 @@ import {
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -294,7 +295,7 @@ export class TestDocument {
      */
     public async update(
         session: TestSpaceSession,
-        steps: ReadonlyArray<Step>,
+        steps: MaybeThunk<ReadonlyArray<Step>, [lastUpdatePos: number]>,
         {
             versionOverride,
             ...options
@@ -308,7 +309,7 @@ export class TestDocument {
                 ...options,
                 id: this.id,
                 version: versionOverride ?? stateRef.current.lastVersion,
-                steps,
+                steps: typeof steps === "function" ? steps(stateRef.current.lastUpdatePos) : steps,
                 clientId: generateId(),
             });
 

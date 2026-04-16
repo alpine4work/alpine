@@ -147,6 +147,8 @@ export function runScalableDemoRecorder(
                         const browserContext = await browser.newContext({
                             ...devices["Desktop Chrome"],
                             viewport: scalableDemoDefaultViewport,
+                            // Make sure animations are allowed.
+                            reducedMotion: "no-preference",
                             // Take screenshots as if they were on a retina display.
                             //
                             // The reason this isn't higher (e.g. 3) is because we optimize file image resizing

@@ -38,6 +38,8 @@ import {
 import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -47,7 +49,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -91,6 +93,7 @@ export class TestTask extends TestCommentRoomBase {
         id: TaskId,
         createdTime: HybridLogicalTime,
         titleState: MutexValue<TaskTitle>,
+        notesState: MutexValue<{lastVersion: number; lastUpdatePos: number}>,
     ) {
         super();
         this.context = context;
@@ -98,7 +101,7 @@ export class TestTask extends TestCommentRoomBase {
         this.id = id;
         this.createdTime = createdTime;
         this._titleState = titleState;
-        this._notesState = new MutexValue({lastVersion: 0, lastUpdatePos: 1});
+        this._notesState = notesState;
     }
 
     public static async create(
@@ -112,6 +115,7 @@ export class TestTask extends TestCommentRoomBase {
             layout,
             dueDate,
             collections,
+            notes = "",
         }: {
             time?: HybridLogicalTime;
             title?: string;
@@ -121,6 +125,7 @@ export class TestTask extends TestCommentRoomBase {
             layout?: TaskLayout | null;
             dueDate?: CalendarDate | null;
             collections?: TestTaskCollection | ReadonlyArray<TestTaskCollection>;
+            notes?: string;
         } = {},
     ) {
         const id = generateId<TaskId>();
@@ -253,7 +258,24 @@ export class TestTask extends TestCommentRoomBase {
 
         await commitTaskActionTransaction(session.action(), session.space.id, actions);
 
-        return new TestTask(session.context, session.space, id, time, titleState);
+        let notesState;
+
+        if (notes.length === 0) {
+            notesState = new MutexValue({lastVersion: 0, lastUpdatePos: 1});
+        } else {
+            const fragment = Fragment.from(parseTaskTestContent(session.space.id, notes));
+
+            await updateTaskNotesContent(session.action(), {
+                spaceId: session.space.id,
+                taskId: id,
+                version: 0,
+                steps: [new ReplaceStep(0, 2, new Slice(fragment, 0, 0))],
+            });
+
+            notesState = new MutexValue({lastVersion: 1, lastUpdatePos: fragment.size - 1});
+        }
+
+        return new TestTask(session.context, session.space, id, time, titleState, notesState);
     }
 
     public readonly access = new TestAccessPolicy({
@@ -816,4 +838,12 @@ export class TestTask extends TestCommentRoomBase {
             stateRef.current.lastVersion += steps.length;
         });
     }
+}
+
+function parseTaskTestContent(spaceId: SpaceId, content: string) {
+    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+
+    return Array.from(
+        fromApiContentBlockElements(TaskNotesContentProsemirrorSchema, apiContent.elements),
+    );
 }

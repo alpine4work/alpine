@@ -29,7 +29,10 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {
+    TokenAgentAppServicePrivateSide,
+    TokenAgentJobQueueServicePrivateSide,
+} from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -81,6 +84,11 @@ export type TestServices = {
      * Get a `TokenAgent` with `AppService`'s private key.
      */
     getAppServiceTokenAgent(): TokenAgent<TokenAgentAppServicePrivateSide>;
+
+    /**
+     * Get a `TokenAgent` with `JobQueueService`'s private key.
+     */
+    getJobQueueServiceTokenAgent(): TokenAgent<TokenAgentJobQueueServicePrivateSide>;
 
     /**
      * Get the local unscoped API key for the mock ChatGPT bot.
@@ -317,6 +325,7 @@ export function actuallyCreateIntegrationTestEnvironment(
 
     let agentServicePort: number | null = null;
     let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide> | null = null;
+    let jobQueueServiceTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | null = null;
     let mockChatGptUnscopedApiKeyPath: string | null = null;
 
     let appServiceSubprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream> | undefined;
@@ -437,7 +446,7 @@ export function actuallyCreateIntegrationTestEnvironment(
             fileProcessorServicePort,
             apiServicePort,
             newAgentServicePort,
-            newAppServiceTokenAgent,
+            [newAppServiceTokenAgent, newJobQueueServiceTokenAgent],
         ] = await runAllPromises([
             edgeServicePortPromise,
             getPort(),
@@ -445,23 +454,41 @@ export function actuallyCreateIntegrationTestEnvironment(
             getPort(),
             getPort(),
             getPort(),
-            ensureServiceKeys(keysDirectoryPath).then(async () =>
-                createServiceTokenAgent({
-                    serviceName: "AppService",
-                    privateSide: TokenAgentAppServicePrivateSide,
-                    options: {
-                        appServicePublicKey: appServicePublicKeyPath,
-                        edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
-                        taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
-                        jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
-                        fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
-                        apiServicePublicKey: apiServicePublicKeyPath,
-                        resourceServicePublicKey: resourceServicePublicKeyPath,
-                        importerServicePublicKey: importerServicePublicKeyPath,
-                        servicePrivateKey: appServicePrivateKeyPath,
-                        tokenAgentSecret: tokenAgentSecretPath,
-                    },
-                }),
+            ensureServiceKeys(keysDirectoryPath).then(() =>
+                runAllPromises([
+                    createServiceTokenAgent({
+                        serviceName: "AppService",
+                        privateSide: TokenAgentAppServicePrivateSide,
+                        options: {
+                            appServicePublicKey: appServicePublicKeyPath,
+                            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+                            taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
+                            jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
+                            fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
+                            apiServicePublicKey: apiServicePublicKeyPath,
+                            resourceServicePublicKey: resourceServicePublicKeyPath,
+                            importerServicePublicKey: importerServicePublicKeyPath,
+                            servicePrivateKey: appServicePrivateKeyPath,
+                            tokenAgentSecret: tokenAgentSecretPath,
+                        },
+                    }),
+                    createServiceTokenAgent({
+                        serviceName: "JobQueueService",
+                        privateSide: TokenAgentJobQueueServicePrivateSide,
+                        options: {
+                            appServicePublicKey: appServicePublicKeyPath,
+                            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+                            taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
+                            jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
+                            fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
+                            apiServicePublicKey: apiServicePublicKeyPath,
+                            resourceServicePublicKey: resourceServicePublicKeyPath,
+                            importerServicePublicKey: importerServicePublicKeyPath,
+                            servicePrivateKey: jobQueueServicePrivateKeyPath,
+                            tokenAgentSecret: tokenAgentSecretPath,
+                        },
+                    }),
+                ]),
             ),
             fs.mkdir(agentsD1LocalDataPath, {recursive: true}).then(async () => {
                 const agentsD1LocalDataTarPath = joinPath(
@@ -478,6 +505,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
         agentServicePort = newAgentServicePort;
         appServiceTokenAgent = newAppServiceTokenAgent;
+        jobQueueServiceTokenAgent = newJobQueueServiceTokenAgent;
 
         const allMiniLmL6V2LanguageModelPath = joinPath(runfilesPath, "all_mini_lm_l6_v2");
 
@@ -894,6 +922,12 @@ export function actuallyCreateIntegrationTestEnvironment(
                     throw new InternalError("Test services haven’t initialized");
 
                 return appServiceTokenAgent;
+            },
+            getJobQueueServiceTokenAgent: () => {
+                if (jobQueueServiceTokenAgent === null)
+                    throw new InternalError("Test services haven’t initialized");
+
+                return jobQueueServiceTokenAgent;
             },
             getMockChatGptLocalUnscopedApiKey: async () => {
                 if (mockChatGptUnscopedApiKeyPath === null)

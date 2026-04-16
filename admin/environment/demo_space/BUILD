@@ -10,6 +10,7 @@ ts_project(
     visibility = ["//admin:__subpackages__"],
     deps = [
         "//:node_modules/cookie",
+        "//:node_modules/gpt-tokenizer",
         "//admin/helpers",
         "//server/bots/test_helpers",
         "//server/context",

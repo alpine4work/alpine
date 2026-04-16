@@ -71,6 +71,12 @@ export type ContentEditorMentionFloaterState = {
     readonly handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
 
     /**
+     * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()` to
+     * provide an implementation of this function which the content editor should call.
+     */
+    readonly handleKeyUpRef: RefObject<((event: KeyboardEvent) => void) | null>;
+
+    /**
      * Is the mention floater in the closing animation? Other floaters manage their
      * closing animation state locally but we do it here since we close the floater
      * from `ContentEditorState`.

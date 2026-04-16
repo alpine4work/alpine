@@ -3,6 +3,7 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/web/design/box.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {
@@ -55,7 +56,7 @@ function ContentEditorCursorTracker(
 export function useContentEditorTracker({
     state,
     viewRef,
-    pos,
+    pos: posFromProps,
     side,
     onUpdatePosition,
     shouldUseLineHeight = false,
@@ -90,10 +91,19 @@ export function useContentEditorTracker({
 
             let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
+            let pos = posFromProps;
+
+            if (typeof pos !== "number") {
+                const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes({
+                    $from: state.doc.resolve(pos.from),
+                    $to: state.doc.resolve(pos.to),
+                });
+                pos = {from: $from.pos, to: $to.pos};
+            }
             // If this is a non-text node like `file` then get the DOM element for the node and
             // use the dimensions of that element instead of the result of `coordsAtPos()`
             // which will have a height of 0.
-            if (typeof pos === "number") {
+            else {
                 const $pos = state.doc.resolve(pos);
                 if (
                     !$pos.parent.isTextblock &&
@@ -202,7 +212,7 @@ export function useContentEditorTracker({
             isCancelled = true;
             removeResizeListener?.();
         };
-    }, [onUpdatePosition, pos, shouldUseLineHeight, side, state.doc, viewRef]);
+    }, [onUpdatePosition, posFromProps, shouldUseLineHeight, side, state.doc, viewRef]);
 
     return localRef;
 }

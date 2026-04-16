@@ -152,6 +152,7 @@ export function ContentEditorFloater({
                     range={floaterState.range}
                     searchQuery={floaterState.searchQuery}
                     handleKeyDownRef={floaterState.handleKeyDownRef}
+                    handleKeyUpRef={floaterState.handleKeyUpRef}
                     isFocused={isFocused}
                     isClosing={floaterState.isClosing}
                     sectionOrder={mentionFloaterSectionOrder}

@@ -13,7 +13,7 @@ export function ExportTableToMarkdownDemoComposition() {
     return (
         <ScalableDemoCompositionLayout
             spacingScale={scalableDemoDefaultViewportSpacingScale}
-            backgroundImageSrc={remotionFile("rachel_date_background_05.jpeg")}
+            backgroundImageSrc={remotionFile("rachel_date_background_005.jpeg")}
             // The card background color is adding some noticeable artifacts when the grey
             // modal overlay is visible.
             withoutCardBackgroundColor={true}

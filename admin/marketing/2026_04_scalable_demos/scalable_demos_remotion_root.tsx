@@ -26,6 +26,37 @@ import {
     exportTableToMarkdownDemoRecordingHeight,
     exportTableToMarkdownDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/005_export_table_to_markdown_demo_shared.js";
+import {ChannelAndChatRoomFilePreviewDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/006_channel_and_chat_room_file_preview_demo_composition.js";
+import {
+    channelAndChatRoomFilePreviewDemoDurationInFrames,
+    channelAndChatRoomFilePreviewDemoRecordingHeight,
+    channelAndChatRoomFilePreviewDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/006_channel_and_chat_room_file_preview_demo_shared.js";
+import {PostReactionsDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/007_post_reactions_demo_composition.js";
+import {
+    postReactionsDemoDurationInFrames,
+    postReactionsDemoRecordingHeight,
+    postReactionsDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/007_post_reactions_demo_shared.js";
+import {DocumentAgentCollaborationDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/008_document_agent_collaboration_demo_composition.js";
+import {
+    documentAgentCollaborationDemoDurationInFrames,
+    documentAgentCollaborationDemoRecordingHeight,
+    documentAgentCollaborationDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/008_document_agent_collaboration_demo_shared.js";
+import {TaskTemplatesDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/009_task_templates_demo_composition.js";
+import {
+    taskTemplatesDemoDurationInFrames,
+    taskTemplatesDemoRecordingHeight,
+    taskTemplatesDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/009_task_templates_demo_shared.js";
+import {PasteBulletListIntoTasksDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/010_paste_bullet_list_into_tasks_demo_composition.js";
+import {
+    pasteBulletListIntoTasksDemoDurationInFrames,
+    pasteBulletListIntoTasksDemoRecordingHeight,
+    pasteBulletListIntoTasksDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/010_paste_bullet_list_into_tasks_demo_shared.js";
+import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
@@ -67,6 +98,41 @@ export function ScalableDemosRemotionRoot() {
                 recordingHeight={exportTableToMarkdownDemoRecordingHeight}
                 durationInFrames={exportTableToMarkdownDemoDurationInFrames}
             />
+            <Composition
+                id="006-channel-and-chat-room-file-preview-demo"
+                component={ChannelAndChatRoomFilePreviewDemoComposition}
+                recordingWidth={channelAndChatRoomFilePreviewDemoRecordingWidth}
+                recordingHeight={channelAndChatRoomFilePreviewDemoRecordingHeight}
+                durationInFrames={channelAndChatRoomFilePreviewDemoDurationInFrames}
+            />
+            <Composition
+                id="007-post-reactions-demo"
+                component={PostReactionsDemoComposition}
+                recordingWidth={postReactionsDemoRecordingWidth}
+                recordingHeight={postReactionsDemoRecordingHeight}
+                durationInFrames={postReactionsDemoDurationInFrames}
+            />
+            <Composition
+                id="008-document-agent-collaboration-demo"
+                component={DocumentAgentCollaborationDemoComposition}
+                recordingWidth={documentAgentCollaborationDemoRecordingWidth}
+                recordingHeight={documentAgentCollaborationDemoRecordingHeight}
+                durationInFrames={documentAgentCollaborationDemoDurationInFrames}
+            />
+            <Composition
+                id="009-task-templates-demo"
+                component={TaskTemplatesDemoComposition}
+                recordingWidth={taskTemplatesDemoRecordingWidth}
+                recordingHeight={taskTemplatesDemoRecordingHeight}
+                durationInFrames={taskTemplatesDemoDurationInFrames}
+            />
+            <Composition
+                id="010-paste-bullet-list-into-tasks-demo"
+                component={PasteBulletListIntoTasksDemoComposition}
+                recordingWidth={pasteBulletListIntoTasksDemoRecordingWidth}
+                recordingHeight={pasteBulletListIntoTasksDemoRecordingHeight}
+                durationInFrames={pasteBulletListIntoTasksDemoDurationInFrames}
+            />
         </>
     );
 }
@@ -75,7 +141,7 @@ function Composition({
     id,
     component,
     recordingWidth,
-    recordingHeight = recordingWidth / goldenRatio,
+    recordingHeight = Math.round(recordingWidth / goldenRatio),
     durationInFrames,
 }: {
     id: string;
@@ -86,22 +152,7 @@ function Composition({
 }) {
     const w = recordingWidth;
     const h = recordingHeight;
-    const r = goldenRatio;
-
-    // Solution for `m` in:
-    //
-    // ```
-    // w * h * r = (w + m * 2) * (h + m * 2)
-    // ```
-    //
-    // ([WolframAlpha][1])
-    //
-    // We want the area of the composition to be in the golden ratio with the area of
-    // the recording. And we want consistent vertical/horizontal margins.
-    //
-    // [1]:
-    //     https://www.wolframalpha.com/input?i=solve+for+m+in+w+*+h+*+r+%3D+%28w+%2B+m+*+2%29+*+%28h+%2B+m+*+2%29
-    const m = (1 / 4) * (Math.sqrt(h ** 2 + 4 * h * r * w - 2 * h * w + w ** 2) - h - w);
+    const m = computeScalableDemoCompositionMargin(w, h);
 
     return (
         <ActualComposition

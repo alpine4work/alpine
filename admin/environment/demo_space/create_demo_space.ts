@@ -86,6 +86,7 @@ async function createDemoSpaceAccounts(space: TestSpace) {
         name: "Rose Compás",
         role: "Owner",
         reactionCharacter: {type: "Tree", variant: "Green"},
+        hasInternalAccess: true,
     });
 
     return runAllObjectPromises({

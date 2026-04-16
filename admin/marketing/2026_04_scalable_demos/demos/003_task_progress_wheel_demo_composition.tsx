@@ -22,7 +22,7 @@ export function TaskProgressWheelDemoComposition() {
     return (
         <ScalableDemoCompositionLayout
             spacingScale={scalableDemoNarrowViewportSpacingScale}
-            backgroundImageSrc={remotionFile("rachel_date_background_03.jpeg")}
+            backgroundImageSrc={remotionFile("rachel_date_background_003.jpeg")}
             reactionBottom="-9"
             reactionLeft="2"
             reaction={{character: {type: "Cat", variant: "Yellow"}, emotion: "Yes"}}

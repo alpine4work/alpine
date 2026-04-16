@@ -11,7 +11,7 @@ export function ShareSwitchDemoComposition() {
     return (
         <ScalableDemoCompositionLayout
             spacingScale={scalableDemoDefaultViewportSpacingScale}
-            backgroundImageSrc={remotionFile("rachel_date_background_01.jpeg")}
+            backgroundImageSrc={remotionFile("rachel_date_background_001.jpeg")}
             reactionBottom="-12"
             reactionLeft="5"
             reaction={{character: {type: "Tree", variant: "Green"}, emotion: "Shock"}}

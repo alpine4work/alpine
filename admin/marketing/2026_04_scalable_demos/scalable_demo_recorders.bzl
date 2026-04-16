@@ -33,3 +33,8 @@ def scalable_demo_recorders():
             node_options = common_node_options,
             no_copy_to_bin = ["@playwright_browsers//:browsers"],
         )
+
+        native.alias(
+            name = demo_name[0:3],
+            actual = ":{}".format(demo_name),
+        )

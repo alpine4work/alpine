@@ -679,6 +679,7 @@ function contentEditorFloaterStatePlugin() {
                             range: {from: $from.pos, to: newState.selection.head},
                             searchQuery: "",
                             handleKeyDownRef: {current: null},
+                            handleKeyUpRef: {current: null},
                             isClosing: false,
                         };
                     }

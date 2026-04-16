@@ -127,6 +127,7 @@ export function ContentEditorMentionFloater({
     range,
     searchQuery,
     handleKeyDownRef,
+    handleKeyUpRef,
     isFocused,
     isClosing,
     sectionOrder,
@@ -144,6 +145,7 @@ export function ContentEditorMentionFloater({
     range: {from: number; to: number};
     searchQuery: string;
     handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
+    handleKeyUpRef: RefObject<((event: KeyboardEvent) => void) | null>;
     isFocused: boolean;
     isClosing: boolean;
     sectionOrder: ContentEditorMentionFloaterSectionOrder;
@@ -749,12 +751,13 @@ export function ContentEditorMentionFloater({
 
     const items = useMemo(() => itemSections.flatMap(section => section.items), [itemSections]);
 
-    const [actualSelectionState, setSelectionState] = useState<{
-        searchKey: string;
-        index: number | null;
-    }>({
+    const [actualSelectionState, setSelectionState] = useState<
+        | {searchKey: string; index: null; isPressedFromKeyboard: false}
+        | {searchKey: string; index: number; isPressedFromKeyboard: boolean}
+    >({
         searchKey: searchMentionOutput.key,
         index: null,
+        isPressedFromKeyboard: false,
     });
 
     const selectionState =
@@ -765,6 +768,7 @@ export function ContentEditorMentionFloater({
                   // Automatically select the first item if the user has started typing a search
                   // query and there's at least one item.
                   index: searchMentionOutput.queryText.length > 0 && items.length > 0 ? 0 : null,
+                  isPressedFromKeyboard: false as const,
               }
             : actualSelectionState;
 
@@ -815,6 +819,7 @@ export function ContentEditorMentionFloater({
                             selectionState.index === items.length - 1
                                 ? 0
                                 : selectionState.index + 1,
+                        isPressedFromKeyboard: false,
                     });
                 }
                 break;
@@ -837,6 +842,7 @@ export function ContentEditorMentionFloater({
                             selectionState.index === null || selectionState.index === 0
                                 ? items.length - 1
                                 : selectionState.index - 1,
+                        isPressedFromKeyboard: false,
                     });
                 }
                 break;
@@ -857,6 +863,7 @@ export function ContentEditorMentionFloater({
                     setSelectionState({
                         searchKey: searchMentionOutput.key,
                         index: 0,
+                        isPressedFromKeyboard: false,
                     });
                 }
                 break;
@@ -877,6 +884,7 @@ export function ContentEditorMentionFloater({
                     setSelectionState({
                         searchKey: searchMentionOutput.key,
                         index: items.length - 1,
+                        isPressedFromKeyboard: false,
                     });
                 }
                 break;
@@ -904,7 +912,31 @@ export function ContentEditorMentionFloater({
 
                 if (selectionState.index === null) break;
 
-                items[selectionState.index]!.onPress();
+                setSelectionState({
+                    searchKey: selectionState.searchKey,
+                    index: selectionState.index,
+                    isPressedFromKeyboard: true,
+                });
+                break;
+            }
+        }
+    });
+
+    useImperativeHandle(handleKeyUpRef, () => event => {
+        switch (event.key) {
+            // When focus is on an item activate the item and close the menu.
+            //
+            // Space may also do this in the menu ARIA pattern but because we are in a text
+            // editor, space inserts...well...a space.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            case "Enter": {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (selectionState.index !== null && selectionState.isPressedFromKeyboard) {
+                    items[selectionState.index]!.onPress();
+                }
                 break;
             }
         }
@@ -1015,6 +1047,10 @@ export function ContentEditorMentionFloater({
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
                                                 isSelected={selectionState.index === index}
+                                                isPressedFromKeyboard={
+                                                    selectionState.index === index &&
+                                                    selectionState.isPressedFromKeyboard
+                                                }
                                                 suppressHover={suppressHover}
                                                 action={item.action}
                                                 onPress={item.onPress}
@@ -1030,6 +1066,10 @@ export function ContentEditorMentionFloater({
                                                 isLast={index === items.length - 1}
                                                 isClosing={isClosing}
                                                 isSelected={selectionState.index === index}
+                                                isPressedFromKeyboard={
+                                                    selectionState.index === index &&
+                                                    selectionState.isPressedFromKeyboard
+                                                }
                                                 suppressHover={suppressHover}
                                                 accountData={item.accountData}
                                                 onPress={item.onPress}
@@ -1046,6 +1086,10 @@ export function ContentEditorMentionFloater({
                                                 isClosing={isClosing}
                                                 isSelected={selectionState.index === index}
                                                 isPending={pendingEntityId === item.entity.id}
+                                                isPressedFromKeyboard={
+                                                    selectionState.index === index &&
+                                                    selectionState.isPressedFromKeyboard
+                                                }
                                                 suppressHover={suppressHover}
                                                 entity={item.entity}
                                                 onPress={item.onPress}
@@ -1124,6 +1168,7 @@ function ContentEditorMentionFloaterItemBase({
     isLast,
     isSelected,
     isClosing,
+    isPressedFromKeyboard,
     suppressHover,
     children,
     onPress,
@@ -1133,6 +1178,7 @@ function ContentEditorMentionFloaterItemBase({
     isLast: boolean;
     isSelected: boolean;
     isClosing: boolean;
+    isPressedFromKeyboard: boolean;
     suppressHover: boolean;
     children: ReactNode | ((props: {isPressed: boolean}) => ReactNode);
     onPress: () => void;
@@ -1145,9 +1191,12 @@ function ContentEditorMentionFloaterItemBase({
 
     const isHovered = isHoveredFromState && !suppressHover;
 
-    const {isPressed, pressProps} = usePress({
+    const {isPressed: isPressedFromState, pressProps} = usePress({
         onPress,
     });
+
+    // Combine press state from usePress hook and keyboard shortcut
+    const isPressed = isPressedFromState || isPressedFromKeyboard;
 
     // Scroll our item into view when it is focused using the keyboard. We manually
     // implement scrolling since `scrollIntoView()` has weird behavior.
@@ -1231,6 +1280,7 @@ function ContentEditorMentionFloaterAccountItem({
     isLast,
     isSelected,
     isClosing,
+    isPressedFromKeyboard,
     accountData,
     suppressHover,
     onPress,
@@ -1240,6 +1290,7 @@ function ContentEditorMentionFloaterAccountItem({
     isLast: boolean;
     isSelected: boolean;
     isClosing: boolean;
+    isPressedFromKeyboard: boolean;
     accountData: AccountModelData;
     suppressHover: boolean;
     onPress: () => void;
@@ -1251,6 +1302,7 @@ function ContentEditorMentionFloaterAccountItem({
             isLast={isLast}
             isSelected={isSelected}
             isClosing={isClosing}
+            isPressedFromKeyboard={isPressedFromKeyboard}
             suppressHover={suppressHover}
             onPress={onPress}
         >
@@ -1269,6 +1321,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isSelected,
     isClosing,
     isPending,
+    isPressedFromKeyboard,
     suppressHover,
     entity,
     onPress,
@@ -1279,6 +1332,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isSelected: boolean;
     isClosing: boolean;
     isPending: boolean;
+    isPressedFromKeyboard: boolean;
     suppressHover: boolean;
     entity: SearchEntityModel;
     onPress: () => void;
@@ -1305,6 +1359,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             isLast={isLast}
             isSelected={isSelected}
             isClosing={isClosing}
+            isPressedFromKeyboard={isPressedFromKeyboard}
             suppressHover={suppressHover}
             onPress={onPress}
         >
@@ -1379,6 +1434,7 @@ function ContentEditorMentionFloaterInsertItem({
     isLast,
     isSelected,
     isClosing,
+    isPressedFromKeyboard,
     action,
     suppressHover,
     onPress,
@@ -1388,6 +1444,7 @@ function ContentEditorMentionFloaterInsertItem({
     isLast: boolean;
     isSelected: boolean;
     isClosing: boolean;
+    isPressedFromKeyboard: boolean;
     action: ContentEditorInsertMenuAction;
     suppressHover: boolean;
     onPress: () => void;
@@ -1399,6 +1456,7 @@ function ContentEditorMentionFloaterInsertItem({
             isLast={isLast}
             isSelected={isSelected}
             isClosing={isClosing}
+            isPressedFromKeyboard={isPressedFromKeyboard}
             suppressHover={suppressHover}
             onPress={onPress}
         >

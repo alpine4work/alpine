@@ -39,7 +39,9 @@ Demos have the following parts:
   data and add instructions for how the human should pilot the app in the screen recording. Run the
   recorder with
   `bazel run //admin/marketing/2026_04_scalable_demos:${number}_${name}_demo_recorder`. This will
-  use Playwright to launch a browser and will wait for the human to take the screen recording.
+  use Playwright to launch a browser and will wait for the human to take the screen recording. As a
+  shortcut you may omit the demo name and just write the number:
+  `bazel run //admin/marketing/2026_04_scalable_demos:${number}`.
 
 - `scalable_demo_repositories.bzl` contains the map `SCALABLE_DEMOS_REPOSITORIES` which is all our
   source video assets. The workflow is:

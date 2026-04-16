@@ -1,45 +1,46 @@
 import {Video} from "@remotion/media";
 import {
-    replyToChatMessageRangeDemoRecording01FirstFrame,
-    replyToChatMessageRangeDemoRecordingHeight,
-    replyToChatMessageRangeDemoRecordingWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/demos/004_reply_to_chat_message_range_demo_shared.js";
+    taskTemplatesDemoRecordingFirstFrame,
+    taskTemplatesDemoRecordingHeight,
+    taskTemplatesDemoRecordingLastFrame,
+    taskTemplatesDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/009_task_templates_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
 import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
 import {scalableDemoDefaultViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
-import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
-export function ReplyToChatMessageRangeDemoComposition() {
+export function TaskTemplatesDemoComposition() {
     return (
         <ScalableDemoCompositionLayout
             spacingScale={scalableDemoDefaultViewportSpacingScale}
-            backgroundImageSrc={remotionFile("rachel_date_background_004.jpeg")}
-            reactionBottom="-7"
-            reactionLeft="-2"
-            reaction={{character: {type: "Frog", variant: "Green"}, emotion: "Lolsob"}}
+            backgroundImageSrc={remotionFile("rachel_date_background_009.jpeg")}
+            reactionBottom="-6"
+            reactionLeft="4"
+            reaction={{character: {type: "Frog", variant: "Cyan"}, emotion: "Celebrate"}}
         >
             <div
                 style={{
                     position: "relative",
                     overflow: "hidden",
-                    width: replyToChatMessageRangeDemoRecordingWidth * 2,
-                    height: replyToChatMessageRangeDemoRecordingHeight * 2,
+                    width: taskTemplatesDemoRecordingWidth * 2,
+                    height: taskTemplatesDemoRecordingHeight * 2,
                 }}
             >
                 <Video
-                    src={remotionFile("004_reply_to_chat_message_range_demo_recording_01.webm")}
+                    src={remotionFile("009_task_templates_demo_recording_01.webm")}
+                    trimBefore={taskTemplatesDemoRecordingFirstFrame}
+                    trimAfter={taskTemplatesDemoRecordingLastFrame}
                     volume={0}
-                    trimBefore={replyToChatMessageRangeDemoRecording01FirstFrame}
                     style={{
                         position: "absolute",
                         top: -scalableDemoMacOsTopBarAndChromeTopBarHeight * 2,
                         left:
                             -convertRemLengthToPx(
                                 scalableDemoSpaceSideBarWidth,
-                                scalableDemoNarrowViewportSpacingScale,
+                                scalableDemoDefaultViewportSpacingScale,
                             ) * 2,
                         pointerEvents: "none",
                     }}

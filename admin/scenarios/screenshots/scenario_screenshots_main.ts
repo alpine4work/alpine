@@ -57,7 +57,7 @@ async function main() {
                 services.getAppServiceTokenAgent(),
                 admin,
                 getDynamoSeedConstants().mockChatGptBotId,
-                "scenario_chatgpt_avatar.png",
+                "chatGpt",
             );
 
             debug("Initializing scenario");

@@ -9,8 +9,8 @@ import {
     createDemoSpaceWithoutUploadingAvatars,
     uploadDemoSpaceAvatars,
 } from "~/admin/environment/demo_space/create_demo_space.js";
+import {putMockAgentRecording} from "~/admin/environment/demo_space/put_mock_agent_recording.js";
 import {createFictionalAmbrookSprintTasks} from "~/admin/scenarios/internal/fictional_ambrook_sprint_tasks.js";
-import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";

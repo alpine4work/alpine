@@ -90,8 +90,8 @@ export class TestBot {
         return bot.instantiate(session, {id: accountId});
     }
 
-    public createUnscopedApiKey(): Promise<ApiKey> {
-        return createUnscopedApiKeyForTest(this.context, this.id);
+    public createUnscopedApiKey(apiKey?: ApiKey): Promise<ApiKey> {
+        return createUnscopedApiKeyForTest(this.context, this.id, apiKey);
     }
 }
 

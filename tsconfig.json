@@ -38,7 +38,16 @@
         // used by Cypress among other things since module resolution would always look at
         // `node_modules` instead of performing the Node.js module resolution algorithm.
         "baseUrl": "./admin/typescript/base",
-        "paths": {"~/*": ["../../../*"]},
+        "paths": {
+            // Without this TypeScript's auto-import `"importModuleSpecifier": "non-relative"`
+            // preference doesn't work in the `admin` directory. This option shouldn't change
+            // auto-import behavior. You could remove it (so we just have
+            // `"~/*": ["../../../*"]`) and type checking would still pass (so this isn't added
+            // to our SWC config). It's only added to make sure
+            // `"importModuleSpecifier": "non-relative"` inside the `admin` directory works.
+            "~/admin/*": ["../../*"],
+            "~/*": ["../../../*"]
+        },
 
         /* ========================================================================== *\
          *                              Type Checking                                 *

@@ -1,5 +1,6 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
@@ -40,6 +41,7 @@ import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     PostContent,
     PostContentProsemirrorSchema,
@@ -99,18 +101,18 @@ export class TestPost extends TestCommentRoomBase {
     // Starts with an underscore since you should prefer calling `channel.createPost()`
     // to `TestPost._create()`.
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         content: Node | string,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         contentOrOptions?: Node | string | TestPostCreateOptions,
         options?: TestPostCreateOptions,
@@ -131,7 +133,7 @@ export class TestPost extends TestCommentRoomBase {
         {};
 
         if (typeof content === "string") {
-            content = parsePostTestContent(session.space.id, content);
+            content = parsePostTestContent(channel.space.id, content);
         }
 
         const attachFiles =
@@ -174,11 +176,17 @@ export class TestPost extends TestCommentRoomBase {
         // attachments from the draft to the post.
         let draftId: PostDraftId | null = null;
         if (attachFiles.length > 0) {
+            if (!(session instanceof TestSession)) {
+                throw new UnimplementedError(
+                    "Attaching files to bot create post isn\u2019t implemented",
+                );
+            }
+
             draftId = generateChronologicalId<PostDraftId>();
 
             await createOrReplacePostDraft(
                 session.action(),
-                session.space.id,
+                channel.space.id,
                 session.account.id,
                 draftId,
                 {
@@ -193,7 +201,7 @@ export class TestPost extends TestCommentRoomBase {
                         session,
                         FilePostAuthorizer.bind({
                             type: "PostDraft",
-                            spaceId: session.space.id,
+                            spaceId: channel.space.id,
                             accountId: session.account.id,
                             draftId: draftId!,
                         }),
@@ -213,8 +221,8 @@ export class TestPost extends TestCommentRoomBase {
 
         return new TestPost(
             session.context,
-            session.space,
-            session.account,
+            channel.space,
+            session instanceof TestSession ? session.account : session,
             post.id,
             post.createdTime,
             channel,

@@ -3302,6 +3302,13 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 return true;
             },
+            keyup: (view, event) => {
+                // Implement keyboard shortcuts when the mention floater is open:
+                const floaterState = getContentEditorFloaterState(view.state);
+                if (floaterState.type === "Mention") {
+                    floaterState.handleKeyUpRef.current?.(event);
+                }
+            },
         };
 
         /* ========================================================================== *\

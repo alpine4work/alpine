@@ -830,7 +830,6 @@ const Menu = forwardRef(function Menu(
 
                                 assertExists(menuItemRef.current).focus();
                                 setKeyboardPressedMenuItemRef(menuItemRef);
-                                assertExists(menuItemRef.current).press();
                                 return;
                             }
                         }
@@ -872,6 +871,7 @@ const Menu = forwardRef(function Menu(
                     const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
                     if (menuItemRef && keyboardPressedMenuItemRef === menuItemRef) {
                         setKeyboardPressedMenuItemRef(null);
+                        assertExists(menuItemRef.current).press();
                     }
                 }
             }}
