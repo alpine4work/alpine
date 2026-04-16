@@ -1606,6 +1606,10 @@ Resources:
                           Type: string
                         - Name: ffmpeg__codecs
                           Type: string
+                        - Name: ffmpeg__video_mp4__relevant_atoms
+                          Type: string
+                        - Name: ffmpeg__audio_mp4__relevant_atoms
+                          Type: string
                         - Name: sharp__avif__quality
                           Type: int
                         - Name: sharp__avif__effort

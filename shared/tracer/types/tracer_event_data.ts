@@ -1654,6 +1654,26 @@ export type TracerEventData = {
          * When there are multiple codecs they're separated by a `/`.
          */
         readonly codecs?: string;
+
+        /**
+         * Information specific to the MP4 video format.
+         */
+        readonly videoMp4?: {
+            /**
+             * What's the order of the relevant atoms in this MP4 file for our operation?
+             */
+            readonly relevantAtoms?: string;
+        };
+
+        /**
+         * Information specific to the MP4 audio format.
+         */
+        readonly audioMp4?: {
+            /**
+             * What's the order of the relevant atoms in this MP4 file for our operation?
+             */
+            readonly relevantAtoms?: string;
+        };
     };
 
     readonly sharp?: {

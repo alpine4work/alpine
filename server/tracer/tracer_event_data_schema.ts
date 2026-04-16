@@ -547,6 +547,12 @@ const TracerEventDataSchema = {
     },
     ffmpeg: {
         codecs: Schema.string,
+        videoMp4: {
+            relevantAtoms: Schema.string,
+        },
+        audioMp4: {
+            relevantAtoms: Schema.string,
+        },
     },
     sharp: {
         avif: {

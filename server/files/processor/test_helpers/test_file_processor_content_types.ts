@@ -940,11 +940,18 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 }
                 break;
             }
-            case "audio/webm": {
+            case "audio/webm":
+            case "audio/mp4":
+            case "video/mp4": {
                 assert(!expectedAlternative.similarPath);
 
                 // We don't have a readily available audio similarity test so assume the generated
                 // file is good.
+                //
+                // We also don't test `video/mp4` similarity. There's just one test case and the
+                // `video/mp4` alternative is generated using
+                // `ffmpeg -i input.mp4 -c copy -movflags +faststart output.mp4` which should
+                // reliably produce a good output.
                 break;
             }
             default:

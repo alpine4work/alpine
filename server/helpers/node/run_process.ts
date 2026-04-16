@@ -83,13 +83,13 @@ export async function runProcess(
          * Called when the process emits some data to stdout. Allows you to inspect the
          * data and perform any additional processing.
          */
-        onStdoutData?: (string: string, chunk: Buffer) => void;
+        onStdoutData?: (string: string, chunk: Buffer, fullString: string) => void;
 
         /**
          * Called when the process emits some data to stderr. Allows you to inspect the
          * data and perform any additional processing.
          */
-        onStderrData?: (string: string, chunk: Buffer) => void;
+        onStderrData?: (string: string, chunk: Buffer, fullString: string) => void;
     } = {},
 ): Promise<string> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -119,13 +119,13 @@ export async function runProcess(
     subprocess.stdout.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stdout += string;
-        onStdoutData?.(string, chunk);
+        onStdoutData?.(string, chunk, stdout);
     });
 
     subprocess.stderr.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stderr += string;
-        onStderrData?.(string, chunk);
+        onStderrData?.(string, chunk, stderr);
     });
 
     await new Promise<void>((resolve, reject) => {

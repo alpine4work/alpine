@@ -235,7 +235,26 @@ const testCases: {
     ],
     "video/mp4": [
         {
-            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_av1_video_codec_and_opus_audio_codec.mp4",
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_av1_video_codec_and_mp3_audio_codec.mp4",
+            imagePreviewVideoDuration: 7610,
+            imagePreviewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "WFxXWVlWXFxWYl1YYF1bX1dWYFxcYFtaY2FodW1tgGxufXJvdXJtdnNue3VnhIp1g4Jkm4xisGVouambm71/frVlfq9bfbZoh8B+l8Ful79awlljSYxyHZJncZZnlK9ifrZbc7JUgK1chrRYyUVUo1BVmEdNqUhXq1RogGljgJdgd6RJc6c/",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_av1_video_codec_and_mp3_audio_codec_and_moov_atom_at_end.mp4",
+            alternative: {contentType: "video/mp4"},
             imagePreviewVideoDuration: 7610,
             imagePreviewSize: {
                 width: 240,
@@ -254,7 +273,7 @@ const testCases: {
         },
         {
             path: "wikimedia_france_vs_czech_republic_2013_09_21_with_h264_video_codec_and_flac_audio_codec.mp4",
-            imagePreviewVideoDuration: 2010,
+            imagePreviewVideoDuration: 2000,
             imagePreviewSize: {
                 width: 240,
                 height: 134,
@@ -278,7 +297,7 @@ const testCases: {
                 // to 2 seconds.
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.mov.webm",
             },
-            imagePreviewVideoDuration: 2010,
+            imagePreviewVideoDuration: 2000,
             imagePreviewSize: {
                 width: 240,
                 height: 134,
@@ -324,7 +343,7 @@ const testCases: {
                 // to 2 seconds.
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.mov.webm",
             },
-            imagePreviewVideoDuration: 2010,
+            imagePreviewVideoDuration: 2000,
             imagePreviewSize: {
                 width: 240,
                 height: 134,
@@ -422,6 +441,12 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec.m4a",
             audioPreviewDuration: 5512,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
+        },
+        {
+            path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec_and_moov_atom_at_end.m4a",
+            alternative: {contentType: "audio/mp4"},
+            audioPreviewDuration: 5510,
             audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
         {
