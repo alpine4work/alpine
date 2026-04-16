@@ -2964,6 +2964,197 @@ Bob,Designer`,
             }
         });
 
+        test("skips CSV links when the file is missing from the export", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Notion sometimes omits inline database CSV files from the export while still
+            // including the markdown link. The document should be created successfully with
+            // the CSV link kept as a regular paragraph instead of being converted to a table.
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Missing DB
+
+Here is a linked database:
+
+[Tasks](Tasks%20def12345678901234567890abcdef123.csv)
+
+And some content after.`),
+            };
+
+            const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const mappedResult: NotionImportMappedReferencesResult = {
+                notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test",
+                        importOption: {type: "Private"},
+                        documents: {
+                            [docPath]: {
+                                id: documentId,
+                                references: new Map(),
+                                files: new Set(),
+                                parent: null,
+                                children: new Set(),
+                                hasChildrenHeader: false,
+                            },
+                        },
+                    },
+                ],
+                filesToUpload: {},
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren: new Map(),
+                rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
+                pathToDocumentId: new Map([[docPath, documentId]]),
+                documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
+            };
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const document = await getDocument(space.systemAction(), documentId);
+            const documentContent = document.content.doc.toJSON();
+
+            expect(documentContent.content[0]).toMatchObject({
+                type: "title",
+                content: [{type: "text", text: "Document with Missing DB"}],
+            });
+
+            // Content after the missing CSV link should still be present
+            expect(documentContent).toMatchObject({
+                type: "doc",
+                content: expect.arrayContaining([
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "And some content after."}],
+                    },
+                ]),
+            });
+
+            // No table should have been created (CSV was missing)
+            const hasTable = documentContent.content.some(
+                (node: {type: string}) => node.type === "table",
+            );
+            expect(hasTable).toBe(false);
+        });
+
+        test("skips missing CSV but still converts existing CSVs in same document", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Document references two CSVs: one that exists and one that doesn't. The existing
+            // one should become a table, the missing one should stay as a paragraph.
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Mixed Database Document
+
+[Exists](Exists%20aaa12345678901234567890abcdef123.csv)
+
+[Missing](Missing%20bbb12345678901234567890abcdef123.csv)
+
+End of document.`),
+                "Exists aaa12345678901234567890abcdef123.csv": strToU8(`Name,Status\nTask 1,Done`),
+            };
+
+            const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const existsCsvPath = "Exists aaa12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const mappedResult: NotionImportMappedReferencesResult = {
+                notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test",
+                        importOption: {type: "Private"},
+                        documents: {
+                            [docPath]: {
+                                id: documentId,
+                                references: new Map(),
+                                files: new Set(),
+                                parent: null,
+                                children: new Set(),
+                                hasChildrenHeader: false,
+                            },
+                        },
+                    },
+                ],
+                filesToUpload: {},
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren: new Map([[existsCsvPath, new Map()]]),
+                rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
+                pathToDocumentId: new Map([[docPath, documentId]]),
+                documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
+            };
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const document = await getDocument(space.systemAction(), documentId);
+            const documentContent = document.content.doc.toJSON();
+
+            // The existing CSV should have been converted to a table
+            const table = documentContent.content.find(
+                (node: {type: string}) => node.type === "table",
+            );
+            expect(table).toBeDefined();
+            expect(table.content).toHaveLength(2); // Header + 1 data row
+
+            // "End of document" should still be present
+            expect(documentContent).toMatchObject({
+                type: "doc",
+                content: expect.arrayContaining([
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "End of document."}],
+                    },
+                ]),
+            });
+        });
+
         test("creates full-page database documents from CSV files", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();

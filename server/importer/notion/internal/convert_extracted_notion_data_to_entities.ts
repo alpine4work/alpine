@@ -1415,13 +1415,24 @@ async function transformCsvLinksToTables(
                                 resolveNotionImportRelativePath(currentDir, normalizedPath) ??
                                 normalizedPath;
 
-                            // Read the CSV content from disk
-                            const csvData = assertExists(
-                                await context.importerService.readUnzippedFile({
-                                    diskPathToUnzippedFiles,
-                                    relativeFilePath: resolvedPath,
-                                }),
-                            );
+                            // Notion sometimes omits inline database CSVs from an export while still writing
+                            // the markdown link (e.g. `[Tasks](Tasks%20abc123.csv)`). The filenames follow the
+                            // standard `Title notionId.csv` pattern, so missing CSVs are indistinguishable
+                            // from real ones until we try to read them.
+                            //
+                            // The reference mapping phase filters links against files on disk, but this
+                            // function re-discovers CSV links from parsed API content independently. When the
+                            // file is missing we skip the table conversion and leave the link as a regular
+                            // paragraph. See `server/importer/notion/README.md` ("Missing Inline Database
+                            // CSVs") for the full investigation.
+                            const csvData = await context.importerService.readUnzippedFile({
+                                diskPathToUnzippedFiles,
+                                relativeFilePath: resolvedPath,
+                            });
+
+                            if (!csvData) {
+                                break;
+                            }
 
                             const csvContent = strFromU8(csvData);
                             const childTitleToDocumentId =

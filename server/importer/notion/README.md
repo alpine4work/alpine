@@ -399,6 +399,35 @@ as a table rather than linked.
 Then we treat it as inline and remove it from the children list. This prevents duplicate content
 (once as a child link, once as an embedded table).
 
+#### Missing Inline Database CSVs
+
+Notion sometimes **omits the CSV file for an inline database while still writing the markdown link**
+into the parent page. Real workspaces regularly hit this — e.g. one of Josh's exports was missing 10
+inline database CSVs across template pages ("New Project", "New Task") and Home dashboard widgets
+("My tasks", "Home views", etc.).
+
+The missing CSV filenames follow Notion's normal `Title notionId.csv` pattern, so they are
+**indistinguishable from real database CSVs** until you try to read them:
+
+- Not an encoding/normalization issue — checking missing notion IDs against every file in the zip
+  (any extension, any Unicode normalization) returns zero matches. The files are genuinely absent.
+- Not a multi-part zip issue — the missing CSVs don't appear in any part of the export.
+- Not distinguishable from `index.html` — both missing and existing CSVs appear with the same `href`
+  pattern, `(Inline database)` label, and HTML structure.
+- Not correlated with empty databases — many existing CSVs also have zero or very few rows.
+
+**How we handle it:** there are two code paths that discover CSV references.
+
+1. The reference mapping phase (`parseNotionImportAndMapReferences`) builds `allPaths` from files on
+   disk and `findMarkdownLinks` filters against it, so missing CSVs drop out naturally.
+2. `transformCsvLinksToTables` in `convert_extracted_notion_data_to_entities.ts` **re-discovers CSV
+   links from parsed API content independently**. This is the path that crashed before the fix. When
+   `readUnzippedFile` returns null we skip the table conversion and leave the original markdown link
+   as a regular paragraph.
+
+The root `Home.md` case is already filtered upstream by `isHomeFileWithOnlyCsvLinks`, so only inline
+databases embedded inside regular pages reach this fallback.
+
 ### Database CSV Formats (`.csv` vs `_all.csv`)
 
 Notion exports each database as two CSV files:
