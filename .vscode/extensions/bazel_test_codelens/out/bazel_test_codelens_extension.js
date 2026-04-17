@@ -19,8 +19,7 @@ _export(exports, {
         return deactivate;
     }
 });
-const _interop_require_wildcard = require("@swc/helpers/_/_interop_require_wildcard");
-const _vscode = /*#__PURE__*/ _interop_require_wildcard._(require("vscode"));
+const _vscode = require("vscode");
 const _bazel_test_codelens_provider = require("./bazel_test_codelens_provider.js");
 const _find_bazel_test_target_for_vscode = require("./find_bazel_test_target_for_vscode.js");
 function activate(context) {
@@ -92,10 +91,37 @@ function getOrCreateTerminal() {
     }
     return _vscode.window.createTerminal("Bazel Test Runner");
 }
-const getTestCommandWithFilterIfPossible = (bazelTarget, testName)=>{
+function getTestCommandWithFilterIfPossible(bazelTarget, testName) {
     if (testName === "") {
         return `bazel run ${bazelTarget}`;
     }
-    return `bazel run ${bazelTarget} -- -t="${testName}"`; // these quotes are important for the shell
-};
+    const escapedTestName = escapeForDoubleQuotedBashString(escapeNonAsciiCharacters(testName));
+    return `bazel run ${bazelTarget} -- -t="${escapedTestName}"`; // these quotes are important for the shell
+}
+function escapeForDoubleQuotedBashString(value) {
+    return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\u201D").replace(/\$/g, "\\$").replace(/`/g, "\\`");
+}
+function escapeNonAsciiCharacters(value) {
+    let escapedValue = "";
+    for (const character of value){
+        const characterCodePoint = character.codePointAt(0);
+        if (characterCodePoint === undefined) {
+            continue;
+        }
+        if (characterCodePoint <= 0x7f) {
+            escapedValue += character;
+            continue;
+        }
+        if (characterCodePoint <= 0xffff) {
+            escapedValue += `\\u${characterCodePoint.toString(16).padStart(4, "0")}`;
+            continue;
+        }
+        const codePointWithoutBase = characterCodePoint - 0x10000;
+        const highSurrogate = 0xd800 + (codePointWithoutBase >> 10);
+        const lowSurrogate = 0xdc00 + (codePointWithoutBase & 0x3ff);
+        escapedValue += `\\u${highSurrogate.toString(16).padStart(4, "0")}`;
+        escapedValue += `\\u${lowSurrogate.toString(16).padStart(4, "0")}`;
+    }
+    return escapedValue;
+}
 function deactivate() {}

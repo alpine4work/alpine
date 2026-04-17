@@ -11,8 +11,7 @@ Object.defineProperty(exports, "BazelTestCodeLensProvider", {
         return BazelTestCodeLensProvider;
     }
 });
-const _interop_require_wildcard = require("@swc/helpers/_/_interop_require_wildcard");
-const _vscode = /*#__PURE__*/ _interop_require_wildcard._(require("vscode"));
+const _vscode = require("vscode");
 function isDynamicName(name) {
     return name.includes("${") || name.includes("`") || !!name.match(/\$\{[^}]+\}/) || !name.match(/^['"`].*['"`]$/); // Not quoted = variable
 }
@@ -41,8 +40,8 @@ class BazelTestCodeLensProvider {
         const codeLenses = [];
         const text = document.getText();
         const lines = text.split("\n");
-        const describeRegex = /^\s*describe\s*\(\s*([^,)]+)/;
-        const testRegex = /^\s*(it|test)\s*\(\s*([^,)]+)/;
+        const describeRegex = /^\s*describe(?:\.only)?\s*\(\s*([^,)]+)/;
+        const testRegex = /^\s*(?:it|test)(?:\.only)?\s*\(\s*([^,)]+)/;
         const suiteStack = [];
         for(let i = 0; i < lines.length; i++){
             const line = lines[i];
@@ -83,7 +82,7 @@ class BazelTestCodeLensProvider {
             }
             const testMatch = line.match(testRegex);
             if (testMatch) {
-                const testName = testMatch[2];
+                const testName = testMatch[1];
                 while(suiteStack.length > 0 && suiteStack[suiteStack.length - 1].level >= indentLevel){
                     suiteStack.pop();
                 }

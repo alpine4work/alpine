@@ -11,15 +11,14 @@ Object.defineProperty(exports, "findBazelTestTargetForVscode", {
         return findBazelTestTargetForVscode;
     }
 });
-const _interop_require_wildcard = require("@swc/helpers/_/_interop_require_wildcard");
-const _path = /*#__PURE__*/ _interop_require_wildcard._(require("path"));
-const _vscode = /*#__PURE__*/ _interop_require_wildcard._(require("vscode"));
+const _path = require("path");
+const _vscode = require("vscode");
 async function findBazelTestTargetForVscode(uri) {
     const workspaceFolder = _vscode.workspace.getWorkspaceFolder(uri);
     if (!workspaceFolder) return null;
     const relativePath = _vscode.workspace.asRelativePath(uri);
-    const dir = _path.dirname(relativePath);
-    const fileName = _path.basename(uri.fsPath);
+    const dir = (0, _path.dirname)(relativePath);
+    const fileName = (0, _path.basename)(uri.fsPath);
     if (!/\.(test)\.(ts|js|tsx|jsx)$/.test(fileName)) {
         return null;
     }
@@ -30,7 +29,7 @@ async function findBazelTestTargetForVscode(uri) {
             await _vscode.workspace.fs.stat(buildFilePath);
             break;
         } catch  {
-            const parentDir = _path.dirname(buildFileDir);
+            const parentDir = (0, _path.dirname)(buildFileDir);
             if (parentDir === buildFileDir || parentDir === ".") {
                 break;
             }
@@ -41,7 +40,7 @@ async function findBazelTestTargetForVscode(uri) {
         return null;
     }
     const buildFileDirAbsolutePath = _vscode.Uri.joinPath(workspaceFolder.uri, buildFileDir).fsPath;
-    const relativeFromBuildFile = _path.relative(buildFileDirAbsolutePath, uri.fsPath);
+    const relativeFromBuildFile = (0, _path.relative)(buildFileDirAbsolutePath, uri.fsPath);
     const targetName = relativeFromBuildFile.replace(/\.(test|spec)\.(ts|js|tsx|jsx)$/, "_test").replace(/\\/g, "/"); // Normalize path separators
     return `//${buildFileDir}:${targetName}`;
 }
