@@ -296,7 +296,13 @@ function estimateRemainingDurationMs(
         const remaining = expectedCount - uploaded;
         if (remaining <= 0 || expectedCount === 0) continue;
         const throughput = getFileContentTypeThroughputBytesPerMs(contentType);
-        totalMs += (size / throughput) * (remaining / expectedCount);
+
+        // This is very much magic number and should probably be replaced with a more
+        // accurate estimate. We've observed that video processing is a lot faster on our
+        // beefy fargate instances than our file processor instances.
+        const adjustedThroughput = contentType.startsWith("video/") ? throughput * 4 : throughput;
+
+        totalMs += (size / adjustedThroughput) * (remaining / expectedCount);
     }
 
     return totalMs * estimateRemainingDurationImporterRatio;
