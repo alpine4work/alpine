@@ -13,29 +13,26 @@ is compared against the parent branch (determined via Graphite) and copied to th
 
 ## Workflow
 
-### Step 1: Gather context from Graphite
+### Step 1: Identify the parent branch
 
 ```bash
-# Identify the parent branch and current stack position
-gt log
+# Get the parent branch name — look for the "Parent:" line in the output
+gt info
 ```
 
-Use the output to understand:
-
-- What the parent branch is (this is the base for the diff).
-- Where this branch sits in the stack (for context on the broader feature).
+Parse the parent branch from the `Parent:` line in the output. This is the base for the diff.
 
 ### Step 2: Gather the diff
 
 ```bash
-# Get the parent branch name
-gt info
-
 # Diff against the parent branch
 git diff <parent-branch>...HEAD
 
 # See commit messages on this branch (these often contain useful context)
 git log <parent-branch>..HEAD --oneline
+
+# Optional: see where this branch sits in the stack for broader context
+gt log short
 ```
 
 If the diff is very large, focus on the most important files first. Use `git diff --stat` to get an
