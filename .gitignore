@@ -62,5 +62,5 @@ target
 /out
 
 # Agent skill Outputs
-review.md
 docs/superpowers
+docs/agents
