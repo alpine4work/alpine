@@ -173,6 +173,22 @@ module.exports = {
                 reportStringHtmlEntities(nodeStart, text);
             },
             TemplateElement(node) {
+                // Skip template literals tagged with `sql`. SQL syntax requires
+                // straight quotes (e.g. string literals like `'foo'`) and must
+                // not be rewritten to curly quotes.
+                const templateLiteral = node.parent;
+                if (
+                    templateLiteral &&
+                    templateLiteral.type === "TemplateLiteral" &&
+                    templateLiteral.parent &&
+                    templateLiteral.parent.type === "TaggedTemplateExpression" &&
+                    templateLiteral.parent.quasi === templateLiteral &&
+                    templateLiteral.parent.tag.type === "Identifier" &&
+                    templateLiteral.parent.tag.name === "sql"
+                ) {
+                    return;
+                }
+
                 const nodeStart = node.range[0] + 1;
                 const text = node.value.raw;
 

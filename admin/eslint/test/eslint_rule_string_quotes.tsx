@@ -76,3 +76,24 @@ console.log("Couldn\u2019t go back");
 
 // Unicode escapes in template literals are fine.
 console.log(`Couldn\u2019t go back`);
+
+// Template literals tagged with `sql` are exempt, since SQL syntax requires
+// straight quotes for string literals and identifiers.
+declare function sql(strings: TemplateStringsArray, ...values: Array<unknown>): string;
+console.log(sql`
+    SELECT
+        *
+    FROM
+        t
+    WHERE
+        name = 'Alice'
+        AND label = "x"
+`);
+console.log(sql`
+    SELECT
+        'a'
+    FROM
+        t
+    WHERE
+        x = ${1}
+`);

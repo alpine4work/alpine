@@ -98,6 +98,7 @@ export function useGridViewFields({
         position: OrderKey,
         isHidden: boolean,
     ) => void;
+    contentMinWidth: number;
 } {
     const conn = useDatabaseConnection();
     const spacingScale = useSpacingScale();
