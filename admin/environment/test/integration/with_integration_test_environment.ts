@@ -57,9 +57,17 @@ const debug = createDebug(import.meta.url);
 const env = parseDotenv();
 
 // Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
-// picks them up.
+// picks them up. Clear `AWS_PROFILE` and `AWS_SESSION_TOKEN` from the ambient
+// shell (developers often have these set for real AWS work) since
+// `defaultProvider()` prefers `AWS_PROFILE` over `AWS_ACCESS_KEY_ID`/
+// `AWS_SECRET_ACCESS_KEY` and we need our spawned subservices to all use the same
+// `"local"` access key as the test process. DynamoDB Local partitions its
+// in-memory tables by access key (no `-sharedDb`), so a mismatch would make tables
+// written by one process invisible to another.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
+delete process.env.AWS_PROFILE;
+delete process.env.AWS_SESSION_TOKEN;
 
 export type TestServices = {
     /**
