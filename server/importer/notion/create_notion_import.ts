@@ -13,6 +13,7 @@ import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {notionImportMaxZipSize} from "~/shared/importer/notion/notion_import_max_zip_size.js";
 
 /**
  * Creates a new Notion import record and initiates a multipart upload for the
@@ -36,6 +37,15 @@ export async function createNotionImport(
     importKey: string;
 }> {
     await authorizeSpaceAccess(context, spaceId, "Member");
+
+    if (contentLength > notionImportMaxZipSize) {
+        throw new FailedPreconditionError(
+            `Couldn\u2019t import Notion data. The selected file is too large.`,
+            {
+                displayMessage: errorDisplayMessage`Couldn\u2019t import Notion data. The selected file is too large.`,
+            },
+        );
+    }
 
     const currentAccountId = context.actor.getAccountId();
     const existingImports = await getAllNotionImportsForSpace(context, {spaceId});
