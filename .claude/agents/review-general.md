@@ -116,7 +116,12 @@ to Honeycomb); use `displayMessage` instead.
 #### B3: Unsafe type assertions (`as T`, `x!`)
 `as T` is unsound -- it suppresses type errors silently. Use `cast<T>(x)` from
 `shared/helpers/cast.ts` for safe casts, or restructure code so TypeScript narrows naturally. Never
-use `as never` to silence `exhaustive()` checks. Use `assertExists(x)` instead of `x!`.
+use `as never` to silence `exhaustive()` checks. **Always use `assertExists(x)` instead of `x!`**.
+The non-null assertion operator `!` silently lies to the compiler. `assertExists()` throws a clear
+error at runtime if the value is actually null/undefined. Flag every `x!` usage in the diff outside
+of test files (`*.test.ts`) and recommend `assertExists(x)` from
+`shared/helpers/control/assert_exists.ts`. For example:
+`batch[0]!.fileId` → `assertExists(batch[0]).fileId`.
 
 #### B4: Race conditions in concurrent state updates
 Watch for boolean flags like `isLoading` that get set to `false` when one of multiple concurrent
