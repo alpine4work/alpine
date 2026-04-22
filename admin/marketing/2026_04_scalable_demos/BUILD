@@ -5,6 +5,14 @@ load(":scalable_demo_repositories.bzl", "scalable_demo_repositories_public")
 
 ts_project(
     name = "2026_04_scalable_demos",
+    srcs = glob(
+        ["**/*.ts", "**/*.tsx"],
+        exclude = [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+        ],
+        allow_empty = True,
+    ),
     data = ["//admin/environment/test/integration:integration_data"],
     deps = [
         "//:node_modules/@inquirer/prompts",
@@ -36,5 +44,12 @@ js_binary(
     name = "content_prompt",
     data = [":2026_04_scalable_demos"],
     entry_point = "scalable_demo_content_prompt_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "new_demo",
+    data = [":2026_04_scalable_demos"],
+    entry_point = "new_demo_main.js",
     env = {"NODE_ENV": "development"},
 )

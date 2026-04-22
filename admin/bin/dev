@@ -43,7 +43,7 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@"; then
+if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
     # Notational conventions:
     #
     # - `[arg]`: Optional argument
@@ -76,6 +76,7 @@ Usage:
     dev adhoc <command>      Create or run ad-hoc scripts
     dev agents <command>     Manage agents-related services
     dev experimental         Run experimental scripts
+    dev demo <command>       Manage scalable demo videos
     dev --help               Print this message"
     exit 0
 fi
@@ -331,6 +332,67 @@ EOF
 
     agents)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:agents -- "${@:2}"
+        ;;
+
+    # Temporary command for the 2026-04 scalable demos project.
+    # Delete once the demo recording format stabilizes.
+    demo)
+        case "$2" in
+            studio)
+                exec ./admin/marketing/2026_04_scalable_demos/remotion_studio.sh
+                ;;
+            assets)
+                exec ./admin/bin/bazel build //admin/marketing/2026_04_scalable_demos:public
+                ;;
+            content)
+                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:content_prompt
+                ;;
+            new)
+                ./admin/bin/bazel run --ui_event_filters=-info //admin/marketing/2026_04_scalable_demos:new_demo -- "${@:3}"
+                ;;
+            run)
+                demo_arg="$3"
+                if [ -z "$demo_arg" ]; then
+                    echo "Usage: dev demo run <number-or-name>"
+                    echo "  e.g. dev demo run 5"
+                    echo "       dev demo run 005"
+                    echo "       dev demo run 005_export_table_to_markdown"
+                    exit 1
+                fi
+
+                demos_dir="./admin/marketing/2026_04_scalable_demos/demos"
+
+                # Accept bare number (`5`, `005`) or full/partial name prefix
+                # (`005_export_table_to_markdown`). Zero-pad numeric inputs and
+                # glob the demos directory for the matching recorder file.
+                if [[ "$demo_arg" =~ ^[0-9]+$ ]]; then
+                    padded=$(printf "%03d" "$demo_arg")
+                    matches=($demos_dir/${padded}_*_demo_recorder.ts)
+                else
+                    matches=($demos_dir/${demo_arg}*_demo_recorder.ts)
+                fi
+
+                if [ ! -f "${matches[0]}" ]; then
+                    echo "No demo recorder found matching: $demo_arg" >&2
+                    exit 1
+                fi
+
+                if [ ${#matches[@]} -gt 1 ]; then
+                    echo "Multiple demos matched \"$demo_arg\":" >&2
+                    for m in "${matches[@]}"; do
+                        echo "  $m" >&2
+                    done
+                    exit 1
+                fi
+
+                label=$(basename "${matches[0]}" .ts)
+                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:${label}
+                ;;
+            *)
+                echo "Usage: dev demo <studio|update-assets|content-prompt|new|run>"
+                exit 1
+                ;;
+        esac
         ;;
 
     experimental)
