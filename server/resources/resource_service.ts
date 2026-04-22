@@ -234,18 +234,31 @@ async function handleFetch(
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         let response;
 
+        // Add CORS headers to the response for trusted domains. Only origins that are in
+        // the trusted domains can access files via CORS mode.
+        const origin = request.headers.get("Origin");
+        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
+
+        const allowedCorsOrigin = origin && trustedOrigins.includes(origin) ? origin : null;
+
         try {
-            // Important to `await` here so that our try/catch catches any errors
-            // asynchronously thrown by this function.
-            response = await actuallyHandleFetch(
-                request,
-                env,
-                executionContext,
-                startTime,
-                url,
-                route,
-                span,
-            );
+            if (request.method === "OPTIONS") {
+                // OPTIONS requests are handled here to avoid reaching `actuallyHandleFetch`, which
+                // only supports `GET` and `HEAD`.
+                response = handleOptionsRequest(request, allowedCorsOrigin !== null);
+            } else {
+                // Important to `await` here so that our try/catch catches any errors
+                // asynchronously thrown by this function.
+                response = await actuallyHandleFetch(
+                    request,
+                    env,
+                    executionContext,
+                    startTime,
+                    url,
+                    route,
+                    span,
+                );
+            }
         } catch (error) {
             span.addException(error);
             response = createSimpleErrorResponse(error);
@@ -253,14 +266,8 @@ async function handleFetch(
 
         const responseHeaders = new Headers(response.headers);
 
-        // Add CORS headers to the response for trusted domains. Only origins that are in
-        // the trusted domains can access files via CORS mode.
-        const origin = request.headers.get("Origin");
-        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
-
-        // If there is no origin header, then this isn't a CORS request
-        if (origin && trustedOrigins.includes(origin)) {
-            responseHeaders.set("Access-Control-Allow-Origin", origin);
+        if (allowedCorsOrigin !== null) {
+            responseHeaders.set("Access-Control-Allow-Origin", allowedCorsOrigin);
         }
 
         // Ensure if the origin changes, the browser will re-fetch the resource. Important
@@ -296,6 +303,29 @@ async function handleFetch(
             headers: responseHeaders,
         });
     });
+}
+
+function handleOptionsRequest(request: Request, isCorsRequest: boolean) {
+    const responseHeaders = new Headers();
+
+    if (isCorsRequest && request.headers.has("Access-Control-Request-Method")) {
+        responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+
+        // We allow any headers to be sent in the request.
+        const requestedHeaders = request.headers.get("Access-Control-Request-Headers");
+        if (requestedHeaders) {
+            responseHeaders.set("Access-Control-Allow-Headers", requestedHeaders);
+        }
+    } else {
+        responseHeaders.set("Allow", "GET, HEAD, OPTIONS");
+    }
+
+    responseHeaders.set("Access-Control-Max-Age", "86400");
+
+    // This is purposely a 200 instead of a 204 as some browsers may not correctly
+    // fetch the actual resource after receiving a 204.
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/OPTIONS#preflighted_requests_in_cors
+    return new Response(null, {status: 200, headers: responseHeaders});
 }
 
 async function actuallyHandleFetch(
