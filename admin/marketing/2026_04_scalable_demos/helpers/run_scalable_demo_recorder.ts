@@ -13,16 +13,37 @@ import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_direc
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
+
+/**
+ * A single collaborator\u2019s contribution to a recording.
+ *
+ * The recorder creates a dedicated signed-in browser window for this session up
+ * front (before the human starts recording) and hands the same Playwright `Page`
+ * to every callback in `actions`. Actions run sequentially \u2014 any navigation,
+ * typing, or clicking happens inside the callback.
+ *
+ * Multiple collaborators run their `actions` arrays concurrently.
+ */
+export type ScalableDemoRecorderCollaborator = {
+    session: TestSpaceSession | TestSession;
+    actions: ReadonlyArray<(page: Page) => Promise<void>>;
+};
 
 export class ScalableDemoRecorder {
     private readonly _services: TestServices;
     private readonly _baseUrl: string;
     private readonly _browser: Browser;
     private readonly _browserContext: BrowserContext;
+    // Collaborator browsers run in a separate **headless** Chromium instance so they
+    // don\u2019t steal screen real estate or keyboard focus from the headed primary
+    // browser the human is recording. Created lazily on first use.
+    private _collaboratorBrowser: Browser | null = null;
+    private readonly _secondaryContexts: Array<BrowserContext> = [];
 
     constructor({
         services,
@@ -47,12 +68,28 @@ export class ScalableDemoRecorder {
         path,
         viewport,
         prepare,
+        collaborators,
     }: {
         instructions: PrettyMarkdown;
         session: TestSpaceSession | TestSession | null;
         path: string;
         viewport?: {width: number; height?: number};
         prepare?: (page: Page) => Promise<void>;
+        /**
+         * Other signed-in browser windows that drive realtime state during the recording
+         * (incoming chat messages, typing indicators, another account\u2019s presence,
+         * reactions, etc.). Keyed by an arbitrary string identifier the caller picks
+         * \u2014 it\u2019s only used in log output.
+         *
+         * Each collaborator\u2019s browser is created, signed in, and given a blank page
+         * **before** the human starts recording, so opening a second browser window
+         * doesn\u2019t happen while the screen recorder is rolling. The `actions` array
+         * runs sequentially inside that browser, and different collaborators run their
+         * arrays concurrently. Actions don\u2019t start until **after** the \u201Cpress
+         * enter to fire collaborator actions\u201D prompt \u2014 so you have time to start
+         * your screen recorder first.
+         */
+        collaborators?: Record<string, ScalableDemoRecorderCollaborator>;
     }): Promise<void> {
         if (session !== null) {
             await this._services.signIn(this._browserContext, session);
@@ -86,6 +123,13 @@ export class ScalableDemoRecorder {
 
             await prepare?.(page);
 
+            // Spin up each collaborator\u2019s browser up front so the cost of opening a new
+            // Chromium context doesn\u2019t happen while the human is screen recording. The
+            // page is blank until the first action navigates it.
+            const collaboratorPages = collaborators
+                ? await this._openCollaboratorPages(collaborators)
+                : new Map<string, Page>();
+
             // eslint-disable-next-line no-console
             console.log();
             // eslint-disable-next-line no-console
@@ -97,11 +141,105 @@ export class ScalableDemoRecorder {
             // eslint-disable-next-line no-console
             console.log();
 
-            await inquirer.confirm({message: "Finished recording?"});
+            if (collaborators && Object.keys(collaborators).length > 0) {
+                await inquirer.confirm({
+                    message: "Start recording, then press enter to fire the collaborator actions.",
+                });
+            }
+
+            const collaboratorsHandle =
+                collaborators && Object.keys(collaborators).length > 0
+                    ? runCollaboratorsInBackground(collaborators, collaboratorPages)
+                    : null;
+
+            try {
+                await inquirer.confirm({message: "Finished recording?"});
+            } finally {
+                await collaboratorsHandle?.cancel();
+            }
         } finally {
             await page.close();
+            for (const browserContext of this._secondaryContexts) {
+                await browserContext.close();
+            }
+            this._secondaryContexts.length = 0;
+            if (this._collaboratorBrowser) {
+                await this._collaboratorBrowser.close();
+                this._collaboratorBrowser = null;
+            }
         }
     }
+
+    private async _openCollaboratorPages(
+        collaborators: Record<string, ScalableDemoRecorderCollaborator>,
+    ): Promise<Map<string, Page>> {
+        // Launch one headless Chromium for all collaborators \u2014 cheaper than one per
+        // collaborator, and since they\u2019re invisible there\u2019s no reason to isolate
+        // them at the OS-window level. Separate from the primary browser so the
+        // human\u2019s headed recording window isn\u2019t fighting collaborator windows
+        // for focus or screen real estate.
+        const collaboratorBrowser = (this._collaboratorBrowser ??= await chromium.launch({
+            headless: true,
+        }));
+
+        const collaboratorPages = new Map<string, Page>();
+        await runAllPromises(
+            Object.entries(collaborators).map(async ([id, config]) => {
+                const browserContext = await collaboratorBrowser.newContext({
+                    ...devices["Desktop Chrome"],
+                    viewport: scalableDemoDefaultViewport,
+                    deviceScaleFactor: 2,
+                    timezoneId: "America/New_York",
+                    // So callbacks can `page.goto("/s/.../chat/...")` with a relative URL \u2014
+                    // Playwright resolves it against `baseURL`.
+                    baseURL: this._baseUrl,
+                });
+                this._secondaryContexts.push(browserContext);
+
+                await this._services.signIn(browserContext, config.session);
+
+                const collaboratorPage = await browserContext.newPage();
+                collaboratorPages.set(id, collaboratorPage);
+            }),
+        );
+        return collaboratorPages;
+    }
+}
+
+/**
+ * Run each collaborator\u2019s `actions` array concurrently. Each collaborator
+ * runs its own actions sequentially so callers can reason about order within a
+ * single browser. Errors in one action are logged but don\u2019t abort the
+ * recording or cancel other collaborators.
+ */
+function runCollaboratorsInBackground(
+    collaborators: Record<string, ScalableDemoRecorderCollaborator>,
+    collaboratorPages: Map<string, Page>,
+): {cancel: () => Promise<void>} {
+    let cancelled = false;
+
+    const collaboratorPromises = Object.entries(collaborators).map(async ([id, config]) => {
+        const collaboratorPage = collaboratorPages.get(id);
+        if (!collaboratorPage) return;
+
+        for (const action of config.actions) {
+            if (cancelled) return;
+
+            try {
+                await action(collaboratorPage);
+            } catch (error) {
+                // eslint-disable-next-line no-console
+                console.error(`Recorder action for collaborator ${id} failed:`, error);
+            }
+        }
+    });
+
+    return {
+        cancel: async () => {
+            cancelled = true;
+            await runAllPromises(collaboratorPromises);
+        },
+    };
 }
 
 export function runScalableDemoRecorder(

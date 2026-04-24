@@ -616,6 +616,57 @@ Handy knobs:
 - **`instructions`.** Human-readable markdown that shows up in your terminal before you press
   record. **Write these well** — the `dev demo content-prompt` tool reads them to generate post
   copy.
+- **`collaborators`.** Other signed-in browser windows that drive realtime state during the
+  recording — typing indicators, incoming chat messages, another account's presence, reactions from
+  someone else, etc. Keyed by an arbitrary string identifier you pick (it's only used for log
+  output). Each collaborator has a `session` (the account to sign in as) and an `actions` array of
+  async callbacks that receive the collaborator's Playwright `Page`.
+
+    ```ts
+    collaborators: {
+        cliff: {
+            session: accounts.cliffWeathers,
+            actions: [
+                async cliffBrowser => {
+                    // The collaborator\u2019s context has `baseURL` set, so relative
+                    // `page.goto("/s/...")` works.
+                    await cliffBrowser.goto(`/s/${space.id}/chat/${chat.id}`);
+
+                    const input = cliffBrowser.getByLabel("New message");
+                    await input.click();
+                    await input.pressSequentially("Piling up a few asks", {delay: 40});
+
+                    // Use `wait(ms)` from `//shared/helpers/async/wait` to pause
+                    // between steps. Avoid `setTimeout` directly \u2014 keeps the style
+                    // consistent with the rest of the repo.
+                    await wait(1000);
+
+                    // Server-side sends also work \u2014 the page argument is just
+                    // there when you need to drive UI.
+                    await chat.sendMessage(accounts.cliffWeathers, bulletedMessage);
+                },
+            ],
+        },
+    }
+    ```
+
+    **Timing model.** Within a single collaborator the `actions` array runs sequentially (action 2
+    waits for action 1 to finish). Different collaborators run their arrays concurrently. There's no
+    built-in delay scheduling — use `wait(ms)` when you need a pause.
+
+    **Headless.** Collaborator browsers run in a separate headless Chromium instance — they never
+    appear on screen, so they don\u2019t steal focus or fight the headed primary browser for pixels.
+    Everything they do (typing, navigating, sending) still hits the real backend and shows up as
+    realtime state in the primary browser you\u2019re recording.
+
+    **When browsers open vs. when actions fire.** Every collaborator\u2019s browser is created,
+    signed in, and parked on a blank page _before_ the recording starts, so no context-launch cost
+    happens while the screen recorder is rolling. When collaborators are present you\u2019ll be
+    prompted in the terminal to press enter _after_ you\u2019ve started your screen recorder — only
+    then do the actions begin. Action errors are logged but don't abort the recording. All
+    collaborator browsers close automatically when the recording ends.
+
+    Reference implementation: demo 012 (`012_chat_message_paragraph_reactions_demo_recorder.ts`).
 
 ---
 
