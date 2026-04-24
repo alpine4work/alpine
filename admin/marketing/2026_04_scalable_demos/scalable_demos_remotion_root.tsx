@@ -60,6 +60,8 @@ import {SearchProjectPreviewDemoComposition} from "~/admin/marketing/2026_04_sca
 import {searchProjectPreviewDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/011_search_project_preview_demo_shared.js";
 import {ChatMessageParagraphReactionsDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/012_chat_message_paragraph_reactions_demo_composition.js";
 import {chatMessageParagraphReactionsDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/012_chat_message_paragraph_reactions_demo_shared.js";
+import {InboxTriageDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/013_inbox_triage_demo_composition.js";
+import {inboxTriageDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/013_inbox_triage_demo_shared.js";
 import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
@@ -149,6 +151,12 @@ export function ScalableDemosRemotionRoot() {
                 component={ChatMessageParagraphReactionsDemoComposition}
                 recordingWidth={scalableDemoDefaultViewportWidth}
                 durationInFrames={chatMessageParagraphReactionsDemoDurationInFrames}
+            />
+            <Composition
+                id="013-inbox-triage-demo"
+                component={InboxTriageDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={inboxTriageDemoDurationInFrames}
             />
         </>
     );

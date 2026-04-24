@@ -59,6 +59,10 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1t2gZpSjKBy-AJYmLviJ2gxztbjxJr5-H/view?usp=drive_link",
         "integrity": "sha256-08TFn3uH49Tbqz5ymRn4G+58szyNC3hkOLqFGWRck98=",
     },
+    "013_inbox_triage_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1ESg0p2bqItpMOQtOPfY5FPrTKmhs2nKP/view?usp=drive_link",
+        "integrity": "sha256-2PO5WJComF2cEPOTdwaDMnNhDJmxRtMr8P+bky3o3BE=",
+    },
     "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
         "integrity": "sha256-kFfKiGfkNtqisvfIs06n+yi5JW32dC8N50xyceMArn0=",
