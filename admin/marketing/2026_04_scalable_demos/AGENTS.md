@@ -450,6 +450,56 @@ character (from their `TestSpaceSession`) is combined with the emotion:
 
 `"GenericLike"` is the one special value — it renders as a plain thumbs-up without the character.
 
+### Mentions
+
+**Whenever seeded content references a person, document, or other entity by name, render it as an
+inline mention link.** Mentions make the demo feel like a real, connected workspace — plain-text
+names feel like a screenshot, mentions feel like a product. Use them in document bodies, post
+bodies, chat messages, and task notes.
+
+The URL shape is `https://alpine.inc/s/{spaceId}/{entityPath}?mention`. The `?mention` query
+parameter tells the renderer to display the link as an inline mention chip rather than a plain
+hyperlink. The link text in the markdown is a fallback label; the UI replaces it with the real
+entity name at render time.
+
+**Account mentions use `?mention=short` by default**, which renders the person's first name only
+(e.g. "Mason" instead of "Mason Clay"). Use plain `?mention` only when you specifically want the
+full name.
+
+| Entity   | URL path                              |
+| -------- | ------------------------------------- |
+| Account  | `/accounts/{accountId}?mention=short` |
+| Document | `/documents/{documentId}?mention`     |
+| Channel  | `/channels/{channelId}?mention`       |
+| Task     | `/tasks/{taskId}?mention`             |
+
+Because the `markdown` tag doesn't support interpolation (see Style & authoring tips), build a
+helper and use placeholder + `.replace()`:
+
+```ts
+const spaceUrl = `https://alpine.inc/s/${spaceId}`;
+const mentionUrl = (session: {account: {id: string}}) =>
+    `${spaceUrl}/accounts/${session.account.id}?mention=short`;
+
+const body = markdown`
+[Mason](MASON_MENTION) is leading the redesign. [Elle](ELLE_MENTION) is scoping SSO.
+`
+    .replace("MASON_MENTION", mentionUrl(accounts.masonClay))
+    .replace("ELLE_MENTION", mentionUrl(accounts.elleKappaTan));
+```
+
+For document mentions:
+
+```ts
+const docMentionUrl = `${spaceUrl}/documents/${document.id}?mention`;
+
+const body = markdown`
+Full context in the [FY2026 Q2 Update](DOC_MENTION).
+`.replace("DOC_MENTION", docMentionUrl);
+```
+
+Reference implementation: `014_feed_post_with_collection_preview_demo_recorder.ts`.
+
 ### Feed entries (hero feed / demo feed surfaces)
 
 Feed entries aren't written into the database. They're **passed through a URL query param to the
@@ -693,6 +743,22 @@ Handy knobs:
   one-pager, Enterprise SSO scoping, Q4 Planning, Senior Engineer hiring, Customer case studies) are
   the default material to draw from. When a demo needs a sample document, post, chat, or task, reach
   for one of those projects first before inventing something new.
+- **The `markdown` tag does not support variable interpolation** — it breaks Prettier's source code
+  formatting. When you need to substitute dynamic values (e.g. mention URLs with entity IDs), use a
+  placeholder string inside the `markdown` tag and `.replace()` it after:
+    ```ts
+    markdown`
+    Check the [Q2 Update](Q2_UPDATE_MENTION_URL) for context.
+    `.replace("Q2_UPDATE_MENTION_URL", `${spaceUrl}/documents/${doc.id}?mention`);
+    ```
+    The `admin/scenarios` code uses `Mustache.render()` for this, but Mustache is not a dependency
+    of the scalable demos package — use `.replace()` instead.
+- **Seeded content follows [`UNIVERSE.md`](../../../app/screenshot_tests/UNIVERSE.md).** Characters
+  write in their own voice, company facts match, and ongoing projects (Tables in the editor,
+  Realtime Reliability, Editor Interaction Audit, Q3 customer survey, Sales enablement one-pager,
+  Enterprise SSO scoping, Q4 Planning, Senior Engineer hiring, Customer case studies) are the
+  default material to draw from. When a demo needs a sample document, post, chat, or task, reach for
+  one of those projects first before inventing something new.
 - When seeding historical-looking content (e.g. a week-long chat backlog), set `overrideCreatedTime`
   with `@internationalized/date`'s `CalendarDateTime` + `.toDate(timeZone)` so relative timestamps
   ("2d ago") stay realistic. **Anchor dates inside the UNIVERSE.md window (Sep 8 – Oct 17, 2025),

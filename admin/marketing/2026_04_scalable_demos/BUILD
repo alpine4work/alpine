@@ -31,8 +31,10 @@ ts_project(
         "//server/tasks/test_helpers",
         "//shared/design",
         "//shared/error",
+        "//shared/feed",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
     ],
 )
 
