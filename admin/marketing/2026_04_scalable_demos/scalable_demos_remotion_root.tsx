@@ -56,7 +56,10 @@ import {
     pasteBulletListIntoTasksDemoRecordingHeight,
     pasteBulletListIntoTasksDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/010_paste_bullet_list_into_tasks_demo_shared.js";
+import {SearchProjectPreviewDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/011_search_project_preview_demo_composition.js";
+import {searchProjectPreviewDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/011_search_project_preview_demo_shared.js";
 import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
@@ -132,6 +135,12 @@ export function ScalableDemosRemotionRoot() {
                 recordingWidth={pasteBulletListIntoTasksDemoRecordingWidth}
                 recordingHeight={pasteBulletListIntoTasksDemoRecordingHeight}
                 durationInFrames={pasteBulletListIntoTasksDemoDurationInFrames}
+            />
+            <Composition
+                id="011-search-project-preview-demo"
+                component={SearchProjectPreviewDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={searchProjectPreviewDemoDurationInFrames}
             />
         </>
     );

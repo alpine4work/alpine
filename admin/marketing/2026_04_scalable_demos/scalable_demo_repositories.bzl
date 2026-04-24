@@ -51,7 +51,11 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/16dcaTbueeSwiAAHukxq2v_oqdXfrKnYE/view?usp=drive_link",
         "integrity": "sha256-34ycRNsDrvgFjssGpC2NNnNTtNYWDJAkmkOdzo+Kf70=",
     },
-    "rachel_date_background_001.jpeg": {
+    "011_search_project_preview_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1x9OyrwhQITU7nWJ5rV_UMaxv_aylz7eL/view?usp=drive_link",
+        "integrity": "sha256-LpUK/1FWU9MM01k4F+B5QOySiv+nW5tZJbBxorg/kEs=",
+    },
+    "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
         "integrity": "sha256-kFfKiGfkNtqisvfIs06n+yi5JW32dC8N50xyceMArn0=",
     },

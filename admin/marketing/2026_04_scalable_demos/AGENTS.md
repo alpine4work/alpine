@@ -373,8 +373,8 @@ await updateTaskNotesContent(accounts.cassCade.action(), {
 });
 ```
 
-Reference implementation: the project-notes block in demo 006
-(`006_search_project_preview_demo_recorder.ts`).
+Reference implementation: the project-notes block in demo 011
+(`011_search_project_preview_demo_recorder.ts`).
 
 ### Projects vs task collections
 
@@ -391,7 +391,7 @@ Alpine has two overlapping "grouping" shapes for tasks. Pick the right one:
 
 Both surface in search with their own interactive preview. If the demo is about a single project
 with a clean hierarchy of child tasks, reach for `layout: "Project"`. If the demo is about
-cross-cutting planning or sprint-style grouping, reach for `TestTaskCollection`. See demo 006 for a
+cross-cutting planning or sprint-style grouping, reach for `TestTaskCollection`. See demo 011 for a
 project example and `fictional_ambrook_sprint_tasks.ts` for a collection-heavy example.
 
 ### Adding more users to an existing space
@@ -607,7 +607,7 @@ Handy knobs:
   (1280 wide) when the sidebar needs to stay visible** (e.g. the viewer is going to click the search
   entry point). When you switch a demo to default viewport, also update the composition and the
   `<Composition recordingWidth={…}>` in `scalable_demos_remotion_root.tsx` to use
-  `scalableDemoDefaultViewportWidth` so the frame matches. See demo 006 for an example.
+  `scalableDemoDefaultViewportWidth` so the frame matches. See demo 011 for an example.
 - **`prepare`.** Runs after the page loads, before instructions are shown to you. Good for hiding
   the sidebar, dismissing tooltips, pre-filling a field, etc. `dev.spaceSideBar.toggleVisibility()`
   is the canonical sidebar hide. Omit `prepare` entirely when the demo needs the sidebar to stay
