@@ -334,8 +334,7 @@ EOF
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:agents -- "${@:2}"
         ;;
 
-    # Temporary command for the 2026-04 scalable demos project.
-    # Delete once the demo recording format stabilizes.
+    # This is temporary, once we're done with our demo comment format we'll delete this command
     demo)
         case "$2" in
             studio)
