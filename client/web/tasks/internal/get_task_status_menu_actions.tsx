@@ -263,7 +263,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
             return [
                 {
                     label: "Mark open",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenInactive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         commitActionTransaction(taskId => [
@@ -284,7 +286,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                 },
                 {
                     label: "Mark active",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenActive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenActive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         // Currently, accounts without space access can't edit tasks. The max permission
