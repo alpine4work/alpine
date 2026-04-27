@@ -372,9 +372,6 @@ discourage careless usage.
 Before writing a new helper, search the codebase for existing functions that do the same thing.
 Check `shared/helpers/` thoroughly.
 
-#### S31: Use NOCOMMIT for WIP code
-Add `NOCOMMIT` to placeholder code. An ESLint rule prevents committing files containing it.
-
 #### S32: Every interactive element needs keyboard accessibility
 Interactive elements must have `tabIndex`, focus rings, and keyboard event handlers. Avoid
 hover-only states (touch devices can't hover).
