@@ -995,6 +995,7 @@ function PostListView(
             <div
                 className={sprinkles({
                     width: "full",
+                    minWidth: "flex-fit",
                     maxWidth: sideBarLeftSize.maxWidth,
                 })}
                 style={{flex: sideBarLeftSize.flex}}
@@ -1194,6 +1195,7 @@ function PostListView(
                                         minWidth: "flex-fit",
                                         maxWidth: contentStyles.contentMaxWidth,
                                     })}
+                                    style={{flex: postViewFlex}}
                                 >
                                     {((withSafeAreaInsetTop && index === 0) ||
                                         (hasHeader && index === 1)) &&
