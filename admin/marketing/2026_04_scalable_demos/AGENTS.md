@@ -666,6 +666,30 @@ Handy knobs:
 - **`instructions`.** Human-readable markdown that shows up in your terminal before you press
   record. **Write these well** — the `dev demo content-prompt` tool reads them to generate post
   copy.
+- **`actions`.** An array of async Playwright callbacks that run automatically in the primary
+  (headed) browser window — the one the human is screen-recording. Use this when every interaction
+  in the demo can be driven by Playwright (typing, clicking, waiting for elements) so the recording
+  is perfectly reproducible without manual piloting. Mirrors the collaborator `actions` interface
+  but drives the main session.
+
+    ```ts
+    actions: [
+        async page => {
+            const input = page.getByLabel("New message");
+            await input.click();
+            await input.pressSequentially("Finished the design spec — ", {delay: 40});
+            await input.pressSequentially("@Email", {delay: 60});
+            await page.getByRole("option", {name: "Email Integration"}).waitFor();
+            await page.keyboard.press("Return"); // insert mention
+            await page.keyboard.press("Enter");  // send message
+        },
+    ],
+    ```
+
+    **Timing model.** The `actions` array runs sequentially (action 2 waits for action 1 to finish).
+    If `collaborators` actions are also specified, these actions run concurrently with the `actions`
+    array. There is no built-in delay scheduling — use `wait(ms)` when you need a pause.
+
 - **`collaborators`.** Other signed-in browser windows that drive realtime state during the
   recording — typing indicators, incoming chat messages, another account's presence, reactions from
   someone else, etc. Keyed by an arbitrary string identifier you pick (it's only used for log

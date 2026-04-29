@@ -68,6 +68,7 @@ export class ScalableDemoRecorder {
         path,
         viewport,
         prepare,
+        actions,
         collaborators,
     }: {
         instructions: PrettyMarkdown;
@@ -75,6 +76,20 @@ export class ScalableDemoRecorder {
         path: string;
         viewport?: {width: number; height?: number};
         prepare?: (page: Page) => Promise<void>;
+        /**
+         * Playwright actions to run automatically in the primary (headed) browser window
+         * that the human is screen-recording. Mirrors the collaborators `actions`
+         * interface but drives the main session instead of a headless second window.
+         *
+         * When provided the recorder prompts the human to start their screen recorder,
+         * then runs the actions sequentially and waits for a final \u201CFinished
+         * recording?\u201D confirmation before closing. When both `actions` and
+         * `collaborators` are provided the actions run concurrently.
+         *
+         * If omitted the recorder falls back to the manual flow where instructions are
+         * printed and the human drives the UI themselves.
+         */
+        actions?: ReadonlyArray<(page: Page) => Promise<void>>;
         /**
          * Other signed-in browser windows that drive realtime state during the recording
          * (incoming chat messages, typing indicators, another account\u2019s presence,
@@ -141,21 +156,56 @@ export class ScalableDemoRecorder {
             // eslint-disable-next-line no-console
             console.log();
 
-            if (collaborators && Object.keys(collaborators).length > 0) {
-                await inquirer.confirm({
-                    message: "Start recording, then press enter to fire the collaborator actions.",
-                });
-            }
+            const hasAutomatedActions = actions !== undefined && actions.length > 0;
 
-            const collaboratorsHandle =
-                collaborators && Object.keys(collaborators).length > 0
+            const hasCollaborators =
+                collaborators !== undefined && Object.keys(collaborators).length > 0;
+
+            if (hasAutomatedActions) {
+                // Automated mode: run actions in the primary window so the human only needs to
+                // start/stop their screen recorder. Collaborator actions start at the same time as
+                // the primary actions so they run concurrently.
+                await inquirer.confirm({
+                    message: `Start recording, then press Enter to run automated actions${hasCollaborators ? " and collaborator actions" : ""}.`,
+                });
+                // eslint-disable-next-line no-console
+                console.log();
+                const collaboratorsHandle = hasCollaborators
                     ? runCollaboratorsInBackground(collaborators, collaboratorPages)
                     : null;
 
-            try {
-                await inquirer.confirm({message: "Finished recording?"});
-            } finally {
-                await collaboratorsHandle?.cancel();
+                try {
+                    // eslint-disable-next-line no-console
+                    console.log("Running automated actions...");
+                    for (const action of actions) {
+                        await action(page);
+                    }
+                    // eslint-disable-next-line no-console
+                    console.log("Automated actions complete.");
+                    // eslint-disable-next-line no-console
+                    console.log();
+                    await inquirer.confirm({message: "Finished recording?"});
+                } finally {
+                    await collaboratorsHandle?.cancel();
+                }
+            } else {
+                // Manual mode: human drives the UI, collaborators fire on Enter.
+                if (hasCollaborators) {
+                    await inquirer.confirm({
+                        message:
+                            "Start recording, then press enter to fire the collaborator actions.",
+                    });
+                }
+
+                const collaboratorsHandle = hasCollaborators
+                    ? runCollaboratorsInBackground(collaborators, collaboratorPages)
+                    : null;
+
+                try {
+                    await inquirer.confirm({message: "Finished recording?"});
+                } finally {
+                    await collaboratorsHandle?.cancel();
+                }
             }
         } finally {
             await page.close();
@@ -222,6 +272,9 @@ function runCollaboratorsInBackground(
         const collaboratorPage = collaboratorPages.get(id);
         if (!collaboratorPage) return;
 
+        // eslint-disable-next-line no-console
+        console.log(`Running collaborator \`${id}\` actions...`);
+
         for (const action of config.actions) {
             if (cancelled) return;
 
@@ -232,6 +285,8 @@ function runCollaboratorsInBackground(
                 console.error(`Recorder action for collaborator ${id} failed:`, error);
             }
         }
+        // eslint-disable-next-line no-console
+        console.log(`Finished running collaborator \`${id}\` actions.`);
     });
 
     return {

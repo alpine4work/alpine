@@ -365,7 +365,7 @@ EOF
                 # (`005_export_table_to_markdown`). Zero-pad numeric inputs and
                 # glob the demos directory for the matching recorder file.
                 if [[ "$demo_arg" =~ ^[0-9]+$ ]]; then
-                    padded=$(printf "%03d" "$demo_arg")
+                    padded=$(printf "%03d" "$((10#$demo_arg))")
                     matches=($demos_dir/${padded}_*_demo_recorder.ts)
                 else
                     matches=($demos_dir/${demo_arg}*_demo_recorder.ts)
