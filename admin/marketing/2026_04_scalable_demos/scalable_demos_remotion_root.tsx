@@ -64,6 +64,18 @@ import {InboxTriageDemoComposition} from "~/admin/marketing/2026_04_scalable_dem
 import {inboxTriageDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/013_inbox_triage_demo_shared.js";
 import {FeedPostWithCollectionPreviewDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/014_feed_post_with_collection_preview_demo_composition.js";
 import {feedPostWithCollectionPreviewDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/014_feed_post_with_collection_preview_demo_shared.js";
+import {SummarizeViewedPostDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/015_summarize_viewed_post_demo_composition.js";
+import {
+    summarizeViewedPostDemoDurationInFrames,
+    summarizeViewedPostDemoRecordingHeight,
+    summarizeViewedPostDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/015_summarize_viewed_post_demo_shared.js";
+import {MyTasksOverviewDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/016_my_tasks_overview_demo_composition.js";
+import {myTasksOverviewDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/016_my_tasks_overview_demo_shared.js";
+import {ActiveTasksInSuggestedDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/017_active_tasks_in_suggested_demo_composition.js";
+import {activeTasksInSuggestedDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/017_active_tasks_in_suggested_demo_shared.js";
+import {DragToSetTaskDueDateDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/018_drag_to_set_task_due_date_demo_composition.js";
+import {dragToSetTaskDueDateDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/018_drag_to_set_task_due_date_demo_shared.js";
 import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
@@ -165,6 +177,31 @@ export function ScalableDemosRemotionRoot() {
                 component={FeedPostWithCollectionPreviewDemoComposition}
                 recordingWidth={scalableDemoDefaultViewportWidth}
                 durationInFrames={feedPostWithCollectionPreviewDemoDurationInFrames}
+            />
+            <Composition
+                id="015-summarize-viewed-post-demo"
+                component={SummarizeViewedPostDemoComposition}
+                recordingWidth={summarizeViewedPostDemoRecordingWidth}
+                recordingHeight={summarizeViewedPostDemoRecordingHeight}
+                durationInFrames={summarizeViewedPostDemoDurationInFrames}
+            />
+            <Composition
+                id="016-my-tasks-overview-demo"
+                component={MyTasksOverviewDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={myTasksOverviewDemoDurationInFrames}
+            />
+            <Composition
+                id="017-active-tasks-in-suggested-demo"
+                component={ActiveTasksInSuggestedDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={activeTasksInSuggestedDemoDurationInFrames}
+            />
+            <Composition
+                id="018-drag-to-set-task-due-date-demo"
+                component={DragToSetTaskDueDateDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={dragToSetTaskDueDateDemoDurationInFrames}
             />
         </>
     );

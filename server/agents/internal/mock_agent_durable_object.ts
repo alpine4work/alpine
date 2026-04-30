@@ -11,6 +11,7 @@ import {
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -101,8 +102,10 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         // May only play a the recording in test and development environments.
         assert(process.env.NODE_ENV !== "production");
 
-        // Only respond with recording if mentioned. Otherwise noop.
-        if (!request.event.wasMentioned) return;
+        // Mirror the real agent's response policy so the mock behaves the same in a 1:1
+        // chat with the bot — where users don't typically @-mention — as the production
+        // ChatGPT agent does.
+        if (!(await shouldAgentRespondToRequest(tracer, request))) return;
 
         let recording =
             (await MockAgentRecordingCollection.get(this._state.storage, "")) ?? emptyArray;
