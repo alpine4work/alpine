@@ -9,4 +9,8 @@ EXPERIMENTAL_COMMANDS = {
         "target": "//admin/experimental/ifitzsimmons:generate_build_file",
         "description": "Automates BUILD file dependency management based on imports",
     },
+    "sort-reference-graph": {
+        "target": "//admin/experimental/calebmer:sort_reference_graph",
+        "description": "Sort top-level TypeScript declarations into reference graph order",
+    },
 }

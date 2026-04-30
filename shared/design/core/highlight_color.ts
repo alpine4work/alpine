@@ -16,10 +16,10 @@ export enum HighlightColor {
     Purple = "purple",
 }
 
-const highlightColorSet: ReadonlySet<HighlightColor> = new Set(Object.values(HighlightColor));
+export const highlightColors: ReadonlySet<HighlightColor> = new Set(Object.values(HighlightColor));
 
 export function isHighlightColor(string: string): string is HighlightColor {
-    return highlightColorSet.has(string as any);
+    return highlightColors.has(string as any);
 }
 
 export const colorByHighlightColor: {

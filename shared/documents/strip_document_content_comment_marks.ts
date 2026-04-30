@@ -2,7 +2,7 @@ import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {RemoveMarkStep, ReplaceAroundStep, ReplaceStep, Step} from "prosemirror-transform";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 /**
  * Strip all comment marks from the provided node. You may chose to include some

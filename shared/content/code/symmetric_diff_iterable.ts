@@ -46,6 +46,11 @@ export type IterableChange<Value> = {
  * added. In order for this to be a pure symmetric difference you might be able to
  * consider iterable entries as a pair of their relative position and value but
  * being mathematically sound isn't relevant for our current uses of this function.
+ *
+ * @deprecated I just added the `shared/prosemirror/internal/diff.ts` function
+ * which should probably replace this function eventually. It's based on the Myers
+ * diff algorithm and boasts a production grade implementation (forked from a
+ * module installed 85M times per week).
  */
 // NOTE(calebmer, #interview): Implementing this function could make for a good
 // algorithmic interview question.
@@ -65,6 +70,11 @@ export function symmetricDiffIterable<Value>(
  * Same as `symmetricDiffIterable()`. If you happen to already have both an array
  * and a set for your old/new iterables you should call this function directly.
  * Since otherwise we need to construct a `Set`/`Array` from your iterable input.
+ *
+ * @deprecated I just added the `shared/prosemirror/internal/diff.ts` function
+ * which should probably replace this function eventually. It's based on the Myers
+ * diff algorithm and boasts a production grade implementation (forked from a
+ * module installed 85M times per week).
  */
 export function actuallySymmetricDiffIterable<Value>(
     oldArray: ReadonlyArray<Value>,

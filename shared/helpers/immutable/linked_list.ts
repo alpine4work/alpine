@@ -19,6 +19,20 @@ export type NonEmptyLinkedList<Item> = {
 };
 
 /**
+ * Turn a linked list into an array.
+ */
+export function fromLinkedList<Item>(list: LinkedList<Item>): Array<Item> {
+    const array: Array<Item> = [];
+
+    while (list !== null) {
+        array.push(list.value);
+        list = list.next;
+    }
+
+    return array;
+}
+
+/**
  * Reverse a linked list. Same as `Array.reverse()` but for linked lists.
  */
 export function reverseLinkedList<Item>(list: LinkedList<Item>): LinkedList<Item> {

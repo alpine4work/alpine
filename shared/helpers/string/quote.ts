@@ -27,6 +27,8 @@ export function quote(
     if (typeof templateStrings === "string") {
         let quotedString = JSON.stringify(templateStrings);
         quotedString = quotedString.replaceAll("`", "\\`");
+        // eslint-disable-next-line cyberworlds/string-quotes
+        quotedString = quotedString.replaceAll('\\"', '"');
         quotedString = `\`${quotedString.slice(1, -1)}\``;
         return quotedString;
     }
@@ -50,6 +52,8 @@ export function quote(
             // quotes elsewhere in strings).
             if (typeof value === "string") {
                 quotedString = quotedString.replaceAll("`", "\\`");
+                // eslint-disable-next-line cyberworlds/string-quotes
+                quotedString = quotedString.replaceAll('\\"', '"');
                 quotedString = `\`${quotedString.slice(1, -1)}\``;
             }
 

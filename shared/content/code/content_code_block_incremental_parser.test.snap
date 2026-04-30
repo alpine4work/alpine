@@ -1004,9 +1004,9 @@ exports[`can highlight syntax after updating a single line 1`] = `
            <span class="tok-keyword">null</span>
            <span class="tok-operator">&amp;&amp;</span>
 -          <span class="tok-variableName">list2</span>
-+          <span class="tok-keyword">null</span>
-           <span class="tok-operator">!==</span>
--          <span class="tok-keyword">null</span>
+-          <span class="tok-operator">!==</span>
+           <span class="tok-keyword">null</span>
++          <span class="tok-operator">!==</span>
 +          <span class="tok-variableName">list1</span>
            <span class="tok-punctuation">)</span>
            <span class="tok-punctuation">{</span>

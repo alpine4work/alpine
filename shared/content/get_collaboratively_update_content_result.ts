@@ -8,7 +8,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 declare module "prosemirror-transform" {
     interface Mapping {

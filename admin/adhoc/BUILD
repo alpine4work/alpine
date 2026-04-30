@@ -9,6 +9,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@aws-sdk/credential-providers",
+        "//:node_modules/@babel/parser",
         "//:node_modules/@lume/kiwi",
         "//:node_modules/@types/color",
         "//:node_modules/@types/fs-extra",

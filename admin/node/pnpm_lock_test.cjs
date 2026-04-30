@@ -96,7 +96,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib` (to
     // 2.189.1) and corresponding `@aws-sdk` packages that we can't easily resolve but
     // shouldn't cause issues.
-    ["diff", ["5.2.0", "7.0.0"]],
+    ["diff", ["5.2.0", "7.0.0", "8.0.4"]],
     ["events", ["1.1.1", "3.3.0"]],
     ["jackspeak", ["2.3.6", "4.1.0"]],
     ["path-scurry", ["1.11.1", "2.0.0"]],

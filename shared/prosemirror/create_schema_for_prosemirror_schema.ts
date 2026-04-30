@@ -19,7 +19,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {StepByJsonId} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {StepByJsonId} from "~/shared/prosemirror/exhaustive_step.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,

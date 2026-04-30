@@ -2,8 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 
 ts_project(
-    name = "generate_build_file_lib",
-    visibility = ["//admin:__subpackages__"],
+    name = "ifitzsimmons",
     deps = [
         "//:node_modules/@types/node",
     ],
@@ -11,7 +10,6 @@ ts_project(
 
 js_binary(
     name = "generate_build_file",
-    entry_point = "generate_build_file.js",
-    data = [":generate_build_file_lib"],
-    visibility = ["//visibility:public"],
+    entry_point = "generate_build_file_main.js",
+    data = [":ifitzsimmons"],
 )
