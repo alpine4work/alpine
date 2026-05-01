@@ -1,5 +1,5 @@
 import {Outlet, useParams} from "@remix-run/react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {createDatabaseGroupConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
@@ -132,7 +132,7 @@ export default function DatabaseGroupLayoutRoute() {
         },
     });
 
-    const connectDatabase = useCallback(() => {
+    const connectDatabase = useEvent(() => {
         db.connect({
             databaseGroupId,
             initialPages: initialPagesRef.current,
@@ -146,22 +146,14 @@ export default function DatabaseGroupLayoutRoute() {
                 error instanceof Error ? error : new InternalError(String(error)),
             );
         });
-    }, [
-        db,
-        databaseGroupId,
-        executeActionServer,
-        ensureCacheIsUpToDate,
-        acknowledgePages,
-        reportError,
-        reporter,
-    ]);
+    });
 
     useEffect(() => {
         connectDatabase();
         return () => {
             conn.close();
         };
-    }, [connectDatabase, conn]);
+    }, [connectDatabase, conn, databaseGroupId]);
 
     return (
         <Box
