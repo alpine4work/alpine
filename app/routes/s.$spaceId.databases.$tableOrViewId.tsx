@@ -1,9 +1,6 @@
 import {redirect} from "@remix-run/node";
 import {useEffect, useMemo, useState} from "react";
-import {
-    deserializeDatabaseIdForLoader,
-    deserializeSpaceIdForLoader,
-} from "~/app/helpers/deserialize_id_for_loader.js";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {DatabaseGridView} from "~/client/web/databases/database_grid_view.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
@@ -11,10 +8,10 @@ import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_dat
 import {Box} from "~/client/web/design/box.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
-import {getDatabase} from "~/server/databases/data/get_database.js";
+import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_actions.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
@@ -30,16 +27,13 @@ const LoaderSchema = Schema.object({
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    deserializeSpaceIdForLoader(params.spaceId);
-    const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
-
-    // Verify the database exists.
-    await getDatabase(context, databaseId);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
     const tableOrViewId = params.tableOrViewId!;
 
     // Fetch schema first — needed for the redirect check.
-    const schemaResult = await fetchDatabaseAction(context, databaseId, {
+    const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewSchema",
         input: {tableOrViewId},
     });
@@ -55,12 +49,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     // Discover the cursor for the first page then fetch
     // the page rows.
-    const cursorResult = await fetchDatabaseAction(context, databaseId, {
+    const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPageCursor",
         input: {tableOrViewId, afterCursor: null, limit: databaseViewTargetRowsPerPage},
     });
 
-    const pageResult = await fetchDatabaseAction(context, databaseId, {
+    const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewRowsPage",
         input: {
             tableOrViewId,
@@ -137,13 +131,6 @@ export default function DatabaseViewRoute() {
     );
 }
 
-/**
- * Creates and manages a `DatabaseQuery` instance tied to
- * the current connection and view. The query is created
- * synchronously in state so initial data is available on
- * the first render; reactive subscriptions start in an
- * effect once the connection is ready.
- */
 function useDatabaseQuery(
     conn: ReturnType<typeof useDatabaseConnection>,
     tableOrViewId: string,

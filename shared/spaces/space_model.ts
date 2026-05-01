@@ -2,7 +2,7 @@ import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -56,6 +56,13 @@ export class SpaceModel extends Model(
          * Defaults to blue if not set.
          */
         themeColor: Schema.enum(themeColors).default(defaultThemeColor),
+        /**
+         * The workspace's database group — the SQLite instance (backed by a
+         * Cloudflare Durable Object) that holds all of the workspace's database
+         * tables. Populated lazily on first access via
+         * `getDatabaseGroupIdForSpace`, so older spaces may not have it yet.
+         */
+        databaseGroupId: Schema.id<DatabaseGroupId>().optional(),
     }),
 ) {
     // TODO(ifitzsimmons, #add-avatar-tests): Add tests for this function.

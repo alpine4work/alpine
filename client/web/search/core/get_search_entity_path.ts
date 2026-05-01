@@ -232,7 +232,7 @@ export function getSearchDynamicEntityPath(
             return `/s/${spaceId}/tasks/${entityId.taskId}`;
         }
         case "Database": {
-            return `/s/${spaceId}/databases/${entityId.databaseId}`;
+            return `/s/${spaceId}/databases/${entityId.databaseTableId}`;
         }
         case "TaskCollection": {
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;

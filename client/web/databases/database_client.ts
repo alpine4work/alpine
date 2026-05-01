@@ -24,7 +24,6 @@ import {
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
-import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {
     isSqliteActionAllowed,
@@ -36,6 +35,7 @@ import {
     sqliteOpenPragmas,
 } from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
+import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";

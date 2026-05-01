@@ -2,14 +2,8 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {DatabaseModel} from "~/shared/databases/database_model.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
-import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
-import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {type ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
@@ -48,18 +42,6 @@ export const ensureCacheIsUpToDateResultConfig = {
 export type EnsureCacheIsUpToDateResult = ObjectSchemaConfigType<
     typeof ensureCacheIsUpToDateResultConfig
 >;
-
-export type DynamoGeneralRealtimeDatabaseEvent = ReturnType<
-    typeof DynamoGeneralRealtimeDatabaseEventSchema.deserialize
->;
-
-export const DynamoGeneralRealtimeDatabaseEventSchema = createDynamoGeneralRealtimeEventSchema(
-    createModelUnionSchema({Database: DatabaseModel}),
-);
-
-export const DatabaseBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
-});
 
 export type DatabaseRealtimeEvent = WebSocketProtocolEventType<typeof DatabaseRealtimeProtocol>;
 
@@ -108,10 +90,6 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             ),
             mutationId: Schema.id<DatabaseMutationId>(),
             fileSizeInPages: Schema.integer,
-        }),
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(DynamoGeneralRealtimeDatabaseEventSchema),
         }),
     },
 });

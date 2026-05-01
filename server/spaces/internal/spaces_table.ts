@@ -5,7 +5,7 @@ import {
     defaultSpaceThemeColor,
     selectableSpaceThemeColors,
 } from "~/shared/design/core/theme_colors.js";
-import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChannelId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -64,6 +64,15 @@ export const SpacesTable = DynamoTableSchema.new({
                         themeColor: Schema.enum(selectableSpaceThemeColors).default(
                             defaultSpaceThemeColor,
                         ),
+
+                        /**
+                         * The workspace's database group — the SQLite instance (backed
+                         * by a Cloudflare Durable Object) that holds all of the
+                         * workspace's database tables. Populated lazily on first access
+                         * via `getDatabaseGroupIdForSpace`, so older spaces may not
+                         * have it yet.
+                         */
+                        databaseGroupId: Schema.id<DatabaseGroupId>().optional(),
                     }),
                 },
 

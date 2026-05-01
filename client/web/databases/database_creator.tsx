@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import {useAppContext} from "~/client/web/context/app_context.js";
+import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {
@@ -23,11 +23,10 @@ import {
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {createDatabase} from "~/shared/rpc/databases_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function DatabaseCreator({initiallyFocus}: {initiallyFocus: "Name" | null}) {
-    const context = useAppContext();
+    const conn = useDatabaseConnection();
     const navigate = useNavigate();
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
@@ -71,12 +70,9 @@ export function DatabaseCreator({initiallyFocus}: {initiallyFocus: "Name" | null
                     isDisabled={!hasNameChanged || name.trim().length === 0}
                     pressErrorTitle="Couldn&#x2019;t create database"
                     onPress={async () => {
-                        const database = await createDatabase(context, {
-                            spaceId: space.id,
-                            name,
-                        });
+                        const {tableId} = await conn.executeAction("createTable", {name});
 
-                        await navigate(`/s/${space.id}/databases/${database.databaseId}`, {
+                        await navigate(`/s/${space.id}/databases/${tableId}`, {
                             replace: true,
                             state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
                         });

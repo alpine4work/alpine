@@ -8,17 +8,17 @@ import {
     type DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * Executes a database action against a database's durable
+ * Executes a database action against a database group's durable
  * object via HTTP and returns the typed result along with
  * the pages read during execution.
  */
-export async function fetchDatabaseAction<N extends DatabaseActionName>(
+export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
-    databaseId: DatabaseId,
+    databaseGroupId: DatabaseGroupId,
     actionObject: {name: N; input: DatabaseActionInput<N>},
 ): Promise<{
     result: DatabaseActionOutput<N>;
@@ -26,10 +26,10 @@ export async function fetchDatabaseAction<N extends DatabaseActionName>(
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
     const response = await context.edge.fetchDurableObject(
-        `/api/durable-objects/databases/${databaseId}/action`,
+        `/api/durable-objects/database-groups/${databaseGroupId}/action`,
         {
-            serviceName: "DatabaseService",
-            route: "/api/durable-objects/databases/:databaseId/action",
+            serviceName: "DatabaseGroupService",
+            route: "/api/durable-objects/database-groups/:databaseGroupId/action",
             body,
         },
     );

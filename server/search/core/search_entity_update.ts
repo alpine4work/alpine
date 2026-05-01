@@ -11,7 +11,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DatabaseId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -97,7 +97,7 @@ const searchEntityUpdateSchemaDescription = {
     Database: {
         schema: Schema.object({
             type: Schema.value("Database"),
-            databaseId: Schema.id<DatabaseId>(),
+            databaseTableId: Schema.id<DatabaseTableId>(),
         }),
         updatableTraits: ["Authorization", "Name"],
     },

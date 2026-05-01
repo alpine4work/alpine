@@ -18,23 +18,16 @@ import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
-import {
-    DatabaseBroadcastRealtimeEventTransactionSchema,
-    DatabaseRealtimeProtocol,
-} from "~/shared/databases/database_realtime_protocol.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId, DatabaseId} from "~/shared/id/types/id_types.js";
+import type {BrowserId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
-type DatabaseDurableObjectRoute =
-    | "Main"
-    | "Action"
-    | "BroadcastRealtimeEventTransaction"
-    | "NotFound";
+type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
 
-class DatabaseDurableObject {
-    public static readonly serviceName = "DatabaseService";
+class DatabaseGroupDurableObject {
+    public static readonly serviceName = "DatabaseGroupService";
 
     private readonly _server: DatabaseServer;
     private readonly _storage: DurableObjectStorage;
@@ -52,7 +45,6 @@ class DatabaseDurableObject {
 
     public static async initialize({
         processContext,
-        idName,
         storage,
     }: {
         processContext: WorkerProcessContext;
@@ -60,12 +52,11 @@ class DatabaseDurableObject {
         idName: string;
         destroy: () => void;
         storage: DurableObjectStorage;
-    }): Promise<DatabaseDurableObject> {
+    }): Promise<DatabaseGroupDurableObject> {
         const durableObjectStorage = new DatabaseDurableObjectStorage(storage.sql);
         const server = await DatabaseServer.create(durableObjectStorage);
-        return new DatabaseDurableObject({
+        return new DatabaseGroupDurableObject({
             processContext,
-            databaseId: idName as DatabaseId,
             server,
             storage,
             durableObjectStorage,
@@ -74,13 +65,11 @@ class DatabaseDurableObject {
 
     private constructor({
         processContext,
-        databaseId,
         server,
         storage,
         durableObjectStorage,
     }: {
         processContext: WorkerProcessContext;
-        databaseId: DatabaseId;
         server: DatabaseServer;
         storage: DurableObjectStorage;
         durableObjectStorage: DatabaseDurableObjectStorage;
@@ -109,7 +98,6 @@ class DatabaseDurableObject {
                 sendEventToAll: (context, event) => {
                     this._webSocketServer.sendEventToAll(context, event);
                 },
-                databaseId,
                 browserId,
                 connectionId,
                 browserPageTracker: this._browserPageTracker,
@@ -117,19 +105,16 @@ class DatabaseDurableObject {
         });
     }
 
-    public static parseRoute(url: URL): [string, DatabaseDurableObjectRoute] {
+    public static parseRoute(url: URL): [string, DatabaseGroupDurableObjectRoute] {
         if (url.pathname === "/") return ["/", "Main"];
         if (url.pathname === "/action") return ["/action", "Action"];
-        if (url.pathname === "/broadcast-realtime-event-transaction") {
-            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
-        }
         return ["/*", "NotFound"];
     }
 
     public async fetch(
         context: WorkerActionContext,
         request: Request,
-        route: DatabaseDurableObjectRoute,
+        route: DatabaseGroupDurableObjectRoute,
     ): Promise<Response> {
         switch (route) {
             case "Main":
@@ -139,28 +124,6 @@ class DatabaseDurableObject {
                 );
             case "Action":
                 return await this._handleAction(request);
-            case "BroadcastRealtimeEventTransaction": {
-                if (
-                    context.actor.serviceName !== "AppService" &&
-                    context.actor.serviceName !== "JobQueueService"
-                ) {
-                    throw new PermissionDeniedError(
-                        "Only AppService or JobQueueService can broadcast realtime event transactions",
-                    );
-                }
-
-                const {eventTransaction} =
-                    DatabaseBroadcastRealtimeEventTransactionSchema.deserialize(
-                        (await request.json()) as SchemaSerializedValue,
-                    );
-
-                this._webSocketServer.sendEventToAll(context, {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
-                });
-
-                return new Response();
-            }
             case "NotFound":
                 throw new NotFoundError("Route not found");
             default:
@@ -196,5 +159,5 @@ class DatabaseDurableObject {
     }
 }
 
-const DatabaseDurableObjectWrapper = createDurableObject(DatabaseDurableObject);
-export {DatabaseDurableObjectWrapper as DatabaseDurableObject};
+const DatabaseGroupDurableObjectWrapper = createDurableObject(DatabaseGroupDurableObject);
+export {DatabaseGroupDurableObjectWrapper as DatabaseGroupDurableObject};

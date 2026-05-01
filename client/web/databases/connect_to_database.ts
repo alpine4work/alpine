@@ -9,7 +9,7 @@ import type {ExecuteActionServerResult} from "~/client/web/databases/database_wo
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
-import type {DatabaseId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
 export type {
     DatabaseWorkerConnection,
@@ -18,7 +18,7 @@ export type {
 } from "~/client/web/databases/database_active_tab_manager.js";
 
 type ConnectOptions = {
-    databaseId: DatabaseId;
+    databaseGroupId: DatabaseGroupId;
     initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
     executeActionServer(
         action: DatabaseActionObject,
@@ -36,12 +36,12 @@ type ConnectOptions = {
 };
 
 /**
- * Creates a database connection synchronously. The
+ * Creates a database-group connection synchronously. The
  * returned `connection` queues all calls until
  * `connect()` is called, making it safe for SSR where
  * the actual worker connection only happens client-side.
  */
-export function createDatabaseConnection(): {
+export function createDatabaseGroupConnection(): {
     connection: DatabaseWorkerConnection;
     connect(options: ConnectOptions): Promise<void>;
 } {
@@ -100,7 +100,7 @@ export function createDatabaseConnection(): {
         closed = false;
         real = null;
 
-        const realConn = await connectToDatabase(options);
+        const realConn = await connectToDatabaseGroup(options);
         if (closed) {
             realConn.close();
             return;
@@ -113,15 +113,15 @@ export function createDatabaseConnection(): {
 }
 
 /**
- * Connect to the shared client-side SQLite database.
+ * Connect to the shared client-side SQLite database group.
  * Handles multi-tab coordination transparently: one
  * tab becomes the leader (runs SQLite in a dedicated
  * worker), others proxy queries via MessagePort through
  * the ServiceWorker.
  */
-async function connectToDatabase(options: ConnectOptions): Promise<DatabaseWorkerConnection> {
+async function connectToDatabaseGroup(options: ConnectOptions): Promise<DatabaseWorkerConnection> {
     const manager = new DatabaseActiveTabManager({
-        databaseId: options.databaseId,
+        databaseGroupId: options.databaseGroupId,
         locks: navigator.locks,
         serviceWorker: {
             ready: navigator.serviceWorker.ready.then(reg => ({

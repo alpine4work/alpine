@@ -6,7 +6,7 @@ import {
 import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
-    DatabaseId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
@@ -33,21 +33,21 @@ const pageEntrySchema = Schema.object({
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writeInitialPages: {
         input: {
-            databaseId: Schema.id<DatabaseId>(),
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
             pages: Schema.array(pageEntrySchema),
         },
         output: {},
     },
     executeAction: {
         input: {
-            databaseId: Schema.id<DatabaseId>(),
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
             action: DatabaseActionObjectSchema,
         },
         output: {result: DatabaseActionResultSchema},
     },
     writePagesFromRealtime: {
         input: {
-            databaseId: Schema.id<DatabaseId>(),
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
             pages: Schema.array(pageDiffEntrySchema),
             mutationId: Schema.id<DatabaseMutationId>(),
             fileSizeInPages: Schema.integer,
@@ -56,7 +56,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
     registerReactiveAction: {
         input: {
-            databaseId: Schema.id<DatabaseId>(),
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
             id: Schema.id<DatabaseReactiveActionId>(),
             action: DatabaseActionObjectSchema,
         },
@@ -64,7 +64,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
     unregisterReactiveAction: {
         input: {
-            databaseId: Schema.id<DatabaseId>(),
+            databaseGroupId: Schema.id<DatabaseGroupId>(),
             id: Schema.id<DatabaseReactiveActionId>(),
         },
         output: {},

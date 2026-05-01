@@ -9,6 +9,7 @@ export function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
         name: spaceItem.name,
         alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
         themeColor: spaceItem.themeColor,
+        databaseGroupId: spaceItem.databaseGroupId,
         avatars: {
             darkTheme: createAvatarModelFromItem(spaceItem.avatars.darkTheme),
             lightTheme: createAvatarModelFromItem(spaceItem.avatars.lightTheme),

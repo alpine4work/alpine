@@ -152,10 +152,7 @@ class SqlQuery {
      * (stepping through the prepared statement
      * column-by-column, like {@link selectAll}).
      */
-    selectAllArrays(
-        db: Database,
-        schemas: ReadonlyArray<Schema<unknown>>,
-    ): Array<Array<unknown>> {
+    selectAllArrays(db: Database, schemas: ReadonlyArray<Schema<unknown>>): Array<Array<unknown>> {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);

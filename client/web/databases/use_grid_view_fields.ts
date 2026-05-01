@@ -82,6 +82,7 @@ export function useGridViewFields({
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
+    contentMinWidth: number;
     startAddingField: () => void;
     startEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (

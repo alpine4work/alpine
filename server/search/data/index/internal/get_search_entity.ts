@@ -11,7 +11,6 @@ import {
     ServerActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {getDatabaseIfExistsAsSystem} from "~/server/databases/data/get_database_as_system.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
@@ -73,7 +72,6 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {DatabaseModel} from "~/shared/databases/database_model.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -112,7 +110,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DatabaseId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
@@ -865,11 +863,13 @@ class SearchEntityReadState {
         };
     }
 
-    public async getDatabase(databaseId: DatabaseId): Promise<DatabaseModel | null> {
-        this._recordDependencyId(`Database:${databaseId}:Authorization`);
-        this._recordDependencyId(`Database:${databaseId}:Name`);
-
-        return getDatabaseIfExistsAsSystem(this._context, databaseId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    public async getDatabase(_databaseTableId: DatabaseTableId): Promise<null> {
+        // TODO(databases): Replace this stub once the database group durable
+        // object drives `IndexSearchEntity` jobs for table creates / renames.
+        // For now we return null so reindex attempts fall through to deletion
+        // and the search index stays consistent with "not indexed".
+        return null;
     }
 }
 
@@ -1242,7 +1242,7 @@ async function actuallyGetSearchEntity(
         case "Account":
             return getAccountSearchEntity(state, idObject.accountId);
         case "Database":
-            return getDatabaseSearchEntity(state, idObject.databaseId);
+            return getDatabaseSearchEntity(state, idObject.databaseTableId);
         case "Document":
             return getDocumentSearchEntity(state, idObject.documentId);
         case "DocumentComment":
@@ -2413,42 +2413,14 @@ async function getTaskCollectionSearchEntity(
 }
 
 async function getDatabaseSearchEntity(
-    state: SearchEntityReadState,
-    databaseId: DatabaseId,
+    _state: SearchEntityReadState,
+    databaseTableId: DatabaseTableId,
 ): Promise<SearchEntity> {
-    const id: SearchDynamicEntityId = `Database:${databaseId}`;
-
-    const database = await state.getDatabase(databaseId);
-
-    if (!database) {
-        throw new NotFoundError(quote`Database ${databaseId} not found`);
-    }
-
-    // Databases use space-level access — anyone in the space can view.
-    const accessPolicy = getSearchEntityIndexAccessPolicy({
-        defaultGrant: {level: "Edit"},
-        accountGrantById: emptyMap,
-        urlGrant: null,
-    });
-
-    return {
-        id,
-        accessPolicy,
-        createdTime: database.createdTime,
-        title: database.name,
-        titleVersion: null,
-        body: null,
-        tags: emptyArray,
-        media: null,
-        embeddingChunks: emptyArray,
-        creatorId: null,
-        contributorIds: emptyMap,
-        dueDate: null,
-        assigneeId: null,
-        priority: null,
-        openness: null,
-        activeness: null,
-    };
+    // TODO(databases): Wire up once the database group durable object drives
+    // `IndexSearchEntity` jobs for table creates / renames. Until then we
+    // throw so the indexer treats any legacy `Database:...` entry as missing
+    // and drops it from the search index.
+    throw new NotFoundError(quote`Database ${databaseTableId} not found`);
 }
 
 async function getTaskCommentSearchEntity(

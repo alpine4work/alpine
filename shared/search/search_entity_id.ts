@@ -12,7 +12,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DatabaseId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -45,7 +45,7 @@ type SearchEntityIdAxes = {
     Dynamic: {
         Affinity:
             | `Account:${AccountId}`
-            | `Database:${DatabaseId}`
+            | `Database:${DatabaseTableId}`
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
@@ -347,7 +347,7 @@ assertEqualTypes<
     SearchMentionEntityId,
     | Exclude<
           SearchAffinityEntityId,
-          `Account:${AccountId}` | `Chat:${ChatId}` | `Database:${DatabaseId}` | "TaskPersonal"
+          `Account:${AccountId}` | `Chat:${ChatId}` | `Database:${DatabaseTableId}` | "TaskPersonal"
       >
     | `Post:${PostId}`
 >();
@@ -359,7 +359,7 @@ assertEqualTypes<
  */
 export type SearchDynamicEntityIdObject =
     | {readonly type: "Account"; readonly accountId: AccountId}
-    | {readonly type: "Database"; readonly databaseId: DatabaseId}
+    | {readonly type: "Database"; readonly databaseTableId: DatabaseTableId}
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {
           readonly type: "DocumentComment";
@@ -397,7 +397,7 @@ export function parseSearchDynamicEntityId(id: SearchDynamicEntityId): SearchDyn
         case "Account":
             return {type: "Account", accountId: idPayloadParts[0] as AccountId};
         case "Database":
-            return {type: "Database", databaseId: idPayloadParts[0] as DatabaseId};
+            return {type: "Database", databaseTableId: idPayloadParts[0] as DatabaseTableId};
         case "Document":
             return {type: "Document", documentId: idPayloadParts[0] as DocumentId};
         case "DocumentComment":
@@ -453,7 +453,7 @@ export function printSearchDynamicEntityId(
         case "Account":
             return `Account:${idObject.accountId}`;
         case "Database":
-            return `Database:${idObject.databaseId}`;
+            return `Database:${idObject.databaseTableId}`;
         case "Document":
             return `Document:${idObject.documentId}`;
         case "DocumentComment":

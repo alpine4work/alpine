@@ -24,12 +24,12 @@ import {diffPage} from "~/shared/databases/page_diff.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
-    DatabaseId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
 
-const testDatabaseId = generateId<DatabaseId>();
+const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
 /**
  * Creates a {@link DatabaseClient} seeded into the
@@ -38,10 +38,10 @@ const testDatabaseId = generateId<DatabaseId>();
  */
 async function createSeededClient(
     dir: OpfsDirectoryHandle,
-    databaseId: string = testDatabaseId,
+    databaseGroupId: string = testDatabaseGroupId,
 ): Promise<DatabaseClient> {
-    const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
-    const perDbDir = await dbsDir.getDirectoryHandle(databaseId, {create: true});
+    const dbsDir = await dir.getDirectoryHandle("databaseGroups", {create: true});
+    const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId, {create: true});
     return DatabaseClient.create(perDbDir);
 }
 
@@ -134,10 +134,10 @@ function createInMemoryDirectory(): OpfsDirectoryHandle {
 
 async function extractPages(
     dir: OpfsDirectoryHandle,
-    databaseId: string = testDatabaseId,
+    databaseGroupId: string = testDatabaseGroupId,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const dbsDir = await dir.getDirectoryHandle("databases");
-    const perDbDir = await dbsDir.getDirectoryHandle(databaseId);
+    const dbsDir = await dir.getDirectoryHandle("databaseGroups");
+    const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId);
     const dataDir = await perDbDir.getDirectoryHandle("databases");
     const pagesHandle = await (await dataDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await dataDir.getFileHandle("index.json")).createSyncAccessHandle();
@@ -345,7 +345,7 @@ function createMockWorker(dir: OpfsDirectoryHandle): {
     let resolvedWorker!: DatabaseActiveTabWorker;
     const [mainEnd, workerEnd] = createMockPortPair();
 
-    const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
+    const ready = dir.getDirectoryHandle("databaseGroups", {create: true}).then(dbsDir => {
         resolvedWorker = new DatabaseActiveTabWorker(dbsDir);
         handler = resolvedWorker.createMessageHandler(message => workerEnd.postMessage(message));
         workerEnd.onmessage = event => handler!(event.data, event.ports);
@@ -385,7 +385,7 @@ function createTestTab(config: {
     bc: MockBroadcastChannelBus;
     clientId: string;
     dir: OpfsDirectoryHandle;
-    databaseId?: DatabaseId;
+    databaseGroupId?: DatabaseGroupId;
     executeActionServer?: (
         action: {name: string; input: unknown},
         options: {
@@ -403,7 +403,7 @@ function createTestTab(config: {
     let mockWorker: ReturnType<typeof createMockWorker> | undefined;
 
     const manager = new DatabaseActiveTabManager({
-        databaseId: config.databaseId ?? testDatabaseId,
+        databaseGroupId: config.databaseGroupId ?? testDatabaseGroupId,
         locks: config.locks,
         serviceWorker: config.sw.containerFor(config.clientId),
         createWorker: () => {
@@ -425,9 +425,9 @@ function createTestTab(config: {
             // client timestamps, simulating a server that
             // agrees with the local cache.
             try {
-                const dbsDir = await config.dir.getDirectoryHandle("databases");
-                const databaseId = config.databaseId ?? testDatabaseId;
-                const perDbDir = await dbsDir.getDirectoryHandle(databaseId);
+                const dbsDir = await config.dir.getDirectoryHandle("databaseGroups");
+                const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
+                const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId);
                 const dataDir = await perDbDir.getDirectoryHandle("databases");
                 const indexFile = await dataDir.getFileHandle("index.json");
                 const indexHandle = await indexFile.createSyncAccessHandle();
@@ -524,7 +524,7 @@ describe("DatabaseActiveTabManager", () => {
         const connB = await managerB.connect();
 
         await tabA.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
         );
         await executeSql(connA, "INSERT INTO t (name) VALUES ('hello')");
@@ -547,7 +547,7 @@ describe("DatabaseActiveTabManager", () => {
         const connC = await tab("tab-c").manager.connect();
 
         await tabA.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(connA, "INSERT INTO items (val) VALUES ('from-a')");
@@ -739,7 +739,7 @@ describe("DatabaseActiveTabManager mutations", () => {
 
         // Create table first, then mutate
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
         );
         const rows = await executeSql(conn, "INSERT INTO t (title) VALUES ('hello') RETURNING *");
@@ -770,7 +770,7 @@ describe("DatabaseActiveTabManager mutations", () => {
 
         // Create table via leader
         await tabA.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
         );
         await executeSql(connA, "INSERT INTO t (id) VALUES (1)");
@@ -834,7 +834,7 @@ describe("Reactive actions", () => {
         const conn = await tab.manager.connect();
 
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
@@ -859,7 +859,7 @@ describe("Reactive actions", () => {
         const conn = await tab.manager.connect();
 
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
@@ -902,11 +902,11 @@ describe("Reactive actions", () => {
         const conn = await tab.manager.connect();
 
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(conn, "INSERT INTO t1 (val) VALUES ('a')");
@@ -963,7 +963,7 @@ describe("Reactive actions", () => {
         const conn = await tab.manager.connect();
 
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
@@ -1004,7 +1004,7 @@ describe("watchAction", () => {
         const conn = await tab.manager.connect();
 
         await tab.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
@@ -1102,11 +1102,11 @@ describe("watchAction", () => {
         const connB = await managerB.connect();
 
         await tabA.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
         await tabA.worker.executeLocallyForTests(
-            testDatabaseId,
+            testDatabaseGroupId,
             "INSERT INTO t (val) VALUES ('hello')",
         );
 

@@ -17,7 +17,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
-    DatabaseId,
     DatabaseMutationId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
@@ -326,7 +325,6 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
-        databaseId: generateId<DatabaseId>(),
         browserId: generateId<BrowserId>(),
         connectionId: generateId<WebSocketConnectionId>(),
         browserPageTracker: new BrowserPageTracker(),
@@ -546,7 +544,6 @@ function createTrackedConnection(
         durableObjectStorage: doStorage,
         processContext: null as any,
         sendEventToAll: () => {},
-        databaseId: generateId<DatabaseId>(),
         browserId,
         connectionId,
         browserPageTracker: tracker,

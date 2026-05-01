@@ -90,12 +90,8 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
-    "databases.$databaseId.$tableOrViewId": () => {
-        // The table or view ID is validated inside the durable object action.
-        // If the database doesn't exist the layout loader will error first.
-    },
-    "databases.$databaseId._index": () => {
-        test("not found error for route `databases.$databaseId._index`", async ({
+    "databases.$tableOrViewId": () => {
+        test("not found error for route `databases.$tableOrViewId`", async ({
             page,
             context: browserContext,
         }) => {
@@ -107,13 +103,6 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await expect(page.getByText("Database not found")).toBeVisible();
         });
-    },
-    "databases.$databaseId.sql": () => {
-        // The sql route doesn't have its own loader so it relies on the
-        // layout route to throw not found.
-    },
-    "databases.$databaseId": () => {
-        // Layout route; covered by the child route tests above.
     },
     "documents.$documentId._index": () => {
         test("not found error for route `documents.$documentId._index`", async ({

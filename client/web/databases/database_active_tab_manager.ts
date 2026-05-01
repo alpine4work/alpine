@@ -22,7 +22,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
-    DatabaseId,
+    DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.js";
@@ -110,12 +110,15 @@ export interface DatabaseReactiveActionHandle<N extends DatabaseActionName> {
 
 /**
  * Call signature exposed to consumers. Omits
- * `databaseId` from inputs since the manager
+ * `databaseGroupId` from inputs since the manager
  * injects it automatically.
  */
 type DatabaseConnectionCall = <K extends keyof typeof tabToWorkerDatabaseRpcMethods>(
     method: K,
-    input: Omit<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["inputSchema"]>, "databaseId">,
+    input: Omit<
+        SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["inputSchema"]>,
+        "databaseGroupId"
+    >,
 ) => Promise<SchemaType<(typeof tabToWorkerDatabaseRpcMethods)[K]["outputSchema"]>>;
 
 export interface DatabaseWorkerConnection {
@@ -191,27 +194,27 @@ export class DatabaseActiveTabServiceWorker {
  */
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
-    private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseId>();
+    private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
     private readonly initialPagesByDatabase = new Map<
-        DatabaseId,
+        DatabaseGroupId,
         ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
     >();
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
     private getOrCreateClient(
-        databaseId: DatabaseId,
+        databaseGroupId: DatabaseGroupId,
         conn: DatabaseClientConnection,
     ): Promise<DatabaseClient> {
-        let promise = this.clientPromises.get(databaseId);
+        let promise = this.clientPromises.get(databaseGroupId);
         if (!promise) {
             promise = (async () => {
-                const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
+                const dbDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
                 const client = await DatabaseClient.create(dbDir);
 
-                const initialPages = this.initialPagesByDatabase.get(databaseId);
+                const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
-                    this.initialPagesByDatabase.delete(databaseId);
+                    this.initialPagesByDatabase.delete(databaseGroupId);
                     client.seedPages(initialPages);
                 }
 
@@ -237,7 +240,7 @@ export class DatabaseActiveTabWorker {
 
                 return client;
             })();
-            this.clientPromises.set(databaseId, promise);
+            this.clientPromises.set(databaseGroupId, promise);
         }
         return promise;
     }
@@ -279,24 +282,24 @@ export class DatabaseActiveTabWorker {
             handleMethods: tabToWorkerDatabaseRpcMethods,
             handlers: {
                 writeInitialPages: async input => {
-                    if (this.clientPromises.has(input.databaseId)) {
+                    if (this.clientPromises.has(input.databaseGroupId)) {
                         // eslint-disable-next-line no-console
                         console.warn(
                             "writeInitialPages called after database client was already created",
                         );
                     }
-                    this.initialPagesByDatabase.set(input.databaseId, input.pages);
+                    this.initialPagesByDatabase.set(input.databaseGroupId, input.pages);
                     return {};
                 },
                 executeAction: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId, conn);
+                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
                     const result = await client.executeAction(conn, input.action);
                     return {
                         result: {name: input.action.name, output: result} as any,
                     };
                 },
                 writePagesFromRealtime: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId, conn);
+                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
                     client.writePagesFromRealtime(
                         input.pages,
                         input.mutationId,
@@ -305,8 +308,8 @@ export class DatabaseActiveTabWorker {
                     return {};
                 },
                 registerReactiveAction: async input => {
-                    const client = await this.getOrCreateClient(input.databaseId, conn);
-                    this.actionToDatabase.set(input.id, input.databaseId);
+                    const client = await this.getOrCreateClient(input.databaseGroupId, conn);
+                    this.actionToDatabase.set(input.id, input.databaseGroupId);
                     const result = await client.registerReactiveAction(
                         input.id,
                         input.action,
@@ -347,7 +350,7 @@ export class DatabaseActiveTabWorker {
                     };
                 },
                 unregisterReactiveAction: async input => {
-                    const dbId = this.actionToDatabase.get(input.id) ?? input.databaseId;
+                    const dbId = this.actionToDatabase.get(input.id) ?? input.databaseGroupId;
                     const client = await this.getOrCreateClient(dbId, conn);
                     client.unregisterReactiveAction(input.id);
                     this.actionToDatabase.delete(input.id);
@@ -383,15 +386,15 @@ export class DatabaseActiveTabWorker {
      * on the worker's client. Creates the client if it
      * doesn't exist yet. Use for test schema setup only.
      */
-    async executeLocallyForTests(databaseId: DatabaseId, sql: string): Promise<void> {
+    async executeLocallyForTests(databaseGroupId: DatabaseGroupId, sql: string): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
-        let promise = this.clientPromises.get(databaseId);
+        let promise = this.clientPromises.get(databaseGroupId);
         if (!promise) {
             promise = (async () => {
-                const dbDir = await this.dir.getDirectoryHandle(databaseId, {create: true});
+                const dbDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
                 return DatabaseClient.create(dbDir);
             })();
-            this.clientPromises.set(databaseId, promise);
+            this.clientPromises.set(databaseGroupId, promise);
         }
         const client = await promise;
         client.executeLocallyForTests(sql);
@@ -434,7 +437,7 @@ export class DatabaseActiveTabManager {
 
     constructor(
         private readonly deps: {
-            databaseId: DatabaseId;
+            databaseGroupId: DatabaseGroupId;
             locks: ActiveTabLockManager;
             serviceWorker: ActiveTabServiceWorkerContainer;
             createWorker(): ActiveTabWorkerHandle;
@@ -498,7 +501,7 @@ export class DatabaseActiveTabManager {
 
         const tagged = {
             ...(input as Record<string, unknown>),
-            databaseId: this.deps.databaseId,
+            databaseGroupId: this.deps.databaseGroupId,
         };
 
         if (this.raw === null || this.reconnecting !== null || this.promoting) {

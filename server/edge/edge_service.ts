@@ -80,7 +80,7 @@ type EdgeServiceRoute =
     | {type: "ChatRealtimeService"; chatId: string; pathname: string}
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
-    | {type: "DatabaseService"; databaseId: string; pathname: string}
+    | {type: "DatabaseGroupService"; databaseGroupId: string; pathname: string}
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
     | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
@@ -368,16 +368,16 @@ async function handleFetch(
                 route = {type: "TaskNotesCollaborationService", taskId, pathname};
                 break;
             }
-            case "databases": {
-                const databaseId = pathSegments[1];
-                if (databaseId === undefined) break;
+            case "database-groups": {
+                const databaseGroupId = pathSegments[1];
+                if (databaseGroupId === undefined) break;
 
                 const pathname = `/${pathSegments.slice(2).join("/")}`;
 
-                routeString = `/api/durable-objects/databases/:databaseId${
+                routeString = `/api/durable-objects/database-groups/:databaseGroupId${
                     pathname !== "/" ? "/*" : ""
                 }`;
-                route = {type: "DatabaseService", databaseId, pathname};
+                route = {type: "DatabaseGroupService", databaseGroupId, pathname};
                 break;
             }
             default: {
@@ -665,15 +665,15 @@ async function actuallyHandleFetch(
                 });
             }
 
-            case "DatabaseService": {
+            case "DatabaseGroupService": {
                 return fetchFromDurableObjectStub({
-                    durableObjectNamespace: env.DatabaseDurableObjectNamespace,
-                    serviceName: "DatabaseService",
+                    durableObjectNamespace: env.DatabaseGroupDurableObjectNamespace,
+                    serviceName: "DatabaseGroupService",
                     tokenAgent,
                     cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
                     request,
                     pathname: route.pathname,
-                    idName: route.databaseId,
+                    idName: route.databaseGroupId,
                     span,
                 });
             }
@@ -1299,4 +1299,4 @@ export {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_real
 export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 export {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
-export {DatabaseDurableObject} from "~/server/databases/database_durable_object.js";
+export {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";

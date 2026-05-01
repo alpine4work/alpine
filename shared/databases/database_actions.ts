@@ -344,6 +344,65 @@ export const databaseActions = {
         },
     }),
 
+    renameTable: defineDatabaseAction({
+        input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
+            name: LabelStringSchema,
+        }),
+        output: Schema.object({
+            tableName: Schema.string,
+        }),
+        writeLevel: "schema+data",
+        run(db, {tableId, name}) {
+            const existing = sql`
+                SELECT
+                    *
+                FROM
+                    _alpine_tables
+                WHERE
+                    id = ${tableId}
+            `.selectOne(db, alpineTableConfig);
+
+            const otherTableNames = new Set(
+                sql`
+                    SELECT
+                        table_name
+                    FROM
+                        _alpine_tables
+                    WHERE
+                        id != ${tableId}
+                `
+                    .selectAll(db, {tableName: Schema.string.originalPropertyKey("table_name")})
+                    .map(row => row.tableName),
+            );
+            const tableName = formatUniqueSqlName(name, otherTableNames);
+
+            if (tableName !== existing.tableName) {
+                sql` DROP INDEX ${sql.identifier(existing.tableName + "__created_at")} `.exec(db);
+                sql`
+                    ALTER TABLE ${sql.identifier(existing.tableName)}
+                    RENAME TO ${sql.identifier(tableName)}
+                `.exec(db);
+                sql`
+                    CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
+                        tableName,
+                    )} (_created_at)
+                `.exec(db);
+            }
+
+            sql`
+                UPDATE _alpine_tables
+                SET
+                    name = ${name},
+                    table_name = ${tableName}
+                WHERE
+                    id = ${tableId}
+            `.exec(db);
+
+            return {tableName};
+        },
+    }),
+
     getTables: defineDatabaseAction({
         input: Schema.object({}),
         output: Schema.object({
@@ -524,7 +583,7 @@ export const databaseActions = {
             // field's sqlValueSchema (e.g. INTEGER → boolean
             // for checkboxes).
             const columnSchemas: Array<Schema<unknown>> = [
-                Schema.id<DatabaseRowId>(),
+                Schema.id<DatabaseRowId>() as Schema<unknown>,
                 ...viewFields.map(f => getDatabaseFieldProvider(f.config.type).sqlValueSchema),
             ];
 

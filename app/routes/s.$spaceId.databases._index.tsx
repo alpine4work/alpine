@@ -1,21 +1,15 @@
 import {redirect} from "@remix-run/node";
-import {
-    deserializeDatabaseIdForLoader,
-    deserializeSpaceIdForLoader,
-} from "~/app/helpers/deserialize_id_for_loader.js";
-import {fetchDatabaseAction} from "~/server/databases/data/fetch_database_action.js";
-import {getDatabase} from "~/server/databases/data/get_database.js";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    deserializeSpaceIdForLoader(params.spaceId);
-    const databaseId = deserializeDatabaseIdForLoader(params.databaseId);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    // Verify the database exists.
-    await getDatabase(context, databaseId);
-
-    const {result} = await fetchDatabaseAction(context, databaseId, {
+    const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getTables",
         input: {},
     });
@@ -31,6 +25,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
     return redirect(url.pathname + url.search);
 }
 
-export default function DatabaseIndexRoute() {
+export default function DatabaseGroupIndexRoute() {
     return null;
 }
