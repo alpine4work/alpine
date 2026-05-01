@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import {defineDatabaseFieldProvider} from "~/shared/databases/fields/database_field_provider.js";
 import {sql} from "~/shared/databases/sql.js";
 import {Schema} from "~/shared/schema/schema.js";

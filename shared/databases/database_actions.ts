@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
     DatabaseFieldConfigSchema,
@@ -582,8 +580,8 @@ export const databaseActions = {
             // raw SQL values are deserialized through each
             // field's sqlValueSchema (e.g. INTEGER → boolean
             // for checkboxes).
-            const columnSchemas: Array<Schema<unknown>> = [
-                Schema.id<DatabaseRowId>() as Schema<unknown>,
+            const columnSchemas: Array<Schema<any>> = [
+                Schema.id<DatabaseRowId>(),
                 ...viewFields.map(f => getDatabaseFieldProvider(f.config.type).sqlValueSchema),
             ];
 
