@@ -15,11 +15,11 @@ import {
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
-import type {
-    OpfsDirectoryHandle,
-    OpfsFileHandle,
-    OpfsSyncAccessHandle,
-} from "~/client/web/databases/opfs.js";
+import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
+import {
+    createInMemoryOpfsDirectoryHandle,
+    extractOpfsPages,
+} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateId} from "~/shared/id/id.js";
@@ -54,82 +54,10 @@ async function executeSql(
 }
 
 // ---------------------------------------------------------------------------
-// In-memory OPFS mock (same as database_client.test.ts)
-// ---------------------------------------------------------------------------
-
-function createInMemorySyncHandle(): OpfsSyncAccessHandle {
-    let buffer = new Uint8Array(0);
-    return {
-        read(data, options) {
-            const at = options?.at ?? 0;
-            const available = Math.max(0, buffer.byteLength - at);
-            const toCopy = Math.min(data.byteLength, available);
-            if (toCopy > 0) {
-                data.set(buffer.subarray(at, at + toCopy));
-            }
-            return toCopy;
-        },
-        write(data, options) {
-            const at = options?.at ?? 0;
-            const end = at + data.byteLength;
-            if (end > buffer.byteLength) {
-                const next = new Uint8Array(end);
-                next.set(buffer);
-                buffer = next;
-            }
-            buffer.set(data, at);
-            return data.byteLength;
-        },
-        truncate(size) {
-            if (size < buffer.byteLength) {
-                buffer = buffer.slice(0, size);
-            } else {
-                const next = new Uint8Array(size);
-                next.set(buffer);
-                buffer = next;
-            }
-        },
-        flush() {},
-        close() {},
-        getSize() {
-            return buffer.byteLength;
-        },
-    };
-}
-
-function createInMemoryDirectory(): OpfsDirectoryHandle {
-    const dirs = new Map<string, OpfsDirectoryHandle>();
-    const files = new Map<string, OpfsSyncAccessHandle>();
-    return {
-        async removeEntry(name: string) {
-            dirs.delete(name);
-            files.delete(name);
-        },
-        async getDirectoryHandle(name: string) {
-            let dir = dirs.get(name);
-            if (dir === undefined) {
-                dir = createInMemoryDirectory();
-                dirs.set(name, dir);
-            }
-            return dir;
-        },
-        async getFileHandle(name: string): Promise<OpfsFileHandle> {
-            return {
-                async createSyncAccessHandle() {
-                    let handle = files.get(name);
-                    if (handle === undefined) {
-                        handle = createInMemorySyncHandle();
-                        files.set(name, handle);
-                    }
-                    return handle;
-                },
-            };
-        },
-    };
-}
-
-// ---------------------------------------------------------------------------
-// OPFS page extraction helper
+// OPFS page extraction helper — descends into the
+// per-database-group subdirectory structure that the
+// active-tab worker creates, then delegates to the
+// shared OPFS helper.
 // ---------------------------------------------------------------------------
 
 async function extractPages(
@@ -138,24 +66,7 @@ async function extractPages(
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
     const dbsDir = await dir.getDirectoryHandle("databaseGroups");
     const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-    const dataDir = await perDbDir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dataDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dataDir.getFileHandle("index.json")).createSyncAccessHandle();
-
-    const indexSize = indexHandle.getSize();
-    if (indexSize === 0) return [];
-
-    const raw = new Uint8Array(indexSize);
-    indexHandle.read(raw, {at: 0});
-    const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-        [number, {slot: number; timestamp: number}]
-    >;
-
-    return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(sqlitePageSize);
-        pagesHandle.read(data, {at: slot * sqlitePageSize});
-        return {pageIndex, timestamp, data};
-    });
+    return extractOpfsPages(perDbDir);
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +411,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
@@ -513,7 +424,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Tab A — leader
         const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
@@ -537,7 +448,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
 
@@ -563,7 +474,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -592,7 +503,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -622,7 +533,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -654,7 +565,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -684,7 +595,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -718,7 +629,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         let capturedMutationId: DatabaseMutationId | null = null;
         const tab = createTestTab({
@@ -756,7 +667,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Tab A — leader
         const tabA = createTestTab({
@@ -807,7 +718,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const {manager} = createTestTab({
             locks,
@@ -828,7 +739,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -853,7 +764,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -864,18 +775,21 @@ describe("Reactive actions", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
-        const id = generateId<DatabaseReactiveActionId>();
-        await conn.call("registerReactiveAction", {
-            id,
-            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
+        // Use watchAction so the store snapshot reflects
+        // re-executions (registerReactiveAction directly is
+        // fire-and-forget; nothing observable downstream).
+        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        expect(handle.store.getSnapshot()).toMatchObject({
+            ok: true,
+            value: {rows: [{id: 1, val: "v1"}]},
         });
 
         // Insert another row — this writes pages that
         // overlap with the reactive action's read-set.
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
 
-        // Write as realtime with newer timestamps.
-        // Empty diffs since OPFS already has the content.
+        // Realtime confirmation with newer timestamps;
+        // empty diffs because OPFS already has the content.
         const pages = await extractPages(dir);
         const newerPages = pages.map(({pageIndex, timestamp}) => ({
             pageIndex,
@@ -888,19 +802,33 @@ describe("Reactive actions", () => {
             fileSizeInPages: 0,
         });
 
-        // Wait for microtask-based invalidation to settle.
         await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(handle.store.getSnapshot()).toMatchObject({
+            ok: true,
+            value: {
+                rows: [
+                    {id: 1, val: "v1"},
+                    {id: 2, val: "v2"},
+                ],
+            },
+        });
+
+        handle.unwatch();
     });
 
     test("reactive action does NOT re-execute when non-overlapping pages are written", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
 
+        // All setup writes go to the base store via
+        // executeLocallyForTests so we control the page
+        // change set we then ship as a realtime event.
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
@@ -909,27 +837,44 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
         );
-        await executeSql(conn, "INSERT INTO t1 (val) VALUES ('a')");
-        await executeSql(conn, "INSERT INTO t2 (val) VALUES ('b')");
+        await tab.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            "INSERT INTO t1 (val) VALUES ('a')",
+        );
+        await tab.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            "INSERT INTO t2 (val) VALUES ('b')",
+        );
 
-        // Watch only t1
-        const id = generateId<DatabaseReactiveActionId>();
-        await conn.call("registerReactiveAction", {
-            id,
-            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t1"}},
-        });
+        // Watch only t1.
+        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t1"});
+        const initial = handle.store.getSnapshot();
+        expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "a"}]}});
 
-        // Get the page set after setup
+        const updates: Array<unknown> = [];
+        const listener = () => {
+            const snap = handle.store.getSnapshot();
+            if (snap !== initial) updates.push(snap);
+        };
+        handle.store.addListener(listener);
+
+        // Mutate t2 via the base store, then take diff
+        // between before/after snapshots.
         const pagesBefore = await extractPages(dir);
-
-        // Mutate t2 only — write its data locally
-        await executeSql(conn, "INSERT INTO t2 (val) VALUES ('c')");
+        await tab.worker.executeLocallyForTests(
+            testDatabaseGroupId,
+            "INSERT INTO t2 (val) VALUES ('c')",
+        );
         const pagesAfter = await extractPages(dir);
 
-        // Find pages that changed (new or different
-        // timestamp) — these are the t2 mutation pages.
+        // Drop page 0 — SQLite touches its file-change
+        // counter on every write, and that's a noise
+        // region the production code filters out via
+        // shouldIgnorePageInvalidation. The point of this
+        // test is the non-page-0 case.
         const changedPages = pagesAfter
             .filter(after => {
+                if (after.pageIndex === 0) return false;
                 const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
                 return before === undefined || before.timestamp !== after.timestamp;
             })
@@ -939,25 +884,33 @@ describe("Reactive actions", () => {
                 diff: [],
             }));
 
-        // Write only the changed pages as realtime updates
+        // Sanity: the t2 mutation should have changed at
+        // least one non-page-0 page; otherwise the test
+        // tells us nothing.
+        expect(changedPages.length).toBeGreaterThan(0);
+
         await conn.call("writePagesFromRealtime", {
             pages: changedPages,
             mutationId: generateId<DatabaseMutationId>(),
             fileSizeInPages: 0,
         });
-
-        // The t1 reactive action should NOT have been
-        // invalidated since none of its read pages were
-        // written. (This test verifies correctness of
-        // per-page invalidation vs blanket invalidation.)
         await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(updates).toEqual([]);
+        expect(handle.store.getSnapshot()).toMatchObject({
+            ok: true,
+            value: {rows: [{id: 1, val: "a"}]},
+        });
+
+        handle.store.removeListener(listener);
+        handle.unwatch();
     });
 
     test("unregisterReactiveAction stops re-execution", async () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -968,28 +921,39 @@ describe("Reactive actions", () => {
         );
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
-        const id = generateId<DatabaseReactiveActionId>();
-        await conn.call("registerReactiveAction", {
-            id,
-            action: {name: "readonlyRawSql" as const, input: {sql: "SELECT * FROM t"}},
+        const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
+        const initial = handle.store.getSnapshot();
+        expect(initial).toMatchObject({ok: true, value: {rows: [{id: 1, val: "v1"}]}});
+
+        const updates: Array<unknown> = [];
+        handle.store.addListener(() => {
+            const snap = handle.store.getSnapshot();
+            if (snap !== initial) updates.push(snap);
         });
 
-        // Unregister
-        await conn.call("unregisterReactiveAction", {id});
+        // Unregister, then write pages that would normally
+        // invalidate the watch.
+        handle.unwatch();
 
-        // Write pages — should not cause an error even
-        // though the action is gone.
+        await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
         const pages = await extractPages(dir);
         await conn.call("writePagesFromRealtime", {
             pages: pages.map(({pageIndex, timestamp}) => ({
                 pageIndex,
-                timestamp,
+                timestamp: timestamp + 1000,
                 diff: [],
             })),
             mutationId: generateId<DatabaseMutationId>(),
             fileSizeInPages: 0,
         });
         await new Promise(resolve => setTimeout(resolve, 50));
+
+        // No notifications after unwatch, store unchanged.
+        expect(updates).toEqual([]);
+        expect(handle.store.getSnapshot()).toMatchObject({
+            ok: true,
+            value: {rows: [{id: 1, val: "v1"}]},
+        });
     });
 });
 
@@ -998,7 +962,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -1021,7 +985,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Pre-populate OPFS so data is in the base store
         // (no optimistic queue to replay on
@@ -1045,7 +1009,7 @@ describe("watchAction", () => {
 
         // Build "after" state in a separate database that
         // has both rows — simulates a server-side mutation.
-        const serverDir = createInMemoryDirectory();
+        const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await createSeededClient(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
@@ -1091,7 +1055,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
 
         // Tab A — leader
         const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});

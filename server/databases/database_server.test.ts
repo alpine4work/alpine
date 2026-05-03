@@ -45,8 +45,26 @@ class InMemoryStorage implements DatabaseServerStorage {
     }
 }
 
+// Servers created during a test are tracked here and
+// closed in `afterEach` so individual tests don't have
+// to call `server.close()` themselves.
+const openServers: Array<DatabaseServer> = [];
+
+afterEach(() => {
+    while (openServers.length > 0) {
+        // Tolerate already-closed servers — earlier tests
+        // may have called close() explicitly.
+        try {
+            openServers.pop()!.close();
+        } catch {
+            // ignore
+        }
+    }
+});
+
 async function createServerWithSchema(...statements: Array<string>): Promise<DatabaseServer> {
     const server = await DatabaseServer.create(new InMemoryStorage());
+    openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
         db.exec(stmt);
@@ -66,8 +84,6 @@ describe("DatabaseServer", () => {
                         1 + 1
                 `.selectValue(db, Schema.integer),
             ).toBe(2);
-
-            server.close();
         });
 
         test("create table, insert, and query back", async () => {
@@ -87,8 +103,6 @@ describe("DatabaseServer", () => {
                 [1, "alpha"],
                 [2, "beta"],
             ]);
-
-            server.close();
         });
 
         test("data persists across multiple exec calls", async () => {
@@ -106,8 +120,6 @@ describe("DatabaseServer", () => {
                     rowMode: "array",
                 }),
             ).toEqual([[11], [21]]);
-
-            server.close();
         });
 
         test("multiple tables", async () => {
@@ -135,8 +147,6 @@ describe("DatabaseServer", () => {
                         b
                 `.selectValue(db, Schema.integer),
             ).toBe(1);
-
-            server.close();
         });
     });
 
@@ -156,8 +166,6 @@ describe("DatabaseServer", () => {
                 {id: 1, name: "alpha"},
                 {id: 2, name: "beta"},
             ]);
-
-            server.close();
         });
 
         test("SELECT with WHERE filters correctly", async () => {
@@ -172,8 +180,6 @@ describe("DatabaseServer", () => {
             });
 
             expect(result.rows).toEqual([{name: "b"}, {name: "c"}]);
-
-            server.close();
         });
 
         test("SELECT with JOIN across tables", async () => {
@@ -192,8 +198,6 @@ describe("DatabaseServer", () => {
             );
 
             expect(result.rows).toEqual([{name: "Alice", title: "Book A"}]);
-
-            server.close();
         });
 
         test("SELECT with aggregate functions", async () => {
@@ -207,8 +211,6 @@ describe("DatabaseServer", () => {
             });
 
             expect(result.rows).toEqual([{cnt: 3, total: 60}]);
-
-            server.close();
         });
 
         test("SELECT on empty table returns empty array", async () => {
@@ -219,8 +221,6 @@ describe("DatabaseServer", () => {
             const result = server.execute("SELECT * FROM empty_t", {allowWrites: "none"});
 
             expect(result.rows).toEqual([]);
-
-            server.close();
         });
 
         test("SELECT with no matching rows returns empty array", async () => {
@@ -234,8 +234,6 @@ describe("DatabaseServer", () => {
             });
 
             expect(result.rows).toEqual([]);
-
-            server.close();
         });
 
         test("recursive CTE works", async () => {
@@ -247,8 +245,6 @@ describe("DatabaseServer", () => {
             );
 
             expect(result.rows).toEqual([{x: 1}, {x: 2}, {x: 3}, {x: 4}, {x: 5}]);
-
-            server.close();
         });
 
         test("subquery works", async () => {
@@ -263,8 +259,6 @@ describe("DatabaseServer", () => {
             );
 
             expect(result.rows).toEqual([{id: 3, value: 30}]);
-
-            server.close();
         });
     });
 
@@ -278,8 +272,6 @@ describe("DatabaseServer", () => {
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
 
             expect(result.readPages.size).toBeGreaterThan(0);
-
-            server.close();
         });
 
         test("all page values are 4096 bytes", async () => {
@@ -294,8 +286,6 @@ describe("DatabaseServer", () => {
             for (const [, pageData] of result.readPages) {
                 expect(pageData.data.byteLength).toBe(sqlitePageSize);
             }
-
-            server.close();
         });
 
         test("pages contain actual database content", async () => {
@@ -315,8 +305,6 @@ describe("DatabaseServer", () => {
                 }
             }
             expect(hasNonZeroPage).toBe(true);
-
-            server.close();
         });
 
         test("same query returns same pages deterministically", async () => {
@@ -333,8 +321,6 @@ describe("DatabaseServer", () => {
                 expect(result2.readPages.has(pageIndex)).toBe(true);
                 expect(pageData).toEqual(result2.readPages.get(pageIndex));
             }
-
-            server.close();
         });
 
         test("tracks page 0 and the root page of the queried table", async () => {
@@ -375,117 +361,14 @@ describe("DatabaseServer", () => {
                 // rootpage is 1-based, our map keys are 0-based.
                 expect(pageIndices).toContain(rootpage - 1);
             }
-
-            server.close();
         });
     });
 
-    describe("execute read-only — authorization", () => {
-        test("INSERT is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("INSERT INTO items VALUES (1)", {allowWrites: "none"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("UPDATE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() =>
-                server.execute("UPDATE items SET id = 2", {allowWrites: "none"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("DELETE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() => server.execute("DELETE FROM items", {allowWrites: "none"})).toThrow();
-
-            server.close();
-        });
-
-        test("PRAGMA is rejected", async () => {
-            const server = await createServerWithSchema();
-
-            expect(() => server.execute("PRAGMA table_list", {allowWrites: "none"})).toThrow();
-
-            server.close();
-        });
-
-        test("CREATE TABLE is rejected", async () => {
-            const server = await createServerWithSchema();
-
-            expect(() =>
-                server.execute("CREATE TABLE bad (id INTEGER)", {allowWrites: "none"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("DROP TABLE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() => server.execute("DROP TABLE items", {allowWrites: "none"})).toThrow();
-
-            server.close();
-        });
-
-        test("ALTER TABLE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("ALTER TABLE items ADD COLUMN name TEXT", {allowWrites: "none"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("CREATE INDEX is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-            );
-
-            expect(() =>
-                server.execute("CREATE INDEX idx_name ON items(name)", {allowWrites: "none"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("allowed operations still work after rejected query", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() =>
-                server.execute("INSERT INTO items VALUES (2)", {allowWrites: "none"}),
-            ).toThrow();
-
-            // SELECT should still work after a rejected mutation.
-            const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
-            expect(result.rows).toEqual([{id: 1}]);
-
-            server.close();
-        });
-    });
+    // The writeLevel × action authorization matrix is
+    // covered exhaustively in
+    // shared/databases/sqlite_authorizer.test.ts. The tests
+    // here only assert behavior unique to DatabaseServer
+    // (page tracking, changedPages, transaction lifecycle).
 
     describe("execute read-only — isolation", () => {
         test("does not modify database state", async () => {
@@ -503,8 +386,6 @@ describe("DatabaseServer", () => {
 
             expect(result1.rows).toEqual([{cnt: 3}]);
             expect(result2.rows).toEqual(result1.rows);
-
-            server.close();
         });
 
         test("multiple sequential queries return consistent results", async () => {
@@ -519,8 +400,6 @@ describe("DatabaseServer", () => {
                 });
                 expect(result.rows).toEqual([{total: 300}]);
             }
-
-            server.close();
         });
 
         test("writes via unsafeGetDbForTests are visible to execute", async () => {
@@ -541,8 +420,6 @@ describe("DatabaseServer", () => {
                 allowWrites: "none",
             });
             expect(after.rows).toEqual([{cnt: 2}]);
-
-            server.close();
         });
 
         test("failed execute does not leave database in bad state", async () => {
@@ -559,8 +436,6 @@ describe("DatabaseServer", () => {
             // Database should still be usable.
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
             expect(result.rows).toEqual([{id: 1}]);
-
-            server.close();
         });
     });
 
@@ -569,8 +444,6 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
 
             expect(() => server.execute("NOT VALID SQL", {allowWrites: "none"})).toThrow();
-
-            server.close();
         });
 
         test("reference to non-existent table throws", async () => {
@@ -579,8 +452,6 @@ describe("DatabaseServer", () => {
             expect(() =>
                 server.execute("SELECT * FROM nonexistent", {allowWrites: "none"}),
             ).toThrow();
-
-            server.close();
         });
 
         test("database is usable after error", async () => {
@@ -597,8 +468,6 @@ describe("DatabaseServer", () => {
                 allowWrites: "none",
             });
             expect(result.rows).toEqual([{cnt: 0}]);
-
-            server.close();
         });
     });
 
@@ -606,6 +475,7 @@ describe("DatabaseServer", () => {
         test("writes go through to storage", async () => {
             const storage = new InMemoryStorage();
             const server = await DatabaseServer.create(storage);
+            openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
@@ -613,13 +483,12 @@ describe("DatabaseServer", () => {
 
             // Storage should have been written to.
             expect(storage.getFileSize()).toBeGreaterThan(0);
-
-            server.close();
         });
 
         test("page data from execute matches what storage has", async () => {
             const storage = new InMemoryStorage();
             const server = await DatabaseServer.create(storage);
+            openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
@@ -632,8 +501,6 @@ describe("DatabaseServer", () => {
             for (const [pageIndex, pageData] of result.readPages) {
                 expect(pageData).toEqual(storage.readPage(pageIndex));
             }
-
-            server.close();
         });
     });
 
@@ -649,8 +516,6 @@ describe("DatabaseServer", () => {
 
             expect(result.rows).toEqual([]);
             expect(result.changedPages.size).toBeGreaterThan(0);
-
-            server.close();
         });
 
         test("INSERT with RETURNING returns rows", async () => {
@@ -664,8 +529,6 @@ describe("DatabaseServer", () => {
             );
 
             expect(result.rows).toEqual([{id: 1, name: "hello"}]);
-
-            server.close();
         });
 
         test("CREATE TABLE via execute", async () => {
@@ -678,8 +541,6 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
             expect(result.rows).toEqual([{id: 1, name: "hello"}]);
-
-            server.close();
         });
 
         test("multiple mutations accumulate state", async () => {
@@ -695,8 +556,6 @@ describe("DatabaseServer", () => {
                 allowWrites: "none",
             });
             expect(result.rows).toEqual([{id: 1}, {id: 2}, {id: 3}]);
-
-            server.close();
         });
 
         test("UPDATE modifies existing data", async () => {
@@ -709,8 +568,6 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
             expect(result.rows).toEqual([{id: 1, value: 200}]);
-
-            server.close();
         });
 
         test("DELETE removes data", async () => {
@@ -725,8 +582,6 @@ describe("DatabaseServer", () => {
                 allowWrites: "none",
             });
             expect(result.rows).toEqual([{id: 1}, {id: 3}]);
-
-            server.close();
         });
     });
 
@@ -742,8 +597,6 @@ describe("DatabaseServer", () => {
                 expect(change.before).toBeInstanceOf(Uint8Array);
                 expect(change.after).toBeInstanceOf(Uint8Array);
             }
-
-            server.close();
         });
 
         test("all page snapshots are 4096 bytes", async () => {
@@ -757,13 +610,12 @@ describe("DatabaseServer", () => {
                 expect(change.before.byteLength).toBe(sqlitePageSize);
                 expect(change.after.byteLength).toBe(sqlitePageSize);
             }
-
-            server.close();
         });
 
         test("before snapshot matches pre-mutation storage state", async () => {
             const storage = new InMemoryStorage();
             const server = await DatabaseServer.create(storage);
+            openServers.push(server);
             const db = server.unsafeGetDbForTests();
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
@@ -780,13 +632,12 @@ describe("DatabaseServer", () => {
                 const prePage = prePages.get(pageIndex) ?? new Uint8Array(sqlitePageSize);
                 expect(change.before).toEqual(prePage);
             }
-
-            server.close();
         });
 
         test("after snapshot matches post-mutation storage state", async () => {
             const storage = new InMemoryStorage();
             const server = await DatabaseServer.create(storage);
+            openServers.push(server);
             const db = server.unsafeGetDbForTests();
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
@@ -796,8 +647,6 @@ describe("DatabaseServer", () => {
             for (const [pageIndex, change] of result.changedPages) {
                 expect(change.after).toEqual(storage.readPage(pageIndex)!.data);
             }
-
-            server.close();
         });
 
         test("before and after differ for changed pages", async () => {
@@ -816,226 +665,6 @@ describe("DatabaseServer", () => {
                 }
             }
             expect(hasDiff).toBe(true);
-
-            server.close();
-        });
-    });
-
-    describe("execute with data — authorization", () => {
-        test("INSERT is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("UPDATE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() =>
-                server.execute("UPDATE items SET id = 2", {allowWrites: "data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("DELETE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() => server.execute("DELETE FROM items", {allowWrites: "data"})).not.toThrow();
-
-            server.close();
-        });
-
-        test("CREATE TABLE is rejected", async () => {
-            const server = await createServerWithSchema();
-
-            expect(() =>
-                server.execute("CREATE TABLE t (id INTEGER)", {allowWrites: "data"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("DROP TABLE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() => server.execute("DROP TABLE items", {allowWrites: "data"})).toThrow();
-
-            server.close();
-        });
-
-        test("ALTER TABLE is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("ALTER TABLE items ADD COLUMN name TEXT", {allowWrites: "data"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("CREATE INDEX is rejected", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-            );
-
-            expect(() =>
-                server.execute("CREATE INDEX idx_name ON items(name)", {allowWrites: "data"}),
-            ).toThrow();
-
-            server.close();
-        });
-
-        test("PRAGMA is rejected", async () => {
-            const server = await createServerWithSchema();
-
-            expect(() => server.execute("PRAGMA table_list", {allowWrites: "data"})).toThrow();
-
-            server.close();
-        });
-
-        test("SELECT is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            const result = server.execute("SELECT * FROM items", {allowWrites: "data"});
-
-            expect(result.rows).toEqual([{id: 1}]);
-
-            server.close();
-        });
-    });
-
-    describe("execute with schema+data — authorization", () => {
-        test("INSERT is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("INSERT INTO items VALUES (1)", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("UPDATE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() =>
-                server.execute("UPDATE items SET id = 2", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("DELETE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            expect(() =>
-                server.execute("DELETE FROM items", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("CREATE TABLE is allowed", async () => {
-            const server = await createServerWithSchema();
-
-            expect(() =>
-                server.execute("CREATE TABLE t (id INTEGER)", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("DROP TABLE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("DROP TABLE items", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("ALTER TABLE is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
-
-            expect(() =>
-                server.execute("ALTER TABLE items ADD COLUMN name TEXT", {
-                    allowWrites: "schema+data",
-                }),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("CREATE INDEX is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-            );
-
-            expect(() =>
-                server.execute("CREATE INDEX idx_name ON items(name)", {
-                    allowWrites: "schema+data",
-                }),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("PRAGMA is allowed at schema+data level", async () => {
-            const server = await createServerWithSchema();
-
-            // PRAGMAs must be allowed at schema+data because
-            // SQLite fires them internally during DDL.
-            expect(() =>
-                server.execute("PRAGMA table_list", {allowWrites: "schema+data"}),
-            ).not.toThrow();
-
-            server.close();
-        });
-
-        test("SELECT is allowed", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
-            );
-
-            const result = server.execute("SELECT * FROM items", {allowWrites: "schema+data"});
-
-            expect(result.rows).toEqual([{id: 1}]);
-
-            server.close();
         });
     });
 
@@ -1044,8 +673,6 @@ describe("DatabaseServer", () => {
             const server = await createServerWithSchema();
 
             expect(() => server.execute("NOT VALID SQL", {allowWrites: "data"})).toThrow();
-
-            server.close();
         });
 
         test("constraint violation throws", async () => {
@@ -1057,8 +684,6 @@ describe("DatabaseServer", () => {
             expect(() =>
                 server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
             ).toThrow();
-
-            server.close();
         });
 
         test("database is usable after failed mutation", async () => {
@@ -1082,8 +707,6 @@ describe("DatabaseServer", () => {
                 allowWrites: "none",
             });
             expect(result2.rows).toEqual([{id: 1}, {id: 2}]);
-
-            server.close();
         });
     });
 
@@ -1104,8 +727,6 @@ describe("DatabaseServer", () => {
                 {id: 1, name: "alpha"},
                 {id: 2, name: "beta"},
             ]);
-
-            server.close();
         });
 
         test("INSERT produces changedPages", async () => {
@@ -1121,8 +742,6 @@ describe("DatabaseServer", () => {
 
             expect(result.rows).toEqual([]);
             expect(changedPages.size).toBeGreaterThan(0);
-
-            server.close();
         });
 
         test("respects writeLevel (rawSql uses data)", async () => {
@@ -1135,8 +754,6 @@ describe("DatabaseServer", () => {
                     input: {sql: "CREATE TABLE bad (id INTEGER)"},
                 }),
             ).toThrow();
-
-            server.close();
         });
     });
 

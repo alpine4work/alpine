@@ -3,13 +3,12 @@
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
-import type {
-    OpfsDirectoryHandle,
-    OpfsFileHandle,
-    OpfsSyncAccessHandle,
-} from "~/client/web/databases/opfs.js";
+import {
+    createInMemoryOpfsDirectoryHandle,
+    extractOpfsPages,
+    prepopulateOpfsPages,
+} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
@@ -36,136 +35,6 @@ async function execute(
     return rows as ReadonlyArray<Record<string, unknown>>;
 }
 
-function createInMemorySyncHandle(): OpfsSyncAccessHandle {
-    let buffer = new Uint8Array(0);
-    return {
-        read(data, options) {
-            const at = options?.at ?? 0;
-            const available = Math.max(0, buffer.byteLength - at);
-            const toCopy = Math.min(data.byteLength, available);
-            if (toCopy > 0) {
-                data.set(buffer.subarray(at, at + toCopy));
-            }
-            return toCopy;
-        },
-        write(data, options) {
-            const at = options?.at ?? 0;
-            const end = at + data.byteLength;
-            if (end > buffer.byteLength) {
-                const next = new Uint8Array(end);
-                next.set(buffer);
-                buffer = next;
-            }
-            buffer.set(data, at);
-            return data.byteLength;
-        },
-        truncate(size) {
-            if (size < buffer.byteLength) {
-                buffer = buffer.slice(0, size);
-            } else {
-                const next = new Uint8Array(size);
-                next.set(buffer);
-                buffer = next;
-            }
-        },
-        flush() {},
-        close() {},
-        getSize() {
-            return buffer.byteLength;
-        },
-    };
-}
-
-function createInMemoryDirectory(): OpfsDirectoryHandle {
-    const dirs = new Map<string, OpfsDirectoryHandle>();
-    const files = new Map<string, OpfsSyncAccessHandle>();
-    return {
-        async removeEntry(name: string) {
-            dirs.delete(name);
-            files.delete(name);
-        },
-        async getDirectoryHandle(name: string) {
-            let dir = dirs.get(name);
-            if (dir === undefined) {
-                dir = createInMemoryDirectory();
-                dirs.set(name, dir);
-            }
-            return dir;
-        },
-        async getFileHandle(name: string): Promise<OpfsFileHandle> {
-            return {
-                async createSyncAccessHandle() {
-                    let handle = files.get(name);
-                    if (handle === undefined) {
-                        handle = createInMemorySyncHandle();
-                        files.set(name, handle);
-                    }
-                    return handle;
-                },
-            };
-        },
-    };
-}
-
-// ---------------------------------------------------------------------------
-// OPFS page extraction / pre-population helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Reads all pages + index from a directory's "databases"
- * subdirectory. Uses the same OPFS mock handles that the
- * `DatabaseClient` wrote to.
- */
-async function extractPages(
-    dir: OpfsDirectoryHandle,
-): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const dbDir = await dir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dbDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dbDir.getFileHandle("index.json")).createSyncAccessHandle();
-
-    const indexSize = indexHandle.getSize();
-    if (indexSize === 0) return [];
-
-    const raw = new Uint8Array(indexSize);
-    indexHandle.read(raw, {at: 0});
-    const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-        [number, {slot: number; timestamp: number}]
-    >;
-
-    return entries.map(([pageIndex, {slot, timestamp}]) => {
-        const data = new Uint8Array(sqlitePageSize);
-        pagesHandle.read(data, {at: slot * sqlitePageSize});
-        return {pageIndex, timestamp, data};
-    });
-}
-
-/**
- * Pre-populates a directory's "databases" subdirectory
- * with pages + index so that a subsequent
- * `DatabaseClient.create` opens an existing DB rather
- * than creating a fresh one.
- */
-async function prepopulatePages(
-    dir: OpfsDirectoryHandle,
-    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>,
-): Promise<void> {
-    const dbDir = await dir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dbDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dbDir.getFileHandle("index.json")).createSyncAccessHandle();
-
-    const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
-    for (let i = 0; i < pages.length; i++) {
-        const page = pages[i]!;
-        pagesHandle.write(page.data, {at: i * sqlitePageSize});
-        indexEntries.push([page.pageIndex, {slot: i, timestamp: page.timestamp}]);
-    }
-    pagesHandle.flush();
-
-    const json = new TextEncoder().encode(JSON.stringify(indexEntries, null, 2));
-    indexHandle.write(json, {at: 0});
-    indexHandle.flush();
-}
-
 function pagesToMap(
     pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>,
 ): Map<number, {timestamp: number; data: Uint8Array}> {
@@ -178,14 +47,14 @@ function pagesToMap(
 
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         const rows = await execute(client, testConn, "SELECT 1 + 1 AS result");
 
         expect(rows).toMatchObject([{result: 2}]);
     });
 
     test("create table, insert, and select", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests(
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
@@ -200,7 +69,7 @@ describe("DatabaseClient", () => {
     });
 
     test("aggregate query", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests(
             "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
@@ -223,8 +92,8 @@ describe("DatabaseClient", () => {
     });
 
     test("multiple clients have independent databases", async () => {
-        const client1 = await DatabaseClient.create(createInMemoryDirectory());
-        const client2 = await DatabaseClient.create(createInMemoryDirectory());
+        const client1 = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const client2 = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client1.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await execute(client1, testConn, "INSERT INTO t (id) VALUES (1)");
@@ -239,7 +108,7 @@ describe("DatabaseClient", () => {
 
 describe("execute — mutations", () => {
     test("executes mutation locally and returns rows", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
 
         const rows = await execute(
@@ -252,7 +121,7 @@ describe("execute — mutations", () => {
     });
 
     test("sends mutation to server in background", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedAction: DatabaseActionObject | null = null;
@@ -291,17 +160,17 @@ describe("execute — mutations", () => {
     });
 
     test("falls back to server on PageMissingError", async () => {
-        const serverDir = createInMemoryDirectory();
+        const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
-        const allPages = await extractPages(serverDir);
+        const allPages = await extractOpfsPages(serverDir);
 
-        const localDir = createInMemoryDirectory();
-        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
@@ -331,7 +200,7 @@ describe("execute — mutations", () => {
     });
 
     test("empty store falls back to local for writes", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         let serverCallCount = 0;
         const conn: DatabaseClientConnection = {
@@ -372,7 +241,7 @@ describe("execute — mutations", () => {
     });
 
     test("propagates local execution errors", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         await expect(
             execute(client, testConn, "INSERT INTO nonexistent VALUES (1)"),
@@ -382,7 +251,7 @@ describe("execute — mutations", () => {
 
 describe("optimistic mutations", () => {
     test("writePagesFromRealtime dequeues confirmed mutation", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedMutationId: DatabaseMutationId | null = null;
@@ -410,7 +279,7 @@ describe("optimistic mutations", () => {
     });
 
     test("replays remaining mutations after confirmation", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
@@ -442,7 +311,7 @@ describe("optimistic mutations", () => {
     });
 
     test("asserts on out-of-order confirmation", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
@@ -471,7 +340,7 @@ describe("optimistic mutations", () => {
     });
 
     test("external mutation applies pages without dequeue", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         // No optimistic mutations queued — just apply pages
@@ -483,7 +352,7 @@ describe("optimistic mutations", () => {
     });
 
     test("reports error when server mutation fails", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
@@ -512,7 +381,7 @@ describe("optimistic mutations", () => {
     });
 
     test("removes optimistic mutation on server error", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const conn: DatabaseClientConnection = {
@@ -540,7 +409,7 @@ describe("optimistic mutations", () => {
     });
 
     test("asserts mutation confirmed before server responds", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
@@ -580,20 +449,20 @@ describe("server fallback", () => {
     test("missing page triggers server fallback", async () => {
         // Create a "server" DB with enough data to span
         // multiple pages (4096 bytes each).
-        const serverDir = createInMemoryDirectory();
+        const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
-        const allPages = await extractPages(serverDir);
+        const allPages = await extractOpfsPages(serverDir);
 
         // Pre-populate a local directory with all pages
         // EXCEPT the last one, then open it. SQLite sees
         // the existing DB but one page is absent.
-        const localDir = createInMemoryDirectory();
-        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
@@ -624,18 +493,18 @@ describe("server fallback", () => {
     });
 
     test("server fallback caches pages for subsequent local queries", async () => {
-        const serverDir = createInMemoryDirectory();
+        const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
 
-        const allPages = await extractPages(serverDir);
+        const allPages = await extractOpfsPages(serverDir);
 
         // Pre-populate with all but last page
-        const localDir = createInMemoryDirectory();
-        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         // First query: server fallback writes missing pages
@@ -669,7 +538,7 @@ describe("server fallback", () => {
 
 describe("executeActionWithTracking", () => {
     test("returns output and read page set", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
@@ -684,7 +553,7 @@ describe("executeActionWithTracking", () => {
     });
 
     test("read pages include the table's root page", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         const db = client.unsafeGetDbForTests();
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
@@ -715,7 +584,7 @@ describe("executeActionWithTracking", () => {
     });
 
     test("different tables have different read sets", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
@@ -739,7 +608,7 @@ describe("executeActionWithTracking", () => {
     });
 
     test("throws on write attempts without contacting server", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
@@ -782,17 +651,17 @@ describe("executeActionWithTracking", () => {
 
     test("server fallback still produces accurate read set", async () => {
         // Create a "server" DB
-        const serverDir = createInMemoryDirectory();
+        const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
         }
-        const allPages = await extractPages(serverDir);
+        const allPages = await extractOpfsPages(serverDir);
 
         // Pre-populate with all but last page
-        const localDir = createInMemoryDirectory();
-        await prepopulatePages(localDir, allPages.slice(0, -1));
+        const localDir = createInMemoryOpfsDirectoryHandle();
+        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         const serverConn: DatabaseClientConnection = {
@@ -828,7 +697,7 @@ describe("executeActionWithTracking", () => {
 
 describe("registerReactiveAction", () => {
     test("returns initial output", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
@@ -846,7 +715,7 @@ describe("registerReactiveAction", () => {
     });
 
     test("optimistic mutation invalidates overlapping reactive action", async () => {
-        const client = await DatabaseClient.create(createInMemoryDirectory());
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('v1')");
@@ -876,7 +745,7 @@ describe("registerReactiveAction", () => {
     });
 
     test("notify fires when overlapping pages are written", async () => {
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
         // Use executeLocallyForTests so data goes to OPFS
@@ -902,7 +771,7 @@ describe("registerReactiveAction", () => {
         // Write as realtime with newer timestamps to
         // trigger invalidation. Empty diffs since OPFS
         // already has the current content.
-        const pages = await extractPages(dir);
+        const pages = await extractOpfsPages(dir);
         const newerPages = pages.map(({pageIndex, timestamp}) => ({
             pageIndex,
             timestamp: timestamp + 1000,
@@ -921,7 +790,7 @@ describe("registerReactiveAction", () => {
     });
 
     test("notify does NOT fire for non-overlapping pages", async () => {
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
         // Use executeLocallyForTests so data goes to OPFS
@@ -946,12 +815,12 @@ describe("registerReactiveAction", () => {
         );
 
         // Record pages before t2 mutation
-        const pagesBefore = await extractPages(dir);
+        const pagesBefore = await extractOpfsPages(dir);
 
         // Mutate t2 only
         await execute(client, testConn, "INSERT INTO t2 (id) VALUES (3)");
 
-        const pagesAfter = await extractPages(dir);
+        const pagesAfter = await extractOpfsPages(dir);
         const changedPages = pagesAfter
             .filter(after => {
                 // Skip page 0 — it always changes (SQLite
@@ -976,7 +845,7 @@ describe("registerReactiveAction", () => {
     });
 
     test("initial failure still registers action, re-executes on page write", async () => {
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
         // Register an action against a table that doesn't
@@ -1001,7 +870,7 @@ describe("registerReactiveAction", () => {
 
         // Trigger invalidation via realtime page writes.
         // readPages is null so any page write overlaps.
-        const pages = await extractPages(dir);
+        const pages = await extractOpfsPages(dir);
         const newerPages = pages.map(({pageIndex, timestamp}) => ({
             pageIndex,
             timestamp: timestamp + 1000,
@@ -1016,7 +885,7 @@ describe("registerReactiveAction", () => {
     });
 
     test("unregisterReactiveAction stops notifications", async () => {
-        const dir = createInMemoryDirectory();
+        const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
@@ -1036,7 +905,7 @@ describe("registerReactiveAction", () => {
         client.unregisterReactiveAction("q1");
 
         // Write pages — should not trigger notification
-        const pages = await extractPages(dir);
+        const pages = await extractOpfsPages(dir);
         const newerPages = pages.map(({pageIndex, timestamp}) => ({
             pageIndex,
             timestamp: timestamp + 1000,

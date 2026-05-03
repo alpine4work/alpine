@@ -2,6 +2,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "databases",
+    test_deps = [
+        "//client/web/databases/test_helpers",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//client/web:__subpackages__",

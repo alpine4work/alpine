@@ -11,11 +11,7 @@ import {
 } from "~/client/web/databases/database_client.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
-import type {
-    OpfsDirectoryHandle,
-    OpfsFileHandle,
-    OpfsSyncAccessHandle,
-} from "~/client/web/databases/opfs.js";
+import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import type {
     DatabaseActionInput,
     DatabaseActionName,
@@ -28,81 +24,6 @@ import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-
-// ---------------------------------------------------------------------------
-// In-memory OPFS mock (same as database_client.test.ts)
-// ---------------------------------------------------------------------------
-
-function createInMemorySyncHandle(): OpfsSyncAccessHandle {
-    let buffer = new Uint8Array(0);
-    return {
-        read(data, options) {
-            const at = options?.at ?? 0;
-            const available = Math.max(0, buffer.byteLength - at);
-            const toCopy = Math.min(data.byteLength, available);
-            if (toCopy > 0) {
-                data.set(buffer.subarray(at, at + toCopy));
-            }
-            return toCopy;
-        },
-        write(data, options) {
-            const at = options?.at ?? 0;
-            const end = at + data.byteLength;
-            if (end > buffer.byteLength) {
-                const next = new Uint8Array(end);
-                next.set(buffer);
-                buffer = next;
-            }
-            buffer.set(data, at);
-            return data.byteLength;
-        },
-        truncate(size) {
-            if (size < buffer.byteLength) {
-                buffer = buffer.slice(0, size);
-            } else {
-                const next = new Uint8Array(size);
-                next.set(buffer);
-                buffer = next;
-            }
-        },
-        flush() {},
-        close() {},
-        getSize() {
-            return buffer.byteLength;
-        },
-    };
-}
-
-function createInMemoryDirectory(): OpfsDirectoryHandle {
-    const dirs = new Map<string, OpfsDirectoryHandle>();
-    const files = new Map<string, OpfsSyncAccessHandle>();
-    return {
-        async removeEntry(name: string) {
-            dirs.delete(name);
-            files.delete(name);
-        },
-        async getDirectoryHandle(name: string) {
-            let dir = dirs.get(name);
-            if (dir === undefined) {
-                dir = createInMemoryDirectory();
-                dirs.set(name, dir);
-            }
-            return dir;
-        },
-        async getFileHandle(name: string): Promise<OpfsFileHandle> {
-            return {
-                async createSyncAccessHandle() {
-                    let handle = files.get(name);
-                    if (handle === undefined) {
-                        handle = createInMemorySyncHandle();
-                        files.set(name, handle);
-                    }
-                    return handle;
-                },
-            };
-        },
-    };
-}
 
 // ---------------------------------------------------------------------------
 // Test connection adapter
@@ -219,7 +140,7 @@ async function setupTestDatabase(): Promise<{
     tableName: string;
     mutate: (sql: string) => Promise<void>;
 }> {
-    const dir = createInMemoryDirectory();
+    const dir = createInMemoryOpfsDirectoryHandle();
     const client = await DatabaseClient.create(dir);
 
     // Run Alpine schema migrations (creates _alpine_tables etc.)

@@ -10,9 +10,22 @@ import {isOrderKey} from "~/shared/helpers/sort/order_key.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
+const openDbs: Array<Database> = [];
+
+afterEach(() => {
+    while (openDbs.length > 0) {
+        try {
+            openDbs.pop()!.close();
+        } catch {
+            // ignore: tolerate already-closed dbs.
+        }
+    }
+});
+
 async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-custom-fns-${dbCounter++}.sqlite3`, "ct");
+    openDbs.push(db);
     registerSqliteCustomFunctions(sqlite3, db);
     runSqliteMigrations(db);
     return db;
@@ -28,7 +41,6 @@ describe("generate_order_key", () => {
 
         expect(row).toHaveLength(1);
         expect(isOrderKey(row[0]!.value as string)).toBe(true);
-        db.close();
     });
 
     test("('a0', NULL) returns a key > 'a0'", async () => {
@@ -39,7 +51,6 @@ describe("generate_order_key", () => {
         `.selectAllUnknown(db);
 
         expect((row[0]!.value as string) > "a0").toBe(true);
-        db.close();
     });
 
     test("(NULL, 'a0') returns a key < 'a0'", async () => {
@@ -50,7 +61,6 @@ describe("generate_order_key", () => {
         `.selectAllUnknown(db);
 
         expect((row[0]!.value as string) < "a0").toBe(true);
-        db.close();
     });
 
     test("('a0', 'a2') returns a key between them", async () => {
@@ -63,7 +73,6 @@ describe("generate_order_key", () => {
         const key = row[0]!.value as string;
         expect(key > "a0").toBe(true);
         expect(key < "a2").toBe(true);
-        db.close();
     });
 
     test("throws for invalid first argument", async () => {
@@ -74,7 +83,6 @@ describe("generate_order_key", () => {
                     generate_order_key ('!!!', NULL) AS value
             `.selectAllUnknown(db);
         }).toThrow("generate_order_key(): argument \u2018a\u2019 is not a valid order key: !!!");
-        db.close();
     });
 
     test("throws for invalid second argument", async () => {
@@ -85,7 +93,6 @@ describe("generate_order_key", () => {
                     generate_order_key (NULL, '!!!') AS value
             `.selectAllUnknown(db);
         }).toThrow("generate_order_key(): argument \u2018b\u2019 is not a valid order key: !!!");
-        db.close();
     });
 });
 
@@ -98,7 +105,6 @@ describe("is_order_key", () => {
         `.selectAllUnknown(db);
 
         expect(row[0]!.result).toBe(1);
-        db.close();
     });
 
     test("returns 0 for an invalid string", async () => {
@@ -109,7 +115,6 @@ describe("is_order_key", () => {
         `.selectAllUnknown(db);
 
         expect(row[0]!.result).toBe(0);
-        db.close();
     });
 
     test("returns 0 for NULL", async () => {
@@ -120,7 +125,6 @@ describe("is_order_key", () => {
         `.selectAllUnknown(db);
 
         expect(row[0]!.result).toBe(0);
-        db.close();
     });
 });
 
@@ -138,7 +142,6 @@ describe("generate_order_keys", () => {
         for (const row of rows) {
             expect(isOrderKey(row.value as string)).toBe(true);
         }
-        db.close();
     });
 
     test("returns keys in sorted order", async () => {
@@ -153,7 +156,6 @@ describe("generate_order_keys", () => {
         const keys = rows.map(r => r.value as string);
         const sorted = [...keys].sort();
         expect(keys).toEqual(sorted);
-        db.close();
     });
 
     test("returns zero rows for n=0", async () => {
@@ -166,7 +168,6 @@ describe("generate_order_keys", () => {
         `.selectAllUnknown(db);
 
         expect(rows).toHaveLength(0);
-        db.close();
     });
 
     test("with non-null bounds returns keys between them", async () => {
@@ -185,7 +186,6 @@ describe("generate_order_keys", () => {
             expect(key > "a0").toBe(true);
             expect(key < "a2").toBe(true);
         }
-        db.close();
     });
 
     test("throws for invalid bounds", async () => {
@@ -198,7 +198,6 @@ describe("generate_order_keys", () => {
                     generate_order_keys ('!!!', NULL, 1)
             `.selectAllUnknown(db);
         }).toThrow("generate_order_keys(): argument \u2018a\u2019 is not a valid order key: !!!");
-        db.close();
     });
 
     test("SELECT * excludes HIDDEN columns", async () => {
@@ -214,6 +213,5 @@ describe("generate_order_keys", () => {
         for (const row of rows) {
             expect(Object.keys(row)).toEqual(["value"]);
         }
-        db.close();
     });
 });
