@@ -156,7 +156,7 @@ describe("sql.raw execution", () => {
     });
 });
 
-describe(".all", () => {
+describe("selectAll", () => {
     test("returns all matching rows", () => {
         const rows = sql`
             SELECT
@@ -206,7 +206,7 @@ describe(".all", () => {
     });
 });
 
-describe(".one", () => {
+describe("selectOne", () => {
     test("returns the single matching row", () => {
         const row = sql`
             SELECT
@@ -250,7 +250,7 @@ describe(".one", () => {
     });
 });
 
-describe(".oneOrNone", () => {
+describe("selectOneOrNone", () => {
     test("returns the row when one matches", () => {
         const row = sql`
             SELECT
@@ -293,7 +293,7 @@ describe(".oneOrNone", () => {
     });
 });
 
-describe(".value", () => {
+describe("selectValue", () => {
     test("returns a single scalar", () => {
         expect(
             sql`
@@ -355,7 +355,7 @@ describe(".value", () => {
     });
 });
 
-describe(".exec", () => {
+describe("exec", () => {
     test("executes DDL", () => {
         sql`CREATE TABLE t2 (x INTEGER)`.exec(db);
         const rows = sql`

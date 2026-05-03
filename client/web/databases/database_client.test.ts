@@ -8,23 +8,13 @@ import {
     extractOpfsPages,
     prepopulateOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 
-const testConn: DatabaseClientConnection = {
-    executeActionServer() {
-        // Return a never-resolving promise so optimistic
-        // pages are preserved during tests.
-        return new Promise(() => {});
-    },
-    ensureCacheIsUpToDate() {
-        return Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0});
-    },
-    acknowledgePages() {},
-    reportError() {},
-};
+const testConn = makeDatabaseClientConnection();
 
 async function execute(
     client: DatabaseClient,
@@ -126,7 +116,7 @@ describe("execute — mutations", () => {
 
         let capturedAction: DatabaseActionObject | null = null;
         let capturedMutationId: DatabaseMutationId | null = null;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer(action, options) {
                 capturedAction = action;
                 capturedMutationId = options.mutationId;
@@ -138,16 +128,7 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -174,7 +155,7 @@ describe("execute — mutations", () => {
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
-        const serverConn: DatabaseClientConnection = {
+        const serverConn = makeDatabaseClientConnection({
             async executeActionServer() {
                 serverCalled = true;
                 return {
@@ -182,16 +163,7 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         const rows = await execute(local, serverConn, "INSERT INTO t (data) VALUES ('new')");
 
@@ -203,7 +175,7 @@ describe("execute — mutations", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         let serverCallCount = 0;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer(_action, options) {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving
@@ -214,16 +186,7 @@ describe("execute — mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         // Use executeLocallyForTests for DDL so the
         // authorizer allows it; the store stays empty
@@ -255,21 +218,12 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let capturedMutationId: DatabaseMutationId | null = null;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             executeActionServer(_action, options) {
                 capturedMutationId = options.mutationId;
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         expect(capturedMutationId).not.toBeNull();
@@ -283,21 +237,12 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             executeActionServer(_action, options) {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (val) VALUES ('first')");
         await execute(client, conn, "INSERT INTO t (val) VALUES ('second')");
@@ -315,21 +260,12 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         const mutationIds: Array<DatabaseMutationId> = [];
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             executeActionServer(_action, options) {
                 mutationIds.push(options.mutationId);
                 return new Promise(() => {});
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await execute(client, conn, "INSERT INTO t (id) VALUES (2)");
@@ -356,22 +292,14 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer() {
                 throw new InternalError("server rejected mutation");
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -384,20 +312,11 @@ describe("optimistic mutations", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer() {
                 throw new InternalError("server rejected mutation");
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -413,7 +332,7 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         let reportedError: unknown = null;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer() {
                 // Return without calling writePagesFromRealtime
                 // — the mutation is still in the queue.
@@ -422,18 +341,10 @@ describe("optimistic mutations", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
             reportError(error) {
                 reportedError = error;
             },
-        };
+        });
 
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -466,7 +377,7 @@ describe("server fallback", () => {
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
-        const serverConn: DatabaseClientConnection = {
+        const serverConn = makeDatabaseClientConnection({
             async executeActionServer(action) {
                 serverCalled = true;
                 const rows = await execute(server, testConn, (action.input as any).sql);
@@ -475,16 +386,7 @@ describe("server fallback", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         const rows = await execute(local, serverConn, "SELECT count(*) AS n FROM t");
 
@@ -508,7 +410,7 @@ describe("server fallback", () => {
         const local = await DatabaseClient.create(localDir);
 
         // First query: server fallback writes missing pages
-        const serverConn: DatabaseClientConnection = {
+        const serverConn = makeDatabaseClientConnection({
             async executeActionServer(action) {
                 const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
@@ -516,16 +418,7 @@ describe("server fallback", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
 
         // Second query with a throwing connection — should
@@ -613,7 +506,7 @@ describe("executeActionWithTracking", () => {
         await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
         let serverCalled = false;
-        const conn: DatabaseClientConnection = {
+        const conn = makeDatabaseClientConnection({
             async executeActionServer() {
                 serverCalled = true;
                 return {
@@ -621,16 +514,7 @@ describe("executeActionWithTracking", () => {
                     readPages: new Map(),
                 };
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         await expect(
             client.executeActionWithTracking(conn, {
@@ -664,7 +548,7 @@ describe("executeActionWithTracking", () => {
         await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
-        const serverConn: DatabaseClientConnection = {
+        const serverConn = makeDatabaseClientConnection({
             async executeActionServer(action) {
                 const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
@@ -672,16 +556,7 @@ describe("executeActionWithTracking", () => {
                     readPages: pagesToMap(allPages),
                 } as ExecuteActionServerResult;
             },
-            ensureCacheIsUpToDate() {
-                return Promise.resolve({
-                    updatedPages: new Map(),
-                    stalePageIndexes: [],
-                    fileSizeInPages: 0,
-                });
-            },
-            acknowledgePages() {},
-            reportError() {},
-        };
+        });
 
         const {output, readPages} = await local.executeActionWithTracking(serverConn, {
             name: "readonlyRawSql",
