@@ -167,13 +167,13 @@ case "$1" in
         # `libreofficeExecutablePath` in `upload_file.ts`. If it's installed then we
         # can run LibreOffice tests.
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            if [ -z "/Applications/LibreOffice.app/Contents/MacOS/soffice" ]; then
+            if [ ! -e "/Applications/LibreOffice.app/Contents/MacOS/soffice" ]; then
                 has_libreoffice=false
             else
                 has_libreoffice=true
             fi
         elif [[ "$OSTYPE" == "linux"* ]]; then
-            if [ -z "/usr/bin/libreoffice" ] && [ -z "/usr/bin/soffice" ] && [ -z "/snap/bin/libreoffice" ] && [ -z "/opt/libreoffice/program/soffice" ]; then
+            if [ ! -e "/usr/bin/libreoffice" ] && [ ! -e "/usr/bin/soffice" ] && [ ! -e "/snap/bin/libreoffice" ] && [ ! -e "/opt/libreoffice/program/soffice" ]; then
                 has_libreoffice=false
             else
                 has_libreoffice=true

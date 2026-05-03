@@ -44,6 +44,8 @@ ts_project(
         "//:node_modules/mustache",
         "//:node_modules/openapi-typescript",
         "//:node_modules/prettier",
+        "//:node_modules/prettier-plugin-embed",
+        "//:node_modules/prettier-plugin-sql",
         "//:node_modules/typescript",
         "//:node_modules/yaml",
         "//server/helpers/node",

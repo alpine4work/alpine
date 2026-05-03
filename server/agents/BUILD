@@ -189,6 +189,8 @@ genrule(
     srcs = [
         "internal/cursor/cursor_cloud_agents_api_specification_types_without_namespace.ts",
         "//:prettier_config_files",
+        "//:node_modules/prettier-plugin-embed",
+        "//:node_modules/prettier-plugin-sql",
     ],
     outs = ["internal/cursor/cursor_cloud_agents_api_specification_types_for_write.ts"],
     cmd = """

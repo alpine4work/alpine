@@ -17,7 +17,7 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
-import {sqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
@@ -133,7 +133,7 @@ async function setupTestDatabase(): Promise<{
     const client = await DatabaseClient.create(dir);
 
     // Run Alpine schema migrations (creates _alpine_tables etc.)
-    client.executeLocallyForTests(sqliteMigrations[0]!);
+    client.executeLocallyForTests(runSqliteMigrations);
 
     const {conn, mutate} = createTestConnection(client);
 

@@ -85,6 +85,8 @@ genrule(
     srcs = [
         "blobs_script_bundle_debug_unminified.js",
         "//:prettier_config_files",
+        "//:node_modules/prettier-plugin-embed",
+        "//:node_modules/prettier-plugin-sql",
     ],
     outs = ["blobs_script_bundle_debug.js"],
     cmd = """

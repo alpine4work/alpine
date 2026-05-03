@@ -203,10 +203,7 @@ This is a comment on the post.
                 transaction,
                 request,
                 link,
-                conversationState: {
-                    startTime: new Date(),
-                    timeZone: defaultTimeZone,
-                },
+                conversationState,
                 tokenLimitFactor: 1,
             });
         });
