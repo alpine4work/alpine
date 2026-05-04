@@ -1,10 +1,16 @@
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {TestLocalEdgeServiceContextModule} from "~/admin/environment/test/unit/test_local_edge_service_context_module.js";
 import {apiDocumentsPaths} from "~/server/api/internal/documents/api_documents_paths.js";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {
+    getDocumentContent,
+    getDocumentContentSteps,
+    updateDocumentContent,
+    updateDocumentSnapshotForTest,
+} from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -12,26 +18,86 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
+import {
+    DocumentCollaborationPutContentRequestBodySchema,
+    DocumentCollaborationPutContentResponseBodySchema,
+} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentContentProsemirrorSchema,
+    assertDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
-}).cloneWithHelpers({
-    edge: new TestLocalEdgeServiceContextModule({
-        // We don't need to broadcast anything in these tests.
-        pushDurableObjectBroadcast: () => {},
-        // Swap out the actual durable object request with a mock that returns a known
-        // version number.
-        pushDurableObjectRequest: () => {
-            return {
-                newVersion: 1,
-            };
-        },
-    }),
+
+    // Reimplement the Durable Object `/put-content` route in tests so we can test the
+    // API endpoint. The actual route in `DocumentCollaborationDurableObject` isn't
+    // that dissimilar from what you see here.
+    sendRequestToDurableObject: async (actualContext, request) => {
+        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\/put-content/);
+        if (!match) return;
+
+        const context = (actualContext as ApiServiceBotActionContext).dynamo
+            // Strong consistency isn't required since this logic is test-only. So all requests
+            // will be strong consistency implicitly.
+            .unexpectStrongReadConsistency();
+
+        const documentId = assertId<DocumentId>(match[1]!);
+
+        const requestBody = DocumentCollaborationPutContentRequestBodySchema.deserialize(
+            request.body ?? null,
+        );
+
+        const document = await getDocumentContent(context, documentId);
+
+        const invertedSteps =
+            requestBody.version < document.version
+                ? await getDocumentContentSteps(context, {
+                      id: documentId,
+                      startVersion: requestBody.version,
+                      endVersion: document.version,
+                  })
+                : [];
+
+        let oldContent = document.content;
+
+        for (let index = invertedSteps.length - 1; index >= 0; index--) {
+            const step = invertedSteps[index]!;
+            const stepResult = step.invertedStep.apply(oldContent);
+            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+            oldContent = assertDocumentContent(stepResult.doc);
+        }
+
+        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
+            // This method isn't currently allowed to update document attributes like
+            // `AccessPolicy`.
+            oldContent.attrs,
+            requestBody.content,
+        );
+
+        const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+        const {newVersion, newContent} = await updateDocumentContent(context, {
+            id: documentId,
+            version: requestBody.version,
+            steps,
+            clientId: generateId(),
+        });
+
+        return DocumentCollaborationPutContentResponseBodySchema.serialize({
+            ok: true,
+            spaceId: document.spaceId,
+            creatorId: document.creator.id,
+            newVersion,
+            newContent,
+        });
+    },
 });
 
 const server = createTestApiServer(context, apiDocumentsPaths);
@@ -1012,29 +1078,256 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("returns 400 when version is stale", async () => {
+    test("PUT rebases title updates from a previous version over concurrent body updates", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
         const document = await TestDocument.create(session, {
-            title: "Stale Version Test",
-            body: "Some content.",
+            title: "Original Title",
+            body: "Original body.",
             access: "Public",
         });
+        const previousVersion = await document.getVersion();
+
+        await document.type(session, " Concurrent tail.");
+
+        const putResponse = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Renamed Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Original body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const getResponse = await server.GET(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({putResponse, getResponse}).toMatchObject({
+            putResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Renamed Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Original body. Concurrent tail.",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+            getResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Renamed Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Original body. Concurrent tail.",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PUT rebases body updates from a previous version over concurrent title updates", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Original Title",
+            body: "Original body.",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        const concurrentTitleResponse = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Concurrent Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Original body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const staleBodyResponse = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Original Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect({concurrentTitleResponse, staleBodyResponse}).toMatchObject({
+            concurrentTitleResponse: {status: 200},
+            staleBodyResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Concurrent Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PUT rebases non-conflicting body updates from a previous version", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Body Rebase",
+            body: "Alpha",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        const concurrentBodyResponse = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Body Rebase",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Alpha Beta"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const staleBodyResponse = await server.PUT(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Body Rebase",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Start Alpha"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect({concurrentBodyResponse, staleBodyResponse}).toMatchObject({
+            concurrentBodyResponse: {status: 200},
+            staleBodyResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Body Rebase",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Start Alpha Beta"}],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PUT rebases previous version updates across the document snapshot boundary", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Snapshot Boundary",
+            body: "Base",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        await document.type(session, " one");
+        await document.type(session, " two");
+        await updateDocumentSnapshotForTest(session.action(), document.id);
+        await document.type(session, " three");
+        await document.type(session, " four");
 
         const response = await server.PUT(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
-                    title: "Stale Version Test",
-                    version: (await document.getVersion()) + 1,
+                    title: "Renamed Across Snapshot",
+                    version: previousVersion,
                     content: {
                         elements: [
                             {
                                 type: "Paragraph",
-                                elements: [{type: "Text", text: "Some content."}],
+                                elements: [{type: "Text", text: "Base"}],
                             },
                         ],
                     },
@@ -1043,14 +1336,20 @@ describe("PUT /documents/{id}", () => {
         });
 
         expect(response).toMatchObject({
-            status: 400,
-            body: expect.objectContaining({
-                error: expect.objectContaining({
-                    message: expect.stringMatching(
-                        "Can’t update a previous document version. Re-fetch the document and try again.",
-                    ),
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    title: "Renamed Across Snapshot",
+                    content: expect.objectContaining({
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Base one two three four"}],
+                            },
+                        ],
+                    }),
                 }),
-            }),
+            },
         });
     });
 });

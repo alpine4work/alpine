@@ -403,8 +403,9 @@ const documentSchemas = createSchemaForProsemirrorSchema(DocumentContentProsemir
 export const DocumentContentSchema =
     documentSchemas.TopNodeType as Schema<any> as Schema<DocumentContent>;
 
-export const UncheckedDocumentContentSchema =
-    documentSchemas.UncheckedTopNodeType as Schema<any> as Schema<Node>;
+export const DocumentContentNodeSchema = documentSchemas.Node;
+
+export const UncheckedDocumentContentSchema = documentSchemas.UncheckedTopNodeType;
 
 export const DocumentContentMarkSchema = documentSchemas.Mark;
 

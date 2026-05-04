@@ -19,6 +19,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -41,10 +42,34 @@ export function fromApiContent<ApiContentType extends ApiContent | ApiContentExt
     content: ApiContentType,
 ): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
+
     return schema.nodes.doc!.create(
         null,
         blockNodes.length > 0 ? blockNodes : [schema.nodes.paragraph!.create()],
     );
+}
+
+/**
+ * Specialized version of `fromApiContent()` specifically optimized for the API
+ * `PUT` document endpoint.
+ */
+export function fromApiContentForPutDocument(
+    schema: ProsemirrorSchema,
+    title: string,
+    content: ApiContent,
+): ReadonlyArray<Node> {
+    const blockNodes = Array.from(
+        concatIterables(
+            [schema.nodes.title!.create(null, schema.text(title))],
+            fromApiContentBlockElements(schema, content.elements),
+        ),
+    );
+
+    if (blockNodes.length === 1) {
+        blockNodes.push(schema.nodes.paragraph!.create());
+    }
+
+    return blockNodes;
 }
 
 export function* fromApiContentBlockElements(

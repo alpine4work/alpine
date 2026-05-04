@@ -20,10 +20,18 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
-import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentCollaborationProtocol,
+    DocumentCollaborationPutContentRequestBodySchema,
+    DocumentCollaborationPutContentResponseBodySchema,
+} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentContent,
+    DocumentContentProsemirrorSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
@@ -31,16 +39,23 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
@@ -49,7 +64,7 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
-    | {type: "UpdateContent"};
+    | {type: "PutContent"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -57,6 +72,7 @@ class DocumentCollaborationDurableObject {
     private readonly _processContext: WorkerProcessContext;
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
+    public readonly _creatorId: AccountId | null;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
@@ -84,7 +100,7 @@ class DocumentCollaborationDurableObject {
     }): Promise<DocumentCollaborationDurableObject> {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
-        const {spaceId, version, content} =
+        const {spaceId, version, content, creatorId} =
             await getDocumentContentForCollaborationServiceInitialization(initializeActionContext, {
                 documentId,
             });
@@ -93,6 +109,7 @@ class DocumentCollaborationDurableObject {
             processContext,
             spaceId: spaceId,
             id: documentId,
+            creatorId,
             initialVersion: version,
             initialContent: content,
             destroy,
@@ -103,6 +120,7 @@ class DocumentCollaborationDurableObject {
         processContext,
         spaceId,
         id,
+        creatorId,
         initialVersion,
         initialContent,
         destroy,
@@ -110,6 +128,7 @@ class DocumentCollaborationDurableObject {
         processContext: WorkerProcessContext;
         spaceId: SpaceId;
         id: DocumentId;
+        creatorId: AccountId | null;
         initialVersion: number;
         initialContent: DocumentContent;
         destroy: () => void;
@@ -122,6 +141,7 @@ class DocumentCollaborationDurableObject {
         this._processContext = processContext;
         this.spaceId = spaceId;
         this.id = id;
+        this._creatorId = creatorId;
         this._contentManager = new DocumentCollaborationContentManager({
             spaceId,
             id,
@@ -253,8 +273,8 @@ class DocumentCollaborationDurableObject {
             }
         }
 
-        if (url.pathname === "/update-content") {
-            return ["/update-content", {type: "UpdateContent"}];
+        if (url.pathname === "/put-content") {
+            return ["/put-content", {type: "PutContent"}];
         }
 
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
@@ -271,6 +291,7 @@ class DocumentCollaborationDurableObject {
         context: WorkerActionContext,
         request: Request,
         route: DocumentCollaborationDurableObjectRoute,
+        span: TracerSpan,
     ): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
@@ -393,7 +414,7 @@ class DocumentCollaborationDurableObject {
 
                 return new Response();
             }
-            case "UpdateContent": {
+            case "PutContent": {
                 if (request.method !== "POST") {
                     return new Response("405 Method Not Allowed", {
                         status: 405,
@@ -401,27 +422,73 @@ class DocumentCollaborationDurableObject {
                     });
                 }
 
-                const accountContext = context.actor.authorizeAccount();
+                try {
+                    const accountContext = context.actor.authorizeAccount();
 
-                const requestBody =
-                    DocumentCollaborationProtocol.procedureSchemas.updateContent.inputSchema.deserialize(
-                        await request.json(),
+                    const requestBody =
+                        DocumentCollaborationPutContentRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    const oldContent = await this._contentManager.getContentAtVersion(
+                        accountContext,
+                        requestBody.version,
                     );
 
-                const {newVersion} = await this._contentManager.update(
-                    accountContext,
-                    null,
-                    requestBody,
-                );
+                    const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
+                        // This method isn't currently allowed to update document attributes like
+                        // `AccessPolicy`.
+                        oldContent.attrs,
+                        requestBody.content,
+                    );
 
-                return new Response(
-                    JSON.stringify(
-                        DocumentCollaborationProtocol.procedureSchemas.updateContent.outputSchema.serialize(
-                            {newVersion},
+                    const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                    const {newVersion, newContent, persistencePromise} =
+                        await this._contentManager.update(accountContext, null, {
+                            version: requestBody.version,
+                            steps,
+                            clientId: generateId(),
+                            createCommentThreads: [],
+                            intentionallyUpdateAccessPolicy: null,
+                            updateOurPresenceState: {state: null},
+                        });
+
+                    // Wait for our update to actually persist before responding. This endpoint is
+                    // called by the API which provides read-after-write semantics to API clients.
+                    await persistencePromise;
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationPutContentResponseBodySchema.serialize({
+                                ok: true,
+                                spaceId: this.spaceId,
+                                creatorId: this._creatorId,
+                                newVersion,
+                                newContent,
+                            }),
                         ),
-                    ),
-                    {status: 200},
-                );
+                        {
+                            status: 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                } catch (error) {
+                    span.addException(error);
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationPutContentResponseBodySchema.serialize({
+                                ok: false,
+                                error,
+                            }),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 400,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
             }
             default:
                 throw exhaustive(route);

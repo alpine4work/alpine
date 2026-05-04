@@ -6,7 +6,11 @@ import {
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
-import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentNodeSchema,
+    DocumentContentSchema,
+    DocumentContentStepSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -15,8 +19,10 @@ import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_gen
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
+    AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
+    SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
@@ -411,3 +417,22 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         }),
     },
 });
+
+export const DocumentCollaborationPutContentRequestBodySchema = Schema.object({
+    version: Schema.integer,
+    content: Schema.array(DocumentContentNodeSchema),
+});
+
+export const DocumentCollaborationPutContentResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        spaceId: Schema.id<SpaceId>(),
+        creatorId: Schema.id<AccountId>().nullable(),
+        newVersion: Schema.integer,
+        newContent: DocumentContentSchema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);

@@ -288,11 +288,13 @@ export class DocumentCollaborationContentManager {
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
         },
     ): Promise<{
+        newVersion: number;
+        newContent: DocumentContent;
+        persistencePromise: Promise<void>;
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
-        newVersion: number;
     }> {
-        const {oldVersion, steps, presenceState} = await this._state.withLock(async stateRef => {
+        const result = await this._state.withLock(async stateRef => {
             await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
                 this.id,
             );
@@ -603,13 +605,23 @@ export class DocumentCollaborationContentManager {
             return {
                 oldVersion,
                 steps,
-                presenceState,
+                newContent,
                 persistencePromise: this._persistenceState.promise,
+                presenceState,
             };
         });
 
-        if (steps.length === 0)
-            return {presenceState, hasSentPresenceState: false, newVersion: oldVersion};
+        const {oldVersion, steps, newContent, persistencePromise, presenceState} = result;
+
+        if (steps.length === 0) {
+            return {
+                newVersion: oldVersion,
+                newContent,
+                persistencePromise,
+                presenceState,
+                hasSentPresenceState: false,
+            };
+        }
 
         let cleanupInvalidStepCommentThreadsPromise: Promise<void> | null = null;
 
@@ -736,7 +748,13 @@ export class DocumentCollaborationContentManager {
             cleanupInvalidStepCommentThreads,
         });
 
-        return {presenceState, hasSentPresenceState: true, newVersion};
+        return {
+            newVersion,
+            newContent,
+            persistencePromise,
+            presenceState,
+            hasSentPresenceState: true,
+        };
     }
 
     /**

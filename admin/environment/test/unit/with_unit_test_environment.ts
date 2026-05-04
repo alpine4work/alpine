@@ -294,6 +294,13 @@ export function actuallyCreateUnitTestEnvironment(
         createTemporaryDirectoryPath: () => Promise<string>;
         shouldRenderEmails?: boolean;
         shouldStartOpensearch?: boolean;
+        sendRequestToDurableObject?: (
+            context: Context<{}>,
+            request: {
+                url: string;
+                body?: SchemaSerializedValue | null;
+            },
+        ) => Promise<any>;
         chatInjection?: Partial<ChatInjection>;
         documentsInjection?: Partial<DocumentsInjection>;
         forumInjection?: Partial<ForumInjection>;
@@ -649,8 +656,11 @@ export function actuallyCreateUnitTestEnvironment(
         jobs: jobsContextModule,
         constants: constantsContextModule,
         edge: new TestLocalEdgeServiceContextModule({
-            pushDurableObjectBroadcast: broadcast => durableObjectBroadcasts.push(broadcast),
-            pushDurableObjectRequest: request => durableObjectRequests.push(request),
+            broadcastToDurableObject: broadcast => durableObjectBroadcasts.push(broadcast),
+            sendRequestToDurableObject: async (context, request) => {
+                durableObjectRequests.push(request);
+                return options.sendRequestToDurableObject?.(context, request);
+            },
         }),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),

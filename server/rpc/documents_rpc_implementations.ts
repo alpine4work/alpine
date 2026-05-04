@@ -82,12 +82,12 @@ export default implementRpcs(definitions, {
     getDocumentContentForCollaborationServiceInitialization: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const {spaceId, version, content} =
+            const {spaceId, version, content, creatorId} =
                 await getDocumentContentForCollaborationServiceInitialization(
                     context,
                     input.documentId,
                 );
-            return {spaceId, version, content};
+            return {spaceId, version, content, creatorId};
         },
     },
 

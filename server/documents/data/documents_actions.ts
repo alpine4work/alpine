@@ -2790,6 +2790,11 @@ export async function updateDocumentContent(
     newVersion: number;
 
     /**
+     * The document content after the update.
+     */
+    newContent: DocumentContent;
+
+    /**
      * The `steps` array we passed in but transformed with a rebase against
      * `conflictingSteps`.
      *
@@ -3731,6 +3736,7 @@ export async function updateDocumentContent(
 
     return {
         newVersion,
+        newContent,
         newSteps,
         newInvertedSteps,
         conflictingSteps,
@@ -4113,7 +4119,7 @@ export async function getDocumentContentSteps(
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)
-        throw new InvalidArgumentError("End version is greater than start version");
+        throw new InvalidArgumentError("Start version is greater than end version");
     if (startVersion === endVersion)
         throw new InvalidArgumentError("Start version is equal to end version");
     if (endVersion > documentItem.version)

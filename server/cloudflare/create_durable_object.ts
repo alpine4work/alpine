@@ -52,6 +52,7 @@ import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketProtocolBase} from "~/shared/web_socket/web_socket_protocol.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -90,7 +91,12 @@ export type DurableObjectEnv = {
 export function createDurableObject<
     Route,
     DurableObject extends {
-        fetch(context: WorkerActionContext, request: Request, route: Route): MaybePromise<Response>;
+        fetch(
+            context: WorkerActionContext,
+            request: Request,
+            route: Route,
+            span: TracerSpan,
+        ): MaybePromise<Response>;
         connectForTest?(
             context: WorkerSessionActionContext,
             options?: object,
@@ -380,7 +386,7 @@ export function createDurableObject<
 
                             const object = await this._object.promise;
 
-                            return object.fetch(actionContext, request, routeObject);
+                            return object.fetch(actionContext, request, routeObject, span);
                         },
                     );
                     return response;
@@ -459,7 +465,7 @@ export function createDurableObject<
                 fetchForTest: async (actionContext, idName, request) => {
                     const url = new URL(request.url);
 
-                    const [, route] = parseRoute(url);
+                    const [routeString, route] = parseRoute(url);
 
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
                         initialize({
@@ -470,7 +476,13 @@ export function createDurableObject<
                         }),
                     );
 
-                    return object.fetch(actionContext, request, route);
+                    return traceServerResponse(
+                        actionContext.tracer.getRoot(),
+                        request,
+                        url,
+                        routeString,
+                        async (span, request) => object.fetch(actionContext, request, route, span),
+                    );
                 },
                 connectForTest: async (actionContext, idName, options) => {
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>

@@ -118,6 +118,7 @@ export const getDocumentContentForCollaborationServiceInitialization = defineRpc
         spaceId: Schema.id<SpaceId>(),
         version: Schema.integer,
         content: DocumentContentSchema,
+        creatorId: Schema.id<AccountId>().nullable(),
     },
 });
 
