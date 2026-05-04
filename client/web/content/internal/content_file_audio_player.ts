@@ -127,7 +127,7 @@ export function renderContentFileAudioPlayer(
         audioHtml.setAttribute("style", "pointer-events: none; width: 0; height: 0; opacity: 0");
 
         // Needed to get a proper CORS response from the resource service where our files
-        // are hosted.
+        // are hosted. This _must_ be set before setting the `src` attribute.
         audioHtml.setAttribute("crossorigin", "anonymous");
 
         audioHtml.setAttribute("src", audioSrc);

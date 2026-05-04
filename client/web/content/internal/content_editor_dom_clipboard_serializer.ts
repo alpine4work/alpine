@@ -326,6 +326,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             if (fileReference && isFileWebSafeImageContentType(fileReference.file.contentType)) {
                 const fileDom = document.createElement("img");
 
+                // Needed to get a proper CORS response from the resource service where our files
+                // are hosted. This _must_ be set before setting the `src` attribute.
+                fileDom.setAttribute("crossorigin", "anonymous");
+
                 fileDom.setAttribute(
                     "src",
                     new URL(
@@ -333,10 +337,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                         resourceServiceUrl,
                     ).toString(),
                 );
-
-                // Needed to get a proper CORS response from the resource service where our files
-                // are hosted.
-                fileDom.setAttribute("crossorigin", "anonymous");
 
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {

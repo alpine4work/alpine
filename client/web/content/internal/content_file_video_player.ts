@@ -167,7 +167,7 @@ export function renderContentFileVideoPlayer(
         videoHtml.setAttribute("preload", "none");
 
         // Needed to get a proper CORS response from the resource service where our files
-        // are hosted.
+        // are hosted. This _must_ be set before setting the `src` attribute.
         videoHtml.setAttribute("crossorigin", "anonymous");
 
         videoHtml.setAttribute("src", videoSrc);

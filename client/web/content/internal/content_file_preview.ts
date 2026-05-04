@@ -975,7 +975,7 @@ function renderFileImagePreviewContent({
     imageHtml.setAttribute("decoding", "sync");
 
     // Needed to get a proper CORS response from the resource service where our files
-    // are hosted.
+    // are hosted. This _must_ be set before setting the `src` attribute.
     imageHtml.setAttribute("crossorigin", "anonymous");
 
     const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
@@ -1918,10 +1918,10 @@ export async function handleCopyContentFile(
         `.${contentStyles.fileImagePreviewContentClassName}`,
     );
 
-    // Draw the preview image in a canvas and convert it to a `.png` blob. Applications
+    // Draw the preview image in a canvas and convert it to an image blob. Applications
     // that don't support parsing `text/html` clipboard data (e.g. Figma) can use the
-    // preview `image/png` to still paste the file.
-    let imagePreviewContentBlob: Blob | null = null;
+    // preview image to still paste the file.
+    let imagePreviewContentBlobPromise: Promise<Blob> | null = null;
     if (
         imagePreviewContentElement &&
         imagePreviewContentElement.complete &&
@@ -1938,33 +1938,46 @@ export async function handleCopyContentFile(
 
         document.body.appendChild(canvasElement);
 
-        try {
-            // `naturalWidth` and `naturalHeight` are density adjusted. To get the actual image
-            // width/height we need to multiply the device pixel ratio.
-            canvasElement.width = imagePreviewContentElement.naturalWidth * window.devicePixelRatio;
-            canvasElement.height =
-                imagePreviewContentElement.naturalHeight * window.devicePixelRatio;
+        // This is done in a promise because Safari requires `navigator.clipboard.write()`
+        // to happen within the user activation window for the copy action and awaiting
+        // async operations before performing the clipboard write (like `canvas.toBlob()`)
+        // can cause the user activation to time out and the write to fail.[1]
+        //
+        // However, `ClipboardItem` accepts promises so we can defer the async blob
+        // creation and immediately call `navigator.clipboard.write()`.
 
-            const canvasContext = assertExists(canvasElement.getContext("2d"));
-            canvasContext.drawImage(
-                imagePreviewContentElement,
-                0,
-                0,
-                canvasElement.width,
-                canvasElement.height,
-            );
+        // [1]: https://bugs.webkit.org/show_bug.cgi?id=222262
+        imagePreviewContentBlobPromise = new Promise<Blob>((resolve, reject) => {
+            try {
+                // `naturalWidth` and `naturalHeight` are density adjusted. To get the actual image
+                // width/height we need to multiply the device pixel ratio.
+                canvasElement.width =
+                    imagePreviewContentElement.naturalWidth * window.devicePixelRatio;
+                canvasElement.height =
+                    imagePreviewContentElement.naturalHeight * window.devicePixelRatio;
 
-            imagePreviewContentBlob = await new Promise(resolve => {
-                canvasElement.toBlob(resolve, "image/png");
-            });
+                const canvasContext = assertExists(canvasElement.getContext("2d"));
+                canvasContext.drawImage(
+                    imagePreviewContentElement,
+                    0,
+                    0,
+                    canvasElement.width,
+                    canvasElement.height,
+                );
 
-            // Silently error if converting to a blob fails.
-            if (!imagePreviewContentBlob) {
-                scheduleUncaughtError(new InternalError("Couldn\u2019t convert canvas to blob"));
+                canvasElement.toBlob(blob => {
+                    if (!blob) {
+                        reject(new InternalError("Couldn\u2019t convert canvas to blob"));
+                        return;
+                    }
+                    resolve(blob);
+                }, "image/png");
+            } catch (error) {
+                reject(error);
             }
-        } finally {
+        }).finally(() => {
             document.body.removeChild(canvasElement);
-        }
+        });
     }
 
     await navigator.clipboard.write([
@@ -1983,9 +1996,9 @@ export async function handleCopyContentFile(
             ),
 
             // The order here is important! If applications support both pasting `text/html`
-            // and `image/png` then the application should first try parsing `text/html` and
-            // then `image/png`. `text/html` contains a link to the full resolution image
-            // whereas `image/png` is just the image preview.
+            // and the preview image then the application should first try parsing `text/html`
+            // and then the image. `text/html` contains a link to the full resolution image
+            // whereas the image is just the file preview.
             //
             // We can't add the full resolution image to the clipboard because:
             //
@@ -1995,8 +2008,8 @@ export async function handleCopyContentFile(
             //
             // If the user wants the full resolution image because the application they're
             // pasting into is picking the wrong one then they can select the download option.
-            ...(imagePreviewContentBlob
-                ? {[imagePreviewContentBlob.type]: imagePreviewContentBlob}
+            ...(imagePreviewContentBlobPromise
+                ? {"image/png": imagePreviewContentBlobPromise}
                 : {}),
         }),
     ]);

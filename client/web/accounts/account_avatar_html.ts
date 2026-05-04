@@ -155,6 +155,8 @@ function renderAccountImageAvatarDesign(avatarDesign: AccountImageAvatarDesign) 
     );
 
     const avatarHtml = new HtmlElementGenerator("img");
+    // Needed to get a proper CORS response from the resource service where our files
+    // are hosted. This _must_ be set before setting the `src` attribute.
     avatarHtml.setAttribute("crossorigin", "anonymous");
     avatarHtml.setAttribute("src", imageUrl);
     const innerHtmlStyleString = [
