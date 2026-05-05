@@ -6,6 +6,7 @@ import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
+// NOCOMMIT: Should I name this tool `scroll` instead?
 export async function callAgentWebReadMoreTool(
     context: AgentWebContext,
     {
