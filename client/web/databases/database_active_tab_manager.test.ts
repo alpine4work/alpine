@@ -343,10 +343,7 @@ function createTestTab(config: {
                     [
                         mainDatabaseTableId,
                         {
-                            updatedPages: new Map<
-                                number,
-                                {timestamp: number; data: Uint8Array}
-                            >(),
+                            updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
                             stalePageIndexes: [] as Array<number>,
                             fileSizeInPages: 0,
                         },
@@ -727,7 +724,7 @@ describe("DatabaseActiveTabManager mutations", () => {
                 capturedAction = action;
                 return {
                     result: {name: action.name, output: {rows: []}},
-                    readPages: new Map(),
+                    readPages: new Map([[mainDatabaseTableId, new Map()]]),
                 } as ExecuteActionServerResult;
             },
         });
@@ -826,9 +823,8 @@ describe("Reactive actions", () => {
             diff: [],
         }));
         await conn.call("writePagesFromRealtime", {
-            pages: newerPages,
+            tables: new Map([[mainDatabaseTableId, {pages: newerPages, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 0,
         });
 
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -919,9 +915,8 @@ describe("Reactive actions", () => {
         expect(changedPages.length).toBeGreaterThan(0);
 
         await conn.call("writePagesFromRealtime", {
-            pages: changedPages,
+            tables: new Map([[mainDatabaseTableId, {pages: changedPages, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 0,
         });
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -967,13 +962,20 @@ describe("Reactive actions", () => {
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
         const pages = await extractPages(dir);
         await conn.call("writePagesFromRealtime", {
-            pages: pages.map(({pageIndex, timestamp}) => ({
-                pageIndex,
-                timestamp: timestamp + 1000,
-                diff: [],
-            })),
+            tables: new Map([
+                [
+                    mainDatabaseTableId,
+                    {
+                        pages: pages.map(({pageIndex, timestamp}) => ({
+                            pageIndex,
+                            timestamp: timestamp + 1000,
+                            diff: [],
+                        })),
+                        fileSizeInPages: 0,
+                    },
+                ],
+            ]),
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 0,
         });
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -1058,9 +1060,8 @@ describe("watchAction", () => {
         });
 
         await conn.call("writePagesFromRealtime", {
-            pages: newerPages,
+            tables: new Map([[mainDatabaseTableId, {pages: newerPages, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 0,
         });
 
         // Wait for invalidation + re-execution + push

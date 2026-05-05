@@ -115,7 +115,8 @@ export class DatabaseDurableObjectConnection {
                     result: input.returnResult
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
-                    readPages: readPages === null ? null : new Map([[mainDatabaseTableId, readPages]]),
+                    readPages:
+                        readPages === null ? null : new Map([[mainDatabaseTableId, readPages]]),
                 };
             });
         },
@@ -182,10 +183,7 @@ export class DatabaseDurableObjectConnection {
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
             return {
                 tables: new Map([
-                    [
-                        mainDatabaseTableId,
-                        {updatedPages, stalePageIndexes, fileSizeInPages},
-                    ],
+                    [mainDatabaseTableId, {updatedPages, stalePageIndexes, fileSizeInPages}],
                 ]),
             };
         },
@@ -217,10 +215,7 @@ export class DatabaseDurableObjectConnection {
                 return {
                     type: "PagesChanged",
                     tables: new Map([
-                        [
-                            mainDatabaseTableId,
-                            {pages, fileSizeInPages: eventStub.fileSizeInPages},
-                        ],
+                        [mainDatabaseTableId, {pages, fileSizeInPages: eventStub.fileSizeInPages}],
                     ]),
                     mutationId: eventStub.mutationId,
                 };

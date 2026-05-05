@@ -1,8 +1,10 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
+import type {
+    DatabaseClientConnection,
+    ExecuteActionServerSingleDatabaseResult,
+} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
@@ -384,7 +386,7 @@ describe("server fallback", () => {
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
-                } as ExecuteActionServerResult;
+                } as ExecuteActionServerSingleDatabaseResult;
             },
         });
 
@@ -416,7 +418,7 @@ describe("server fallback", () => {
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
-                } as ExecuteActionServerResult;
+                } as ExecuteActionServerSingleDatabaseResult;
             },
         });
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
@@ -554,7 +556,7 @@ describe("executeActionWithTracking", () => {
                 return {
                     result: {name: action.name, output: {rows}},
                     readPages: pagesToMap(allPages),
-                } as ExecuteActionServerResult;
+                } as ExecuteActionServerSingleDatabaseResult;
             },
         });
 

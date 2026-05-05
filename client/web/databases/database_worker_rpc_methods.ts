@@ -105,10 +105,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     },
     acknowledgePages: {
         input: {
-            pageIndexes: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.array(Schema.integer),
-            ),
+            pageIndexes: Schema.map(Schema.id<DatabaseTableId>(), Schema.array(Schema.integer)),
         },
         output: {},
     },

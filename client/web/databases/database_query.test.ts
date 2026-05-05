@@ -20,8 +20,11 @@ import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {getMinId} from "~/shared/id/id.js";
+import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 // ---------------------------------------------------------------------------
 // Test connection adapter
@@ -49,9 +52,13 @@ function createTestConnection(client: DatabaseClient): {
         call(method, input) {
             if (method === "writeInitialPages") {
                 const {pages} = input as unknown as {
-                    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>;
+                    pages: ReadonlyMap<
+                        DatabaseTableId,
+                        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
+                    >;
                 };
-                client.seedPages(pages);
+                const mainPages = pages.get(mainDatabaseTableId) ?? [];
+                client.seedPages(mainPages);
                 return Promise.resolve({} as any);
             }
             throw new InternalError(`Unsupported call method: ${method}`);
