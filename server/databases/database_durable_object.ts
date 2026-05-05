@@ -21,8 +21,16 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {BrowserId} from "~/shared/id/types/id_types.js";
+import {getMinId} from "~/shared/id/id.js";
+import type {BrowserId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+
+/**
+ * Constant {@link DatabaseTableId} used to key the
+ * single internal SQLite database. Once each table has
+ * its own database this is replaced by per-table IDs.
+ */
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 type DatabaseGroupDurableObjectRoute = "Main" | "Action" | "NotFound";
 
@@ -144,7 +152,7 @@ class DatabaseGroupDurableObject {
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
                     result: {name: actionObject.name, output: result} as any,
-                    readPages,
+                    readPages: new Map([[mainDatabaseTableId, readPages]]),
                 }),
             ),
             {

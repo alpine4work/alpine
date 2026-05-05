@@ -3,7 +3,7 @@ import {
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
@@ -15,8 +15,13 @@ import {
  * Reused by both the WebSocket protocol definition
  * and the worker-to-tab RPC method definition.
  *
- * Empty states represent different modes:
- * - Both empty — cache is up to date.
+ * Keyed by {@link DatabaseTableId}: each table is its own
+ * SQLite database (attached together on the client) and
+ * the cache is validated independently per table.
+ *
+ * Within each per-table entry, empty states represent
+ * different modes:
+ * - Both empty — that table's cache is up to date.
  * - `updatedPages` non-empty — server inlined page
  *   data for a small number of stale pages.
  * - `stalePageIndexes` non-empty, `updatedPages`
@@ -24,15 +29,20 @@ import {
  *   them and re-fetches on demand.
  */
 export const ensureCacheIsUpToDateResultConfig = {
-    updatedPages: Schema.map(
-        Schema.integer,
+    tables: Schema.map(
+        Schema.id<DatabaseTableId>(),
         Schema.object({
-            timestamp: Schema.integer,
-            data: Schema.bytes,
+            updatedPages: Schema.map(
+                Schema.integer,
+                Schema.object({
+                    timestamp: Schema.integer,
+                    data: Schema.bytes,
+                }),
+            ),
+            stalePageIndexes: Schema.array(Schema.integer),
+            fileSizeInPages: Schema.integer,
         }),
     ),
-    stalePageIndexes: Schema.array(Schema.integer),
-    fileSizeInPages: Schema.integer,
 };
 
 /**
@@ -57,23 +67,32 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             output: {
                 result: DatabaseActionResultSchema.nullable(),
                 readPages: Schema.map(
-                    Schema.integer,
-                    Schema.object({
-                        timestamp: Schema.integer,
-                        data: Schema.bytes,
-                    }),
+                    Schema.id<DatabaseTableId>(),
+                    Schema.map(
+                        Schema.integer,
+                        Schema.object({
+                            timestamp: Schema.integer,
+                            data: Schema.bytes,
+                        }),
+                    ),
                 ).nullable(),
             },
         },
         ensureCacheIsUpToDate: {
             input: {
-                pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+                pageTimestampsByIndex: Schema.map(
+                    Schema.id<DatabaseTableId>(),
+                    Schema.map(Schema.integer, Schema.integer),
+                ),
             },
             output: ensureCacheIsUpToDateResultConfig,
         },
         acknowledgePages: {
             input: {
-                pageIndexes: Schema.array(Schema.integer),
+                pageIndexes: Schema.map(
+                    Schema.id<DatabaseTableId>(),
+                    Schema.array(Schema.integer),
+                ),
             },
             output: {},
         },
@@ -81,15 +100,20 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
     events: {
         PagesChanged: Schema.object({
             type: Schema.value("PagesChanged"),
-            pages: Schema.array(
+            tables: Schema.map(
+                Schema.id<DatabaseTableId>(),
                 Schema.object({
-                    pageIndex: Schema.integer,
-                    timestamp: Schema.integer,
-                    diff: pageDiffSchema,
+                    pages: Schema.array(
+                        Schema.object({
+                            pageIndex: Schema.integer,
+                            timestamp: Schema.integer,
+                            diff: pageDiffSchema,
+                        }),
+                    ),
+                    fileSizeInPages: Schema.integer,
                 }),
             ),
             mutationId: Schema.id<DatabaseMutationId>(),
-            fileSizeInPages: Schema.integer,
         }),
     },
 });

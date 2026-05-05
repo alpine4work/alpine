@@ -14,11 +14,20 @@ import {
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getMinId} from "~/shared/id/id.js";
 import type {
     BrowserId,
     DatabaseMutationId,
+    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+
+/**
+ * Constant {@link DatabaseTableId} used to key the
+ * single internal SQLite database. Once each table has
+ * its own database this is replaced by per-table IDs.
+ */
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 export type DatabaseRealtimeEventStub = {
     type: "PagesChanged";
@@ -106,7 +115,7 @@ export class DatabaseDurableObjectConnection {
                     result: input.returnResult
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
-                    readPages,
+                    readPages: readPages === null ? null : new Map([[mainDatabaseTableId, readPages]]),
                 };
             });
         },
@@ -115,7 +124,10 @@ export class DatabaseDurableObjectConnection {
             const stalePageIndexes: Array<number> = [];
             let overLimit = false;
 
-            for (const [pageIndex, clientTs] of input.pageTimestampsByIndex) {
+            const tableTimestamps =
+                input.pageTimestampsByIndex.get(mainDatabaseTableId) ?? new Map<number, number>();
+
+            for (const [pageIndex, clientTs] of tableTimestamps) {
                 const page = this._durableObjectStorage.readPage(pageIndex);
 
                 // Page matches — skip.
@@ -144,7 +156,7 @@ export class DatabaseDurableObjectConnection {
             if (!updatedPages.has(0)) {
                 const page0 = this._durableObjectStorage.readPage(0);
                 if (page0 !== null && page0.data !== null) {
-                    const clientTs = input.pageTimestampsByIndex.get(0);
+                    const clientTs = tableTimestamps.get(0);
                     if (clientTs === undefined || clientTs !== page0.timestamp) {
                         updatedPages.set(0, {timestamp: page0.timestamp, data: page0.data});
                     }
@@ -156,7 +168,7 @@ export class DatabaseDurableObjectConnection {
             // minus those we're updating or marking stale.
             const staleSet = new Set(stalePageIndexes);
             const matchingPages: Array<number> = [];
-            for (const pageIndex of input.pageTimestampsByIndex.keys()) {
+            for (const pageIndex of tableTimestamps.keys()) {
                 if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
                     matchingPages.push(pageIndex);
                 }
@@ -168,10 +180,18 @@ export class DatabaseDurableObjectConnection {
             }
 
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
-            return {updatedPages, stalePageIndexes, fileSizeInPages};
+            return {
+                tables: new Map([
+                    [
+                        mainDatabaseTableId,
+                        {updatedPages, stalePageIndexes, fileSizeInPages},
+                    ],
+                ]),
+            };
         },
         acknowledgePages: async (_context, input) => {
-            this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
+            const pageIndexes = input.pageIndexes.get(mainDatabaseTableId) ?? [];
+            this._browserPageTracker.addPages(this._browserId, pageIndexes);
             return {};
         },
     };
@@ -196,9 +216,13 @@ export class DatabaseDurableObjectConnection {
                 );
                 return {
                     type: "PagesChanged",
-                    pages,
+                    tables: new Map([
+                        [
+                            mainDatabaseTableId,
+                            {pages, fileSizeInPages: eventStub.fileSizeInPages},
+                        ],
+                    ]),
                     mutationId: eventStub.mutationId,
-                    fileSizeInPages: eventStub.fileSizeInPages,
                 };
             }
             default:
