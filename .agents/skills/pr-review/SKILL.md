@@ -30,7 +30,7 @@ git merge-base HEAD main
 BRANCH=$(git branch --show-current)
 ```
 
-Create the output directory at `docs/agents/review/{branch-name}/`. Use `mkdir -p`.
+Create the output directory at `admin/docs/agents/review/{branch-name}/`. Use `mkdir -p`.
 
 ## Step 3: Fan out to review agents
 
@@ -40,28 +40,28 @@ Dispatch all four review agents **in parallel** using the Agent tool. Each agent
 
 Launch these four agents simultaneously:
 
-1. **review-general** agent — write to `docs/agents/review/{branch-name}/general.md`
-   - Prompt: "Review the diff of the current branch against `{parent-branch}`. Write your findings to `docs/agents/review/{branch-name}/general.md`."
+1. **review-general** agent — write to `admin/docs/agents/review/{branch-name}/general.md`
+   - Prompt: "Review the diff of the current branch against `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/general.md`."
 
-2. **review-history** agent — write to `docs/agents/review/{branch-name}/history.md`
-   - Prompt: "Review the history and patterns of files changed in the current branch compared to `{parent-branch}`. Write your findings to `docs/agents/review/{branch-name}/history.md`."
+2. **review-history** agent — write to `admin/docs/agents/review/{branch-name}/history.md`
+   - Prompt: "Review the history and patterns of files changed in the current branch compared to `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/history.md`."
 
-3. **review-security** agent — write to `docs/agents/review/{branch-name}/security.md`
-   - Prompt: "Perform a security review of the diff between the current branch and `{parent-branch}`. Write your findings to `docs/agents/review/{branch-name}/security.md`."
+3. **review-security** agent — write to `admin/docs/agents/review/{branch-name}/security.md`
+   - Prompt: "Perform a security review of the diff between the current branch and `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/security.md`."
 
-4. **review-compatibility** agent — write to `docs/agents/review/{branch-name}/compatibility.md`
-   - Prompt: "Review the diff between the current branch and `{parent-branch}` for backwards compatibility issues with old clients. Write your findings to `docs/agents/review/{branch-name}/compatibility.md`."
+4. **review-compatibility** agent — write to `admin/docs/agents/review/{branch-name}/compatibility.md`
+   - Prompt: "Review the diff between the current branch and `{parent-branch}` for backwards compatibility issues with old clients. Write your findings to `admin/docs/agents/review/{branch-name}/compatibility.md`."
 
 ## Step 4: Combine into final review
 
 After all four agents complete, read all four output files:
 
-- `docs/agents/review/{branch-name}/general.md`
-- `docs/agents/review/{branch-name}/history.md`
-- `docs/agents/review/{branch-name}/security.md`
-- `docs/agents/review/{branch-name}/compatibility.md`
+- `admin/docs/agents/review/{branch-name}/general.md`
+- `admin/docs/agents/review/{branch-name}/history.md`
+- `admin/docs/agents/review/{branch-name}/security.md`
+- `admin/docs/agents/review/{branch-name}/compatibility.md`
 
-Combine them into a single `docs/agents/review/{branch-name}/review.md` with this format:
+Combine them into a single `admin/docs/agents/review/{branch-name}/review.md` with this format:
 
 ```markdown
 # PR Review: {branch-name}
@@ -110,4 +110,4 @@ version.
 ## Step 5: Output the new path
 
 Finally, give the user the path to the final review file at 
-`docs/agents/review/{branch-name}/review.md`
+`admin/docs/agents/review/{branch-name}/review.md`
