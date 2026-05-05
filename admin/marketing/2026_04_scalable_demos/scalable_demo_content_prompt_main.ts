@@ -149,24 +149,43 @@ and cause you to sound like an out-of-touch software engineer.
         additionalNotes.trim() +
         "\n";
 
-    await runProcessWithInheritedStdio(
-        "claude",
-        [
-            ["--settings", joinPath(workspacePath, ".claude/settings.json")],
-            ["--permission-mode", "dontAsk"],
-            "-p",
-        ],
-        {
+    const claudeEnv = {
+        CLAUDE_CODE_OAUTH_TOKEN: assertExists(
+            env.CLAUDE_CODE_OAUTH_TOKEN,
+            "Missing `CLAUDE_CODE_OAUTH_TOKEN` in `.env.development.local`. Run `claude setup-token` and add the generated token to `.env.development.local`.",
+        ),
+    };
+
+    const claudeBaseArgs = [
+        ["--settings", joinPath(workspacePath, ".claude/settings.json")],
+        ["--permission-mode", "dontAsk"],
+        "-p",
+    ];
+
+    // eslint-disable-next-line no-console
+    console.log("\nGenerating post copy with Claude...\n");
+
+    await runProcessWithInheritedStdio("claude", claudeBaseArgs, {
+        cwd: workspacePath,
+        stdin: prompt,
+        env: claudeEnv,
+    });
+
+    // Follow-up loop — press Enter with no input to exit.
+    while (true) {
+        // eslint-disable-next-line no-console
+        console.log();
+        const followUp = await inquirer.input({message: "Follow up (or press Enter to exit)"});
+        if (!followUp.trim()) break;
+
+        // eslint-disable-next-line no-console
+        console.log("Thinking...\n");
+        await runProcessWithInheritedStdio("claude", [...claudeBaseArgs, "--continue"], {
             cwd: workspacePath,
-            stdin: prompt,
-            env: {
-                CLAUDE_CODE_OAUTH_TOKEN: assertExists(
-                    env.CLAUDE_CODE_OAUTH_TOKEN,
-                    "Missing `CLAUDE_CODE_OAUTH_TOKEN` in `.env.development.local`. Run `claude setup-token` and add the generated token to `.env.development.local`.",
-                ),
-            },
-        },
-    );
+            stdin: followUp,
+            env: claudeEnv,
+        });
+    }
 }
 
 main().then(

@@ -76,6 +76,12 @@ import {ActiveTasksInSuggestedDemoComposition} from "~/admin/marketing/2026_04_s
 import {activeTasksInSuggestedDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/017_active_tasks_in_suggested_demo_shared.js";
 import {DragToSetTaskDueDateDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/018_drag_to_set_task_due_date_demo_composition.js";
 import {dragToSetTaskDueDateDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/018_drag_to_set_task_due_date_demo_shared.js";
+import {DocumentMentionInChatDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/019_document_mention_in_chat_demo_composition.js";
+import {
+    documentMentionInChatDemoDurationInFrames,
+    documentMentionInChatDemoRecordingHeight,
+    documentMentionInChatDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/019_document_mention_in_chat_demo_shared.js";
 import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
@@ -202,6 +208,13 @@ export function ScalableDemosRemotionRoot() {
                 component={DragToSetTaskDueDateDemoComposition}
                 recordingWidth={scalableDemoDefaultViewportWidth}
                 durationInFrames={dragToSetTaskDueDateDemoDurationInFrames}
+            />
+            <Composition
+                id="019-document-mention-in-chat-demo"
+                component={DocumentMentionInChatDemoComposition}
+                recordingWidth={documentMentionInChatDemoRecordingWidth}
+                recordingHeight={documentMentionInChatDemoRecordingHeight}
+                durationInFrames={documentMentionInChatDemoDurationInFrames}
             />
         </>
     );
