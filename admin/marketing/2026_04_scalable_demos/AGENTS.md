@@ -214,6 +214,50 @@ await document.updateContentPreview();
 Other handy methods: `document.type(session, "text")` (types content at the current cursor),
 `document.update(session, ...)`, `document.access.grantDefault(session)`.
 
+**Uploading fixture images into a document** — use `uploadDemoFile` from
+`~/admin/marketing/2026_04_scalable_demos/helpers/upload_demo_file.js`. Fixture files for demos live
+in `admin/marketing/2026_04_scalable_demos/fixtures/` (not `admin/scenarios/fixtures/`). The
+function uploads through the real `/api/files/:spaceId/upload` endpoint and returns a `FileModel`
+whose `.id` you can use in `fileRow`, `fileFloat`, or `file` ProseMirror nodes.
+
+```ts
+import {uploadDemoFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/upload_demo_file.js";
+
+const file = await uploadDemoFile(
+    services.getAppServiceTokenAgent(),
+    accounts.cassCade,
+    "tmm_book_cover.jpg", // filename inside admin/marketing/2026_04_scalable_demos/fixtures/
+    {type: "Document", documentId: document.id},
+);
+
+// Insert as a fileFloat (left-floated image, text wraps around it):
+const schema = DocumentContentProsemirrorSchema;
+await document.update(accounts.cassCade, [
+    new ReplaceStep(
+        insertPos,
+        insertPos,
+        new Slice(
+            Fragment.from(
+                schema.nodes.fileFloat.create({direction: "left"}, [
+                    schema.nodes.file!.create({fileId: file.id}),
+                ]),
+            ),
+            0,
+            0,
+        ),
+    ),
+]);
+
+// Or as a centered fileRow:
+await document.attachFile(accounts.cassCade, file);
+```
+
+To insert a `fileFloat` at the right position, call `document.getContent()` and walk
+`content.content.content` (the top-level child nodes), summing `node.nodeSize` to find the insertion
+point. Insert **after** a heading by summing nodeSize up to and including that heading node.
+Re-fetch content between successive inserts since each step shifts positions. See demo 022 for a
+full example.
+
 **Document comment threads** — this is what the blue highlighted text + comment bubble is in the
 editor:
 

@@ -13,10 +13,13 @@ ts_project(
         ],
         allow_empty = True,
     ),
-    data = ["//admin/environment/test/integration:integration_data"],
+    data = [
+        "//admin/environment/test/integration:integration_data",
+    ],
     deps = [
         "//:node_modules/@inquirer/prompts",
         "//:node_modules/@remotion/media",
+        "//:node_modules/cookie",
         "//:node_modules/playwright",
         "//:node_modules/remotion",
         "//admin/environment/demo_space",
@@ -29,12 +32,15 @@ ts_project(
         "//server/helpers/node",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
+        "//server/tokens",
         "//shared/design",
         "//shared/error",
         "//shared/feed",
+        "//shared/files",
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
+        "//shared/tracer",
     ],
 )
 
