@@ -228,7 +228,7 @@ await document.createCommentThread(
 await document.createCommentThread(accounts.roseCompas, {isNode: true, pos: 100}, "…");
 ```
 
-The returned `TestDocumentCommentThread` has `.reply(session, text)` and
+The returned `TestDocumentCommentThread` has `.createComment(session, text)` and
 `.setReaction(session, emotion)`.
 
 ### Forum channels, posts, and post comments

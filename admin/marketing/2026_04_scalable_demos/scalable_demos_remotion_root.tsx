@@ -84,6 +84,8 @@ import {
 } from "~/admin/marketing/2026_04_scalable_demos/demos/019_document_mention_in_chat_demo_shared.js";
 import {CursorMentionInTaskDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/020_cursor_mention_in_task_demo_composition.js";
 import {cursorMentionInTaskDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/020_cursor_mention_in_task_demo_shared.js";
+import {DocumentCommentHighlightsDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/021_document_comment_highlights_demo_composition.js";
+import {documentCommentHighlightsDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/021_document_comment_highlights_demo_shared.js";
 import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
@@ -223,6 +225,12 @@ export function ScalableDemosRemotionRoot() {
                 component={CursorMentionInTaskDemoComposition}
                 recordingWidth={scalableDemoDefaultViewportWidth}
                 durationInFrames={cursorMentionInTaskDemoDurationInFrames}
+            />
+            <Composition
+                id="021-document-comment-highlights-demo"
+                component={DocumentCommentHighlightsDemoComposition}
+                recordingWidth={scalableDemoDefaultViewportWidth}
+                durationInFrames={documentCommentHighlightsDemoDurationInFrames}
             />
         </>
     );

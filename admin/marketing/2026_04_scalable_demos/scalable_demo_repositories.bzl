@@ -89,7 +89,11 @@ SCALABLE_DEMOS_REPOSITORIES = {
     },
     "020_cursor_mention_in_task_demo_recording_01.mov": {
         "url": "https://drive.google.com/file/d/1BN5e7JMG70hZt_x6OPSNaSX8ZvbVVcHy/view?usp=drive_link",
-        "integrity": "sha256-9WCsjvnWCLH/HNGJAucQPjcdVdReiihTjDWuBt28b74=",
+        "integrity": "sha256-0QV8RhvBVgTcnfgpJegq54f7kOKHywo8YZKOJz3QG9Q=",
+    },
+    "021_document_comment_highlights_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/152yTKCc4f25ofkz1LNZ_dpjVOsBUskPh/view?usp=drive_link",
+        "integrity": "sha256-vyw/+J33aNp+sqNKT98tnckuAe8tXuve6clAFIeERKc=",
     },
     "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
@@ -171,19 +175,19 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1LE_bVOvkeRpWbex3DFQdzghIbNBD3pKD/view?usp=drive_link",
         "integrity": "sha256-1V8q7VobifXtKkeER5SLA9qmYH3GP3D6lVqSv+PiXsA=",
     },
-        "rachel_date_background_021.png": {
+    "rachel_date_background_021.png": {
         "url": "https://drive.google.com/file/d/1UPfP-fWjlpykd5S7cDccj6dBILEaLpEl/view?usp=drive_link",
         "integrity": "sha256-AiixKUp699G8phx3XkFpu4WloAEhas3DJ6x6sVZACyY=",
     },
-        "rachel_date_background_022.png": {
+    "rachel_date_background_022.png": {
         "url": "https://drive.google.com/file/d/14lA4cGMfad31GLNN0jNgK2DLRsexvQfZ/view?usp=drive_link",
         "integrity": "sha256-Kw3XttojKiR1lHDXb1vl8aRQw/M05/Y6UuKvSvuEgGs=",
     },
-        "rachel_date_background_023.png": {
+    "rachel_date_background_023.png": {
         "url": "https://drive.google.com/file/d/1GQjRLDyB7g7YL_X68kbGcrOj2oIq4P2S/view?usp=drive_link",
         "integrity": "sha256-S23d3a5TxiZ7JIHqN5FHWe4kQsx6legZyi7K2hsO5D4=",
     },
-        "rachel_date_background_024.png": {
+    "rachel_date_background_024.png": {
         "url": "https://drive.google.com/file/d/1B0hFHtl2QGENFYuPFcvLghWm1XOZbwZY/view?usp=drive_link",
         "integrity": "sha256-eu6vVeBoYkN4yS3m2UBruzFE/tG2ca3yBVd+fGLDr9c=",
     },
