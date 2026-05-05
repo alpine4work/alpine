@@ -87,6 +87,10 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1WdoiIdtQLjWIk4nJAgE7dePClQyWGx1i/view?usp=drive_link",
         "integrity": "sha256-jysB81XTSzErIHAknxni3Vff3um3hOWkdIt8n2NnlhU=",
     },
+    "020_cursor_mention_in_task_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1BN5e7JMG70hZt_x6OPSNaSX8ZvbVVcHy/view?usp=drive_link",
+        "integrity": "sha256-9WCsjvnWCLH/HNGJAucQPjcdVdReiihTjDWuBt28b74=",
+    },
     "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
         "integrity": "sha256-kFfKiGfkNtqisvfIs06n+yi5JW32dC8N50xyceMArn0=",
@@ -163,7 +167,7 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1wxmMzyaiuYQxqsk6TENypuoiGuMtuChW/view?usp=drive_link",
         "integrity": "sha256-CKEzKFH4Usst37m8ZzkmvVO5vMaGY/ChDjD1GzjkEgk=",
     },
-        "rachel_date_background_020.png": {
+    "rachel_date_background_020.png": {
         "url": "https://drive.google.com/file/d/1LE_bVOvkeRpWbex3DFQdzghIbNBD3pKD/view?usp=drive_link",
         "integrity": "sha256-1V8q7VobifXtKkeER5SLA9qmYH3GP3D6lVqSv+PiXsA=",
     },

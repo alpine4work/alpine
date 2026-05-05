@@ -55,10 +55,33 @@ export async function createDemoMockChatGptBot(
     return {chatGpt: botAccount};
 }
 
-export async function createDemoMockCursorBot(session: TestSpaceSession, tokenAgent: TokenAgent) {
+export async function createDemoMockCursorBot(
+    session: TestSpaceSession,
+    tokenAgent: TokenAgent,
+    services?: {
+        getAgentServicePort(): number;
+        getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
+    },
+) {
     debug("Creating mock Cursor bot");
 
-    const bot = await TestBot.create(session.context, {name: "Cursor"});
+    const bot = await TestBot.create(session.context, {
+        name: "Cursor",
+        webhookUrl: services
+            ? `http://localhost:${services.getAgentServicePort()}/mock/webhook`
+            : undefined,
+    });
+
+    if (services) {
+        // TODO (rmtobin, 05/03/2026): Currently `MockAgentDurableObject` service uses
+        // `MOCK_CHAT_GPT_API_SERVICE_KEY` to make calls to the API, so even though this is
+        // a mock Cursor bot, we have to use the mock ChatGPT api key. This should be
+        // updated to use a more generic pattern for mock bots as creating both a mock
+        // ChatGPT and Cursor bot that can both make calls to the API will not work.
+        const apiKey = await services.getMockChatGptLocalUnscopedApiKey();
+        await bot.createUnscopedApiKey(apiKey);
+    }
+
     const botAccount = await bot.instantiate(session);
 
     await uploadDemoSpaceBotAvatar(tokenAgent, session, bot.id, "cursor");
