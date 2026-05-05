@@ -9,7 +9,11 @@ import type {ExecuteActionServerResult} from "~/client/web/databases/database_wo
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import {CancelledError} from "~/shared/error/error.js";
-import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseGroupId,
+    DatabaseMutationId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 
 export type {
     DatabaseWorkerConnection,
@@ -19,7 +23,10 @@ export type {
 
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
-    initialPages?: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>;
+    initialPages?: ReadonlyMap<
+        DatabaseTableId,
+        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
+    >;
     executeActionServer(
         action: DatabaseActionObject,
         options: {
@@ -29,9 +36,9 @@ type ConnectOptions = {
         },
     ): Promise<ExecuteActionServerResult>;
     ensureCacheIsUpToDate(
-        pageTimestampsByIndex: ReadonlyMap<number, number>,
+        pageTimestampsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
     ): Promise<EnsureCacheIsUpToDateResult>;
-    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+    acknowledgePages(pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>): void;
     reportError?(message: string): void;
 };
 
@@ -201,7 +208,7 @@ async function connectToDatabaseGroup(options: ConnectOptions): Promise<Database
     });
 
     const connection = await manager.connect();
-    if (options.initialPages !== undefined && options.initialPages.length > 0) {
+    if (options.initialPages !== undefined && options.initialPages.size > 0) {
         void connection.call("writeInitialPages", {pages: options.initialPages});
     }
     return connection;

@@ -39,11 +39,16 @@ export function useReactiveDatabaseAction<N extends DatabaseActionName>(options:
         const readPages = initialDataRef.current?.readPages;
         if (readPages !== undefined && readPages.size > 0) {
             void conn.call("writeInitialPages", {
-                pages: Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
-                    pageIndex,
-                    timestamp,
-                    data,
-                })),
+                pages: new Map(
+                    Array.from(readPages, ([tableId, tablePages]) => [
+                        tableId,
+                        Array.from(tablePages, ([pageIndex, {timestamp, data}]) => ({
+                            pageIndex,
+                            timestamp,
+                            data,
+                        })),
+                    ]),
+                ),
             });
         }
 

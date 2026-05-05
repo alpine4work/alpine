@@ -8,7 +8,11 @@ import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants
 import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseFieldId,
+    DatabaseRowId,
+    DatabaseTableId,
+} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -106,18 +110,26 @@ export class DatabaseQuery {
      */
     listen(options: {
         conn: DatabaseWorkerConnection;
-        readPages?: ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>;
+        readPages?: ReadonlyMap<
+            DatabaseTableId,
+            ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>
+        >;
     }): void {
         this.conn = options.conn;
         this._disposed = false;
 
         if (options.readPages && options.readPages.size > 0) {
             void this.conn.call("writeInitialPages", {
-                pages: Array.from(options.readPages, ([pageIndex, {timestamp, data}]) => ({
-                    pageIndex,
-                    timestamp,
-                    data,
-                })),
+                pages: new Map(
+                    Array.from(options.readPages, ([tableId, tablePages]) => [
+                        tableId,
+                        Array.from(tablePages, ([pageIndex, {timestamp, data}]) => ({
+                            pageIndex,
+                            timestamp,
+                            data,
+                        })),
+                    ]),
+                ),
             });
         }
 

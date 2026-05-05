@@ -890,14 +890,20 @@ export const DatabaseActionResultSchema = Schema.unionWithKey(
 );
 
 const readPagesSchema = Schema.map(
-    Schema.integer,
-    Schema.object({
-        timestamp: Schema.integer,
-        data: Schema.bytes,
-    }),
+    Schema.id<DatabaseTableId>(),
+    Schema.map(
+        Schema.integer,
+        Schema.object({
+            timestamp: Schema.integer,
+            data: Schema.bytes,
+        }),
+    ),
 );
 
-type ReadPages = ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>;
+type ReadPages = ReadonlyMap<
+    DatabaseTableId,
+    ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>
+>;
 
 /**
  * Per-action schemas for loader-serialized action results.

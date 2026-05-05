@@ -1,4 +1,3 @@
-import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {
@@ -14,7 +13,6 @@ import {
     type DatabaseActionResult,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
@@ -53,6 +51,27 @@ let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
+ * Server's response to {@link DatabaseClientConnection.executeActionServer}.
+ * Single-table for now: {@link DatabaseClient} backs one
+ * OPFS store, so the active-tab worker extracts the main
+ * table's pages from the per-table network response.
+ */
+export interface ExecuteActionServerSingleDatabaseResult {
+    result: DatabaseActionResult | null;
+    readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}> | null;
+}
+
+/**
+ * Server's response to {@link DatabaseClientConnection.ensureCacheIsUpToDate}.
+ * Single-table; see {@link ExecuteActionServerSingleDatabaseResult}.
+ */
+export interface EnsureCacheIsUpToDateSingleDatabaseResult {
+    updatedPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>;
+    stalePageIndexes: ReadonlyArray<number>;
+    fileSizeInPages: number;
+}
+
+/**
  * Represents a connected tab's route to the server.
  * Passed into {@link DatabaseClient.executeAction} so
  * server fallbacks route through the correct tab's
@@ -66,10 +85,10 @@ export interface DatabaseClientConnection {
             returnResult?: boolean;
             returnPages?: boolean;
         },
-    ): Promise<ExecuteActionServerResult>;
+    ): Promise<ExecuteActionServerSingleDatabaseResult>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: ReadonlyMap<number, number>,
-    ): Promise<EnsureCacheIsUpToDateResult>;
+    ): Promise<EnsureCacheIsUpToDateSingleDatabaseResult>;
     acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
     reportError(error: unknown): void;
 }

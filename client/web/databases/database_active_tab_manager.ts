@@ -20,15 +20,23 @@ import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_real
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
+    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+
+/**
+ * Constant {@link DatabaseTableId} used to key the
+ * single internal SQLite database. Once each table has
+ * its own database this is replaced by per-table IDs.
+ */
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 // ---------------------------------------------------------------------------
 // Dependency interfaces — mirror browser APIs at the lowest level
@@ -272,6 +280,11 @@ export class DatabaseActiveTabWorker {
      * connected tab. The connection's `executeServer`
      * routes back through this RPC to the tab's own
      * WebSocket.
+     *
+     * The RPC speaks per-table (matching the network
+     * protocol); this method wraps the calls so the
+     * single-table {@link DatabaseClient} sees only the
+     * main table's pages.
      */
     private createConnection(send: (message: unknown) => void) {
         // conn is defined after rpc but handlers only run
@@ -288,7 +301,8 @@ export class DatabaseActiveTabWorker {
                             "writeInitialPages called after database client was already created",
                         );
                     }
-                    this.initialPagesByDatabase.set(input.databaseGroupId, input.pages);
+                    const mainPages = input.pages.get(mainDatabaseTableId) ?? [];
+                    this.initialPagesByDatabase.set(input.databaseGroupId, mainPages);
                     return {};
                 },
                 executeAction: async input => {
@@ -300,11 +314,14 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    client.writePagesFromRealtime(
-                        input.pages,
-                        input.mutationId,
-                        input.fileSizeInPages,
-                    );
+                    const main = input.tables.get(mainDatabaseTableId);
+                    if (main !== undefined) {
+                        client.writePagesFromRealtime(
+                            main.pages,
+                            input.mutationId,
+                            main.fileSizeInPages,
+                        );
+                    }
                     return {};
                 },
                 registerReactiveAction: async input => {
@@ -360,17 +377,37 @@ export class DatabaseActiveTabWorker {
             send,
         });
         const conn: DatabaseClientConnection = {
-            executeActionServer: async (action, options) =>
-                rpc.call("executeActionServer", {
+            executeActionServer: async (action, options) => {
+                const result = await rpc.call("executeActionServer", {
                     action,
                     mutationId: options.mutationId,
                     returnResult: options.returnResult ?? true,
                     returnPages: options.returnPages ?? true,
-                }),
-            ensureCacheIsUpToDate: async pageTimestampsByIndex =>
-                rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
+                });
+                return {
+                    result: result.result,
+                    readPages:
+                        result.readPages === null
+                            ? null
+                            : (result.readPages.get(mainDatabaseTableId) ?? new Map()),
+                };
+            },
+            ensureCacheIsUpToDate: async pageTimestampsByIndex => {
+                const result = await rpc.call("ensureCacheIsUpToDate", {
+                    pageTimestampsByIndex: new Map([[mainDatabaseTableId, pageTimestampsByIndex]]),
+                });
+                return (
+                    result.tables.get(mainDatabaseTableId) ?? {
+                        updatedPages: new Map(),
+                        stalePageIndexes: [],
+                        fileSizeInPages: 0,
+                    }
+                );
+            },
             acknowledgePages: pageIndexes => {
-                void rpc.call("acknowledgePages", {pageIndexes});
+                void rpc.call("acknowledgePages", {
+                    pageIndexes: new Map([[mainDatabaseTableId, pageIndexes]]),
+                });
             },
             reportError: error => {
                 void rpc.call("reportError", {
@@ -453,9 +490,11 @@ export class DatabaseActiveTabManager {
                 },
             ): Promise<ExecuteActionServerResult>;
             ensureCacheIsUpToDate(
-                pageTimestampsByIndex: ReadonlyMap<number, number>,
+                pageTimestampsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
             ): Promise<EnsureCacheIsUpToDateResult>;
-            acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+            acknowledgePages(
+                pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>,
+            ): void;
             reportError?(message: string): void;
         },
     ) {}

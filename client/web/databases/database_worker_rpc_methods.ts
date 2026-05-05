@@ -9,6 +9,7 @@ import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
+    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
@@ -34,7 +35,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writeInitialPages: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: Schema.array(pageEntrySchema),
+            pages: Schema.map(Schema.id<DatabaseTableId>(), Schema.array(pageEntrySchema)),
         },
         output: {},
     },
@@ -48,9 +49,14 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writePagesFromRealtime: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: Schema.array(pageDiffEntrySchema),
+            tables: Schema.map(
+                Schema.id<DatabaseTableId>(),
+                Schema.object({
+                    pages: Schema.array(pageDiffEntrySchema),
+                    fileSizeInPages: Schema.integer,
+                }),
+            ),
             mutationId: Schema.id<DatabaseMutationId>(),
-            fileSizeInPages: Schema.integer,
         },
         output: {},
     },
@@ -82,17 +88,28 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {
             result: DatabaseActionResultSchema.nullable(),
-            readPages: Schema.map(Schema.integer, pageValueSchema).nullable(),
+            readPages: Schema.map(
+                Schema.id<DatabaseTableId>(),
+                Schema.map(Schema.integer, pageValueSchema),
+            ).nullable(),
         },
     },
     ensureCacheIsUpToDate: {
         input: {
-            pageTimestampsByIndex: Schema.map(Schema.integer, Schema.integer),
+            pageTimestampsByIndex: Schema.map(
+                Schema.id<DatabaseTableId>(),
+                Schema.map(Schema.integer, Schema.integer),
+            ),
         },
         output: ensureCacheIsUpToDateResultConfig,
     },
     acknowledgePages: {
-        input: {pageIndexes: Schema.array(Schema.integer)},
+        input: {
+            pageIndexes: Schema.map(
+                Schema.id<DatabaseTableId>(),
+                Schema.array(Schema.integer),
+            ),
+        },
         output: {},
     },
     reportError: {

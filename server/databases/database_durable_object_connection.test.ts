@@ -5,12 +5,20 @@ import {DatabaseDurableObjectConnection} from "~/server/databases/database_durab
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import type {
     BrowserId,
     DatabaseMutationId,
+    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+
+/**
+ * The single internal database lives under the minimum
+ * {@link DatabaseTableId}; protocol calls wrap and
+ * unwrap with this constant.
+ */
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 let storage: any;
 
@@ -35,7 +43,29 @@ async function ensureCacheIsUpToDate(
     conn: DatabaseDurableObjectConnection,
     pageTimestampsByIndex: ReadonlyMap<number, number>,
 ) {
-    return conn.procedures.ensureCacheIsUpToDate(null as any, {pageTimestampsByIndex}, null as any);
+    const result = await conn.procedures.ensureCacheIsUpToDate(
+        null as any,
+        {pageTimestampsByIndex: new Map([[mainDatabaseTableId, pageTimestampsByIndex]])},
+        null as any,
+    );
+    return (
+        result.tables.get(mainDatabaseTableId) ?? {
+            updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
+            stalePageIndexes: [] as ReadonlyArray<number>,
+            fileSizeInPages: 0,
+        }
+    );
+}
+
+async function acknowledgePages(
+    conn: DatabaseDurableObjectConnection,
+    pageIndexes: ReadonlyArray<number>,
+) {
+    return conn.procedures.acknowledgePages(
+        null as any,
+        {pageIndexes: new Map([[mainDatabaseTableId, pageIndexes]])},
+        null as any,
+    );
 }
 
 function makePage(marker: number): Uint8Array {
@@ -315,7 +345,7 @@ describe("per-browser page tracking", () => {
 
         // Page 1 is pending (sent as updatedPages).
         // Acknowledge it — should promote to confirmed.
-        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [1]}, null as any);
+        await acknowledgePages(conn, [1]);
 
         // Now page 1 is confirmed (skipped)
         const allPages = new Map([
@@ -331,7 +361,7 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        await conn.procedures.acknowledgePages(null as any, {pageIndexes: [5, 6, 7]}, null as any);
+        await acknowledgePages(conn, [5, 6, 7]);
 
         // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
@@ -366,8 +396,8 @@ describe("per-browser page tracking", () => {
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
         const conn2 = createTrackedConnection(doStorage, tracker, browserId);
 
-        await conn1.procedures.acknowledgePages(null as any, {pageIndexes: [0, 1]}, null as any);
-        await conn2.procedures.acknowledgePages(null as any, {pageIndexes: [2, 3]}, null as any);
+        await acknowledgePages(conn1, [0, 1]);
+        await acknowledgePages(conn2, [2, 3]);
 
         const pages = new Map([
             [0, {timestamp: 1, data: new Uint8Array(1)}],
@@ -444,7 +474,8 @@ describe("per-browser page tracking", () => {
         // Page 2: pending (sent as updatedPages) but not in
         //         event → N/A
         // Page 3: not tracked → excluded
-        expect(event.pages.map(p => p.pageIndex)).toEqual([0, 1]);
+        const main = event.tables.get(mainDatabaseTableId);
+        expect(main?.pages.map(p => p.pageIndex)).toEqual([0, 1]);
     });
 
     test("transformEvent includes pending pages", async () => {
@@ -483,7 +514,8 @@ describe("per-browser page tracking", () => {
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
-        expect(event.pages.map(p => p.pageIndex)).toEqual([0, 1]);
+        const main = event.tables.get(mainDatabaseTableId);
+        expect(main?.pages.map(p => p.pageIndex)).toEqual([0, 1]);
     });
 
     test("transformEvent returns empty pages for untracked client", async () => {
@@ -505,7 +537,8 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        expect(event.pages).toEqual([]);
+        const main = event.tables.get(mainDatabaseTableId);
+        expect(main?.pages).toEqual([]);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {

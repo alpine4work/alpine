@@ -22,12 +22,15 @@ import {
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
+    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
+
+const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
@@ -331,7 +334,26 @@ function createTestTab(config: {
                 // pages are preserved during tests.
                 return new Promise(() => {});
             }),
-        ensureCacheIsUpToDate: async (clientTimestamps: ReadonlyMap<number, number>) => {
+        ensureCacheIsUpToDate: async pageTimestampsByTable => {
+            const clientTimestamps =
+                pageTimestampsByTable.get(mainDatabaseTableId) ?? new Map<number, number>();
+
+            const empty = {
+                tables: new Map([
+                    [
+                        mainDatabaseTableId,
+                        {
+                            updatedPages: new Map<
+                                number,
+                                {timestamp: number; data: Uint8Array}
+                            >(),
+                            stalePageIndexes: [] as Array<number>,
+                            fileSizeInPages: 0,
+                        },
+                    ],
+                ]),
+            };
+
             // Read the local OPFS index to compare against
             // client timestamps, simulating a server that
             // agrees with the local cache.
@@ -381,12 +403,19 @@ function createTestTab(config: {
                             stalePageIndexes.push(pageIndex);
                         }
                     }
-                    return {updatedPages, stalePageIndexes, fileSizeInPages: 0};
+                    return {
+                        tables: new Map([
+                            [
+                                mainDatabaseTableId,
+                                {updatedPages, stalePageIndexes, fileSizeInPages: 0},
+                            ],
+                        ]),
+                    };
                 }
             } catch {
                 // No index yet
             }
-            return {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
+            return empty;
         },
         acknowledgePages: () => {},
     });

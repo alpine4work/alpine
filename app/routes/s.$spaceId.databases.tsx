@@ -22,20 +22,12 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
-import {getMinId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-
-/**
- * Constant {@link DatabaseTableId} used to key the
- * single internal SQLite database. Once each table has
- * its own database this is replaced by per-table IDs.
- */
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 const LoaderSchema = Schema.object({
     databaseGroupId: Schema.id<DatabaseGroupId>(),
@@ -46,12 +38,15 @@ const LoaderSchema = Schema.object({
             tableName: Schema.string,
         }),
     ),
-    pages: Schema.array(
-        Schema.object({
-            pageIndex: Schema.integer,
-            timestamp: Schema.integer,
-            data: Schema.bytes,
-        }),
+    pages: Schema.map(
+        Schema.id<DatabaseTableId>(),
+        Schema.array(
+            Schema.object({
+                pageIndex: Schema.integer,
+                timestamp: Schema.integer,
+                data: Schema.bytes,
+            }),
+        ),
     ),
 });
 
@@ -67,11 +62,20 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         input: {},
     });
 
-    const pages = Array.from(readPages, ([pageIndex, {timestamp, data}]) => ({
-        pageIndex,
-        timestamp,
-        data,
-    }));
+    const pages = new Map<
+        DatabaseTableId,
+        Array<{pageIndex: number; timestamp: number; data: Uint8Array}>
+    >();
+    for (const [tableId, tablePages] of readPages) {
+        pages.set(
+            tableId,
+            Array.from(tablePages, ([pageIndex, {timestamp, data}]) => ({
+                pageIndex,
+                timestamp,
+                data,
+            })),
+        );
+    }
 
     return jsonWithSchema(LoaderSchema, {
         databaseGroupId,
@@ -101,12 +105,9 @@ export default function DatabaseGroupLayoutRoute() {
 
     const handlePagesChanged = useEvent((event: DatabaseRealtimeEvent) => {
         if (event.type === "PagesChanged") {
-            const main = event.tables.get(mainDatabaseTableId);
-            if (main === undefined) return;
             conn.call("writePagesFromRealtime", {
-                pages: main.pages,
+                tables: event.tables,
                 mutationId: event.mutationId,
-                fileSizeInPages: main.fileSizeInPages,
             });
         }
     });
@@ -124,31 +125,20 @@ export default function DatabaseGroupLayoutRoute() {
                 returnPages?: boolean;
             },
         ) => {
-            const result = await procedures.executeAction({
+            return procedures.executeAction({
                 action,
                 mutationId: options.mutationId,
                 returnResult: options.returnResult ?? true,
                 returnPages: options.returnPages ?? true,
             });
-            return {
-                result: result.result,
-                readPages:
-                    result.readPages === null
-                        ? null
-                        : (result.readPages.get(mainDatabaseTableId) ?? new Map()),
-            };
         },
-        ensureCacheIsUpToDate: async (pageTimestampsByIndex: ReadonlyMap<number, number>) => {
-            const result = await procedures.ensureCacheIsUpToDate({
-                pageTimestampsByIndex: new Map([[mainDatabaseTableId, pageTimestampsByIndex]]),
-            });
-            const main = result.tables.get(mainDatabaseTableId);
-            return main ?? {updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0};
+        ensureCacheIsUpToDate: async (
+            pageTimestampsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
+        ) => {
+            return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
         },
-        acknowledgePages: (pageIndexes: ReadonlyArray<number>) => {
-            void procedures.acknowledgePages({
-                pageIndexes: new Map([[mainDatabaseTableId, [...pageIndexes]]]),
-            });
+        acknowledgePages: (pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>) => {
+            void procedures.acknowledgePages({pageIndexes});
         },
         reportError: (message: string) => {
             reporter.displayError("Couldn’t save changes", new InternalError(message));
