@@ -10,6 +10,7 @@ import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtim
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
  * Updates the channel's `AccessPolicy` by adding account grants. This allows you
@@ -33,6 +34,9 @@ export async function addAccountGrantsToChannelAccessPolicy(
     ) => Promise<
         ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
     >;
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return updateChannelAccessPolicyBase(context, {
         channelId,

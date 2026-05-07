@@ -12,7 +12,7 @@ import {normalizeHtmlForFileEntityTest} from "~/client/web/content/file_entity/i
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";

@@ -9,7 +9,7 @@ import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/re
 import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {
     postContentViewHeaderAvatarSize,
     postContentViewHeaderDesktopPostMetadataPaddingLeft,

@@ -6,6 +6,7 @@ ts_project(
         "//app:__subpackages__",
         "//client/web/feed:__pkg__",
         "//client/web/forum:__pkg__",
+        "//client/web/sites:__pkg__",
         "//client/web/spaces/layout:__pkg__",
     ],
     deps = [

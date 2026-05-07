@@ -29,7 +29,7 @@ export function isSearchEntityModelId(entityId: SearchEntityId): entityId is Sea
 
 export type SearchEntityModelData = SchemaType<typeof SearchEntityModelDataSchema>;
 
-const SearchEntityModelDataSchema = Schema.object({
+export const SearchEntityModelDataSchema = Schema.object({
     id: SearchEntityIdSchema as Schema<SearchEntityModelId>,
     title: Schema.string.nullable(),
     titleVersion: SearchEntityTitleVersionSchema.nullable(),

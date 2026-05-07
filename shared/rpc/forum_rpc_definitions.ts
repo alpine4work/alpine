@@ -1,4 +1,5 @@
-import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessLevelSchema, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {
     MessageContentSchema,
@@ -34,6 +35,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -47,11 +49,12 @@ export const createChannel = defineRpc({
         channelId: Schema.id<ChannelId>().optional(),
         name: Schema.string,
         description: MessageContentSchema.optional(),
-        accessPolicy: AccessPolicySchema.optional(),
+        accessPolicy: CreateOrUpdateAccessPolicySchema.optional(),
     },
     output: {
         channelId: Schema.id<ChannelId>(),
         createdTime: Schema.date,
+        eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).default([]),
     },
 });
 
@@ -104,7 +107,7 @@ export const updateChannelAccessPolicy = defineRpc({
     isIdempotent: false,
     input: {
         channelId: Schema.id<ChannelId>(),
-        accessPolicy: AccessPolicySchema,
+        accessPolicy: LocalAccessPolicySchema,
         notification: ShareNotificationSchema.nullable(),
     },
     output: {

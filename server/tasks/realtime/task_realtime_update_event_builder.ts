@@ -1,5 +1,6 @@
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {prepareTaskActionForClient} from "~/server/tasks/data/prepare_task_action_for_client.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
@@ -473,8 +474,27 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                         getAccount(context, this._spaceId, accountId),
                 ),
             ),
+            // Site previews must be authorized against the _connecting_ account, not the
+            // system actor that this event builder runs under. Without this hop, an assignee
+            // whose task lives in a private site would receive the full `SitePreviewModel`
+            // (name, access policy, etc.) for that site even though they don't have View
+            // access on it. We collapse "no access" into `null` so the existing
+            // `filter(isNonNullable)` below also strips unauthorized entries — keeping
+            // `{ok: false}` would leak the site's existence to the client, which is the same
+            // kind of disclosure the impersonation hop is meant to prevent. Mirrors how
+            // `TaskRealtimeConnection.isReferencedCollectionAccessAuthorized` impersonates the
+            // connection's account before authorizing collections.
             runAllPromises(
-                Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                Array.from(siteIds, siteId =>
+                    impersonateAccountAsSystemContext(
+                        context,
+                        connection.accountId,
+                        async actorContext => {
+                            const result = await getSitePreviewIfPossible(actorContext, siteId);
+                            return result?.ok ? result : null;
+                        },
+                    ),
+                ),
             ),
         ]);
 
@@ -485,7 +505,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             backfillCollections,
             defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
             referencedAccounts,
-            referencedSites,
+            referencedSites: referencedSites.filter(isNonNullable),
             originClientId: this._originClientId,
         };
     }

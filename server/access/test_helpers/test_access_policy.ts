@@ -9,6 +9,7 @@ import {
     LocalAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -17,14 +18,17 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 
 export class TestAccessPolicy {
     public readonly get: () => Promise<AccessPolicy>;
-    public readonly set: (session: TestSpaceSession, accessPolicy: AccessPolicy) => Promise<void>;
+    public readonly set: (
+        session: TestSpaceSession,
+        accessPolicy: CreateOrUpdateAccessPolicy,
+    ) => Promise<void>;
 
     constructor({
         get,
         set,
     }: {
         get: () => Promise<AccessPolicy>;
-        set: (session: TestSpaceSession, accessPolicy: AccessPolicy) => Promise<void>;
+        set: (session: TestSpaceSession, accessPolicy: CreateOrUpdateAccessPolicy) => Promise<void>;
     }) {
         this.get = get;
         this.set = set;

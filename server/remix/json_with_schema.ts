@@ -5,8 +5,10 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 import {
     deserializedValueSymbol,
     propagateEventDataKey,
+    siteLoaderDataKey,
     taskStoreLoaderDataKey,
 } from "~/shared/remix/json_with_schema_shared.js";
+import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {
     TaskStoreLoaderData,
     TaskStoreLoaderDataSchema,
@@ -23,6 +25,7 @@ export function jsonWithSchema<Value>(
     {
         propagateEventData,
         taskStoreLoaderData,
+        siteLoaderData,
         ...responseInit
     }: ResponseInit & {
         /**
@@ -46,6 +49,18 @@ export function jsonWithSchema<Value>(
          * normalized task data to be accessible everywhere throughout the product.
          */
         taskStoreLoaderData?: TaskStoreLoaderData;
+
+        /**
+         * Data for a site that contains the entity rendered by this route. Stashed on the
+         * response under `siteLoaderDataKey` so the space-level `SiteProvider` (mounted
+         * under `/s/:spaceId`) can read it synchronously via `useMatches` on its first
+         * render — letting site chrome paint immediately without a `useEffect` round-trip.
+         *
+         * Entity routes that should render inside a site (documents, channels, tasks,
+         * etc.) populate this from their loader; routes that don't belong to a site leave
+         * it unset.
+         */
+        siteLoaderData?: SiteLoaderData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
@@ -74,6 +89,13 @@ export function jsonWithSchema<Value>(
         (taskStoreLoaderDataSerializedValue as any)[deserializedValueSymbol] = taskStoreLoaderData;
 
         (serializedValue as any)[taskStoreLoaderDataKey] = taskStoreLoaderDataSerializedValue;
+    }
+
+    if (siteLoaderData) {
+        const siteLoaderDataSerializedValue = SiteLoaderDataSchema.serialize(siteLoaderData);
+        (siteLoaderDataSerializedValue as any)[deserializedValueSymbol] = siteLoaderData;
+
+        (serializedValue as any)[siteLoaderDataKey] = siteLoaderDataSerializedValue;
     }
 
     return json(serializedValue, responseInit);

@@ -55,7 +55,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
-import {getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
+import {getSitePreview, getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {
     getTaskCollectionFromIndex,
@@ -90,7 +90,7 @@ import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -496,9 +496,7 @@ class SearchEntityReadState {
         const channel = await getChannelNameAndDescriptionContentAndContributors(
             this._context,
             channelId,
-            {
-                consistency: "StrongWithinCache",
-            },
+            {consistency: "StrongWithinCache"},
         );
 
         return {
@@ -1008,7 +1006,9 @@ class SearchEntityReadState {
 
                 return new AccessPolicyModel({
                     type: "Site",
-                    site: await this._context.sitesInjection.getSitePreview(accessPolicy.siteId),
+                    site: await getSitePreview(this._context, accessPolicy.siteId, {
+                        consistency: "StrongWithinCache",
+                    }),
                 });
             }
             default:
@@ -1453,8 +1453,7 @@ async function actuallyGetSearchEntity(
         case "TaskComment":
             return getTaskCommentSearchEntity(state, idObject);
         case "Site":
-            // TODO(#sites)
-            throw new UnimplementedError("Site search entity not implemented");
+            return getSiteSearchEntity(state, idObject.siteId);
         default:
             throw exhaustive(idObject);
     }
@@ -1488,6 +1487,38 @@ async function getAccountSearchEntity(
         // Doesn't make sense that an account would create itself. So mark an account has
         // having no creator.
         creatorId: null,
+        contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
+    };
+}
+
+async function getSiteSearchEntity(
+    state: SearchEntityReadState,
+    siteId: SiteId,
+): Promise<SearchEntity> {
+    const site = await state.getSitePreviewIfExists(siteId);
+    if (!site) {
+        throw new NotFoundError(`Site ${siteId} not found`);
+    }
+
+    return {
+        id: `Site:${siteId}`,
+        accessPolicy: getSearchEntityIndexAccessPolicy(
+            new AccessPolicyModel(site.initialData.accessPolicy),
+        ),
+        createdTime: site.initialData.createdTime,
+        title: site.initialData.name,
+        titleVersion: {type: "Integer", version: site.initialData.version},
+        body: null,
+        tags: emptyArray,
+        media: null,
+        embeddingChunks: emptyArray,
+        creatorId: site.initialData.creatorId,
+        // TODO(#sites): Implement contributor IDs for sites.
         contributorIds: emptyMap,
         dueDate: null,
         assigneeId: null,

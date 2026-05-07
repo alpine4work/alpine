@@ -17,7 +17,7 @@ import {Reporter} from "~/client/web/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,

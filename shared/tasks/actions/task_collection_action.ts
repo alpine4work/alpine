@@ -1,4 +1,4 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -23,7 +23,7 @@ const TaskCollectionCreateActionSchema = Schema.object({
     // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
     creatorId: Schema.id<AccountId>().nullable().default(null),
     name: LabelStringSchema,
-    accessPolicy: AccessPolicySchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
 
 /**
@@ -93,7 +93,7 @@ export type TaskCollectionUpdateAccessPolicyAction = SchemaType<
 
 const TaskCollectionUpdateAccessPolicyActionSchema = Schema.object({
     type: Schema.value("UpdateAccessPolicy"),
-    accessPolicy: AccessPolicySchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
 
 export const TaskCollectionActionSchema = Schema.union({

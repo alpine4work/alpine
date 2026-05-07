@@ -1,6 +1,6 @@
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {SearchEntityRegistryFriend} from "~/client/web/search/core/search_entity_registry.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/web/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {

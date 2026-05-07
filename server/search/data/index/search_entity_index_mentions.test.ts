@@ -19,7 +19,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -102,7 +102,7 @@ const testCaseByEntityType: Record<
         create: (options: {
             session: TestSpaceSession;
             title: string;
-            access: "Public" | "Private" | AccessPolicy;
+            access: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         }) => Promise<{
             id: SearchMentionEntityId;
             prefix?: string;

@@ -1,4 +1,6 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
@@ -9,6 +11,8 @@ import {
     isSiteRelatedAccessPolicyUpdate,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     FailedPreconditionError,
@@ -20,31 +24,106 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {assertSiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
  * Validates an access policy update. If we're creating the access policy than
  * `oldAccessPolicy` will be null. Starts by running `validateAccessPolicyUpdate()`
  * which is the same check run by the client optimistically when the access policy
  * changes to show the user an error.
+ *
+ * IMPORTANT: This function does not validate that the actor has Manage access on
+ * the new access policy. You must validate that separately.
  */
 export async function validateAccessPolicyUpdateForServer(
     context: ServerMinimalAccountActionContext,
     spaceId: SpaceId,
+    entityId: SearchEntityId,
     oldAccessPolicy: AccessPolicy | null,
-    newAccessPolicy: AccessPolicy,
+    newAccessPolicy: CreateOrUpdateAccessPolicy,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<ResolvedAccessPolicy> {
-    // The user is allowed to add to a site, remove from a site, or move to a different
-    // site if they have Manage access on the new and old access policies. We
-    // denormalize the access policies up front and then validate the permissions on
-    // the old and new access policies.
-    const [oldResolvedAccessPolicy, newResolvedAccessPolicy]: [
-        ResolvedAccessPolicyWithGenerations | null,
-        ResolvedAccessPolicyWithGenerations,
+): Promise<{
+    resolvedAccessPolicy: ResolvedAccessPolicy;
+    transactionEntries: Array<{
+        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        getEvent: (
+            context: ServerActionContext,
+        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+    }>;
+}> {
+    // We only schedule a "site add" transaction when the new access policy is a Site
+    // policy AND it differs from the old site (or the old policy isn't a Site policy
+    // at all).
+    const addToSiteData =
+        newAccessPolicy.type === "Site" &&
+        (oldAccessPolicy?.type !== "Site" || oldAccessPolicy.siteId !== newAccessPolicy.siteId)
+            ? {
+                  siteId: newAccessPolicy.siteId,
+                  entityId: assertSiteItemSearchEntityId(entityId),
+                  parentId: newAccessPolicy.position.parentId,
+                  orderKey: newAccessPolicy.position.orderKey,
+              }
+            : null;
+
+    // Similarly we only schedule a "site remove" transaction when the old access
+    // policy is a Site policy with the entity id we need to delete AND it differs from
+    // the new site (or the new policy isn't a Site policy at all).
+    const removeFromSiteData =
+        oldAccessPolicy?.type === "Site" &&
+        (newAccessPolicy.type !== "Site" || oldAccessPolicy.siteId !== newAccessPolicy.siteId)
+            ? {
+                  siteId: oldAccessPolicy.siteId,
+                  entityId: assertSiteItemSearchEntityId(entityId),
+              }
+            : null;
+
+    // The actor only needs `Manage` access on the _old_ access policy to make a change
+    // — they can downgrade themselves out of the new policy. For site-related updates
+    // (adding to, removing from, or moving between sites) they additionally need
+    // `Manage` on the new _site_. We denormalize the access policies up front so we
+    // can validate both the general old-policy permission and the site-specific
+    // new-site permission below.
+    const [
+        oldResolvedAccessPolicy,
+        newResolvedAccessPolicy,
+        addToSiteTransactionEntries,
+        removeFromSiteTransactionEntries,
     ] = await runAllPromises([
         oldAccessPolicy ? getResolvedAccessPolicy(context, oldAccessPolicy, options) : null,
         getResolvedAccessPolicy(context, newAccessPolicy, options),
+        addToSiteData
+            ? context.sitesInjection.dangerouslyGetAddToSiteTransactionEntries(
+                  addToSiteData.siteId,
+                  {
+                      entityId: addToSiteData.entityId,
+                      parentId: addToSiteData.parentId,
+                      orderKey: addToSiteData.orderKey,
+                  },
+              )
+            : null,
+        removeFromSiteData
+            ? context.sitesInjection.dangerouslyGetRemoveFromSiteTransactionEntries(
+                  removeFromSiteData.siteId,
+                  removeFromSiteData.entityId,
+              )
+            : null,
     ]);
+
+    const transactionEntries: Array<{
+        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        getEvent: (
+            context: ServerActionContext,
+        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+    }> = [];
+
+    for (const entry of addToSiteTransactionEntries ?? []) {
+        transactionEntries.push(entry);
+    }
+    for (const entry of removeFromSiteTransactionEntries ?? []) {
+        transactionEntries.push(entry);
+    }
 
     await runAllPromises([
         validateSiteManageAccessIfNeeded(
@@ -63,7 +142,10 @@ export async function validateAccessPolicyUpdateForServer(
         ),
     ]);
 
-    return newResolvedAccessPolicy;
+    return {
+        resolvedAccessPolicy: newResolvedAccessPolicy,
+        transactionEntries,
+    };
 }
 
 async function validateResolvedAccessPolicyUpdateForServer(

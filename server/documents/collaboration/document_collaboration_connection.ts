@@ -412,6 +412,49 @@ export class DocumentCollaborationConnection {
             });
         },
 
+        updateContentWithoutOptimisticBroadcast: (context, input) => {
+            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
+                input.steps,
+            );
+
+            if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
+                throw new PermissionDeniedError("Can\u2019t update document", {
+                    displayMessage:
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                            expectedAccessLevel
+                        ],
+                });
+            }
+
+            return this._state.withLock(async stateRef => {
+                const {
+                    presenceState,
+                    hasSentPresenceState,
+                    newVersion,
+                    getDynamoGeneralRealtimeEventTransactionForSite,
+                } = await this._contentManager.updateAndWaitForPersistence(
+                    context,
+                    this.connectionId,
+                    input,
+                );
+
+                if (!hasSentPresenceState) {
+                    this._sendEventToOthers(context, {
+                        type: "UpdateOtherPresenceState",
+                        connectionId: this.connectionId,
+                        state: presenceState,
+                    });
+                }
+
+                stateRef.current.presenceState = presenceState;
+
+                const eventTransactionForSite =
+                    await getDynamoGeneralRealtimeEventTransactionForSite();
+
+                return {newVersion, eventTransactionForSite};
+            });
+        },
+
         updateOurPresenceState: (context, input) =>
             // Handle procedures for this connection in sequence as a defense against race
             // conditions.

@@ -78,6 +78,7 @@ type EdgeServiceRoute =
     | {type: "ChatRealtimeService"; chatId: string; pathname: string}
     | {type: "MyAccountService"; accountId: string; pathname: string}
     | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
+    | {type: "SiteRealtimeService"; siteId: string; pathname: string}
     | {type: "TaskRealtimeService"; spaceId: SpaceId}
     | {type: "LoadTaskQueries"; spaceId: SpaceId}
     | {type: "UploadFile"; spaceId: SpaceId}
@@ -362,6 +363,16 @@ async function handleFetch(
                     pathname !== "/" ? "/*" : ""
                 }`;
                 route = {type: "TaskNotesCollaborationService", taskId, pathname};
+                break;
+            }
+            case "sites": {
+                const siteId = pathSegments[1];
+                if (siteId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/sites/:siteId${pathname !== "/" ? "/*" : ""}`;
+                route = {type: "SiteRealtimeService", siteId, pathname};
                 break;
             }
             default: {
@@ -651,6 +662,19 @@ async function actuallyHandleFetch(
                     request,
                     pathname: route.pathname,
                     idName: route.taskId,
+                    span,
+                });
+            }
+
+            case "SiteRealtimeService": {
+                return fetchFromDurableObjectStub({
+                    durableObjectNamespace: env.SiteRealtimeDurableObjectNamespace,
+                    serviceName: "SiteRealtimeService",
+                    tokenAgent,
+                    cookieNameSuffix: env.COOKIE_NAME_SUFFIX,
+                    request,
+                    pathname: route.pathname,
+                    idName: route.siteId,
                     span,
                 });
             }
@@ -1276,3 +1300,4 @@ export {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_real
 export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 export {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
+export {SiteRealtimeDurableObject} from "~/server/sites/realtime/site_realtime_durable_object.js";

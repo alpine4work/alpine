@@ -15,6 +15,7 @@ import {
     NotionImportId,
     PostId,
     RealmId,
+    SiteId,
     SpaceId,
     TaskActionTransactionId,
     TaskCollectionId,
@@ -539,6 +540,9 @@ export type TracerEventData = {
 
         /** Information about the chat the event was fired while looking at. */
         readonly chatId?: ChatId;
+
+        /** Information about the site the event was fired while looking at. */
+        readonly siteId?: SiteId;
 
         /** This event involves the file with the following ID. */
         readonly fileId?: FileId;
@@ -1990,23 +1994,18 @@ export type TracerEventData = {
         };
     };
 
-    /** Information regarding our search system. */
+    /** Information regarding our search subsystems. */
     readonly search?: {
         /** Any `SearchEntityId`. */
         readonly entityId?: string;
 
         /** Information regarding search indexing. */
         readonly index?: {
-            /** Information regarding search embedding chunk indexing. */
+            /** Information regarding embedding chunk reindexing. */
             readonly embeddingChunks?: {
-                /**
-                 * Did we schedule an embedding chunk reindex?
-                 */
+                /** Whether reindexing was scheduled for this entity. */
                 readonly scheduled?: boolean;
-
-                /**
-                 * Does this embedding chunk index need to update all embedding chunk metadatas?
-                 */
+                /** Whether the reindex job was forced to update metadata. */
                 readonly forceMetadataUpdate?: boolean;
             };
         };

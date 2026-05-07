@@ -8,7 +8,7 @@ import {calendarBlankIconSvg} from "~/client/web/icons/calendar_blank_icon_svg.j
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {inputPlaceholderFontWeight, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,

@@ -12,11 +12,7 @@ import {
     intentionallyUpdateContentAccessPolicyMetaKey,
     reduceContentReferencesShared,
 } from "~/client/web/content/state/content_editor_state.js";
-import {
-    AccessPolicy,
-    getAccountAccessLevelAssumingSpaceAccess,
-    hasAccessLevel,
-} from "~/shared/access/access_policy.js";
+import {AccessLevel, LocalAccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
@@ -64,6 +60,16 @@ type DocumentContentEditorExtraState = {
     readonly currentAccountId: AccountId | null;
 
     /**
+     * The current account's effective access level on this document. Snapshot at the
+     * time the editor state was constructed (or rebuilt) — this reducer must stay
+     * side-effect free, so we don't read `siteRegistry` from inside it. Whenever the
+     * actor's access changes the parent (`use_document_content_editor_web_socket.tsx`)
+     * spins up a new `DocumentContentEditorWebSocketClient` with a fresh
+     * `initialState`, which is the moment to refresh this value.
+     */
+    readonly accessLevel: AccessLevel;
+
+    /**
      * Comment threads we have sent to the server that we're waiting on acknowledgement
      * for.
      *
@@ -83,7 +89,7 @@ type DocumentContentEditorExtraState = {
      * attribute.
      */
     readonly pendingIntentionallyUpdateAccessPolicy: {
-        readonly accessPolicy: AccessPolicy;
+        readonly accessPolicy: LocalAccessPolicy;
         readonly notification: ShareNotification | null;
     } | null;
 
@@ -141,7 +147,9 @@ type DocumentContentEditorExtraState = {
 };
 
 export function getInitialDocumentContentEditorState(
-    options:
+    options: {
+        accessLevel: AccessLevel;
+    } & (
         | {
               currentAccountId: AccountId | null;
               initialVersion: number;
@@ -153,7 +161,8 @@ export function getInitialDocumentContentEditorState(
               initialVersion?: undefined;
               initialContent?: undefined;
               initialSelection?: undefined;
-          },
+          }
+    ),
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
         initialVersion: options.initialVersion ?? 0,
@@ -165,6 +174,7 @@ export function getInitialDocumentContentEditorState(
         reduceReferences: reduceDocumentContentReferences,
         extra: {
             currentAccountId: options.currentAccountId,
+            accessLevel: options.accessLevel,
             pendingCreateCommentThreads: null,
             pendingIntentionallyUpdateAccessPolicy: null,
             rememberedSteps: [],
@@ -382,17 +392,13 @@ export function reduceDocumentContentEditorState(
     if (
         oldState.extra.ourPresenceState !== state.extra.ourPresenceState ||
         oldState.editorState !== state.editorState ||
-        oldState.extra.currentAccountId !== state.extra.currentAccountId
+        oldState.extra.accessLevel !== state.extra.accessLevel
     ) {
-        if (state.extra.ourPresenceState?.selection.empty) {
-            const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
-                state.editorState.getDoc().attrs.accessPolicy,
-                state.extra.currentAccountId,
-            );
-
-            if (!hasAccessLevel(accessLevel, "Edit")) {
-                state = {...state, extra: {...state.extra, ourPresenceState: null}};
-            }
+        if (
+            state.extra.ourPresenceState?.selection.empty &&
+            !hasAccessLevel(state.extra.accessLevel, "Edit")
+        ) {
+            state = {...state, extra: {...state.extra, ourPresenceState: null}};
         }
     }
 
@@ -643,6 +649,7 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         case "ResetToPersistedVersion": {
             return getInitialDocumentContentEditorState({
                 currentAccountId: state.extra.currentAccountId,
+                accessLevel: state.extra.accessLevel,
                 initialVersion: state.persistedVersion,
                 initialContent: {
                     doc: getDocumentContentEditorStatePersistedContent(state),

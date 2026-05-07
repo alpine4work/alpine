@@ -6,7 +6,7 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
-        "//client/web/sites",
+        "//client/web/sites/context",
         "//shared/access",
         "//shared/access/model",
         "//shared/helpers",

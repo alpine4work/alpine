@@ -53,3 +53,6 @@ export type RpcCallId = NominalRandomIdType<"RpcCall">;
 export type CursorCloudAgentId = NominalRandomIdType<"CursorCloudAgent">;
 export type NotionImportId = NominalRandomIdType<"NotionImport">;
 export type SiteId = NominalRandomIdType<"Site">;
+export type SiteTopBarId = NominalRandomIdType<"SiteTopBar">;
+export type SiteSideBarId = NominalRandomIdType<"SiteSideBar">;
+export type SiteSideBarSectionId = NominalRandomIdType<"SiteSideBarSection">;

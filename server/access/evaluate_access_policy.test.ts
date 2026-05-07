@@ -18,7 +18,8 @@ import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId, SiteId, SiteSideBarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // Mutable map that tests can configure for site access policies
@@ -45,8 +46,16 @@ const sitesInjection: SitesInjection = {
             createdTime: new Date(),
             accessPolicy: policy,
             version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: generateId<AccountId>(),
         });
     },
+    // These tests don't exercise site membership writes — mock them as empty.
+    dangerouslyGetAddToSiteTransactionEntries: async () => [],
+    dangerouslyGetRemoveFromSiteTransactionEntries: async () => [],
 };
 
 const context = createTestContext({

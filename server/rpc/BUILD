@@ -48,6 +48,8 @@ ts_project(
         "//server/opensearch",
         "//server/search/data/index",
         "//server/search/data/table",
+        "//server/sites/data",
+        "//server/sites/entity_actions",
         "//server/spaces",
         "//server/spaces/create",
         "//server/spell_check",

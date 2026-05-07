@@ -898,6 +898,8 @@ Resources:
                           Type: string
                         - Name: context__chat_id
                           Type: string
+                        - Name: context__site_id
+                          Type: string
                         - Name: context__file_id
                           Type: string
                         - Name: context__notion_import_id

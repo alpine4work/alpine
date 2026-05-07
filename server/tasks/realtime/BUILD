@@ -7,6 +7,7 @@ ts_project(
     name = "realtime_lib",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/realtime/test_helpers",
         "//server/tasks/test_helpers",

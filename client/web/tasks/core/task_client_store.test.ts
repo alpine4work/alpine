@@ -1,6 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientReadonlyStore,
@@ -23,12 +23,21 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SiteId,
+    SiteSideBarId,
+    SiteTopBarId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {SiteTopBarContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -14918,10 +14927,33 @@ function createTestSite(siteId: SiteId, name = "Test Site"): SitePreviewModel {
             urlGrant: null,
         },
         version: 1,
+        rootContainerId: printSiteContainerId({type: "SideBar", id: generateId<SiteSideBarId>()}),
+        creatorId: account1.id,
     });
 }
 
+/**
+ * Position used by `Site` access policy assertions in these tests. Task action
+ * schemas now require a `position` for any `UpdateAccessPolicy` action that
+ * switches to a `Site` policy. The actual values are arbitrary because these tests
+ * don't assert on them — they just need to be a valid `SiteContainerId`
+ *
+ * - `OrderKey` shape.
+ */
+const testSitePosition: {parentId: SiteTopBarContainerId; orderKey: OrderKey} = {
+    parentId: `TopBar:${generateId<SiteTopBarId>()}`,
+    orderKey: initialOrderKey,
+};
+
 describe("referenced sites", () => {
+    function createSiteAccessPolicyForUpdate(siteId: SiteId) {
+        return {
+            type: "Site",
+            siteId: siteId,
+            position: testSitePosition,
+        } as const;
+    }
+
     test("collection with site reference makes site store available via getReferencedSiteStoreIfExists", () => {
         const store = createAutoRetainStore();
 
@@ -14936,10 +14968,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -14976,10 +15005,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15075,10 +15101,7 @@ describe("referenced sites", () => {
             collectionId: collection.id,
             collectionAction: {
                 type: "UpdateAccessPolicy",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         };
 
@@ -15114,10 +15137,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15183,6 +15203,7 @@ describe("referenced sites", () => {
                         accessPolicy: {
                             type: "Site",
                             siteId,
+                            position: testSitePosition,
                         },
                     },
                 },
@@ -15213,10 +15234,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15259,10 +15277,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Collection 1",
-                accessPolicy: {
-                    type: "Site",
-                    siteId: siteId1,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId1),
             },
         });
 
@@ -15271,10 +15286,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Collection 2",
-                accessPolicy: {
-                    type: "Site",
-                    siteId: siteId2,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId2),
             },
         });
 
@@ -15316,10 +15328,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection 1",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15328,10 +15337,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection 2",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15459,6 +15465,7 @@ describe("referenced sites", () => {
                         accessPolicy: {
                             type: "Site",
                             siteId,
+                            position: testSitePosition,
                         },
                     },
                 },
@@ -15490,10 +15497,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 
@@ -15512,6 +15516,7 @@ describe("referenced sites", () => {
                         accessPolicy: {
                             type: "Site",
                             siteId,
+                            position: testSitePosition,
                         },
                     },
                 },
@@ -15607,6 +15612,11 @@ describe("referenced sites", () => {
                 urlGrant: null,
             },
             version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: account1.id,
         });
 
         const site2 = new SitePreviewModel({
@@ -15622,6 +15632,11 @@ describe("referenced sites", () => {
                 urlGrant: null,
             },
             version: 2,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: account1.id,
         });
 
         // Add initial site to registry
@@ -15632,10 +15647,7 @@ describe("referenced sites", () => {
                 type: "Create",
                 creatorId: null,
                 name: "Test Collection",
-                accessPolicy: {
-                    type: "Site",
-                    siteId,
-                },
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
         });
 

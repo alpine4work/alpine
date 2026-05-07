@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,
@@ -8,7 +9,7 @@ import {
 } from "~/shared/content/content_referenced_ids.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorNode,
@@ -26,6 +27,7 @@ export type DocumentContentReferencedIds = SchemaType<typeof DocumentContentRefe
 export const DocumentContentReferencedIdsSchema = ContentReferencedIdsSchema.merge(
     Schema.object({
         commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()),
+        siteIds: Schema.set(Schema.id<SiteId>()).default(new Set()),
     }),
 );
 
@@ -39,10 +41,14 @@ export function isEmptyDocumentContentReferencedIds(
     // need to come back and update this function.
     assertEqualTypes<
         Exclude<keyof DocumentContentReferencedIds, keyof ContentReferencedIds>,
-        "commentThreadIds"
+        "commentThreadIds" | "siteIds"
     >();
 
-    return isEmptyContentReferencedIds(referencedIds) && referencedIds.commentThreadIds.size === 0;
+    return (
+        isEmptyContentReferencedIds(referencedIds) &&
+        referencedIds.commentThreadIds.size === 0 &&
+        referencedIds.siteIds.size === 0
+    );
 }
 
 export function getDocumentContentReferencedIdsForNode(
@@ -78,6 +84,7 @@ function collectDocumentContentReferencedIds(
     }: {ignoreCommentThreadIds: ReadonlySet<DocumentCommentThreadId> | undefined},
 ): DocumentContentReferencedIds {
     const commentThreadIds = new Set<DocumentCommentThreadId>();
+    const siteIds = new Set<SiteId>();
 
     const referencedIds = collectContentReferencedIds(visit, {
         visitMark: mark => {
@@ -90,7 +97,15 @@ function collectDocumentContentReferencedIds(
                 }
             }
         },
+        visitAttr: (attr, value) => {
+            if (attr === "accessPolicy") {
+                const accessPolicy: AccessPolicy = value;
+                if (accessPolicy.type === "Site") {
+                    siteIds.add(accessPolicy.siteId);
+                }
+            }
+        },
     });
 
-    return {...referencedIds, commentThreadIds};
+    return {...referencedIds, commentThreadIds, siteIds};
 }

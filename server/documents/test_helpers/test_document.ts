@@ -28,9 +28,12 @@ import {
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -79,6 +82,7 @@ export class TestDocument {
             id?: DocumentId;
             hasPresentShortcut?: boolean;
             cover?: DocumentContentCover;
+            sitePosition?: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey};
         } & (
             | {
                   title?: string;
@@ -171,6 +175,7 @@ export class TestDocument {
             spaceId: session.space.id,
             id: options.id,
             content: assertDocumentContent(content),
+            sitePosition: options.sitePosition,
         });
 
         return new TestDocument(
@@ -215,7 +220,13 @@ export class TestDocument {
             return document.accessPolicy;
         },
         set: async (session, accessPolicy) => {
-            await this.update(session, [new DocAttrStep("accessPolicy", accessPolicy)], {
+            // Site policies pass position in the intentional update, but the doc attr stores
+            // the bare site policy (no position) — strip it for the DocAttrStep.
+            const docAttrAccessPolicy =
+                accessPolicy.type === "Site"
+                    ? omitObject(accessPolicy, ["position"])
+                    : accessPolicy;
+            await this.update(session, [new DocAttrStep("accessPolicy", docAttrAccessPolicy)], {
                 intentionallyUpdateAccessPolicy: {accessPolicy, notification: null},
             });
         },

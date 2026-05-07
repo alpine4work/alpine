@@ -36,7 +36,7 @@ export async function evaluateAccessPolicy(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
     const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
-        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy)
+        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy, options)
         : rawAccessPolicy;
 
     switch (context.actor.type) {

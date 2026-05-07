@@ -8,11 +8,12 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SiteTopBarId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 
 let testTaskCollectionCount = 1;
 
@@ -48,14 +49,14 @@ export class TestTaskCollection {
             access,
         }: {
             name?: string;
-            access?: "Public" | "Private" | AccessPolicy;
+            access?: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
 
         const time = testTaskClock.now();
 
-        let accessPolicy: AccessPolicy;
+        let accessPolicy: CreateOrUpdateAccessPolicy;
         if (access === "Public") {
             accessPolicy = {
                 type: "Local",
@@ -83,7 +84,16 @@ export class TestTaskCollection {
                     type: "Create",
                     creatorId: session.account.id,
                     name,
-                    accessPolicy,
+                    accessPolicy:
+                        accessPolicy.type === "Site"
+                            ? {
+                                  ...accessPolicy,
+                                  position: accessPolicy.position ?? {
+                                      parentId: `TopBar:${generateId<SiteTopBarId>()}`,
+                                      orderKey: initialOrderKey,
+                                  },
+                              }
+                            : accessPolicy,
                 },
             },
         ]);

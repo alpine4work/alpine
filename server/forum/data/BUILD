@@ -10,6 +10,7 @@ ts_project(
         "//server/files/test_helpers",
         "//server/forum/test_helpers",
         "//server/messaging/test_helpers/suite",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
         "//shared/content",
     ],

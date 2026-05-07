@@ -1,4 +1,4 @@
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {AccessPolicy, ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

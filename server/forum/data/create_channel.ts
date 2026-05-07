@@ -13,13 +13,18 @@ import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    DynamoGeneralRealtimeEvent,
+    DynamoGeneralRealtimeItem,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
  * Create a new channel.
@@ -44,7 +49,7 @@ export async function createChannel(
         channelId?: ChannelId;
         name: string;
         description?: MessageContent;
-        accessPolicy?: AccessPolicy;
+        accessPolicy?: CreateOrUpdateAccessPolicy;
     },
 ): Promise<{
     id: ChannelId;
@@ -52,12 +57,16 @@ export async function createChannel(
     getDynamoGeneralRealtimeItem: (
         context: ServerActionContext,
     ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const effectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
+    const {resolvedAccessPolicy, transactionEntries} = await validateAccessPolicyUpdateForServer(
         context,
         spaceId,
+        `Channel:${channelId}`,
         null,
         accessPolicy,
     );
@@ -74,7 +83,7 @@ export async function createChannel(
         name,
         description,
         accessPolicy,
-        hasAddedFeedCandidateEntry: !!effectiveAccessPolicy.defaultGrant,
+        hasAddedFeedCandidateEntry: !!resolvedAccessPolicy.defaultGrant,
     };
 
     const {transactionEntry, getEvent} =
@@ -91,7 +100,7 @@ export async function createChannel(
                 channelId,
                 spaceId,
                 contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
-                accountIdsWithGrant: Array.from(effectiveAccessPolicy.accountGrantById.keys()),
+                accountIdsWithGrant: Array.from(resolvedAccessPolicy.accountGrantById.keys()),
             },
         ),
         // Automatically subscribe the channel creator to the channel they've just created.
@@ -102,6 +111,7 @@ export async function createChannel(
             accountId: context.actor.getAccountId(),
             createdTime: channelItem.createdTime,
         }),
+        ...transactionEntries.map(entry => entry.transactionEntry),
     ]);
 
     // Future `authorizeChannelAccess()` calls in the request should not need to load
@@ -156,5 +166,7 @@ export async function createChannel(
             const {item} = await getEvent(context);
             return item;
         },
+        getDynamoGeneralRealtimeEventTransactionForSite: async context =>
+            runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
     };
 }

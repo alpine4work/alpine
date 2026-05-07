@@ -1,4 +1,4 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
@@ -37,7 +37,7 @@ export const ChatRealtimeProtocol = defineWebSocketProtocol({
 
         updateRoomChatAccessPolicy: {
             input: {
-                accessPolicy: AccessPolicySchema,
+                accessPolicy: LocalAccessPolicySchema,
                 notification: ShareNotificationSchema.nullable(),
             },
             output: {

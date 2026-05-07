@@ -1,4 +1,5 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {
@@ -35,6 +36,7 @@ import {
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
@@ -50,6 +52,41 @@ const DocumentCollaborationPresenceStateSchema = Schema.object({
     version: Schema.integer,
     selection: ContentSelectionSchema,
 });
+
+const UpdateContentInputSchema = {
+    version: Schema.integer,
+    steps: Schema.array(DocumentContentStepSchema),
+    clientId: Schema.id<ContentEditorClientId>(),
+    createCommentThreads: Schema.array(
+        Schema.object({
+            commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            createdTimeZone: TimeZoneSchema,
+            initialCommentContent: MessageContentSchema,
+            initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+        }),
+    ),
+    intentionallyUpdateAccessPolicy: Schema.object({
+        accessPolicy: LocalAccessPolicySchema,
+        notification: ShareNotificationSchema.nullable(),
+    })
+        .nullable()
+        .default(null),
+    /**
+     * Atomically update our presence state in the same action as we update our
+     * content.
+     *
+     * The state must have a `version` that matches the `version` in this update.
+     * However, an important detail is that the state is for the document at `version`
+     * plus the `steps` in this update! The selection, for instance, is for the
+     * document after steps are applied.
+     *
+     * The presence state in `UpdateOurPresenceState` is for exactly the referenced
+     * document version.
+     */
+    updateOurPresenceState: Schema.object({
+        state: DocumentCollaborationPresenceStateSchema.nullable(),
+    }),
+} as const;
 
 export type DocumentCollaborationEvent = WebSocketProtocolEventType<
     typeof DocumentCollaborationProtocol
@@ -90,41 +127,49 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         },
 
         updateContent: {
+            input: UpdateContentInputSchema,
+            output: {newVersion: Schema.integer},
+        },
+
+        /**
+         * Synchronous variant of `updateContent`: persists to DynamoDB _before_
+         * broadcasting steps to connected clients.
+         *
+         * The default optimistic `updateContent` path applies steps to in-memory state and
+         * broadcasts them to clients before persistence finishes; on persist failure we
+         * throw `DataLossError`, kill the durable object, and force all clients to
+         * reconnect (losing any un-persisted steps). This synchronous variant is for
+         * callers that can't tolerate that rollback — e.g. server-side flows that move a
+         * document into or out of a site, where the response surfaces site events that the
+         * caller needs to broadcast atomically with the document write.
+         *
+         * You shouldn't use this path unless you absolutely need to. See the JSDoc on
+         * `DocumentCollaborationContentManager.updateAndWaitForPersistence` for the full
+         * set of tradeoffs.
+         */
+        updateContentWithoutOptimisticBroadcast: {
             input: {
-                version: Schema.integer,
-                steps: Schema.array(DocumentContentStepSchema),
-                clientId: Schema.id<ContentEditorClientId>(),
-                createCommentThreads: Schema.array(
-                    Schema.object({
-                        commentThreadId: Schema.id<DocumentCommentThreadId>(),
-                        createdTimeZone: TimeZoneSchema,
-                        initialCommentContent: MessageContentSchema,
-                        initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
-                    }),
-                ),
+                ...UpdateContentInputSchema,
+                // Server-initiated callers (e.g. add/remove an entity from a site) don't know the
+                // document version up front and pass `null` to let the durable object rebase
+                // against its tracked version.
+                version: Schema.integer.nullable(),
+                // We don't allow clients to add an document to a site via the `updateContent`
+                // procedure, where we require a `LocalAccessPolicy | null` for the access policy.
+                // However, clients can use this procedure when adding a document to a site
                 intentionallyUpdateAccessPolicy: Schema.object({
-                    accessPolicy: AccessPolicySchema,
+                    accessPolicy: CreateOrUpdateAccessPolicySchema,
                     notification: ShareNotificationSchema.nullable(),
                 })
                     .nullable()
                     .default(null),
-                /**
-                 * Atomically update our presence state in the same action as we update our
-                 * content.
-                 *
-                 * The state must have a `version` that matches the `version` in this update.
-                 * However, an important detail is that the state is for the document at `version`
-                 * plus the `steps` in this update! The selection, for instance, is for the
-                 * document after steps are applied.
-                 *
-                 * The presence state in `UpdateOurPresenceState` is for exactly the referenced
-                 * document version.
-                 */
-                updateOurPresenceState: Schema.object({
-                    state: DocumentCollaborationPresenceStateSchema.nullable(),
-                }),
             },
-            output: {newVersion: Schema.integer},
+            output: {
+                newVersion: Schema.integer,
+                eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).default(
+                    [],
+                ),
+            },
         },
 
         updateOurPresenceState: {

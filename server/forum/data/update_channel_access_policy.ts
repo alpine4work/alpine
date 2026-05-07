@@ -3,11 +3,12 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {updateChannelAccessPolicyBase} from "~/server/forum/data/internal/update_channel_access_policy_base.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
  * Updates the channel's `AccessPolicy`. The session actor must be a manager on the
@@ -21,7 +22,7 @@ export async function updateChannelAccessPolicy(
         notification,
     }: {
         channelId: ChannelId;
-        accessPolicy: AccessPolicy;
+        accessPolicy: CreateOrUpdateAccessPolicy;
         notification: ShareNotification | null;
     },
 ): Promise<{
@@ -30,6 +31,9 @@ export async function updateChannelAccessPolicy(
     ) => Promise<
         ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
     >;
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return updateChannelAccessPolicyBase(context, {
         channelId,

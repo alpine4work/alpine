@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
@@ -398,7 +398,7 @@ export type TaskUpdateAccessPolicyAction = SchemaType<typeof TaskUpdateAccessPol
 
 const TaskUpdateAccessPolicyActionSchema = Schema.object({
     type: Schema.value("UpdateAccessPolicy"),
-    accessPolicy: AccessPolicySchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
 
 function emptyObjectSchema<const Type extends string>(type: Type) {

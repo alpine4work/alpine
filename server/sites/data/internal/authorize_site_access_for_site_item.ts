@@ -2,35 +2,49 @@ import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_ac
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {SiteAttributesItem} from "~/server/sites/data/internal/sites_table.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
-import {sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/sites/site_error_messages.js";
+import {SiteId} from "~/shared/id/types/id_types.js";
+import {
+    createSiteNotFoundError,
+    sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/sites/site_error_messages.js";
 
-export async function authorizeSiteAccess(
+export async function authorizeSiteAccessForSiteItem(
     context: ServerMinimalActionContext,
-    siteItem: {spaceId: SpaceId; accessPolicy: AccessPolicy} & ({id: SiteId} | {siteId: SiteId}),
+    siteId: SiteId,
+    siteAttributesItem: SiteAttributesItem | null,
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<void> {
-    unwrapResult(
-        await authorizeSiteAccessIfPossible(context, siteItem, expectedAccessLevel, options),
+    return unwrapResult(
+        await authorizeSiteAccessForSiteItemIfPossible(
+            context,
+            siteId,
+            siteAttributesItem,
+            expectedAccessLevel,
+            options,
+        ),
     );
 }
 
-export async function authorizeSiteAccessIfPossible(
+export async function authorizeSiteAccessForSiteItemIfPossible(
     context: ServerMinimalActionContext,
-    siteItem: {spaceId: SpaceId; accessPolicy: AccessPolicy} & ({id: SiteId} | {siteId: SiteId}),
+    siteId: SiteId,
+    siteAttributesItem: SiteAttributesItem | null,
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
+    if (!siteAttributesItem) return {ok: false, error: createSiteNotFoundError(siteId)};
+
     const isAccessAuthorized = await evaluateAccessPolicy(
         context,
-        siteItem.spaceId,
-        siteItem.accessPolicy,
+        siteAttributesItem.spaceId,
+        siteAttributesItem.accessPolicy,
         expectedAccessLevel,
         options,
     );
@@ -40,9 +54,9 @@ export async function authorizeSiteAccessIfPossible(
     return {
         ok: false,
         error: await createAccessPolicyPermissionDeniedError(context, {
-            spaceId: siteItem.spaceId,
+            spaceId: siteAttributesItem.spaceId,
             expectedAccessLevel,
-            aggregateDedupeKey: "id" in siteItem ? siteItem.id : siteItem.siteId,
+            aggregateDedupeKey: siteId,
             displayMessages: sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
         }),
     };

@@ -6,7 +6,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
-import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";

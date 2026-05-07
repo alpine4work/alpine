@@ -20,8 +20,8 @@ import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
-import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
@@ -189,11 +189,25 @@ export function useDocumentContentEditorWebSocket(
                     state: new ValueStore(
                         getInitialDocumentContentEditorState({
                             currentAccountId: assertExists(currentAccount).id,
+                            // No document yet, so no access checks apply. We pick `Manage` so the editor
+                            // state's reducer doesn't strip an empty cursor selection in read-only mode (the
+                            // editor is fully editable when this branch runs).
+                            accessLevel: "Manage",
                         }),
                     ),
                     pendingProcedures: [],
                 };
             } else {
+                // We perform permission checks separately in `<DocumentContentEditor>`. If we're
+                // on the client and we got to this point it means we must have access somehow.
+                const accessLevel =
+                    getAccountAccessLevelAssumingSpaceAccess(
+                        getInitialDocumentResolvedAccessPolicySnapshot(
+                            initialDocument,
+                            siteRegistry,
+                        ),
+                        currentAccount?.id,
+                    ) ?? "View";
                 return {
                     type: "Exists",
                     client: new DocumentContentEditorWebSocketClient({
@@ -201,19 +215,10 @@ export function useDocumentContentEditorWebSocket(
                         addGlobalLoadingIndicator: (promise, indicator) =>
                             addGlobalLoadingIndicatorRef.current(promise, indicator),
                         documentId: initialDocument.id,
-                        // We perform permission checks separately in `<DocumentContentEditor>`. If we're
-                        // on the client and we got to this point it means we must have access somehow.
-                        accessLevel: !initialDocument
-                            ? "Manage"
-                            : (getAccountAccessLevelAssumingSpaceAccess(
-                                  getInitialDocumentResolvedAccessPolicySnapshot(
-                                      initialDocument,
-                                      siteRegistry,
-                                  ),
-                                  currentAccount?.id,
-                              ) ?? "View"),
+                        accessLevel,
                         initialState: getInitialDocumentContentEditorState({
                             currentAccountId: currentAccount?.id ?? null,
+                            accessLevel,
                             initialVersion: initialDocument.version,
                             initialContent: initialDocument.content,
                         }),
@@ -228,6 +233,11 @@ export function useDocumentContentEditorWebSocket(
         initialDocument !== null &&
         (clientState.type === "NotExists" || initialDocument.id !== clientState.client.documentId)
     ) {
+        const accessLevel =
+            getAccountAccessLevelAssumingSpaceAccess(
+                getInitialDocumentResolvedAccessPolicySnapshot(initialDocument, siteRegistry),
+                currentAccount?.id,
+            ) ?? "View";
         setClientState({
             type: "Exists",
             // eslint-disable-next-line react-compiler/react-compiler
@@ -236,17 +246,10 @@ export function useDocumentContentEditorWebSocket(
                 addGlobalLoadingIndicator: (promise, indicator) =>
                     addGlobalLoadingIndicatorRef.current(promise, indicator),
                 documentId: initialDocument.id,
-                accessLevel: !initialDocument
-                    ? "Manage"
-                    : (getAccountAccessLevelAssumingSpaceAccess(
-                          getInitialDocumentResolvedAccessPolicySnapshot(
-                              initialDocument,
-                              siteRegistry,
-                          ),
-                          currentAccount?.id,
-                      ) ?? "View"),
+                accessLevel,
                 initialState: getInitialDocumentContentEditorState({
                     currentAccountId: currentAccount?.id ?? null,
+                    accessLevel,
                     initialVersion: initialDocument.version,
                     initialContent: initialDocument.content,
                 }),
@@ -458,6 +461,7 @@ export function useDocumentContentEditorWebSocket(
             !hasAccessLevel(acknowledgedAccessLevel, "Comment") &&
             hasAccessLevel(clientState.client.accessLevel, "Comment")
         ) {
+            const accessLevel = acknowledgedAccessLevel ?? "View";
             setClientState({
                 type: "Exists",
                 // eslint-disable-next-line react-compiler/react-compiler
@@ -466,9 +470,10 @@ export function useDocumentContentEditorWebSocket(
                     addGlobalLoadingIndicator: (promise, indicator) =>
                         addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId: clientState.client.documentId,
-                    accessLevel: acknowledgedAccessLevel ?? "View",
+                    accessLevel,
                     initialState: getInitialDocumentContentEditorState({
                         currentAccountId: currentAccount?.id ?? null,
+                        accessLevel,
                         initialVersion: state.editorState.getVersion(),
                         initialContent: {
                             doc: assertDocumentContent(
@@ -499,6 +504,7 @@ export function useDocumentContentEditorWebSocket(
         // the new `accessLevel`. We don't have to modify the document in the process (e.g.
         // by stripping comments).
         else if ((acknowledgedAccessLevel ?? "View") !== clientState.client.accessLevel) {
+            const accessLevel = acknowledgedAccessLevel ?? "View";
             setClientState({
                 type: "Exists",
                 // eslint-disable-next-line react-compiler/react-compiler
@@ -507,8 +513,11 @@ export function useDocumentContentEditorWebSocket(
                     addGlobalLoadingIndicator: (promise, indicator) =>
                         addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId: clientState.client.documentId,
-                    accessLevel: acknowledgedAccessLevel ?? "View",
-                    initialState: state,
+                    accessLevel,
+                    // Carry the existing editor state but refresh `extra.accessLevel` — the reducer
+                    // reads it to decide whether to clear an empty cursor selection in read-only mode,
+                    // and this is the moment we know the value has changed.
+                    initialState: {...state, extra: {...state.extra, accessLevel}},
                 }),
             });
         }
@@ -534,6 +543,7 @@ export function useDocumentContentEditorWebSocket(
             // Make sure our initialization request wasn't cancelled.
             if (initializingClientWithCommentsSymbolRef.current !== symbol) return;
 
+            const accessLevel = acknowledgedAccessLevel ?? "View";
             setClientState({
                 type: "Exists",
                 client: new DocumentContentEditorWebSocketClient({
@@ -541,9 +551,10 @@ export function useDocumentContentEditorWebSocket(
                     addGlobalLoadingIndicator: (promise, indicator) =>
                         addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId: document.id,
-                    accessLevel: acknowledgedAccessLevel ?? "View",
+                    accessLevel,
                     initialState: getInitialDocumentContentEditorState({
                         currentAccountId: currentAccount?.id ?? null,
+                        accessLevel,
                         initialVersion: document.version,
                         initialContent: document.content,
                         // Try to maintain the user's selection while resetting state.

@@ -1,17 +1,19 @@
 import envPaths from "env-paths";
 import {mkdir, readFile, readdir, rm, stat, unlink, writeFile} from "fs/promises";
 import {dirname, join as joinPath} from "path";
-
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
-import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {
+    ImporterServiceContextModules,
+    ImporterServiceSystemActionContext,
+} from "~/server/importer/importer_service_context.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -25,7 +27,9 @@ const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
  * importer module set to `ImporterServiceDevelopmentContextModule`.
  */
 export type EscalateToImporterServiceContext = (
-    processContext: ServerProcessContext,
+    processContext: Context<
+        Omit<ImporterServiceContextModules, "importerService" | "actor" | "cache" | "batch">
+    >,
     spaceId: SpaceId,
 ) => ImporterServiceSystemActionContext;
 
@@ -68,7 +72,9 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
     constants: ConstantsContextModule;
 }> {
     private readonly _localUploadPath?: string;
-    private readonly _getProcessContext: () => ServerProcessContext;
+    private readonly _getProcessContext: () => Context<
+        Omit<ImporterServiceContextModules, "importerService" | "actor" | "cache" | "batch">
+    >;
     private readonly _escalateToImporterServiceContext: EscalateToImporterServiceContext;
 
     /**
@@ -89,7 +95,9 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
         escalateToImporterServiceContext,
     }: {
         localUploadPath?: string;
-        getProcessContext: () => ServerProcessContext;
+        getProcessContext: () => Context<
+            Omit<ImporterServiceContextModules, "importerService" | "actor" | "cache" | "batch">
+        >;
         escalateToImporterServiceContext: EscalateToImporterServiceContext;
     }) {
         super();

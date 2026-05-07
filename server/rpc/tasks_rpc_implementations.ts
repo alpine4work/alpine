@@ -23,6 +23,7 @@ import {
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
@@ -32,17 +33,19 @@ export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {extraActions} = await commitTaskActionTransaction(
-                context.actor.authorizeSession(),
-                input.spaceId,
-                input.actions,
-                {
-                    clientId: input.clientId,
-                    leaseId: input.leaseId,
-                    createLeaseIfLostAccess: input.createLeaseIfLostAccess,
-                    updateAccessPolicyShareNotification: input.updateAccessPolicyShareNotification,
-                },
-            );
+            const {extraActions, getDynamoGeneralRealtimeEventTransactionForSite} =
+                await commitTaskActionTransaction(
+                    context.actor.authorizeSession(),
+                    input.spaceId,
+                    input.actions,
+                    {
+                        clientId: input.clientId,
+                        leaseId: input.leaseId,
+                        createLeaseIfLostAccess: input.createLeaseIfLostAccess,
+                        updateAccessPolicyShareNotification:
+                            input.updateAccessPolicyShareNotification,
+                    },
+                );
 
             const accountIds = new Set<AccountId>();
             const siteIds = new Set<SiteId>();
@@ -62,7 +65,13 @@ export default implementRpcs(definitions, {
                 ),
             ]);
 
-            return {extraActions, referencedAccounts, referencedSites};
+            return {
+                extraActions,
+                referencedAccounts,
+                referencedSites: referencedSites.filter(isNonNullable),
+                eventTransactionForSite:
+                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+            };
         },
     },
 
@@ -92,7 +101,11 @@ export default implementRpcs(definitions, {
                 ),
             ]);
 
-            return {actions, referencedAccounts, referencedSites};
+            return {
+                actions,
+                referencedAccounts,
+                referencedSites: referencedSites.filter(isNonNullable),
+            };
         },
     },
 
@@ -120,7 +133,12 @@ export default implementRpcs(definitions, {
                 ),
             ]);
 
-            return {actions, referencedAccounts, referencedSites, taskId};
+            return {
+                actions,
+                referencedAccounts,
+                referencedSites: referencedSites.filter(isNonNullable),
+                taskId,
+            };
         },
     },
 

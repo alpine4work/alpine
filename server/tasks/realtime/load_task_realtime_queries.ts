@@ -485,7 +485,7 @@ export async function loadTaskRealtimeQueries(
             backfillCollections: backfillAuthorizedCollections,
             defaultAuthorizationStateVersion,
             referencedAccounts: referencedAccounts.filter(isNonNullable),
-            referencedSites,
+            referencedSites: referencedSites.filter(isNonNullable),
             originClientId: null,
         },
     };

@@ -15,6 +15,7 @@ import {
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
@@ -70,7 +71,7 @@ import {SendShareNotificationJobDescription} from "~/server/jobs/core/job_descri
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -103,6 +104,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -110,11 +112,16 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     RpcCallId,
+    SiteId,
+    SiteSideBarId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {
     createTestAccountModel,
     intoAccountModelWithoutSpaceAndAvatar,
@@ -126,8 +133,50 @@ afterEach(() => {
     sendShareNotificationJobs = [];
 });
 
+// Mutable map that tests can configure for site access policies (same shape as
+// `server/forum/data/forum_actions.test.ts`).
+const siteAccessPolicies = new Map<SiteId, LocalAccessPolicy>();
+
+const sitesInjection: SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return policy;
+    },
+    getSitePreview: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return new SitePreviewModel({
+            id: siteId,
+            spaceId: generateId<SpaceId>(),
+            name: "Test Site",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: policy,
+            version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: generateId<AccountId>(),
+        });
+    },
+    // These tests don't exercise site membership writes — mock them as empty.
+    dangerouslyGetAddToSiteTransactionEntries: async () => [],
+    dangerouslyGetRemoveFromSiteTransactionEntries: async () => [],
+};
+
+beforeEach(() => {
+    siteAccessPolicies.clear();
+});
+
 const context = createTestContext({
     chatInjection,
+    sitesInjection,
     processJob: async (context, job) => {
         if (job.type === "SendShareNotification") {
             sendShareNotificationJobs.push(job);
@@ -215,6 +264,97 @@ test("can not create a document with invalid format", async () => {
             content,
         }),
     ).rejects.toThrow(InvalidArgumentError);
+});
+
+describe("createDocument in a site", () => {
+    function siteDataFor(siteId: SiteId) {
+        return {
+            siteId,
+            parentId: printSiteContainerId({type: "SideBar", id: generateId<SiteSideBarId>()}),
+            orderKey: assertOrderKey("a0"),
+        };
+    }
+
+    function docContentWithAccessPolicy(accessPolicy: AccessPolicy) {
+        const content = schema.node("doc", {accessPolicy}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, []),
+        ]);
+        assert(isDocumentContent(content));
+        return content;
+    }
+
+    test("creates a document with a Site access policy when site data matches", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const siteId = generateId<SiteId>();
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const documentId = generateId<DocumentId>();
+        await createDocument(session.action(), {
+            id: documentId,
+            spaceId: space.id,
+            sitePosition: siteDataFor(siteId),
+        });
+
+        const document = await getDocument(session.action(), documentId);
+        expect(document.content.doc.attrs.accessPolicy).toMatchObject({type: "Site", siteId});
+    });
+
+    test("throws when the content’s Site access policy has no site data", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const siteId = generateId<SiteId>();
+
+        await expect(
+            createDocument(session.action(), {
+                spaceId: space.id,
+                content: docContentWithAccessPolicy({type: "Site", siteId}),
+            }),
+        ).rejects.toThrow("Can’t create a document in a site without specifying the site position");
+    });
+
+    test("throws when site data’s siteId differs from the content’s access policy siteId", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const accessPolicySiteId = generateId<SiteId>();
+        const siteDataSiteId = generateId<SiteId>();
+
+        await expect(
+            createDocument(session.action(), {
+                spaceId: space.id,
+                content: docContentWithAccessPolicy({type: "Site", siteId: accessPolicySiteId}),
+                sitePosition: siteDataFor(siteDataSiteId),
+            }),
+        ).rejects.toThrow("Can’t create a document in a site with a different site ID");
+    });
+
+    test("throws when site data is provided with a non-Site content access policy", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const siteId = generateId<SiteId>();
+
+        await expect(
+            createDocument(session.action(), {
+                spaceId: space.id,
+                content: docContentWithAccessPolicy({
+                    type: "Local",
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                }),
+                sitePosition: siteDataFor(siteId),
+            }),
+        ).rejects.toThrow("Can’t create a document with a non-site access policy in a site");
+    });
 });
 
 test("can not idempotently create a document twice", async () => {
@@ -6611,16 +6751,23 @@ test("can\u2019t update the access policy without the manage access level even i
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
+    // Extracted to a `LocalAccessPolicy`-typed const so the noop update call below
+    // type-checks against the now-stricter
+    // `intentionallyUpdateAccessPolicy.accessPolicy` (which requires the augmented
+    // `Site` variant when `Site`). `document.initialAccessPolicy` is typed as the
+    // wider `AccessPolicy` so it can't be passed directly.
+    const initialAccessPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session2.account.id, {level: "Edit"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
     const document = await TestDocument.create(session1, {
-        access: {
-            type: "Local",
-            accountGrantById: new Map([
-                [session1.account.id, {level: "Manage", generation: 0}],
-                [session2.account.id, {level: "Edit"}],
-            ]),
-            defaultGrant: null,
-            urlGrant: null,
-        },
+        access: initialAccessPolicy,
     });
 
     await updateDocumentContent(session1.action(), {
@@ -6663,9 +6810,9 @@ test("can\u2019t update the access policy without the manage access level even i
         updateDocumentContent(session2.action(), {
             id: document.id,
             version: 1,
-            steps: [new DocAttrStep("accessPolicy", document.initialAccessPolicy)],
+            steps: [new DocAttrStep("accessPolicy", initialAccessPolicy)],
             intentionallyUpdateAccessPolicy: {
-                accessPolicy: document.initialAccessPolicy,
+                accessPolicy: initialAccessPolicy,
                 notification: null,
             },
             clientId: generateId(),

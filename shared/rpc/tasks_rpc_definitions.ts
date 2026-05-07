@@ -29,6 +29,7 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -72,6 +73,7 @@ export const commitTaskActionTransaction = defineRpc({
                 Schema.object({ok: Schema.value(false), error: ErrorSchema}),
             ),
         ),
+        eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).optional(),
     },
 });
 

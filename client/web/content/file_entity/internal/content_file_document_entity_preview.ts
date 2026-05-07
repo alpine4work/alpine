@@ -10,7 +10,7 @@ import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";

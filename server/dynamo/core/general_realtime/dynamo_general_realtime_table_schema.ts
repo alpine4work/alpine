@@ -1,4 +1,5 @@
 import {addDays, subDays, subMinutes} from "date-fns";
+import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -1492,6 +1493,12 @@ export class DynamoGeneralRealtimeTableSchema<
             context,
             entries.flatMap(entry => {
                 if (entry instanceof DynamoTransactionEntry) return entry;
+                // The parameter is typed as the opaque handle from `~/shared`. At runtime every
+                // non-`DynamoTransactionEntry` value is constructed by
+                // `DynamoGeneralRealtimeTransactionEntry._new()` in this file, so it's always an
+                // instance of the class. Assert to narrow back to the implementation type and
+                // unlock `_get(privateSymbol)`.
+                assert(entry instanceof DynamoGeneralRealtimeTransactionEntryInternal);
                 const {entry: actualEntry, schema, action} = entry._get(privateSymbol);
                 getOrSetDefaultMapValue(actionsBySchema, schema, () => []).push(action);
                 return actualEntry;
@@ -1598,14 +1605,14 @@ export class DynamoGeneralRealtimeTableSchema<
         let transactionEntry;
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
                 privateSymbol,
                 this._table.transactionCreateItem(item),
                 this,
                 action,
             );
         } else {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
                 privateSymbol,
                 [
                     this._table.transactionCreateItem(item),
@@ -1724,7 +1731,7 @@ export class DynamoGeneralRealtimeTableSchema<
             !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
             (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
         ) {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
                 privateSymbol,
                 this._table.transactionDirectlyUpdateItem(newItem, {condition}),
                 this,
@@ -1734,7 +1741,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // If we're creating the item then we need to make sure it doesn't have a
         // gravestone.
         else {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
                 privateSymbol,
                 [
                     this._table.transactionDirectlyUpdateItem(newItem, {condition}),
@@ -1773,6 +1780,27 @@ export class DynamoGeneralRealtimeTableSchema<
     public transactionDeleteItem<Item extends Types["Item"]>(
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
+        return this.transactionDeleteItemWithEvent(item).transactionEntry;
+    }
+
+    /**
+     * Deletes an item from the database as part of a transaction. In a transaction
+     * either all entries succeed or all entries fail. See the documentation on
+     * `deleteItem()` for more information.
+     *
+     * You execute realtime transactions with
+     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
+     * with `DynamoTableSchema.executeTransaction()`.
+     *
+     * To use this function you must enable it with the `features.deleteItem` object
+     * passed into `DynamoGeneralRealtimeTableSchema`.
+     */
+    public transactionDeleteItemWithEvent<const Item extends Types["Item"]>(
+        item: Item,
+    ): {
+        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        event: DynamoGeneralRealtimeDeleteItemEvent;
+    } {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
@@ -1805,7 +1833,7 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        return DynamoGeneralRealtimeTransactionEntry._new(
+        const transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
             privateSymbol,
             [
                 this._table.transactionDeleteItem(item, {condition}),
@@ -1822,6 +1850,11 @@ export class DynamoGeneralRealtimeTableSchema<
             this,
             action,
         );
+
+        return {
+            transactionEntry,
+            event: action.event,
+        };
     }
 
     /**
@@ -1840,6 +1873,22 @@ export class DynamoGeneralRealtimeTableSchema<
         deletedItem: DynamoGeneralRealtimeTableDeletedItem,
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
+        return this.transactionUndeleteItemWithEvent(deletedItem, item).transactionEntry;
+    }
+
+    public transactionUndeleteItemWithEvent<const Item extends Types["Item"]>(
+        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
+        item: Item,
+    ): {
+        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        getEvent: (
+            context: ServerActionContext,
+        ) => Promise<
+            DynamoGeneralRealtimePutItemEvent<
+                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
+            >
+        >;
+    } {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
@@ -1863,7 +1912,7 @@ export class DynamoGeneralRealtimeTableSchema<
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        return DynamoGeneralRealtimeTransactionEntry._new(
+        const transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
             privateSymbol,
             [
                 this._table.transactionDeleteItem(
@@ -1880,6 +1929,11 @@ export class DynamoGeneralRealtimeTableSchema<
             this,
             action,
         );
+
+        return {
+            transactionEntry,
+            getEvent: action.getEvent,
+        };
     }
 
     /**
@@ -1978,7 +2032,7 @@ export class DynamoGeneralRealtimeTableSchema<
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        return DynamoGeneralRealtimeTransactionEntry._new(
+        return DynamoGeneralRealtimeTransactionEntryInternal._new(
             privateSymbol,
             this._table.transactionCreateOrReplaceItem(item),
             this,
@@ -3814,8 +3868,18 @@ const privateSymbol = Symbol("private");
 /**
  * Wrapper around a `DynamoTransactionEntry` that includes extra information we
  * need for updating a realtime table.
+ *
+ * Implements the opaque `DynamoGeneralRealtimeTransactionEntry` handle from
+ * `~/shared/dynamo/dynamo_general_realtime_types.js` so that consumers (like
+ * injection slots in `//server/context`) can hold a reference to a transaction
+ * entry without taking a Bazel dependency on this package. The branded
+ * `_DynamoGeneralRealtimeTransactionEntry` field is `declare`-only so it has no
+ * runtime cost — it exists purely to make the class nominally compatible with the
+ * shared handle type.
  */
-export class DynamoGeneralRealtimeTransactionEntry {
+class DynamoGeneralRealtimeTransactionEntryInternal implements DynamoGeneralRealtimeTransactionEntry {
+    declare readonly _DynamoGeneralRealtimeTransactionEntry: never;
+
     private readonly _entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>;
     private readonly _schema: DynamoGeneralRealtimeTableSchema<any, any>;
     private readonly _action: DynamoGeneralRealtimeAction<unknown, unknown>;
@@ -3835,12 +3899,12 @@ export class DynamoGeneralRealtimeTransactionEntry {
         entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
         schema: DynamoGeneralRealtimeTableSchema<any, any>,
         event: DynamoGeneralRealtimeAction<unknown, unknown>,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    ): DynamoGeneralRealtimeTransactionEntryInternal {
         // `privateSymbol` is only accessible in this module so this assert makes sure we
         // don't call this method from outside of this module.
         assert(symbol === privateSymbol);
 
-        return new DynamoGeneralRealtimeTransactionEntry(entry, schema, event);
+        return new DynamoGeneralRealtimeTransactionEntryInternal(entry, schema, event);
     }
 
     public _get(symbol: typeof privateSymbol) {

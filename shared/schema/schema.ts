@@ -2800,23 +2800,25 @@ export class StringSchema extends Schema<string> {
     public maxLength(length: number): StringSchema {
         return this._transformString({
             serialize: value => {
-                if (value.length > length)
+                if (value.length > length) {
                     throw new InvalidArgumentError(
                         `Expected string to have a length less than or equal to ${length}`,
                     );
+                }
 
                 return value;
             },
             deserialize: value => {
-                if (value.length > length)
+                if (value.length > length) {
                     throw new SchemaDeserializationError(
                         `Expected string to have a length less than or equal to ${length}`,
                     );
+                }
 
                 return value;
             },
             validate: (value, {errorDisplayMessagePrefix} = {}) => {
-                if (value.length > length)
+                if (value.length > length) {
                     throw new InvalidArgumentError(
                         `Expected string to have a length less than or equal to ${length}`,
                         {
@@ -2825,6 +2827,7 @@ export class StringSchema extends Schema<string> {
                                 : undefined,
                         },
                     );
+                }
             },
         });
     }

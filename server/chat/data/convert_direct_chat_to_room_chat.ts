@@ -68,6 +68,7 @@ export function convertDirectChatToRoomChat(
         await validateAccessPolicyUpdateForServer(
             context,
             chatItem.attributesItem.spaceId,
+            `Chat:${chatId}`,
             null,
             accessPolicy,
         );

@@ -20,15 +20,15 @@
  * circular dependency. And there's no way to refactor Bazel packages such that you
  * can eliminate the circular dependency.
  */
-
+import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
 import {
-    ServerAccountActionContext,
     ServerActionContext,
     ServerActionContextModules,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
+    ServerMinimalAccountActionContext,
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
@@ -53,6 +53,7 @@ import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
+    DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -65,6 +66,7 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {
@@ -81,7 +83,9 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
-import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when we
 // try to reference `ContextModuleBase` in `createInjectionContextModule()` if
@@ -297,18 +301,14 @@ export const SearchInjectionContextModule = createInjectionContextModule<SearchI
 
 export type SearchInjection = {
     getSearchMentionEntityIfPossible(
-        context: ServerAccountActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         entityId: SearchMentionEntityId,
     ): Promise<ContentReferencesSearchEntity | null>;
 
     markSearchAffinityEntityInteraction(
         context: ServerSessionActionContext,
-        {
-            spaceId,
-            entityId,
-            interaction,
-        }: {
+        options: {
             spaceId: SpaceId;
             entityId: SearchAffinityEntityId;
             interaction: SearchAffinityEntityInteraction;
@@ -341,6 +341,8 @@ export type SitesInjectionContextModule = InstanceType<typeof SitesInjectionCont
 export const SitesInjectionContextModule = createInjectionContextModule<SitesInjection>({
     dangerouslyGetSiteAccessPolicyWithoutAuthorization: true,
     getSitePreview: true,
+    dangerouslyGetAddToSiteTransactionEntries: true,
+    dangerouslyGetRemoveFromSiteTransactionEntries: true,
 });
 export type SitesInjection = {
     dangerouslyGetSiteAccessPolicyWithoutAuthorization(
@@ -353,6 +355,40 @@ export type SitesInjection = {
         siteId: SiteId,
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<SitePreviewModel>;
+
+    dangerouslyGetAddToSiteTransactionEntries(
+        context: ServerMinimalAccountActionContext,
+        siteId: SiteId,
+        {
+            entityId,
+            parentId,
+            orderKey,
+        }: {
+            entityId: SiteItemSearchEntityId;
+            parentId: SiteContainerId;
+            orderKey: OrderKey;
+        },
+    ): Promise<
+        Array<{
+            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+        }>
+    >;
+
+    dangerouslyGetRemoveFromSiteTransactionEntries(
+        context: ServerMinimalAccountActionContext,
+        siteId: SiteId,
+        entityId: SiteItemSearchEntityId,
+    ): Promise<
+        Array<{
+            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+        }>
+    >;
 };
 
 export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionContextModule>;

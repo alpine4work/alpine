@@ -1,0 +1,514 @@
+import {useNavigate} from "@remix-run/react";
+import {useCallback} from "react";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {useReporter} from "~/client/web/design/reporter.js";
+import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {useSiteContext} from "~/client/web/sites/context/site_context.js";
+import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {
+    ChannelId,
+    DocumentId,
+    SiteSideBarSectionId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
+import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {createChannel} from "~/shared/rpc/forum_rpc_definitions.js";
+import {
+    addEntityToSite,
+    createSiteContainer,
+    deleteSiteContainer,
+    moveSiteEntry,
+    removeEntityFromSite,
+    updateSiteContainerLabel,
+    updateSiteName,
+} from "~/shared/rpc/sites_rpc_definitions.js";
+import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {doesSiteEntryMoveIntroduceCycle} from "~/shared/sites/does_site_entry_move_introduce_cycle.js";
+import {mergeNewSitePositionIntoSiteEntry} from "~/shared/sites/merge_new_site_position_into_site_entry.js";
+import {
+    SiteContainerId,
+    SiteEntityIdObject,
+    SiteSideBarContainerId,
+    SiteSideBarSectionContainerId,
+    SiteSideBarSectionContainerIdObject,
+    getSiteEntryKey,
+    isSiteContainerIdObject,
+    parseSiteContainerId,
+    printSiteContainerId,
+} from "~/shared/sites/site_entry_id.js";
+import {
+    SiteItemSearchEntityId,
+    parseSiteItemSearchEntityId,
+} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteSideBarSectionModel} from "~/shared/sites/site_model.js";
+import {validateSiteContainerIsEmpty} from "~/shared/sites/validate_site_container_is_empty.js";
+
+/**
+ * Hook that provides mutation functions for editing a site\u2019s tree. Each
+ * mutation applies an optimistic update immediately and reverts on failure.
+ */
+export function useSiteMutations() {
+    const context = useAppContext();
+    const reporter = useReporter();
+    const clientInfo = useClientInfo();
+    const {space, currentAccount} = useSpaceContext();
+    const {tree, updateTreeOptimistically, handleEventForSite} = useSiteContext();
+    const navigate = useNavigate();
+
+    const siteId = tree.site.id;
+
+    const createSidebarSection = useCallback(
+        ({
+            parentId,
+            label = "New section",
+            orderKey: orderKeyOverride,
+        }: {
+            parentId: SiteSideBarContainerId | SiteSideBarSectionContainerId;
+            label?: string;
+            orderKey?: OrderKey;
+        }) => {
+            const sectionId = generateId<SiteSideBarSectionId>();
+            const sectionContainerId = printSiteContainerId({
+                type: "SideBarSection",
+                id: sectionId,
+            });
+
+            const orderKey =
+                orderKeyOverride ??
+                (() => {
+                    const siblings = tree.getChildrenForParent(parentId);
+                    const lastSibling = siblings.length > 0 ? siblings[siblings.length - 1] : null;
+                    return generateOrderKeyBetween(lastSibling?.orderKey ?? null, null);
+                })();
+
+            const rpcPromise = createSiteContainer(context, {
+                siteId,
+                container: {
+                    type: "SideBarSection",
+                    id: sectionId,
+                    parent: parseSiteContainerId(parentId),
+                },
+                label,
+                orderKey,
+            });
+
+            // Discard the RPC result for the optimistic hook — we only care about
+            // success/failure, not the returned event stubs.
+            updateTreeOptimistically(
+                rpcPromise
+                    .then(result => handleEventForSite(result.eventTransaction))
+                    .catch(error => {
+                        reporter.displayError("Couldn\u2019t create sidebar section", error);
+                        throw error;
+                    }),
+                // if promise value is defined, that means promise resolved before optimistic
+                // update ran
+                (oldTree, promiseValue) => {
+                    // If promise value is defined, that means rpcPromise resolved and
+                    // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                    // update into our store we can simply return oldTree from here as an optimization.
+                    if (promiseValue !== undefined) {
+                        return oldTree;
+                    }
+
+                    return oldTree.addEntry(
+                        new SiteSideBarSectionModel({
+                            type: "SideBarSection",
+                            id: `SideBarSection:${sectionId}`,
+                            label,
+                            orderKey,
+                            parentId,
+                            version: 0,
+                        }),
+                    );
+                },
+            );
+
+            return {sectionId, sectionContainerId};
+        },
+        [context, handleEventForSite, reporter, siteId, tree, updateTreeOptimistically],
+    );
+
+    // NOTE(ifitzsimmons, 2026-04-21): `addEntity`, `removeEntity`, and all entity
+    // creation (creating docs, tasks, etc) are blocking operations. This is a
+    // deliberate latency tradeoff.
+    //
+    // The alternative is to fire the RPC in the background and navigate immediately.
+    // That's faster perceptually, but it involves updating the site tree with the
+    // recently-added entity before the entity's access policy reflects the site
+    // operation. Any UI driven by that policy (share switch, permission- gated
+    // content, site chrome) would render based on stale truth for the window between
+    // navigate and RPC resolution, which presents a correctness problem.
+    //
+    // We accept the extra RPC round-trip to guarantee the destination route always
+    // loads against server-consistent access policy state. The client should handle
+    // the lag between user-action and site addition gracefully.
+    const addEntity = useCallback(
+        async (
+            entity: SearchEntityModelData & {id: SiteItemSearchEntityId},
+            orderKey: OrderKey,
+            parentId: SiteContainerId,
+        ): Promise<{entityId: SiteItemSearchEntityId}> => {
+            // TODO(#sites): How should we handle entities in other sites? For now, we add them
+            // to the new site if possible, otherwise we throw an access error.
+            const {eventTransaction} = await addEntityToSite(context, {
+                siteId,
+                spaceId: space.id,
+                entityId: entity.id,
+                parentId,
+                orderKey,
+            });
+
+            handleEventForSite(eventTransaction);
+
+            return {entityId: entity.id};
+        },
+        [context, handleEventForSite, siteId, space.id],
+    );
+
+    const deleteContainer = useCallback(
+        (containerId: SiteSideBarContainerId | SiteSideBarSectionContainerId) => {
+            validateSiteContainerIsEmpty(containerId, tree);
+
+            const rpcPromise = deleteSiteContainer(context, {
+                siteId,
+                container: parseSiteContainerId(containerId),
+            });
+
+            updateTreeOptimistically(
+                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                (oldTree, promiseValue) => {
+                    // If promise value is defined, that means rpcPromise resolved and
+                    // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                    // update into our store we can simply return oldTree from here as an optimization.
+                    if (promiseValue !== undefined) {
+                        return oldTree;
+                    }
+
+                    return oldTree.deleteEntry(containerId);
+                },
+            );
+        },
+        [context, handleEventForSite, siteId, tree, updateTreeOptimistically],
+    );
+
+    const renameContainer = useCallback(
+        (containerId: SiteContainerId, label: string) => {
+            const rpcPromise = updateSiteContainerLabel(context, {siteId, id: containerId, label});
+
+            updateTreeOptimistically(
+                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                (oldTree, promiseValue) => {
+                    // If promise value is defined, that means rpcPromise resolved and
+                    // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                    // update into our store we can simply return oldTree from here as an optimization.
+                    if (promiseValue !== undefined) {
+                        return oldTree;
+                    }
+
+                    return oldTree.updateEntry(containerId, entry => ({...entry, label}));
+                },
+            );
+        },
+        [context, handleEventForSite, siteId, updateTreeOptimistically],
+    );
+
+    const renameSite = useCallback(
+        (name: string) => {
+            const rpcPromise = updateSiteName(context, {siteId, name});
+
+            updateTreeOptimistically(
+                rpcPromise.then(result => handleEventForSite([result.eventTransaction])),
+                (oldTree, promiseValue) => {
+                    // If promise value is defined, that means rpcPromise resolved and
+                    // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                    // update into our store we can simply return oldTree from here as an optimization.
+                    if (promiseValue !== undefined) {
+                        return oldTree;
+                    }
+
+                    return oldTree.updateSite(site => ({...site, name}));
+                },
+            );
+        },
+        [context, handleEventForSite, siteId, updateTreeOptimistically],
+    );
+
+    /**
+     * Remove an entity from the site and return the closest remaining entity to
+     * navigate to — the previous entity in DFS pre-order, or the next entity if no
+     * predecessor exists, or null if the site has no entities left.
+     */
+    const removeEntity = useCallback(
+        async (entityId: SiteItemSearchEntityId): Promise<void> => {
+            const adjacentEntityId = computeAdjacentEntityId(entityId, tree);
+
+            const {eventTransaction} = await removeEntityFromSite(context, {
+                siteId,
+                spaceId: space.id,
+                entityId,
+            });
+
+            handleEventForSite(eventTransaction);
+
+            if (!adjacentEntityId) {
+                // TODO(#sites): We need to build out a blank site page and navigate there in the
+                // scenario where the user has removed the last entity from the site.
+                navigate(`/s/${space.id}`);
+                return;
+            }
+
+            const entity = parseSiteItemSearchEntityId(adjacentEntityId);
+            switch (entity.type) {
+                case "Document":
+                    navigate(`/s/${space.id}/documents/${entity.documentId}`);
+                    break;
+                case "Channel":
+                    navigate(`/s/${space.id}/channels/${entity.channelId}`);
+                    break;
+                case "Task":
+                    navigate(`/s/${space.id}/tasks/${entity.taskId}`);
+                    break;
+                case "TaskCollection":
+                    navigate(`/s/${space.id}/tasks/collections/${entity.collectionId}`);
+                    break;
+                case "Chat":
+                    navigate(`/s/${space.id}/chat/${entity.chatId}`);
+                    break;
+                default:
+                    throw exhaustive(entity);
+            }
+        },
+        [context, handleEventForSite, siteId, space.id, tree, navigate],
+    );
+
+    /**
+     * Move an entry (entity or section) to a new position, optionally in a different
+     * parent container. Applies an optimistic update and fires the `moveSiteEntry`
+     * RPC.
+     */
+    const moveEntry = useCallback(
+        (
+            entry:
+                | (SiteSideBarSectionContainerIdObject & {
+                      newPosition: {
+                          parentId: SiteSideBarContainerId | SiteSideBarSectionContainerId;
+                          orderKey: OrderKey;
+                      };
+                  })
+                | (SiteEntityIdObject & {
+                      newPosition: {
+                          parentId: SiteContainerId;
+                          orderKey: OrderKey;
+                      };
+                  }),
+        ) => {
+            if (
+                isSiteContainerIdObject(entry) &&
+                doesSiteEntryMoveIntroduceCycle(
+                    printSiteContainerId(entry),
+                    entry.newPosition.parentId,
+                    tree,
+                )
+            ) {
+                // If a section has children and a user drags the section into its current place,
+                // the drag target may think that the user is attempting to drag the section within
+                // itself. What the user is actually doing though, is moving the item back to its
+                // original place. In this case, we should no-op
+                return;
+            }
+
+            const oldEntry = tree.getEntry(getSiteEntryKey(entry));
+            assert(oldEntry.parentId !== null);
+
+            if (
+                oldEntry.parentId === entry.newPosition.parentId &&
+                oldEntry.orderKey === entry.newPosition.orderKey
+            ) {
+                // noop if the entry was dragged back to original position
+                return;
+            }
+
+            const rpcPromise = moveSiteEntry(context, {
+                siteId,
+                item: entry,
+            });
+
+            updateTreeOptimistically(
+                rpcPromise.then(result => handleEventForSite(result.eventTransaction ?? [])),
+                (oldTree, promiseValue) => {
+                    // If promise value is defined, that means rpcPromise resolved and
+                    // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                    // update into our store we can simply return oldTree from here as an optimization.
+                    if (promiseValue !== undefined) {
+                        return oldTree;
+                    }
+
+                    return oldTree.updateEntry(
+                        entry.type === "Entity" ? entry.id : printSiteContainerId(entry),
+                        oldEntry => mergeNewSitePositionIntoSiteEntry(oldEntry, entry.newPosition),
+                    );
+                },
+            );
+        },
+        [context, handleEventForSite, siteId, tree, updateTreeOptimistically],
+    );
+
+    /**
+     * Create a new document, add it to the site at the given position, and navigate to
+     * it. Both the document creation and site-add RPCs are awaited before navigating —
+     * see the NOTE on `addEntity` above for why.
+     */
+    const createDocumentInSite = useCallback(
+        async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
+            const documentId = generateId<DocumentId>();
+
+            const {eventTransactionForSite} = await createDocument(context, {
+                spaceId: space.id,
+                documentId,
+                sitePosition: {siteId, parentId, orderKey},
+            });
+
+            // When we navigate to the document, we need to handle read-after-write
+            // consistency. Broadcasting the event ensures that the document is visible to
+            // realtime query as soon as we navigate to it.
+            handleEventForSite(eventTransactionForSite);
+            navigate(`/s/${space.id}/documents/${documentId}`);
+        },
+        [context, space.id, siteId, handleEventForSite, navigate],
+    );
+
+    const createTaskInSite = useCallback(
+        async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
+            const taskId = generateId<TaskId>();
+
+            const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                spaceId: space.id,
+                clientId: null,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: [Date.now(), 0],
+                        taskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: assertExists(currentAccount).id,
+                            creatorTimeZone: clientInfo.timeZone,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: [Date.now(), 0],
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAccessPolicy",
+                            accessPolicy: {
+                                type: "Site",
+                                siteId,
+                                position: {
+                                    parentId,
+                                    orderKey,
+                                },
+                            },
+                        },
+                    },
+                ],
+            });
+
+            // When we navigate to the task, we need to handle read-after-write consistency.
+            // Broadcasting the event ensures that the task is visible to realtime query as
+            // soon as we navigate to it.
+            handleEventForSite(assertExists(eventTransactionForSite));
+            navigate(`/s/${space.id}/tasks/${taskId}`);
+        },
+        [
+            context,
+            space.id,
+            currentAccount,
+            clientInfo.timeZone,
+            siteId,
+            handleEventForSite,
+            navigate,
+        ],
+    );
+
+    const createChannelInSite = useCallback(
+        async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
+            const channelId = generateId<ChannelId>();
+
+            const {eventTransactionForSite} = await createChannel(context, {
+                spaceId: space.id,
+                channelId,
+                name: "Untitled channel",
+                accessPolicy: {type: "Site", siteId, position: {parentId, orderKey}},
+            });
+
+            // When we navigate to the channel, we need to handle read-after-write consistency.
+            // Broadcasting the event ensures that the channel is visible to realtime query as
+            // soon as we navigate to it.
+            handleEventForSite(eventTransactionForSite);
+            navigate(`/s/${space.id}/channels/${channelId}`);
+        },
+        [context, space.id, siteId, handleEventForSite, navigate],
+    );
+
+    const createTaskCollectionInSite = useCallback(
+        async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
+            const collectionId = generateId<TaskCollectionId>();
+
+            const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                spaceId: space.id,
+                clientId: null,
+                actions: [
+                    {
+                        type: "UpdateCollection",
+                        time: [Date.now(), 0],
+                        collectionId,
+                        collectionAction: {
+                            type: "Create",
+                            creatorId: assertExists(currentAccount).id,
+                            name: "Untitled collection",
+                            accessPolicy: {
+                                type: "Site",
+                                siteId,
+                                position: {
+                                    parentId,
+                                    orderKey,
+                                },
+                            },
+                        },
+                    },
+                ],
+            });
+
+            // When we navigate to the task collection, we need to handle read-after-write
+            // consistency. Broadcasting the event ensures that the task collection is visible
+            // to realtime query as soon as we navigate to it.
+            handleEventForSite(assertExists(eventTransactionForSite));
+            navigate(`/s/${space.id}/tasks/collections/${collectionId}`);
+        },
+        [context, space.id, currentAccount, siteId, handleEventForSite, navigate],
+    );
+
+    return {
+        createSidebarSection,
+        deleteContainer,
+        renameContainer,
+        renameSite,
+        removeEntity,
+        moveEntry,
+        addEntity,
+        createDocumentInSite,
+        createTaskInSite,
+        createChannelInSite,
+        createTaskCollectionInSite,
+    };
+}

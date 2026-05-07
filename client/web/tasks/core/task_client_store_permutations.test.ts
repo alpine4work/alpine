@@ -1,5 +1,5 @@
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";

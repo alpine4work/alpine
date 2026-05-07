@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@types/scheduler",
         "//:node_modules/scheduler",
         "//client/web/helpers",
+        "//client/web/sites/context",
         "//client/web/spaces",
         "//shared/helpers",
         "//shared/id",

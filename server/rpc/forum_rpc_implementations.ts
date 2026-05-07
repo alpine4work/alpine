@@ -47,8 +47,14 @@ export default implementRpcs(definitions, {
     createChannel: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime} = await createChannel(context.actor.authorizeSession(), input);
-            return {channelId: id, createdTime};
+            const {id, createdTime, getDynamoGeneralRealtimeEventTransactionForSite} =
+                await createChannel(context.actor.authorizeSession(), input);
+            return {
+                channelId: id,
+                createdTime,
+                eventTransactionForSite:
+                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+            };
         },
     },
 
@@ -90,7 +96,9 @@ export default implementRpcs(definitions, {
                 context.actor.authorizeSession(),
                 input,
             );
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            return {
+                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+            };
         },
     },
 
@@ -102,7 +110,9 @@ export default implementRpcs(definitions, {
                     context.actor.authorizeSession(),
                     input,
                 );
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            return {
+                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+            };
         },
     },
 

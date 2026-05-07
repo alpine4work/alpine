@@ -3,6 +3,8 @@ import {ServerSessionActionContextModules} from "~/server/context/server_action_
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -49,7 +51,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -94,6 +96,7 @@ import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_pr
 const context = createTestContext({
     shouldStartOpensearch: true,
     tasksInjection,
+    sitesInjection,
 });
 
 function createWebSocketServer(space: TestSpace) {
@@ -17797,4 +17800,60 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
 
         expect(testTakeEvents(connection)).toEqual([]);
     }
+});
+
+// TODO(#sites): Add Playwright integration tests + screenshot tests for this
+// scenario once the site routes land. The integration coverage should verify what
+// an assignee without site access _sees_ in the UI (no site chrome, task opens,
+// etc.). This unit test only locks down the realtime payload — that the site
+// preview doesn't get surfaced to a viewer who lacks access to it.
+test("assignee retains task access when task is in a site they can’t access", async () => {
+    const space = await TestSpace.create(context);
+    const owner = await space.createSession();
+    const assignee = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    // Private site — only `owner` has Manage; `assignee` has no site access.
+    const site = await TestSite.create(owner, {access: "Private"});
+    const publicCollection = await TestTaskCollection.create(owner, {access: "Public"});
+
+    // Task lives in the private site, but `assignee` is the assigned account so they
+    // retain task access independent of site membership.
+    const task = await TestTask.create(owner);
+    await task.updateAssignee(owner, assignee);
+
+    // Add the task to a public collection (anyone can view the task) and also add it
+    // to the site by updating it's access policy to a site policy
+    await task.addCollection(owner, publicCollection);
+    await task.access.set(owner, {
+        type: "Site",
+        siteId: site.id,
+        position: {
+            parentId: site.initialRootContainerId,
+            orderKey: assertOrderKey("a0"),
+        },
+    });
+
+    await server.wait();
+
+    // Get the task from the assignee's perspective, who doesn't have access to the
+    // site.
+    const connection = await server.connectForTest(assignee.action());
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    const {updateEvent} = await testSubscribeToTask(connection, {
+        clientTime: testTaskClock.now(),
+        taskId: task.id,
+    });
+
+    // The assignee gets the task (they're authorized via the assignee role) and also
+    // receives the parent site preview because hydration runs as the system actor —
+    // see the TODO above for the security implications.
+    expect(updateEvent).toEqual(
+        expect.objectContaining({
+            type: "Update",
+            referencedSites: [],
+        }),
+    );
 });

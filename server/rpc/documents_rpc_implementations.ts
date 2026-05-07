@@ -31,6 +31,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -54,12 +55,19 @@ export default implementRpcs(definitions, {
     createDocument: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
-                id: input.documentId,
-                spaceId: input.spaceId,
-                content: input.content,
-            });
-            return {documentId: id, createdTime};
+            const {id, createdTime, getDynamoGeneralRealtimeEventTransactionForSite} =
+                await createDocument(context.actor.authorizeSession(), {
+                    id: input.documentId,
+                    spaceId: input.spaceId,
+                    content: input.content,
+                    sitePosition: input.sitePosition,
+                });
+            return {
+                documentId: id,
+                createdTime,
+                eventTransactionForSite:
+                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+            };
         },
     },
 
@@ -122,9 +130,8 @@ export default implementRpcs(definitions, {
             // RPC directly, instead they should always use DocumentCollaborationService.
             const accountContext = context.actor.authorizeAccount();
 
-            const {newVersion, updatedCommentThreads} = await updateDocumentContentIdempotently(
-                accountContext,
-                {
+            const {newVersion, updatedCommentThreads, eventTransactionForSite} =
+                await updateDocumentContentIdempotently(accountContext, {
                     id: input.documentId,
                     version: input.version,
                     steps: input.steps,
@@ -134,21 +141,16 @@ export default implementRpcs(definitions, {
                     intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
-                },
-            );
+                });
 
-            return {newVersion, updatedCommentThreads};
+            return {newVersion, updatedCommentThreads, eventTransactionForSite};
         },
     },
 
     getDocumentContentReferences: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, {documentId, referencedIds}) => {
-            const {spaceId, accessPolicy} = await authorizeDocumentAccess(
-                context,
-                documentId,
-                "View",
-            );
+            const {spaceId} = await authorizeDocumentAccess(context, documentId, "View");
 
             const [references, {commentThreadById, resolvedCommentThreadIds}, siteById] =
                 await runAllPromises([
@@ -167,12 +169,18 @@ export default implementRpcs(definitions, {
                               commentThreadById: new Map<never, never>(),
                               resolvedCommentThreadIds: new Set<never>(),
                           },
-                    (async () => {
-                        if (accessPolicy.type !== "Site") return new Map();
-
-                        const site = await getSitePreview(context, accessPolicy.siteId);
-                        return new Map([[accessPolicy.siteId, site]]);
-                    })(),
+                    referencedIds.siteIds.size === 0
+                        ? emptyMap
+                        : (async () => {
+                              const entries = await runAllPromises(
+                                  mapIterable(
+                                      referencedIds.siteIds,
+                                      async siteId =>
+                                          [siteId, await getSitePreview(context, siteId)] as const,
+                                  ),
+                              );
+                              return new Map(entries);
+                          })(),
                 ]);
 
             return {

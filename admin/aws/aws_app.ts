@@ -100,6 +100,7 @@ async function addAwsResources(
         sqs,
         importUploads,
         observability,
+        taskRealtimeService,
     });
 
     new AwsAppService(stack, {

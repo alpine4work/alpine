@@ -3468,6 +3468,17 @@ Resources:
                       - --importerAction=$IMPORTER_ACTION
                       - --spaceId=$SPACE_ID
                       - --notionImportId=$NOTION_IMPORT_ID
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
+                              - Ref: EcsClusterFB9B21B5
+                      - --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRealtimeServiceTaskDefinition81563AFA
+                      - Fn::Join:
+                            - ""
+                            - - --taskRealtimeServiceSecurityGroupId=
+                              - Fn::GetAtt:
+                                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
+                                    - GroupId
                   Environment:
                       - Name: NODE_ENV
                         Value: production

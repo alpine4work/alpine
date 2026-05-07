@@ -16,6 +16,7 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     importerVolumeContainerPath,
@@ -70,6 +71,7 @@ export class AwsImporterService extends Construct {
             sqs,
             importUploads,
             observability,
+            taskRealtimeService,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
@@ -78,6 +80,7 @@ export class AwsImporterService extends Construct {
             sqs: AwsSqs;
             importUploads: AwsImportUploadsData;
             observability: AwsObservability;
+            taskRealtimeService: AwsTaskRealtimeService;
         },
     ) {
         super(parentConstruct, "ImporterService");
@@ -281,6 +284,9 @@ export class AwsImporterService extends Construct {
                 "--importerAction=$IMPORTER_ACTION",
                 "--spaceId=$SPACE_ID",
                 "--notionImportId=$NOTION_IMPORT_ID",
+                `--ecsCluster=${ecsCluster.cluster.clusterName}`,
+                `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
+                `--taskRealtimeServiceSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
             ],
         });
 

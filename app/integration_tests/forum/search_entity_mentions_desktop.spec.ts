@@ -9,7 +9,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
@@ -34,7 +34,7 @@ const testCaseByEntityType: Record<
         create: (options: {
             session: TestSpaceSession;
             title: string;
-            access: "Public" | "Private" | AccessPolicy;
+            access: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         }) => Promise<{
             id: SearchMentionEntityId;
             updateTitle: (

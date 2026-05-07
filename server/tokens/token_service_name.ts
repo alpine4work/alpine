@@ -11,6 +11,7 @@ const tokenEdgeServiceFamilyNames = [
     "ChatRealtimeService",
     "MyAccountService",
     "TaskNotesCollaborationService",
+    "SiteRealtimeService",
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -43,6 +44,7 @@ export const tokenServiceShortNameByName: {[Key in TokenServiceName]: string} = 
     ChatRealtimeService: "cht",
     MyAccountService: "acc",
     TaskNotesCollaborationService: "tkn",
+    SiteRealtimeService: "ste",
 };
 
 let tokenServiceNameByShortName: ReadonlyMap<string, TokenServiceName> | undefined;

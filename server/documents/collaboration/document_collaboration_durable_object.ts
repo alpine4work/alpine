@@ -64,7 +64,8 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
-    | {type: "PutContent"};
+    | {type: "PutContent"}
+    | {type: "PutContentWithoutOptimisticBroadcast"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -275,6 +276,13 @@ class DocumentCollaborationDurableObject {
 
         if (url.pathname === "/put-content") {
             return ["/put-content", {type: "PutContent"}];
+        }
+
+        if (url.pathname === "/put-content-without-optimistic-broadcast") {
+            return [
+                "/put-content-without-optimistic-broadcast",
+                {type: "PutContentWithoutOptimisticBroadcast"},
+            ];
         }
 
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
@@ -489,6 +497,40 @@ class DocumentCollaborationDurableObject {
                         },
                     );
                 }
+            }
+            case "PutContentWithoutOptimisticBroadcast": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const accountContext = context.actor.authorizeAccount();
+
+                const requestBody =
+                    DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.inputSchema.deserialize(
+                        await request.json(),
+                    );
+
+                const {newVersion, getDynamoGeneralRealtimeEventTransactionForSite} =
+                    await this._contentManager.updateAndWaitForPersistence(
+                        accountContext,
+                        null,
+                        requestBody,
+                    );
+
+                const eventTransactionForSite =
+                    await getDynamoGeneralRealtimeEventTransactionForSite();
+
+                return new Response(
+                    JSON.stringify(
+                        DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.serialize(
+                            {newVersion, eventTransactionForSite},
+                        ),
+                    ),
+                    {status: 200},
+                );
             }
             default:
                 throw exhaustive(route);

@@ -30,7 +30,7 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -109,10 +109,10 @@ export class TestChat extends TestMessageRoomBase {
             access,
         }: {
             name?: string;
-            access?: "Public" | "Private" | AccessPolicy;
+            access?: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         } = {},
     ) {
-        let accessPolicy: AccessPolicy;
+        let accessPolicy: CreateOrUpdateAccessPolicy;
         if (access === "Public" || access === undefined) {
             accessPolicy = {
                 type: "Local",

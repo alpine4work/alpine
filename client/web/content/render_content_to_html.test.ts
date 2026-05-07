@@ -5,7 +5,7 @@ import {getAccountRegistry} from "~/client/web/accounts/account_registry_context
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentToHtmlStoreForTest} from "~/client/web/content/render_content_to_html.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/design/core/constant_class_names.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";

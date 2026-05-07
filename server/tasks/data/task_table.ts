@@ -11,6 +11,7 @@ import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -33,6 +34,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
@@ -103,6 +105,7 @@ import {
     hasAccessLevel,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -121,6 +124,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     ErrorBase,
     FailedPreconditionError,
@@ -216,6 +220,8 @@ import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_ti
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     TaskAction,
@@ -1398,6 +1404,9 @@ export function commitTaskActionTransaction(
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
@@ -1433,12 +1442,11 @@ export function commitTaskActionTransaction(
             );
         }
 
-        const {actionTransactionItem, extraActions} = await TaskActionTransactionCommitState.commit(
-            context,
-            spaceId,
-            actions,
-            options,
-        );
+        const {
+            actionTransactionItem,
+            extraActions,
+            getDynamoGeneralRealtimeEventTransactionForSite,
+        } = await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
 
         span.addData({
             tasks: {
@@ -1507,7 +1515,10 @@ export function commitTaskActionTransaction(
         // realtime see these actions in the same order they were made.
         await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
 
-        return {extraActions};
+        return {
+            extraActions,
+            getDynamoGeneralRealtimeEventTransactionForSite,
+        };
     });
 }
 
@@ -1679,6 +1690,21 @@ class TaskActionTransactionCommitState {
           }
     >();
 
+    private readonly _additionalTransactionEntries: Array<
+        DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
+    > = [];
+
+    /**
+     * Callbacks that produce realtime events for the site transaction entries we
+     * pushed onto `_additionalTransactionEntries`. Invoked after the dynamo commit by
+     * `commitTaskActionTransaction` to surface the events back to the caller.
+     */
+    private readonly _additionalSiteEventCallbacks: Array<
+        (
+            context: ServerActionContext,
+        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+    > = [];
+
     private readonly _actionTransactionLeaseTransactionEntries: Array<TaskAccountActionTransactionLeaseItem> =
         [];
 
@@ -1722,6 +1748,9 @@ class TaskActionTransactionCommitState {
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
+        getDynamoGeneralRealtimeEventTransactionForSite: (
+            context: ServerActionContext,
+        ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
     }> {
         return context.dynamo.retryTransaction(async context => {
             await authorizeSpaceAccess(context, spaceId);
@@ -1870,7 +1899,9 @@ class TaskActionTransactionCommitState {
             maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
         }
 
-        const transactionEntries: Array<DynamoTransactionEntry> = [];
+        const transactionEntries: Array<
+            DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
+        > = [];
         const extraActions: Array<TaskAction> = [];
 
         for (const transactionEntry of this._transactionEntryByTaskId.values()) {
@@ -1983,6 +2014,10 @@ class TaskActionTransactionCommitState {
             transactionEntries.push(transactionEntry);
         }
 
+        for (const transactionEntry of this._additionalTransactionEntries) {
+            transactionEntries.push(transactionEntry);
+        }
+
         for (const transactionEntry of this._actionTransactionLeaseTransactionEntries) {
             transactionEntries.push(TaskTable.transactionCreateItem(transactionEntry));
         }
@@ -2008,7 +2043,16 @@ class TaskActionTransactionCommitState {
                 TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
             );
 
-            await DynamoTableSchema.executeTransaction(this._context, transactionEntries);
+            // Use the general-realtime variant of `executeTransaction` so we can mix task
+            // entries (`DynamoTransactionEntry`) with site entries
+            // (`DynamoGeneralRealtimeTransactionEntry`) in a single atomic write. The
+            // general-realtime variant accepts both types and only broadcasts entries that
+            // came through general-realtime schemas, so task entries continue to flow through
+            // their existing realtime broadcast path unchanged.
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(
+                this._context,
+                transactionEntries,
+            );
         } else {
             await TaskActionTable.createOrReplaceItem(this._context, actionTransactionItem);
         }
@@ -2019,9 +2063,15 @@ class TaskActionTransactionCommitState {
             await runAllPromises(this._afterCommitActions.map(action => action(this._context)));
         }
 
+        // Capture the site event callbacks now so the closure doesn't keep a reference to
+        // the entire commit state.
+        const siteEventCallbacks = this._additionalSiteEventCallbacks;
+
         return {
             actionTransactionItem,
             extraActions,
+            getDynamoGeneralRealtimeEventTransactionForSite: (eventContext: ServerActionContext) =>
+                runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
         };
     }
 
@@ -2416,16 +2466,31 @@ class TaskActionTransactionCommitState {
         return intoEffectiveAccessPolicy(this._context, accessPolicy);
     }
 
-    public validateAccessPolicyUpdate(
+    public async validateAccessPolicyUpdate(
+        entityId: SearchEntityId,
         oldAccessPolicy: AccessPolicy | null,
-        newAccessPolicy: AccessPolicy,
+        newAccessPolicy: CreateOrUpdateAccessPolicy,
     ): Promise<ResolvedAccessPolicy> {
-        return validateAccessPolicyUpdateForServer(
-            this._context,
-            this._spaceId,
-            oldAccessPolicy,
-            newAccessPolicy,
-        );
+        const {resolvedAccessPolicy, transactionEntries} =
+            await validateAccessPolicyUpdateForServer(
+                this._context,
+                this._spaceId,
+                entityId,
+                oldAccessPolicy,
+                newAccessPolicy,
+            );
+
+        // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. Push the raw
+        // `transactionEntry` (cast through `unknown` because the injection module declares
+        // an opaque marker class to avoid a circular Bazel dependency between
+        // `//server/context` and `//server/dynamo/core/general_realtime`) and store the
+        // `getEvent` callback so we can produce realtime events at commit time.
+        for (const entry of transactionEntries) {
+            this._additionalTransactionEntries.push(entry.transactionEntry);
+            this._additionalSiteEventCallbacks.push(entry.getEvent);
+        }
+
+        return resolvedAccessPolicy;
     }
 
     public async authorizeCollectionAccess(
@@ -3327,20 +3392,11 @@ async function actuallyCommitTaskActionTransaction(
                                 const oldAccessPolicy =
                                     getTaskItemAccessPolicyWithDefault(taskItem);
 
-                                const newAccessPolicy = taskItem.accessPolicy
-                                    ? taskItem.accessPolicy.apply({
-                                          value: taskAction.accessPolicy,
-                                          version: action.time,
-                                      })
-                                    : new AccessPolicyRegister(
-                                          taskAction.accessPolicy,
-                                          action.time,
-                                      );
-
-                                const newResolvedAccessPolicy =
+                                const {defaultGrant: newResolvedDefaultGrant} =
                                     await state.validateAccessPolicyUpdate(
+                                        `Task:${taskId}`,
                                         oldAccessPolicy,
-                                        newAccessPolicy.value,
+                                        taskAction.accessPolicy,
                                     );
 
                                 let newFeed = taskItem.feed;
@@ -3349,14 +3405,22 @@ async function actuallyCommitTaskActionTransaction(
                                     (taskItem.feed === null ||
                                         taskItem.feed === "AddedAccountCandidateEntry") &&
                                     // Was this task directly shared via its access policy?
-                                    newResolvedAccessPolicy.defaultGrant
+                                    newResolvedDefaultGrant
                                 ) {
                                     newFeed = "AddedCandidateEntry";
                                 }
 
                                 state.updateTaskItem({
                                     ...taskItem,
-                                    accessPolicy: newAccessPolicy,
+                                    accessPolicy: taskItem.accessPolicy
+                                        ? taskItem.accessPolicy.apply({
+                                              value: taskAction.accessPolicy,
+                                              version: action.time,
+                                          })
+                                        : new AccessPolicyRegister(
+                                              taskAction.accessPolicy,
+                                              action.time,
+                                          ),
                                     feed: newFeed,
                                 });
 
@@ -3489,6 +3553,7 @@ async function actuallyCommitTaskActionTransaction(
                         }
 
                         const newEffectiveAccessPolicy = await state.validateAccessPolicyUpdate(
+                            `TaskCollection:${collectionId}`,
                             null,
                             collectionAction.accessPolicy,
                         );
@@ -3661,15 +3726,13 @@ async function actuallyCommitTaskActionTransaction(
                             case "UpdateAccessPolicy": {
                                 await state.authorizeCollectionAccess(collectionId, "Manage");
 
-                                const newAccessPolicy = collectionItem.accessPolicy.apply({
-                                    value: collectionAction.accessPolicy,
-                                    version: action.time,
-                                });
+                                const oldCollectionAccessPolicy = collectionItem.accessPolicy.value;
 
                                 const newEffectiveAccessPolicy =
                                     await state.validateAccessPolicyUpdate(
-                                        collectionItem.accessPolicy.value,
-                                        newAccessPolicy.value,
+                                        `TaskCollection:${collectionId}`,
+                                        oldCollectionAccessPolicy,
+                                        collectionAction.accessPolicy,
                                     );
 
                                 const oldHasAddedFeedCandidateEntry =
@@ -3680,7 +3743,10 @@ async function actuallyCommitTaskActionTransaction(
 
                                 state.updateCollectionItem({
                                     ...collectionItem,
-                                    accessPolicy: newAccessPolicy,
+                                    accessPolicy: collectionItem.accessPolicy.apply({
+                                        value: collectionAction.accessPolicy,
+                                        version: action.time,
+                                    }),
                                     hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                                 });
 

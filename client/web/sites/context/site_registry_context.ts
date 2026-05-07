@@ -3,7 +3,7 @@ import {
     getGlobalContext,
     useGlobalContext,
 } from "~/client/web/helpers/global_context.js";
-import {SiteRegistry} from "~/client/web/sites/site_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";

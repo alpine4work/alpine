@@ -32,7 +32,7 @@ import {DocumentContentCoverSchema} from "~/shared/documents/document_content_co
 import {assert} from "~/shared/helpers/control/assert.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -411,13 +411,18 @@ export const DocumentContentMarkSchema = documentSchemas.Mark;
 
 export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
-export function createEmptyDocumentContent(creatorId: AccountId) {
-    const accessPolicy: AccessPolicy = {
-        type: "Local",
-        accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
-        defaultGrant: null,
-        urlGrant: null,
-    };
+export function createEmptyDocumentContent(creatorId: AccountId, site?: {siteId: SiteId}) {
+    const accessPolicy: AccessPolicy = site
+        ? {
+              type: "Site",
+              siteId: site.siteId,
+          }
+        : {
+              type: "Local",
+              accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
+              defaultGrant: null,
+              urlGrant: null,
+          };
 
     return DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
         DocumentContentProsemirrorSchema.node("title"),

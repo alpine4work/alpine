@@ -4,6 +4,7 @@ ts_project(
     name = "data",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
     ],
     visibility = [

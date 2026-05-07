@@ -194,6 +194,7 @@ const TracerEventDataSchema = {
         channelId: Schema.id(),
         postId: Schema.id(),
         chatId: Schema.id(),
+        siteId: Schema.id(),
         fileId: Schema.id(),
         notionImportId: Schema.id(),
         peek: {

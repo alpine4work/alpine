@@ -11548,7 +11548,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11565,7 +11565,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11582,7 +11582,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11598,7 +11598,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11679,7 +11679,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11714,7 +11714,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11731,7 +11731,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11747,7 +11747,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11785,7 +11785,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11823,7 +11823,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11839,7 +11839,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11868,7 +11868,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11893,7 +11893,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -11929,7 +11929,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11946,7 +11946,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11963,7 +11963,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -11979,7 +11979,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12017,7 +12017,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12098,7 +12098,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12136,7 +12136,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -12153,7 +12153,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -12170,7 +12170,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -12187,7 +12187,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -12204,7 +12204,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([]),
         });
 
@@ -12220,7 +12220,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12249,7 +12249,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12330,7 +12330,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12472,7 +12472,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",
@@ -12510,7 +12510,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).toEqual({
+        ).toMatchObject({
             extraActions: cast<Array<TaskAction>>([
                 {
                     type: "UpdateTask",

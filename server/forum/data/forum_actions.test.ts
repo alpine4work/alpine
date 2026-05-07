@@ -79,6 +79,7 @@ import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
 import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
@@ -122,6 +123,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -131,8 +133,10 @@ import {
     PostDraftId,
     PostId,
     SiteId,
+    SiteSideBarId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {
     ServerSynchronizationCheckpoint,
@@ -163,8 +167,16 @@ const sitesInjection: SitesInjection = {
             createdTime: new Date(),
             accessPolicy: policy,
             version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: generateId<AccountId>(),
         });
     },
+    // These tests don't exercise site membership writes — mock them as empty.
+    dangerouslyGetAddToSiteTransactionEntries: async () => [],
+    dangerouslyGetRemoveFromSiteTransactionEntries: async () => [],
 };
 
 const context = createTestContext({sitesInjection});
@@ -275,6 +287,40 @@ test("can create a channel with a description", async () => {
     expect((await getChannel(session.action(), channel.id)).model.description.doc.toJSON()).toEqual(
         createSimpleMessageContent("This is a description").toJSON(),
     );
+});
+
+describe("createChannel in a site", () => {
+    test("creates a channel with a Site access policy when site data matches", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const siteId = generateId<SiteId>();
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const {id: channelId} = await createChannel(session.action(), {
+            spaceId: space.id,
+            name: "Site channel",
+            accessPolicy: {
+                type: "Site",
+                siteId,
+                position: {
+                    parentId: printSiteContainerId({
+                        type: "SideBar",
+                        id: generateId<SiteSideBarId>(),
+                    }),
+                    orderKey: assertOrderKey("a0"),
+                },
+            },
+        });
+
+        const {model} = await getChannel(session.action(), channelId);
+        expect(model.accessPolicy.intoAccessPolicy()).toEqual({type: "Site", siteId});
+    });
 });
 
 test("can\u2019t get a channel that does not exist", async () => {
@@ -9743,6 +9789,8 @@ describe("site access policy contributors", () => {
         const space = await TestSpace.create(context);
         const [session1, session2, session3] = await space.createSessions(3);
 
+        const site = await TestSite.create(session1, {access: "Private"});
+
         // Create a private channel with session1 as contributor
         const channel = await TestChannel.create(session1, {access: "Private"});
         await ProcessContextModule.waitForTestTasks();
@@ -9758,8 +9806,7 @@ describe("site access policy contributors", () => {
         expect(await getContributors()).toEqual([session1.account.id]);
 
         // Create public site with both users as managers
-        const siteId = generateId<SiteId>();
-        siteAccessPolicies.set(siteId, {
+        siteAccessPolicies.set(site.id, {
             type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
@@ -9771,7 +9818,11 @@ describe("site access policy contributors", () => {
         });
 
         // Add channel to site
-        await channel.access.set(session1, {type: "Site", siteId});
+        await channel.access.set(session1, {
+            type: "Site",
+            siteId: site.id,
+            position: {parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
+        });
         await ProcessContextModule.waitForTestTasks();
 
         // Contributor list should still only contain session1 (the actual contributor)
@@ -9799,8 +9850,8 @@ describe("site access policy contributors", () => {
         const [session1, session2, session3] = await space.createSessions(3);
 
         // Create public site with session1 as owner, session2 as manager
-        const siteId = generateId<SiteId>();
-        siteAccessPolicies.set(siteId, {
+        const site = await TestSite.create(session1, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
             type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
@@ -9812,7 +9863,14 @@ describe("site access policy contributors", () => {
 
         // Create channel in site
         const channel = await TestChannel.create(session1, {
-            access: {type: "Site", siteId},
+            access: {
+                type: "Site",
+                siteId: site.id,
+                position: {
+                    parentId: site.initialRootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                },
+            },
         });
         await ProcessContextModule.waitForTestTasks();
 

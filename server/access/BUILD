@@ -16,6 +16,7 @@ ts_project(
     },
     visibility = ["//server:__subpackages__"],
     deps = [
+        "//server/context",
         "//server/spaces",
         "//shared/access",
         "//shared/context",

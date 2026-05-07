@@ -74,6 +74,10 @@ class_name = "TaskNotesCollaborationDurableObject"
 name = "ChannelRealtimeDurableObjectNamespace"
 class_name = "ChannelRealtimeDurableObject"
 
+[[durable_objects.bindings]]
+name = "SiteRealtimeDurableObjectNamespace"
+class_name = "SiteRealtimeDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
@@ -97,3 +101,7 @@ new_classes = ["TaskNotesCollaborationDurableObject"]
 [[migrations]]
 tag = "v6"
 new_classes = ["ChannelRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v7"
+new_classes = ["SiteRealtimeDurableObject"]

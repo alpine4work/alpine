@@ -3,7 +3,7 @@ import {
     getSiteItemForAuthorization,
     getSiteItemForAuthorizationIfExists,
 } from "~/server/sites/data/internal/get_site_item_for_authorization.js";
-import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -11,33 +11,6 @@ import {generateId} from "~/shared/id/id.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
-
-async function createTestSite(
-    space: Awaited<ReturnType<typeof TestSpace.create>>,
-    options: {
-        siteId?: SiteId;
-        accessPolicy: LocalAccessPolicy;
-        name?: string;
-    },
-) {
-    const siteId = options.siteId ?? generateId<SiteId>();
-    const now = new Date();
-
-    await SitesTable.createItem(space.systemAction(), {
-        partitionType: "Site",
-        sortRangeType: "Attributes",
-        siteId,
-        spaceId: space.id,
-        name: options.name ?? "Test Site",
-        accessPolicy: options.accessPolicy,
-        createdTime: now,
-        creatorId: generateId(),
-        updatedTime: now,
-        firstEntityId: null,
-    });
-
-    return siteId;
-}
 
 describe("getSiteItemForAuthorization", () => {
     test("returns site item when site exists", async () => {
@@ -51,11 +24,11 @@ describe("getSiteItemForAuthorization", () => {
             urlGrant: null,
         };
 
-        const siteId = await createTestSite(space, {accessPolicy, name: "Test Site"});
+        const site = await TestSite.create(session, {access: accessPolicy, name: "Test Site"});
 
-        const item = await getSiteItemForAuthorization(session.action(), siteId);
+        const item = await getSiteItemForAuthorization(session.action(), site.id);
 
-        expect(item.siteId).toBe(siteId);
+        expect(item.siteId).toBe(site.id);
         expect(item.spaceId).toBe(space.id);
         expect(item.name).toBe("Test Site");
         expect(item.accessPolicy).toEqual(accessPolicy);
@@ -77,37 +50,23 @@ describe("getSiteItemForAuthorization", () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await space.createSessions(2);
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session1, {access: "Private"});
 
         // session2 has no access, but can still get the item for authorization purposes
-        const item = await getSiteItemForAuthorization(session2.action(), siteId);
+        const item = await getSiteItemForAuthorization(session2.action(), site.id);
 
-        expect(item.siteId).toBe(siteId);
+        expect(item.siteId).toBe(site.id);
     });
 
     test("works with system actor", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
+        const site = await TestSite.create(session, {access: "Private"});
 
-        const siteId = await createTestSite(space, {accessPolicy});
+        const item = await getSiteItemForAuthorization(space.systemAction(), site.id);
 
-        const item = await getSiteItemForAuthorization(space.systemAction(), siteId);
-
-        expect(item.siteId).toBe(siteId);
+        expect(item.siteId).toBe(site.id);
     });
 });
 
@@ -123,12 +82,15 @@ describe("getSiteItemForAuthorizationIfExists", () => {
             urlGrant: {level: "View"},
         };
 
-        const siteId = await createTestSite(space, {accessPolicy, name: "Existing Site"});
+        const site = await TestSite.create(session, {
+            access: accessPolicy,
+            name: "Existing Site",
+        });
 
-        const item = await getSiteItemForAuthorizationIfExists(session.action(), siteId);
+        const item = await getSiteItemForAuthorizationIfExists(session.action(), site.id);
 
         expect(item).not.toBeNull();
-        expect(item?.siteId).toBe(siteId);
+        expect(item?.siteId).toBe(site.id);
         expect(item?.spaceId).toBe(space.id);
         expect(item?.name).toBe("Existing Site");
         expect(item?.accessPolicy).toEqual(accessPolicy);
@@ -149,59 +111,38 @@ describe("getSiteItemForAuthorizationIfExists", () => {
         const space = await TestSpace.create(context);
         const [session1, session2] = await space.createSessions(2);
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session1, {access: "Private"});
 
         // session2 has no access, but can still get the item for authorization purposes
-        const item = await getSiteItemForAuthorizationIfExists(session2.action(), siteId);
+        const item = await getSiteItemForAuthorizationIfExists(session2.action(), site.id);
 
         expect(item).not.toBeNull();
-        expect(item?.siteId).toBe(siteId);
+        expect(item?.siteId).toBe(site.id);
     });
 
     test("works with anonymous actor", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
+        const site = await TestSite.create(session, {access: "Private"});
 
-        const siteId = await createTestSite(space, {accessPolicy});
-
-        const item = await getSiteItemForAuthorizationIfExists(context.anonymousAction(), siteId);
+        const item = await getSiteItemForAuthorizationIfExists(context.anonymousAction(), site.id);
 
         expect(item).not.toBeNull();
-        expect(item?.siteId).toBe(siteId);
+        expect(item?.siteId).toBe(site.id);
     });
 
     test("returns consistent results with eventual consistency", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
+        const site = await TestSite.create(session, {access: "Private"});
 
-        const siteId = await createTestSite(space, {accessPolicy});
-
-        const item = await getSiteItemForAuthorizationIfExists(session.action(), siteId, {
+        const item = await getSiteItemForAuthorizationIfExists(session.action(), site.id, {
             consistency: "Eventual",
         });
 
-        expect(item?.siteId).toBe(siteId);
+        expect(item?.siteId).toBe(site.id);
     });
 });
 
@@ -211,22 +152,15 @@ describe("SiteItemAuthorizationCache", () => {
         const session = await space.createSession();
         const requestContext = session.action();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session, {access: "Private"});
 
         // First call loads from database
-        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Eventual",
         });
 
         // Second call should return cached item (same object reference)
-        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Eventual",
         });
 
@@ -239,22 +173,15 @@ describe("SiteItemAuthorizationCache", () => {
         const session = await space.createSession();
         const requestContext = session.action();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session, {access: "Private"});
 
         // First call with eventual consistency
-        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Eventual",
         });
 
         // Second call with strong consistency should reload from database
-        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Strong",
         });
 
@@ -271,22 +198,15 @@ describe("SiteItemAuthorizationCache", () => {
         const session = await space.createSession();
         const requestContext = session.action();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session, {access: "Private"});
 
         // First call with strong consistency
-        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Strong",
         });
 
         // Second call with eventual consistency should return the cached strong result
-        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Eventual",
         });
 
@@ -299,22 +219,15 @@ describe("SiteItemAuthorizationCache", () => {
         const session = await space.createSession();
         const requestContext = session.action();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session, {access: "Private"});
 
         // First call with strong consistency
-        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Strong",
         });
 
         // Second call with StrongWithinCache should return cached strong result
-        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "StrongWithinCache",
         });
 
@@ -327,22 +240,15 @@ describe("SiteItemAuthorizationCache", () => {
         const session = await space.createSession();
         const requestContext = session.action();
 
-        const accessPolicy: LocalAccessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        };
-
-        const siteId = await createTestSite(space, {accessPolicy});
+        const site = await TestSite.create(session, {access: "Private"});
 
         // First call with eventual consistency
-        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item1 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "Eventual",
         });
 
         // Second call with StrongWithinCache should reload because previous was Eventual
-        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, siteId, {
+        const item2 = await getSiteItemForAuthorizationIfExists(requestContext, site.id, {
             consistency: "StrongWithinCache",
         });
 

@@ -5,21 +5,30 @@ import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    NotificationsInjectionContextModule,
+    SearchInjectionContextModule,
     SitesInjectionContextModule,
+    SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
-import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {ImporterServiceContextModule} from "~/server/importer/importer_service/importer_service_context_module.js";
 import {
+    ImporterServiceContextModules,
     ImporterServiceProcessContext,
+    ImporterServiceProcessContextModules,
     ImporterServiceSystemActionContext,
 } from "~/server/importer/importer_service_context.js";
 import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
@@ -34,7 +43,16 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
+import {createServiceOpensearchContextModule} from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {sitesInjection} from "~/server/sites/data/sites_injection.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {
+    createServiceTaskRealtimeServiceRouter,
+    serviceTaskRealtimeServiceRouterOptions,
+} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -57,6 +75,7 @@ export const options = {
     ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
     ...serviceTokenAgentOptions,
+    ...serviceTaskRealtimeServiceRouterOptions,
 } as const;
 
 export async function run({
@@ -112,6 +131,48 @@ export async function run({
         options,
     });
 
+    // Sometimes we want to upgrade a session actor to a system actor. This gives the
+    // action escalated the system permission level which is dangerous! The system
+    // permission level has broad access to a space. We should tightly control what
+    // code is allowed to call this function, only allowed context modules get access
+    // and those context modules are expected to treat this as a private variable.
+    //
+    // It's important we use new caches + batchers here. We don't want to load some
+    // data at a higher permission level then let the session context see it. So we
+    // derive our new context from the process context to help avoid reusing any
+    // request-level caches.
+    const dangerouslyEscalateToSystemContext = <Value>(
+        context: Context<{
+            tracer: TracerContextModule;
+            actor?: ActorContextModule;
+            cache: CacheContextModule;
+            batch: BatchContextModule;
+        }>,
+        spaceId: SpaceId,
+        action: (context: ImporterServiceSystemActionContext) => Promise<Value>,
+    ): Promise<Value> => {
+        return processContext.with<
+            Omit<
+                ImporterServiceContextModules,
+                Exclude<keyof ImporterServiceProcessContextModules, "tracer">
+            >,
+            Value
+        >(
+            {
+                tracer: new TracerContextModule(context.tracer.getTracer()),
+                cache: context.cache.forkForChangedActor(),
+                batch: context.batch.forkForChangedActor(),
+                actor: SystemActorContextModule.dangerouslyNew(
+                    // `context.actor` is `undefined` for maintenance jobs. Though we shouldn't be
+                    // running maintenance jobs in `ImporterService`. Handle the case anyway.
+                    context.actor?.serviceName ?? "ImporterService",
+                    spaceId,
+                ),
+            },
+            action,
+        );
+    };
+
     const processContext: ImporterServiceProcessContext = Context.new({
         ...createServerBasicProcessContextModules({
             tracer,
@@ -130,6 +191,16 @@ export async function run({
         forumInjection: new ForumInjectionContextModule(forumInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
         sitesInjection: new SitesInjectionContextModule(sitesInjection),
+        searchInjection: new SearchInjectionContextModule(searchInjection),
+        notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
+        spacesInjection: new SpacesInjectionContextModule(spacesInjection),
+        edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl: options.edgeServiceUrl}),
+        opensearch: createServiceOpensearchContextModule(awsSigner, options),
+        tasks: new TaskContextModule({
+            tokenAgent,
+            router: createServiceTaskRealtimeServiceRouter(options),
+            dangerouslyEscalateToSystemContext,
+        }),
     });
 
     await processContext.tracer.withSpan(

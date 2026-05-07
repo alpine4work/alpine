@@ -6,7 +6,8 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationEventStub} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
@@ -26,6 +27,7 @@ import {
     DocumentContentProsemirrorSchema,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -64,6 +66,7 @@ import {
     getDocumentContentReferences,
     updateDocumentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
@@ -73,6 +76,17 @@ export const documentCollaborationContentManagerBeforePersist1TestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
 export const documentCollaborationContentManagerBeforePersist2TestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
+/**
+ * Fires inside `updateAndWaitForPersistence` immediately after the in-flight
+ * optimistic-persistence promise (`_persistenceState.promise`) has resolved. Tests
+ * use this to assert deterministically that the synchronous path is blocked on
+ * optimistic persistence — pause this checkpoint, observe it doesn't fire while
+ * the optimistic persistence is paused, then unpause optimistic persistence and
+ * watch this checkpoint fire.
+ */
+export const documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
 export type DocumentCollaborationContentManagerOptimisticCommentThread = {
@@ -117,7 +131,7 @@ export class DocumentCollaborationContentManager {
             }>;
             readonly intentionallyUpdateAccessPolicyRef: {
                 current: {
-                    readonly accessPolicy: AccessPolicy;
+                    readonly accessPolicy: LocalAccessPolicy;
                     readonly notification: ShareNotification | null;
                 } | null;
             };
@@ -280,7 +294,7 @@ export class DocumentCollaborationContentManager {
                 initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             }>;
             intentionallyUpdateAccessPolicy: {
-                accessPolicy: AccessPolicy;
+                accessPolicy: LocalAccessPolicy;
                 notification: ShareNotification | null;
             } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
@@ -754,6 +768,371 @@ export class DocumentCollaborationContentManager {
             persistencePromise,
             presenceState,
             hasSentPresenceState: true,
+        };
+    }
+
+    /**
+     * Synchronous variant of `update()`: persists to DynamoDB _before_ broadcasting
+     * steps to connected clients.
+     *
+     * The default optimistic path applies steps to in-memory state and broadcasts them
+     * to clients before persistence finishes; on persist failure we throw
+     * `DataLossError`, kill the durable object, and force all clients to reconnect
+     * (losing any un-persisted steps). This synchronous variant is for callers that
+     * can't tolerate that rollback.
+     *
+     * You shouldn't use this path unless you absolutely need to, read the tradeoffs
+     * below.
+     *
+     * ### Tradeoffs
+     *
+     * - Duplicates a non-trivial amount of business logic from the optimistic path,
+     *   violating the DRY principle. We accept this risk because
+     *     - this logic is changed infrequently
+     *     - merging the logic would dramatically increase the complexity of the update
+     *       operation. For example, keeping track of optimistic state and knowing when
+     *       to clear it, how to throw errors, etc. becomes really difficult and hard
+     *       to follow
+     * - Holds the `_state` lock through the DynamoDB round-trip, serializing all
+     *   concurrent `update()` calls behind this one. The optimistic path only holds
+     *   the lock long enough to _schedule_ persistence. We accept the latency cost
+     *   because callers choosing this path are explicitly trading responsiveness for
+     *   persistence guarantees, and the client keeps its own optimistic buffer locally
+     *   so user input isn't blocked.
+     * - Reuses `UpdateContentWithoutPersistence` + `PersistedContent` and sends them
+     *   back-to-back. Clients already tolerate these two events arriving out-of-order
+     *   (see the schema comment on `UpdateContentWithoutPersistence`). The event name
+     *   `UpdateContentWithoutPersistence` is misleading in this path (content IS
+     *   persisted when we send it). We accept that cost because the alternatives were
+     *   worse: a dedicated `UpdateContentWithPersistence` event would be largely
+     *   redundant with the existing pair, and extending `PersistedContent` to carry
+     *   steps/clientId/presence would force every existing `PersistedContent` handler
+     *   to grow. If the naming becomes confusing we can address in a follow-up change.
+     * - No batching – same-client follow-up updates cannot be merged into this
+     *   persistence request because the caller is awaiting a confirmed persist.
+     */
+    public async updateAndWaitForPersistence(
+        context: WorkerAccountActionContext,
+        connectionId: WebSocketConnectionId | null,
+        update: {
+            version: number | null;
+            steps: ReadonlyArray<Step>;
+            clientId: ContentEditorClientId;
+            createCommentThreads: ReadonlyArray<{
+                commentThreadId: DocumentCommentThreadId;
+                createdTimeZone: TimeZone;
+                initialCommentContent: MessageContent;
+                initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+            }>;
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: CreateOrUpdateAccessPolicy;
+                notification: ShareNotification | null;
+            } | null;
+            resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
+            unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
+            updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+        },
+    ): Promise<{
+        presenceState: DocumentCollaborationPresenceState | null;
+        hasSentPresenceState: boolean;
+        newVersion: number;
+        getDynamoGeneralRealtimeEventTransactionForSite: () => Promise<
+            ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+        >;
+    }> {
+        const {
+            oldVersion,
+            newVersion,
+            steps,
+            presenceState,
+            eventTransactionForSite,
+            updatedCommentThreads,
+        } = await this._state.withLock(async stateRef => {
+            await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            // A null `update.version` means "apply on top of whatever the latest version is" —
+            // used by callers like the move-into/out-of-site path that don't have a specific
+            // client version to rebase against.
+            const clientVersion = update.version ?? stateRef.current.version;
+
+            if (
+                update.updateOurPresenceState.state &&
+                update.updateOurPresenceState.state.version !== clientVersion
+            ) {
+                throw new InvalidArgumentError(
+                    "Document version in new presence state should match the document version we are updating",
+                );
+            }
+
+            for (const createCommentThread of update.createCommentThreads) {
+                if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
+                    throw new FailedPreconditionError(
+                        "Document comment thread ID has already been used",
+                    );
+            }
+
+            // Wait for any in-flight optimistic persistence batch so DynamoDB's version
+            // catches up to `stateRef.current.version` before we call
+            // `updateDocumentContent()` with `version: oldVersion`.
+            await this._persistenceState?.promise;
+
+            await documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            const oldVersion = stateRef.current.version;
+
+            const {newContent, steps, invertedSteps, clientContent, mapping} =
+                await getCollaborativelyUpdateContentResult(context, {
+                    currentVersion: stateRef.current.version,
+                    currentContent: stateRef.current.content,
+                    clientVersion,
+                    clientSteps: update.steps,
+                    getSteps: (startVersion, endVersion) =>
+                        this.stepCache.getSteps(context, startVersion, endVersion),
+                });
+
+            assert(isDocumentContent(newContent));
+
+            const clientPresenceStateSelection =
+                update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
+                    clientContent,
+                );
+            const newPresenceStateSelection = clientPresenceStateSelection?.map(
+                newContent,
+                mapping,
+            );
+            const newVersion = oldVersion + steps.length;
+            const presenceState: DocumentCollaborationPresenceState | null =
+                newPresenceStateSelection
+                    ? {
+                          version: newVersion,
+                          selection: ContentSelectionWrapper.new(newPresenceStateSelection),
+                      }
+                    : null;
+
+            await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            const intentionallyUpdateAccessPolicy =
+                update.intentionallyUpdateAccessPolicy ?? undefined;
+            const commentThreadCreatedTime = new Date();
+
+            // Persist before mutating any in-memory state. If this throws we release the lock
+            // with state untouched and propagate the error to the caller — no `DataLossError`
+            // / process kill needed because nothing was applied optimistically.
+            const {
+                newVersion: persistedVersion,
+                updatedCommentThreads,
+                eventTransactionForSite,
+            } = await updateDocumentContent(context, {
+                documentId: this.id,
+                version: oldVersion,
+                steps,
+                clientId: update.clientId,
+                createCommentThreads: Array.from(
+                    update.createCommentThreads,
+                    createCommentThread => ({
+                        ...createCommentThread,
+                        createdTime: commentThreadCreatedTime,
+                    }),
+                ),
+                intentionallyUpdateAccessPolicy,
+                resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+                unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+            });
+
+            if (persistedVersion !== newVersion) {
+                throw new DataLossError(
+                    "Some process updated document content other than the document’s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                );
+            }
+
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i]!;
+                const invertedStep = invertedSteps[i];
+                assert(invertedStep);
+                this.stepCache.dangerouslyAddStepToEnd({
+                    step,
+                    invertedStep,
+                    clientId: update.clientId,
+                });
+            }
+
+            stateRef.current = {
+                version: newVersion,
+                content: newContent,
+            };
+
+            this._persistedVersion = newVersion;
+
+            if (intentionallyUpdateAccessPolicy) {
+                this._resetAllAuthorizationTimers(context);
+            }
+
+            return {
+                oldVersion,
+                newVersion,
+                steps,
+                presenceState,
+                eventTransactionForSite,
+                updatedCommentThreads,
+            };
+        });
+
+        const getDynamoGeneralRealtimeEventTransactionForSite = async (): Promise<
+            ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+        > => eventTransactionForSite;
+
+        if (steps.length === 0) {
+            return {
+                presenceState,
+                hasSentPresenceState: false,
+                newVersion: oldVersion,
+                getDynamoGeneralRealtimeEventTransactionForSite,
+            };
+        }
+
+        let cleanupInvalidStepCommentThreadsPromise: Promise<void> | null = null;
+
+        const cleanupInvalidStepCommentThreads = ({
+            referencedIds,
+            references,
+            resolvedCommentThreadIds,
+        }: {
+            referencedIds: DocumentContentReferencedIds;
+            references: DocumentContentReferences;
+            resolvedCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+        }): Promise<void> => {
+            cleanupInvalidStepCommentThreadsPromise ??= (async () => {
+                // If the user tried to insert comment threads into the document we can't find or
+                // that have already been resolved (e.g. through a copy/paste) then follow up by
+                // removing those comment threads from the document.
+                //
+                // This happens if the user copies content from a document which has some comments
+                // and pastes them in another document. Those comments don't exist in the new
+                // document so we'd like to remove those comments from the document entirely.
+                //
+                // May also want to consider a client implementation of this. Maybe we add
+                // `data-document` to comment `<mark>` elements so the clipboard DOM parser can
+                // throwaway comment marks from other documents when a paste happens. Then this
+                // server logic will serve as a fallback.
+
+                const invalidCommentThreadIds = new Set<DocumentCommentThreadId>();
+                const possiblyResolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
+
+                for (const commentThreadId of referencedIds.commentThreadIds) {
+                    if (!references.commentThreadById.has(commentThreadId)) {
+                        invalidCommentThreadIds.add(commentThreadId);
+                    }
+
+                    // If `getContentReferencesForSteps()` reports any comment thread as resolved (that
+                    // we're not actively unresolving) then we want to remove that comment thread's
+                    // marks from the document as well. However, since `getContentReferencesForSteps()`
+                    // reads with eventual consistency we may be reading stale data, so before we clean
+                    // the document we'll make another read against DynamoDB with strong consistency to
+                    // confirm the comment threads are actually resolved.
+                    //
+                    // There is a chance of race conditions if a user unresolves while we're waiting on
+                    // the network for `AppService` to return its data to
+                    // `DocumentCollaborationService`. Such a race condition is pretty rare and the
+                    // consequence is pretty minor (comment mark doesn't reappear in document after
+                    // unresolved) so we tolerate the race condition.
+                    if (
+                        resolvedCommentThreadIds.has(commentThreadId) &&
+                        !this._persistingUnresolveCommentThreadIds.has(commentThreadId)
+                    ) {
+                        possiblyResolvedCommentThreadIds.add(commentThreadId);
+                    }
+                }
+
+                if (
+                    invalidCommentThreadIds.size === 0 &&
+                    possiblyResolvedCommentThreadIds.size === 0
+                ) {
+                    return;
+                }
+
+                if (possiblyResolvedCommentThreadIds.size > 0) {
+                    const {confirmedCommentThreadIds: resolvedCommentThreadIds} =
+                        await confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
+                            context,
+                            {
+                                documentId: this.id,
+                                commentThreadIds: Array.from(possiblyResolvedCommentThreadIds),
+                            },
+                        );
+
+                    for (const commentThreadId of resolvedCommentThreadIds) {
+                        invalidCommentThreadIds.add(commentThreadId);
+                    }
+                }
+
+                if (invalidCommentThreadIds.size === 0) return;
+
+                const removeInvalidCommentThreadSteps = Array.from(
+                    invalidCommentThreadIds,
+                    commentThreadId =>
+                        new RemoveAllMarksStep(
+                            DocumentContentProsemirrorSchema.marks.comment.create({
+                                commentThreadId,
+                            }),
+                        ),
+                );
+
+                // Intentionally using the original `update()` function's `context` so that this
+                // remove steps update uses the same `AccountId` as the original update.
+                await this.update(context, null, {
+                    version: oldVersion + steps.length,
+                    steps: removeInvalidCommentThreadSteps,
+                    // This update was not generated by the client which called `update()` but rather
+                    // by our backend here.
+                    clientId: generateId(),
+                    createCommentThreads: [],
+                    intentionallyUpdateAccessPolicy: null,
+                    updateOurPresenceState: {state: null},
+                });
+            })();
+
+            return cleanupInvalidStepCommentThreadsPromise;
+        };
+
+        // Content is already persisted at this point. See the JSDoc on this method for why
+        // we still reuse `UpdateContentWithoutPersistence` here instead of introducing a
+        // dedicated "with persistence" event.
+        //
+        // We send `PersistedContent` _before_ `UpdateContentWithoutPersistence` (the
+        // reverse of the optimistic path) so a client that processes them in order knows
+        // the new version is already persisted by the time the steps land. In the
+        // optimistic path the steps would arrive long before persistence completes, so
+        // there's an unavoidable window where the client thinks the new version is
+        // unpersisted; that window doesn't exist on this synchronous path and we shouldn't
+        // fake it.
+        await this._sendEventToAllAndWait(context, {
+            type: "PersistedContent",
+            newVersion,
+            updatedCommentThreads,
+        });
+
+        await this._sendEventToAllAndWait(context, {
+            type: "UpdateContentWithoutPersistence",
+            newVersion,
+            steps,
+            clientId: update.clientId,
+            updateOtherPresenceState: connectionId ? {connectionId, state: presenceState} : null,
+            resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+            unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+            cleanupInvalidStepCommentThreads,
+        });
+
+        return {
+            presenceState,
+            hasSentPresenceState: true,
+            newVersion,
+            getDynamoGeneralRealtimeEventTransactionForSite,
         };
     }
 

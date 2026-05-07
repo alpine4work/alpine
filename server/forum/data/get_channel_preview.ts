@@ -33,7 +33,7 @@ export async function getChannelPreviewIfPossible(
 
     const [result, accessPolicy] = await runAllPromises([
         authorizeChannelItemAccessIfPossible(context, channelItem, "View", options),
-        intoAccessPolicyModel(context, channelItem.accessPolicy),
+        intoAccessPolicyModel(context, channelItem.accessPolicy, options),
     ]);
     if (!result.ok) return result;
 

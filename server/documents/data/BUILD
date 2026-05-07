@@ -51,6 +51,6 @@ ts_project(
         "//shared/id",
         "//shared/messaging",
         "//shared/prosemirror",
-        "//shared/schema",
+        "//shared/schema"
     ],
 )

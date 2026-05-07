@@ -22,7 +22,6 @@ ts_project(
         "//:node_modules/react-stately",
         "//client/web/accounts",
         "//client/web/blobs",
-        "//client/web/content",
         "//client/web/design",
         "//client/web/helpers",
         "//client/web/icons",

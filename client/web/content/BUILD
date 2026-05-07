@@ -55,7 +55,7 @@ ts_project(
         "//client/web/remix",
         "//client/web/rpc",
         "//client/web/search/core",
-        "//client/web/sites",
+        "//client/web/sites/context",
         "//client/web/spaces",
         "//client/web/styles",
         "//client/web/tracer",

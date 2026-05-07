@@ -143,11 +143,6 @@ export async function getContentReferences(
             mapIterable(searchEntityIds, entityId => {
                 // You may have copy/pasted some content from a different space. In that case a
                 // mentioned entity may not exist.
-                //
-                // @ts-expect-error: TODO(calebmer): TypeScript error revealed by the refactor
-                // which introduces `SearchInjectionContextModule`. I don't want to introduce a
-                // behavior change in this already large PR so ignoring the error for now since
-                // nothing's broken in the product right now.
                 return context.searchInjection.getSearchMentionEntityIfPossible(spaceId, entityId);
             }),
         ),

@@ -13,15 +13,13 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerMinimalAccountActionContext,
-    ServerMinimalBotActionContext,
-} from "~/server/context/server_minimal_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {
     DocumentIndexSearchEntityJob,
@@ -37,6 +35,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
@@ -80,6 +79,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -129,6 +129,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     DataLossError,
     ErrorBase,
@@ -146,6 +147,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -168,6 +170,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
@@ -180,6 +183,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     FileId,
+    SiteId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
@@ -208,6 +212,8 @@ import {
 } from "~/shared/prosemirror/remove_all_marks_step.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
@@ -375,7 +381,7 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
  * useful for bulk operations like imports.
  */
 export async function createDocument(
-    context: ServerMinimalAccountActionContext,
+    context: ServerAccountActionContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
@@ -385,6 +391,7 @@ export async function createDocument(
         createFeedEntry = true,
         skipAffinityPointAssignment = false,
         from,
+        sitePosition,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
@@ -394,12 +401,16 @@ export async function createDocument(
         createFeedEntry?: boolean;
         skipAffinityPointAssignment?: boolean;
         from?: DocumentCreatorFrom;
+        sitePosition?: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey};
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     // If we have an `ImpersonatedAccount` actor we know the "parent" actor is a system
     // actor. Only allow system actors to set the `from` field.
@@ -433,16 +444,27 @@ export async function createDocument(
         );
     }
 
-    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
+    validateEntityCreationInSiteIfNeeded(content?.attrs.accessPolicy, sitePosition);
+
+    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId(), sitePosition);
 
     await authorizeSpaceAccess(context, spaceId);
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
-    const effectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
+    const {resolvedAccessPolicy, transactionEntries} = await validateAccessPolicyUpdateForServer(
         context,
         spaceId,
+        `Document:${documentId}`,
         null,
-        accessPolicy,
+        accessPolicy.type === "Local"
+            ? accessPolicy
+            : ({
+                  ...accessPolicy,
+                  position: {
+                      orderKey: assertExists(sitePosition?.orderKey),
+                      parentId: assertExists(sitePosition?.parentId),
+                  },
+              } as const),
         {
             consistency,
         },
@@ -465,7 +487,7 @@ export async function createDocument(
     // unshares and reshares an imported document. This means if you import a section
     // of documents as private, and choose to share them publicly later, it WILL create
     // feed entries.
-    const hasAddedFeedCandidateEntry = !!effectiveAccessPolicy.defaultGrant;
+    const hasAddedFeedCandidateEntry = !!resolvedAccessPolicy.defaultGrant;
 
     const creator = {
         id: creatorId,
@@ -476,7 +498,7 @@ export async function createDocument(
                 : null),
     };
 
-    await DynamoTableSchema.executeTransaction(context, [
+    await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
             partitionType: "Document",
             sortRangeType: "Attributes",
@@ -498,6 +520,7 @@ export async function createDocument(
             version,
             content,
         }),
+        ...transactionEntries.map(entry => entry.transactionEntry),
     ]);
 
     if (createFeedEntry) {
@@ -581,6 +604,8 @@ export async function createDocument(
         createdTime,
         version,
         creator,
+        getDynamoGeneralRealtimeEventTransactionForSite: async (context: ServerActionContext) =>
+            runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
 
@@ -2760,7 +2785,7 @@ export async function updateDocumentContent(
         clientId: ContentEditorClientId;
         clientRequestToken?: Id;
         intentionallyUpdateAccessPolicy?: {
-            accessPolicy: AccessPolicy;
+            accessPolicy: CreateOrUpdateAccessPolicy;
             notification: ShareNotification | null;
         };
         createCommentThreads?: ReadonlyArray<{
@@ -2828,6 +2853,17 @@ export async function updateDocumentContent(
      * comments were created not updated.
      */
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
+
+    /**
+     * Realtime events for any site item / site preview writes that happened in the
+     * same dynamo transaction as the document update (i.e. when the new access policy
+     * switched the document into or out of a site). Document content events flow
+     * through the document collaboration WebSocket protocol, so only site events are
+     * surfaced here.
+     */
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
@@ -3017,12 +3053,16 @@ export async function updateDocumentContent(
             );
         }
 
+        const inentionallyUpdatedAccessPolicyWithoutSitePosition =
+            intentionallyUpdateAccessPolicy?.accessPolicy?.type === "Site"
+                ? omitObject(intentionallyUpdateAccessPolicy.accessPolicy, ["position"])
+                : intentionallyUpdateAccessPolicy?.accessPolicy;
         // `intentionallyUpdateAccessPolicy` must exactly match the access policy we update
         // the document to. This is a protection to prevent ProseMirror from accidentally
         // updating the access policy in a way the developer didn't intend.
         if (
             intentionallyUpdateAccessPolicy &&
-            !isDeepEqual(intentionallyUpdateAccessPolicy.accessPolicy, newAccessPolicy)
+            !isDeepEqual(inentionallyUpdatedAccessPolicyWithoutSitePosition, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
                 "The document\u2019s new access policy doesn\u2019t match `intentionallyUpdateAccessPolicy`",
@@ -3035,15 +3075,39 @@ export async function updateDocumentContent(
         }
 
         let newEffectiveAccessPolicy: EffectiveAccessPolicy | null = null;
+        const intentionallyUpdatedAccessPolicyTransactionEntries: Array<{
+            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+        }> = [];
         // Make sure the access policy update is valid and the actor isn't removing access
         // from accounts with a lower manage generation.
         if (hasAccessPolicyChanged) {
-            newEffectiveAccessPolicy = await validateAccessPolicyUpdateForServer(
-                context,
-                internalDocument.spaceId,
-                oldAccessPolicy,
-                newAccessPolicy,
+            const intentionalAccessPolicy = assertExists(
+                intentionallyUpdateAccessPolicy?.accessPolicy,
             );
+
+            const {resolvedAccessPolicy, transactionEntries} =
+                await validateAccessPolicyUpdateForServer(
+                    context,
+                    internalDocument.spaceId,
+                    `Document:${documentId}`,
+                    oldAccessPolicy,
+                    intentionalAccessPolicy,
+                );
+            newEffectiveAccessPolicy = resolvedAccessPolicy;
+
+            // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. The entries
+            // are `DynamoGeneralRealtimeTransactionEntry` instances; we cast via `unknown` to
+            // `DynamoTransactionEntry` so we can push them onto the shared transaction array.
+            // The commit below switches to
+            // `DynamoGeneralRealtimeTableSchema.executeTransaction` when any site entries are
+            // present — that variant accepts both entry types and broadcasts realtime events
+            // for the site entries.
+            for (const entry of transactionEntries) {
+                intentionallyUpdatedAccessPolicyTransactionEntries.push(entry);
+            }
         }
         newEffectiveAccessPolicy ??= await intoEffectiveAccessPolicy(context, newAccessPolicy);
 
@@ -3197,7 +3261,8 @@ export async function updateDocumentContent(
             clientId,
         });
 
-        const transaction: Array<DynamoTransactionEntry> = [];
+        const transaction: Array<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry> =
+            [];
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;
@@ -3657,9 +3722,17 @@ export async function updateDocumentContent(
             );
         }
 
+        // Append any site transaction entries produced by
+        // `validateAccessPolicyUpdateForServer` above. They must be committed in the same
+        // dynamo transaction as the document update so the site membership stays
+        // consistent with the document's access policy.
+        for (const siteEntry of intentionallyUpdatedAccessPolicyTransactionEntries) {
+            transaction.push(siteEntry.transactionEntry);
+        }
+
         const execute = async () => {
             if (transaction.length > 0) {
-                await DynamoTableSchema.executeTransaction(context, transaction, {
+                await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transaction, {
                     clientRequestToken,
                 });
             }
@@ -3705,6 +3778,9 @@ export async function updateDocumentContent(
             newInvertedSteps: invertedSteps,
             conflictingSteps,
             updatedCommentThreads,
+            siteEventCallbacks: intentionallyUpdatedAccessPolicyTransactionEntries.map(
+                entry => entry.getEvent,
+            ),
         };
     });
 
@@ -3716,6 +3792,7 @@ export async function updateDocumentContent(
         newInvertedSteps,
         conflictingSteps,
         updatedCommentThreads,
+        siteEventCallbacks,
     } = result;
 
     const lastVersionToTriggerSnapshot =
@@ -3741,6 +3818,17 @@ export async function updateDocumentContent(
         newInvertedSteps,
         conflictingSteps,
         updatedCommentThreads,
+        /**
+         * Realtime events for any site item / site preview writes that happened in the
+         * same dynamo transaction as the document update. Returned as a callback the
+         * caller must invoke with a `ServerActionContext` once the transaction has
+         * committed — used by the `addEntityToSite` RPC to surface site sidebar events
+         * back to the client.
+         */
+        getDynamoGeneralRealtimeEventTransactionForSite: (
+            eventContext: ServerActionContext,
+        ): Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>> =>
+            runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
     };
 }
 
@@ -3754,11 +3842,18 @@ export async function updateDocumentContentIdempotently(
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
+    eventTransactionForSite: ReadonlyArray<
+        DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>
+    >;
 }> {
     try {
-        const {newVersion, updatedCommentThreads} = await updateDocumentContent(context, options);
+        const {newVersion, updatedCommentThreads, getDynamoGeneralRealtimeEventTransactionForSite} =
+            await updateDocumentContent(context, options);
 
-        return {newVersion, updatedCommentThreads};
+        const eventTransactionForSite =
+            await getDynamoGeneralRealtimeEventTransactionForSite(context);
+
+        return {newVersion, updatedCommentThreads, eventTransactionForSite};
     } catch (error) {
         if (!isDynamoIdempotentParameterMismatchError(error)) throw error;
 
@@ -3800,7 +3895,15 @@ export async function updateDocumentContentIdempotently(
             ),
         );
 
-        return {newVersion: documentItem.version, updatedCommentThreads};
+        // The site transaction entries were committed by the original call — on this
+        // idempotent retry we have no way to reconstruct the events, so we return an empty
+        // array. The sites RPC caller will still get a usable response; the realtime
+        // broadcast for the original call already happened.
+        return {
+            newVersion: documentItem.version,
+            updatedCommentThreads,
+            eventTransactionForSite: emptyArray,
+        };
     }
 }
 
@@ -7468,4 +7571,47 @@ async function createEmptyDocumentContentForBot(
             DocumentContentProsemirrorSchema.node("paragraph"),
         ]),
     );
+}
+
+function validateEntityCreationInSiteIfNeeded(
+    initialAccessPolicyIfExists: AccessPolicy | undefined,
+    sitePosition: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey} | undefined,
+) {
+    if (sitePosition) {
+        // If site position is provided without an initial access policy, we'll create a
+        // site access policy for the document using the `siteId` from `sitePosition`
+        if (!initialAccessPolicyIfExists) {
+            return;
+        } else {
+            if (
+                initialAccessPolicyIfExists.type === "Site" &&
+                initialAccessPolicyIfExists.siteId !== sitePosition.siteId
+            ) {
+                throw new InvalidArgumentError(
+                    "Can\u2019t create a document in a site with a different site ID",
+                );
+            }
+
+            if (initialAccessPolicyIfExists.type !== "Site") {
+                throw new InvalidArgumentError(
+                    "Can\u2019t create a document with a non-site access policy in a site",
+                );
+            }
+        }
+    }
+    // Site position was not provided
+    else {
+        // If neither the sitePosition or initialAccessPolicyIfExists are provided, we'll
+        // create a default local access policy for the document.
+        if (!initialAccessPolicyIfExists) {
+            return;
+        }
+        // If the initial access policy is a site and the client didn't provide the site
+        // position, throw an error.
+        else if (initialAccessPolicyIfExists.type === "Site") {
+            throw new InvalidArgumentError(
+                "Can\u2019t create a document in a site without specifying the site position",
+            );
+        }
+    }
 }

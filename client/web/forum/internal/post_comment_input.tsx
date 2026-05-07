@@ -31,7 +31,7 @@ import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_m
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSiteRegistry} from "~/client/web/sites/site_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,

@@ -86,7 +86,8 @@ export type DurableObjectServiceName =
     | "ChannelRealtimeService"
     | "ChatRealtimeService"
     | "MyAccountService"
-    | "TaskNotesCollaborationService";
+    | "TaskNotesCollaborationService"
+    | "SiteRealtimeService";
 
 // TODO(calebmer, #tracer): Tracer stuff
 //
