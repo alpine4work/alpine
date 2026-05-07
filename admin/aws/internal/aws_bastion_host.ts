@@ -39,13 +39,13 @@ export class AwsBastionHost extends Construct {
         const bastionHostSecurityGroup = new SecurityGroup(this, "InstanceSecurityGroup", {
             vpc,
             description:
-                "CyberworldsStack/BastionHost — no inbound rules; access via SSM Session Manager.",
+                "CyberworldsStack/BastionHost, no inbound rules. Access via SSM Session Manager.",
             allowAllOutbound: true,
         });
 
         const bastionHostRole = new Role(this, "InstanceRole", {
             assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
-            description: "CyberworldsStack/BastionHost — SSM managed instance role.",
+            description: "CyberworldsStack/BastionHost, SSM managed instance role.",
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
             ],

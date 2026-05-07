@@ -213,7 +213,7 @@ Resources:
     BastionHostInstanceSecurityGroupE1AD2D4E:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            GroupDescription: CyberworldsStack/BastionHost — no inbound rules; access via SSM Session Manager.
+            GroupDescription: CyberworldsStack/BastionHost, no inbound rules. Access via SSM Session Manager.
             SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
                   Description: Allow all outbound traffic by default
@@ -232,7 +232,7 @@ Resources:
                       Principal:
                           Service: ec2.amazonaws.com
                 Version: 2012-10-17
-            Description: CyberworldsStack/BastionHost — SSM managed instance role.
+            Description: CyberworldsStack/BastionHost, SSM managed instance role.
             ManagedPolicyArns:
                 - Fn::Join:
                       - ""
