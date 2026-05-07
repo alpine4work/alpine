@@ -134,6 +134,10 @@ export class AwsOpensearch {
             deployScriptResource.node.addDependency(domain);
         }
 
+        domain.connections.allowFrom(vpc.bastionHost.securityGroup, Port.tcp(443));
+        // Allow the bastion host to read and write to the OpenSearch domain.
+        domain.grantReadWrite(vpc.bastionHost.instance.role);
+
         return new AwsOpensearch(domain, indexNames);
     }
 

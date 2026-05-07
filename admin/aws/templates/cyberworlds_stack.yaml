@@ -210,6 +210,145 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/Vpc/VPCGW
+    BastionHostInstanceSecurityGroupE1AD2D4E:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/BastionHost — no inbound rules; access via SSM Session Manager.
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceSecurityGroup/Resource
+    BastionHostInstanceRole1113FAAD:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            Description: CyberworldsStack/BastionHost — SSM managed instance role.
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceRole/Resource
+    BastionHostInstanceRoleDefaultPolicy9DBB02BB:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - es:ESHttpDelete
+                          - es:ESHttpGet
+                          - es:ESHttpHead
+                          - es:ESHttpPatch
+                          - es:ESHttpPost
+                          - es:ESHttpPut
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - OpensearchDomainCED7C974
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: BastionHostInstanceRoleDefaultPolicy9DBB02BB
+            Roles:
+                - Ref: BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceRole/DefaultPolicy/Resource
+    BastionHostInstanceInstanceProfileB1DB546D:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/Instance/InstanceProfile
+    BastionHostInstance82B9AD9B:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                    - 0
+                    - Fn::GetAZs: ""
+            IamInstanceProfile:
+                Ref: BastionHostInstanceInstanceProfileB1DB546D
+            ImageId:
+                Ref: SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter
+            InstanceType: t3.micro
+            SecurityGroupIds:
+                - Fn::GetAtt:
+                      - BastionHostInstanceSecurityGroupE1AD2D4E
+                      - GroupId
+            SubnetId:
+                Ref: VpcPublicSubnet1Subnet5C2D37C4
+            Tags:
+                - Key: Name
+                  Value: cyberworlds-bastion-host
+            UserData:
+                Fn::Base64: "#!/bin/bash"
+        DependsOn:
+            - BastionHostInstanceRoleDefaultPolicy9DBB02BB
+            - BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/Instance/Resource
+    BastionHostElasticIp852C19EF:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: vpc
+            Tags:
+                - Key: Name
+                  Value: cyberworlds-bastion-host-elastic-ip
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/ElasticIp
+    BastionHostElasticIpAssociationAE87FCF0:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            AllocationId:
+                Fn::GetAtt:
+                    - BastionHostElasticIp852C19EF
+                    - AllocationId
+            InstanceId:
+                Ref: BastionHostInstance82B9AD9B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/ElasticIpAssociation
+    BastionHostDataVolumeEB43BB59:
+        Type: AWS::EC2::Volume
+        Properties:
+            AvailabilityZone:
+                Fn::GetAtt:
+                    - BastionHostInstance82B9AD9B
+                    - AvailabilityZone
+            MultiAttachEnabled: false
+            Size: 20
+            VolumeType: gp3
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/DataVolume/Resource
+    BastionHostDataVolumeAttachmentC28F03A9:
+        Type: AWS::EC2::VolumeAttachment
+        Properties:
+            Device: /dev/sdf
+            InstanceId:
+                Ref: BastionHostInstance82B9AD9B
+            VolumeId:
+                Ref: BastionHostDataVolumeEB43BB59
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/DataVolumeAttachment
     EcsClusterFB9B21B5:
         Type: AWS::ECS::Cluster
         Metadata:
@@ -258,6 +397,24 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA4439F4AB11D:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchDomainSecurityGroup046A436D
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - BastionHostInstanceSecurityGroupE1AD2D4E
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+                CyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA:443
     OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD0844369CA9230:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -710,6 +867,7 @@ Resources:
             - OpensearchDomainCED7C974
             - OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup432566304431BAD3659
             - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F56844399D2FF0A
+            - OpensearchDomainSecurityGroupfromCyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA4439F4AB11D
             - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3443A4E30F75
             - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
             - OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE
@@ -10143,6 +10301,9 @@ Outputs:
         Export:
             Name: CyberworldsStack:FileProcessorHeavyJobQueueArn
 Parameters:
+    SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter:
+        Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+        Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
     SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
         Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
