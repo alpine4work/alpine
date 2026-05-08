@@ -33,41 +33,74 @@ describe("databaseNumberFieldProvider", () => {
     describe("parseString", () => {
         const config = {type: "number" as const, decimalPlaces: null};
 
-        test("empty string parses to null", () => {
-            expect(databaseNumberFieldProvider.parseString("", config)).toEqual({
+        test.each([
+            ["", null],
+            ["   ", null],
+            ["0", 0],
+            ["42", 42],
+            ["3.14", 3.14],
+            ["-2.5", -2.5],
+            ["+7", 7],
+            ["−3.14", -3.14], // U+2212 minus
+            [".5", 0.5],
+            ["3.", 3],
+            ["1.2e3", 1200],
+            ["  3.14  ", 3.14],
+            // Currency
+            ["$3.14", 3.14],
+            ["£3.14", 3.14],
+            ["€3.14", 3.14],
+            ["¥3.14", 3.14],
+            ["3.14 kr", 3.14],
+            ["R$3.14", 3.14],
+            // Sign + currency in either order, with whitespace
+            ["-£3.14", -3.14],
+            ["£-3.14", -3.14],
+            ["- £ 3.14", -3.14],
+            ["+ $10", 10],
+            // Accounting negatives
+            ["(3.14)", -3.14],
+            ["(£3.14)", -3.14],
+            ["($1,234.56)", -1234.56],
+            // Percent (cases where `× 0.01` is exact in IEEE-754).
+            ["50%", 0.5],
+            ["-25%", -0.25],
+            // US thousands separators
+            ["1,234", 1234],
+            ["1,234.56", 1234.56],
+            ["1,234,567", 1234567],
+            ["$1,234.56", 1234.56],
+        ])("parses %j as %s", (input, expected) => {
+            expect(databaseNumberFieldProvider.parseString(input, config)).toEqual({
                 ok: true,
-                value: null,
+                value: expected,
             });
         });
 
-        test("integers and decimals parse to numbers", () => {
-            expect(databaseNumberFieldProvider.parseString("0", config)).toEqual({
-                ok: true,
-                value: 0,
-            });
-            expect(databaseNumberFieldProvider.parseString("42", config)).toEqual({
-                ok: true,
-                value: 42,
-            });
-            expect(databaseNumberFieldProvider.parseString("3.14", config)).toEqual({
-                ok: true,
-                value: 3.14,
-            });
-            expect(databaseNumberFieldProvider.parseString("-2.5", config)).toEqual({
-                ok: true,
-                value: -2.5,
-            });
+        test("percent of a non-power-of-two scales approximately", () => {
+            // `3.14 × 0.01` isn't exact in IEEE-754, so use
+            // a tolerant compare instead of `toEqual`.
+            const result = databaseNumberFieldProvider.parseString("3.14%", config);
+            expect(result.ok).toBe(true);
+            if (result.ok) expect(result.value!).toBeCloseTo(0.0314, 10);
         });
 
-        test("non-numeric strings are not ok", () => {
-            expect(databaseNumberFieldProvider.parseString("abc", config).ok).toBe(false);
-            expect(databaseNumberFieldProvider.parseString("1.2.3", config).ok).toBe(false);
-        });
-
-        test("Infinity and NaN are not ok", () => {
-            expect(databaseNumberFieldProvider.parseString("Infinity", config).ok).toBe(false);
-            expect(databaseNumberFieldProvider.parseString("-Infinity", config).ok).toBe(false);
-            expect(databaseNumberFieldProvider.parseString("NaN", config).ok).toBe(false);
+        test.each([
+            ["abc"],
+            ["1.2.3"],
+            ["Infinity"],
+            ["-Infinity"],
+            ["NaN"],
+            ["$"],
+            ["%"],
+            ["()"],
+            // Ambiguous comma pattern: not stripped, then Number() rejects.
+            ["1,23"],
+            ["1,2345"],
+            // European decimal — we don't guess.
+            ["3,14"],
+        ])("rejects %j", input => {
+            expect(databaseNumberFieldProvider.parseString(input, config).ok).toBe(false);
         });
     });
 

@@ -27,36 +27,45 @@ describe("databaseCheckboxFieldProvider", () => {
     describe("parseString", () => {
         const config = {type: "checkbox" as const};
 
-        test("'true' and '1' parse to true", () => {
-            expect(databaseCheckboxFieldProvider.parseString("true", config)).toEqual({
+        test.each([
+            ["", false],
+            ["   ", false],
+            ["false", false],
+            ["FALSE", false],
+            ["False", false],
+            ["0", false],
+            ["no", false],
+            ["No", false],
+            ["n", false],
+            ["off", false],
+            ["unchecked", false],
+            ["f", false],
+            ["F", false],
+            ["✗", false],
+            ["✘", false],
+            ["☐", false],
+            ["  false  ", false],
+            ["true", true],
+            ["TRUE", true],
+            ["1", true],
+            ["yes", true],
+            ["y", true],
+            ["on", true],
+            ["checked", true],
+            ["t", true],
+            ["x", true],
+            ["X", true],
+            ["✓", true],
+            ["✔", true],
+            ["☑", true],
+            ["2", true],
+            ["arbitrary text", true],
+            ["  yes  ", true],
+        ])("parses %j as %s", (input, expected) => {
+            expect(databaseCheckboxFieldProvider.parseString(input, config)).toEqual({
                 ok: true,
-                value: true,
+                value: expected,
             });
-            expect(databaseCheckboxFieldProvider.parseString("1", config)).toEqual({
-                ok: true,
-                value: true,
-            });
-        });
-
-        test("'false', '0', and empty parse to false", () => {
-            expect(databaseCheckboxFieldProvider.parseString("false", config)).toEqual({
-                ok: true,
-                value: false,
-            });
-            expect(databaseCheckboxFieldProvider.parseString("0", config)).toEqual({
-                ok: true,
-                value: false,
-            });
-            expect(databaseCheckboxFieldProvider.parseString("", config)).toEqual({
-                ok: true,
-                value: false,
-            });
-        });
-
-        test("anything else is not ok", () => {
-            expect(databaseCheckboxFieldProvider.parseString("yes", config).ok).toBe(false);
-            expect(databaseCheckboxFieldProvider.parseString("2", config).ok).toBe(false);
-            expect(databaseCheckboxFieldProvider.parseString("True", config).ok).toBe(false);
         });
     });
 

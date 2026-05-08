@@ -18,11 +18,27 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
     fromSqlValue: sqlValue => sqlValue === 1,
     getDefaultConfig: () => ({type: "checkbox"}),
     parseString: input => {
-        if (input === "true" || input === "1") return {ok: true, value: true};
-        if (input === "false" || input === "0" || input === "") {
-            return {ok: true, value: false};
-        }
-        return {ok: false, error: undefined};
+        const normalized = input.trim().toLowerCase();
+        return {ok: true, value: !checkboxFalseStrings.has(normalized)};
     },
     formatString: value => (value ? "true" : "false"),
 });
+
+/**
+ * Strings interpreted as `false` by `parseString`. Match
+ * is on a trimmed, lower-cased input. Empty (whitespace
+ * only) input is also `false`. Anything else is `true`.
+ */
+const checkboxFalseStrings: ReadonlySet<string> = new Set([
+    "",
+    "0",
+    "f",
+    "false",
+    "n",
+    "no",
+    "off",
+    "unchecked",
+    "✗",
+    "✘",
+    "☐",
+]);
