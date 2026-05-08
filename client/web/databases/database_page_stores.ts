@@ -1,8 +1,5 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
-import {
-    OpfsPageStore,
-    type OptimisticUpdateHandle,
-} from "~/client/web/databases/opfs_page_store.js";
+import {OpfsPageStore, type OptimisticUpdate} from "~/client/web/databases/opfs_page_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
@@ -15,26 +12,38 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * flag lives here rather than on each store: a single
  * SQL statement may write through any subset of attached
  * databases, and those writes must land atomically in
- * each store's overlay together. The persistent overlay
- * and per-call write-set both live on the per-table
- * {@link OptimisticUpdateHandle}; each store reaches its
- * handle through the callback installed at construction.
+ * each store's overlay together. While inside
+ * {@link optimistic}, each store's
+ * `getCurrentOptimisticUpdate` callback returns the
+ * per-table {@link OptimisticUpdate} this wrapper
+ * allocates lazily on first access; outside, the
+ * callback returns `null` and writes go straight to
+ * OPFS.
  */
 export class DatabasePageStores {
+    private readonly groupDir: OpfsDirectoryHandle;
     private readonly stores = new Map<DatabaseTableId, OpfsPageStore>();
-    private readonly handles = new Map<DatabaseTableId, OptimisticUpdateHandle>();
-    private inOptimistic = false;
+    /**
+     * Per-table writes captured during the current
+     * {@link optimistic} call. `null` outside an
+     * optimistic action.
+     */
+    private currentWriteSets: Map<DatabaseTableId, Set<number>> | null = null;
+
+    constructor(groupDir: OpfsDirectoryHandle) {
+        this.groupDir = groupDir;
+    }
 
     /**
      * Open the {@link OpfsPageStore} for `tableId` inside
-     * `groupDir`'s `{tableId}/` subdirectory and register
-     * it. Returns the new store.
+     * the group dir's `{tableId}/` subdirectory and
+     * register it. Returns the new store.
      */
-    async create(groupDir: OpfsDirectoryHandle, tableId: DatabaseTableId): Promise<OpfsPageStore> {
+    async create(tableId: DatabaseTableId): Promise<OpfsPageStore> {
         assert(!this.stores.has(tableId), `page store for table ${tableId} already exists`);
-        const tableDir = await groupDir.getDirectoryHandle(tableId, {create: true});
+        const tableDir = await this.groupDir.getDirectoryHandle(tableId, {create: true});
         const store = await OpfsPageStore.create(tableDir, () =>
-            this.optimisticUpdateHandleFor(tableId),
+            this.getCurrentOptimisticUpdate(tableId),
         );
         this.stores.set(tableId, store);
         return store;
@@ -59,46 +68,43 @@ export class DatabasePageStores {
      * weren't written to are omitted.
      */
     optimistic(cb: () => void): Map<DatabaseTableId, ReadonlySet<number>> {
-        assert(!this.inOptimistic, "nested optimistic actions are not supported");
-        this.inOptimistic = true;
+        assert(this.currentWriteSets === null, "nested optimistic actions are not supported");
+        const writeSets = new Map<DatabaseTableId, Set<number>>();
+        this.currentWriteSets = writeSets;
         try {
             cb();
         } finally {
-            this.inOptimistic = false;
+            this.currentWriteSets = null;
         }
         const writtenPages = new Map<DatabaseTableId, ReadonlySet<number>>();
-        for (const [tableId, handle] of this.handles) {
-            if (handle.writeSet === null) continue;
-            if (handle.writeSet.size > 0) {
-                writtenPages.set(tableId, handle.writeSet);
+        for (const [tableId, writeSet] of writeSets) {
+            if (writeSet.size > 0) {
+                writtenPages.set(tableId, writeSet);
             }
-            handle.writeSet = null;
         }
         return writtenPages;
     }
 
     /** Discard every store's optimistic overlay. */
     clearOptimisticPages(): void {
-        for (const handle of this.handles.values()) {
-            handle.optimisticPages.clear();
+        for (const store of this.stores.values()) {
+            store.clearOptimisticPages();
         }
     }
 
     /**
-     * Returns the {@link OptimisticUpdateHandle} for
-     * `tableId`, lazily allocating it on first access.
-     * Inside an optimistic action, ensures `writeSet` is
-     * present so writes can record what they touch.
+     * Returns the current call's {@link OptimisticUpdate}
+     * for `tableId`, allocating its write-set on first
+     * access. Returns `null` outside an optimistic
+     * action.
      */
-    private optimisticUpdateHandleFor(tableId: DatabaseTableId): OptimisticUpdateHandle {
-        let handle = this.handles.get(tableId);
-        if (handle === undefined) {
-            handle = {optimisticPages: new Map(), writeSet: null};
-            this.handles.set(tableId, handle);
+    private getCurrentOptimisticUpdate(tableId: DatabaseTableId): OptimisticUpdate | null {
+        if (this.currentWriteSets === null) return null;
+        let writeSet = this.currentWriteSets.get(tableId);
+        if (writeSet === undefined) {
+            writeSet = new Set();
+            this.currentWriteSets.set(tableId, writeSet);
         }
-        if (this.inOptimistic && handle.writeSet === null) {
-            handle.writeSet = new Set();
-        }
-        return handle;
+        return {writeSet};
     }
 }

@@ -14,23 +14,16 @@ const indexSchema = Schema.map(
 );
 
 /**
- * Per-store optimistic-update state, owned externally
- * (typically by {@link DatabasePageStores}) and surfaced
- * to {@link OpfsPageStore} via a callback so that all
- * cross-store coordination can live in one place.
- *
- * - `optimisticPages` is the in-memory overlay; reads
- *   that hit a page in the overlay return that data
- *   instead of the OPFS-backed copy. Persists across
- *   optimistic actions until cleared.
- * - `writeSet` is non-null while the store is inside an
- *   optimistic action. Writes during that window go to
- *   the overlay and add the page index here so the call
- *   can return what was actually touched.
+ * Returned by `getCurrentOptimisticUpdate` while a store
+ * is inside an optimistic action. Writes during that
+ * window go to the store's in-memory overlay and add the
+ * page index here so the enclosing call can report what
+ * was actually touched. Outside of an optimistic action,
+ * the callback returns `null` and writes go straight to
+ * OPFS.
  */
-export interface OptimisticUpdateHandle {
-    optimisticPages: Map<number, Uint8Array>;
-    writeSet: Set<number> | null;
+export interface OptimisticUpdate {
+    writeSet: Set<number>;
 }
 
 /**
@@ -43,9 +36,11 @@ export interface OptimisticUpdateHandle {
  * Reads go to OPFS on-demand (SQLite's page cache handles
  * repeat reads). Writes are write-through.
  *
- * Optimistic mutations are not tracked here — the
- * {@link OptimisticUpdateHandle} returned by
- * `getOptimisticUpdateHandle` carries that state.
+ * The optimistic overlay is owned here; whether a write
+ * should land in the overlay rather than on disk is
+ * decided by `getCurrentOptimisticUpdate`, which is
+ * driven externally (typically by `DatabasePageStores`)
+ * so cross-store optimistic lifecycle stays in one place.
  */
 export class OpfsPageStore implements VfsFile {
     private readonly index = new Map<number, {slot: number; timestamp: number}>();
@@ -54,28 +49,29 @@ export class OpfsPageStore implements VfsFile {
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
-    private readonly getOptimisticUpdateHandle: () => OptimisticUpdateHandle;
+    private readonly optimisticPages = new Map<number, Uint8Array>();
+    private readonly getCurrentOptimisticUpdate: () => OptimisticUpdate | null;
 
     private constructor(
         pagesHandle: OpfsSyncAccessHandle,
         indexHandle: OpfsSyncAccessHandle,
-        getOptimisticUpdateHandle: () => OptimisticUpdateHandle,
+        getCurrentOptimisticUpdate: () => OptimisticUpdate | null,
     ) {
         this.pagesHandle = pagesHandle;
         this.indexHandle = indexHandle;
-        this.getOptimisticUpdateHandle = getOptimisticUpdateHandle;
+        this.getCurrentOptimisticUpdate = getCurrentOptimisticUpdate;
     }
 
     static async create(
         dir: OpfsDirectoryHandle,
-        getOptimisticUpdateHandle: () => OptimisticUpdateHandle,
+        getCurrentOptimisticUpdate: () => OptimisticUpdate | null,
     ): Promise<OpfsPageStore> {
         const pagesFile = await dir.getFileHandle("pages.bin", {create: true});
         const pagesHandle = await pagesFile.createSyncAccessHandle();
         const indexFile = await dir.getFileHandle("index.json", {create: true});
         const indexHandle = await indexFile.createSyncAccessHandle();
 
-        const store = new OpfsPageStore(pagesHandle, indexHandle, getOptimisticUpdateHandle);
+        const store = new OpfsPageStore(pagesHandle, indexHandle, getCurrentOptimisticUpdate);
         store.loadIndex();
         return store;
     }
@@ -85,11 +81,15 @@ export class OpfsPageStore implements VfsFile {
      * if it's not in the optimistic overlay.
      */
     getOptimisticPage(pageIndex: number): Uint8Array | undefined {
-        return this.getOptimisticUpdateHandle().optimisticPages.get(pageIndex);
+        return this.optimisticPages.get(pageIndex);
     }
 
     hasOptimisticPages(): boolean {
-        return this.getOptimisticUpdateHandle().optimisticPages.size > 0;
+        return this.optimisticPages.size > 0;
+    }
+
+    clearOptimisticPages(): void {
+        this.optimisticPages.clear();
     }
 
     read(data: Uint8Array, offset: number): boolean {
@@ -105,7 +105,7 @@ export class OpfsPageStore implements VfsFile {
             `read spans pages: offset=${offset} amount=${data.byteLength}`,
         );
 
-        const overlay = this.getOptimisticUpdateHandle().optimisticPages.get(pageIndex);
+        const overlay = this.optimisticPages.get(pageIndex);
         if (overlay !== undefined) {
             const pageOffset = offset % sqlitePageSize;
             data.set(overlay.subarray(pageOffset, pageOffset + data.byteLength));
@@ -131,20 +131,17 @@ export class OpfsPageStore implements VfsFile {
 
         const pageIndex = offset / sqlitePageSize;
 
-        const handle = this.getOptimisticUpdateHandle();
-        if (handle.writeSet !== null) {
-            handle.optimisticPages.set(pageIndex, new Uint8Array(data));
-            handle.writeSet.add(pageIndex);
+        const update = this.getCurrentOptimisticUpdate();
+        if (update !== null) {
+            this.optimisticPages.set(pageIndex, new Uint8Array(data));
+            update.writeSet.add(pageIndex);
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }
             return;
         }
 
-        assert(
-            handle.optimisticPages.size === 0,
-            "cannot write to OPFS while optimistic pages exist",
-        );
+        assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
 
         const existing = this.index.get(pageIndex);
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
@@ -181,9 +178,8 @@ export class OpfsPageStore implements VfsFile {
     }
 
     sync(): void {
-        const handle = this.getOptimisticUpdateHandle();
-        if (handle.writeSet !== null) return;
-        assert(handle.optimisticPages.size === 0, "cannot sync OPFS while optimistic pages exist");
+        if (this.getCurrentOptimisticUpdate() !== null) return;
+        assert(!this.hasOptimisticPages(), "cannot sync OPFS while optimistic pages exist");
         this.pagesHandle.flush();
         this.flushIndex();
     }
@@ -195,7 +191,7 @@ export class OpfsPageStore implements VfsFile {
         } else {
             size = this.maxPageIndex < 0 ? 0 : (this.maxPageIndex + 1) * sqlitePageSize;
         }
-        for (const pageIndex of this.getOptimisticUpdateHandle().optimisticPages.keys()) {
+        for (const pageIndex of this.optimisticPages.keys()) {
             const end = (pageIndex + 1) * sqlitePageSize;
             if (end > size) size = end;
         }

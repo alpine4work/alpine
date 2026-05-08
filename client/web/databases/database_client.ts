@@ -182,8 +182,8 @@ export class DatabaseClient {
         }
         const sqlite3 = await sqlite3Promise;
 
-        const pageStores = new DatabasePageStores();
-        await pageStores.create(groupDir, databaseMainTableId);
+        const pageStores = new DatabasePageStores(groupDir);
+        await pageStores.create(databaseMainTableId);
 
         return new DatabaseClient(sqlite3, pageStores);
     }
