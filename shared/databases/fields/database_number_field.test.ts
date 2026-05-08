@@ -46,13 +46,25 @@ describe("databaseNumberFieldProvider", () => {
             ["3.", 3],
             ["1.2e3", 1200],
             ["  3.14  ", 3.14],
-            // Currency
+            // Currency symbols
             ["$3.14", 3.14],
             ["£3.14", 3.14],
             ["€3.14", 3.14],
             ["¥3.14", 3.14],
             ["3.14 kr", 3.14],
             ["R$3.14", 3.14],
+            // Alphabetic currency codes (any letters strip)
+            ["USD3.14", 3.14],
+            ["USD 3.14", 3.14],
+            ["3.14 USD", 3.14],
+            ["AU$3.14", 3.14],
+            ["NZ$1,234.56", 1234.56],
+            ["JPY1200", 1200],
+            ["Fr. 3.14", 3.14],
+            ["3.14 Fr.", 3.14],
+            // Permissive alpha — even non-currency letters strip.
+            ["abc 3.14", 3.14],
+            ["3.14 xyz", 3.14],
             // Sign + currency in either order, with whitespace
             ["-£3.14", -3.14],
             ["£-3.14", -3.14],

@@ -31,23 +31,19 @@ export const databaseNumberFieldProvider = defineDatabaseFieldProvider({
 // -- parseString helpers ------------------------------------------------------
 
 /**
- * Currency symbols stripped from the start or end of a
- * number string. Order matters: longer prefixes (e.g.
- * `R$`) must come before single-character ones (`$`)
- * so the longer match wins.
+ * Non-alphabetic currency symbols stripped from the start
+ * or end of a number string. Letter-based currency tokens
+ * (`USD`, `AU$`, `Fr.`, `kr`, etc.) are handled by the
+ * generic alphabetic-prefix/suffix stripping in
+ * `parseNumberString` and don't need to be enumerated here.
  */
-const currencySymbols: ReadonlyArray<string> = [
-    "R$",
-    "Fr.",
-    "kr",
-    "$",
-    "£",
-    "€",
-    "¥",
-    "¢",
-    "₩",
-    "₹",
-];
+const currencySymbols: ReadonlyArray<string> = ["$", "£", "€", "¥", "¢", "₩", "₹"];
+
+/** Match an alphabetic prefix, optionally followed by a `.` (e.g. `Fr.`). */
+const leadingAlphaPattern = /^[A-Za-z]+\.?/;
+
+/** Match an alphabetic suffix, optionally followed by a `.` (e.g. `Fr.`). */
+const trailingAlphaPattern = /[A-Za-z]+\.?$/;
 
 /**
  * Parse a string into a nullable number. Forgiving for
@@ -60,7 +56,10 @@ const currencySymbols: ReadonlyArray<string> = [
  * - Accounting negatives: `(3.14)` → `-3.14`.
  * - Trailing `%`: scales by `1/100` (`50%` → `0.5`).
  * - Currency symbols at either end (`$`, `£`, `€`,
- *   `¥`, `¢`, `₩`, `₹`, `R$`, `kr`, `Fr.`).
+ *   `¥`, `¢`, `₩`, `₹`).
+ * - Any alphabetic prefix/suffix (currency codes like
+ *   `USD`, `JPY`, `AU$`, `Fr.`, `kr`). Permissive — also
+ *   strips arbitrary letters like `abc 3.14` → 3.14.
  * - US thousands separators when the comma pattern is
  *   unambiguous (`1,234.56` → `1234.56`). Mismatched
  *   patterns like `1,23` are rejected, not silently
@@ -89,7 +88,13 @@ function parseNumberString(input: string): Result<number | null, void> {
         s = s.slice(0, -1).trimEnd();
     }
 
-    // Trailing currency symbol: `3.14 kr`.
+    // Trailing alphabetic suffix and/or non-alpha currency
+    // symbol — handles `3.14 USD`, `3.14 kr`, `100¥`.
+    s = s.trimEnd();
+    const trailingAlphaMatch = trailingAlphaPattern.exec(s);
+    if (trailingAlphaMatch !== null) {
+        s = s.slice(0, -trailingAlphaMatch[0].length).trimEnd();
+    }
     for (const sym of currencySymbols) {
         if (s.endsWith(sym)) {
             s = s.slice(0, -sym.length).trimEnd();
@@ -98,11 +103,17 @@ function parseNumberString(input: string): Result<number | null, void> {
     }
 
     // Leading currency and/or sign in any order. Iterates so
-    // arrangements like `- £ 3.14`, `£ -3.14`, or `+$10` all
-    // strip cleanly.
+    // arrangements like `- £ 3.14`, `£ -3.14`, `+$10`, or
+    // `AU$3.14` (alpha then symbol) all strip cleanly.
     let changed = true;
     while (changed) {
         changed = false;
+        s = s.trimStart();
+        const leadingAlphaMatch = leadingAlphaPattern.exec(s);
+        if (leadingAlphaMatch !== null) {
+            s = s.slice(leadingAlphaMatch[0].length);
+            changed = true;
+        }
         s = s.trimStart();
         for (const sym of currencySymbols) {
             if (s.startsWith(sym)) {
