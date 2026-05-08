@@ -91,14 +91,14 @@ describe("ensureCacheIsUpToDate", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(0)!.version;
         const conn = createConnection(doStorage);
 
         // Page 0 matches, page 1 has stale client version
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
+                [0, version0],
                 [1, 999],
             ]),
         );
@@ -112,14 +112,14 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(0)!.version;
         const conn = createConnection(doStorage);
 
         // Page 5 doesn't exist on the server
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
+                [0, version0],
                 [5, 123],
             ]),
         );
@@ -206,8 +206,8 @@ describe("ensureCacheIsUpToDate", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
-        const ts1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(0)!.version;
+        const version1 = doStorage.readPage(1)!.version;
 
         // Truncate page 1 away.
         doStorage.truncate(1 * sqlitePageSize);
@@ -216,8 +216,8 @@ describe("ensureCacheIsUpToDate", () => {
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
-                [1, ts1],
+                [0, version0],
+                [1, version1],
             ]),
         );
 
@@ -286,8 +286,8 @@ describe("per-browser page tracking", () => {
                 [2, makePage(0xcc)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
-        const ts1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(0)!.version;
+        const version1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -297,8 +297,8 @@ describe("per-browser page tracking", () => {
         await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
-                [1, ts1],
+                [0, version0],
+                [1, version1],
                 [2, 999],
             ]),
         );
@@ -324,7 +324,7 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -334,7 +334,7 @@ describe("per-browser page tracking", () => {
         await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
+                [0, version0],
                 [1, 999],
             ]),
         );
@@ -434,8 +434,8 @@ describe("per-browser page tracking", () => {
                 [2, makePage(0xcc)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
-        const ts1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(0)!.version;
+        const version1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -445,8 +445,8 @@ describe("per-browser page tracking", () => {
         await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
-                [1, ts1],
+                [0, version0],
+                [1, version1],
                 [2, 999],
             ]),
         );
@@ -484,7 +484,7 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -494,7 +494,7 @@ describe("per-browser page tracking", () => {
         await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
+                [0, version0],
                 [1, 999],
             ]),
         );
@@ -551,8 +551,8 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.version;
-        const ts1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(0)!.version;
+        const version1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -562,13 +562,13 @@ describe("per-browser page tracking", () => {
         await ensureCacheIsUpToDate(
             conn,
             new Map([
-                [0, ts0],
-                [1, ts1],
+                [0, version0],
+                [1, version1],
             ]),
         );
 
         // Second sync: only page 0 sent (page 1 not in client cache)
-        await ensureCacheIsUpToDate(conn, new Map([[0, ts0]]));
+        await ensureCacheIsUpToDate(conn, new Map([[0, version0]]));
 
         // Tracker should only know about page 0 now
         const pages = new Map([
