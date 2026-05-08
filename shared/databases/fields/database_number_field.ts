@@ -46,6 +46,13 @@ const leadingAlphaPattern = /^[A-Za-z]+\.?/;
 const trailingAlphaPattern = /[A-Za-z]+\.?$/;
 
 /**
+ * Maximum non-whitespace characters allowed in the
+ * leading or trailing decoration around a number.
+ * `USD$ 3.14` (4) parses; `USDXX 3.14` (5) does not.
+ */
+const maxDecorationNonWhitespace = 4;
+
+/**
  * Parse a string into a nullable number. Forgiving for
  * common copy-paste shapes; assumes en-US conventions
  * (`,` thousands, `.` decimal). Specifically tolerates:
@@ -58,8 +65,9 @@ const trailingAlphaPattern = /[A-Za-z]+\.?$/;
  * - Currency symbols at either end (`$`, `£`, `€`,
  *   `¥`, `¢`, `₩`, `₹`).
  * - Any alphabetic prefix/suffix (currency codes like
- *   `USD`, `JPY`, `AU$`, `Fr.`, `kr`). Permissive — also
- *   strips arbitrary letters like `abc 3.14` → 3.14.
+ *   `USD`, `JPY`, `AU$`, `Fr.`, `kr`), capped at 4
+ *   non-whitespace characters total per side. So
+ *   `USD$ 3.14` parses but `USDXX 3.14` does not.
  * - US thousands separators when the comma pattern is
  *   unambiguous (`1,234.56` → `1234.56`). Mismatched
  *   patterns like `1,23` are rejected, not silently
@@ -89,34 +97,51 @@ function parseNumberString(input: string): Result<number | null, void> {
     }
 
     // Trailing alphabetic suffix and/or non-alpha currency
-    // symbol — handles `3.14 USD`, `3.14 kr`, `100¥`.
-    s = s.trimEnd();
-    const trailingAlphaMatch = trailingAlphaPattern.exec(s);
-    if (trailingAlphaMatch !== null) {
-        s = s.slice(0, -trailingAlphaMatch[0].length).trimEnd();
-    }
-    for (const sym of currencySymbols) {
-        if (s.endsWith(sym)) {
-            s = s.slice(0, -sym.length).trimEnd();
-            break;
+    // symbol, in any order. Iterates so `3.14 USD$` (alpha
+    // then symbol) and `3.14 $USD` strip cleanly.
+    let trailingNonWs = 0;
+    let trailingChanged = true;
+    while (trailingChanged) {
+        trailingChanged = false;
+        s = s.trimEnd();
+        const trailingAlphaMatch = trailingAlphaPattern.exec(s);
+        if (trailingAlphaMatch !== null) {
+            trailingNonWs += trailingAlphaMatch[0].length;
+            s = s.slice(0, -trailingAlphaMatch[0].length);
+            trailingChanged = true;
         }
+        s = s.trimEnd();
+        for (const sym of currencySymbols) {
+            if (s.endsWith(sym)) {
+                trailingNonWs += sym.length;
+                s = s.slice(0, -sym.length);
+                trailingChanged = true;
+                break;
+            }
+        }
+    }
+    if (trailingNonWs > maxDecorationNonWhitespace) {
+        return {ok: false, error: undefined};
     }
 
     // Leading currency and/or sign in any order. Iterates so
     // arrangements like `- £ 3.14`, `£ -3.14`, `+$10`, or
     // `AU$3.14` (alpha then symbol) all strip cleanly.
+    let leadingNonWs = 0;
     let changed = true;
     while (changed) {
         changed = false;
         s = s.trimStart();
         const leadingAlphaMatch = leadingAlphaPattern.exec(s);
         if (leadingAlphaMatch !== null) {
+            leadingNonWs += leadingAlphaMatch[0].length;
             s = s.slice(leadingAlphaMatch[0].length);
             changed = true;
         }
         s = s.trimStart();
         for (const sym of currencySymbols) {
             if (s.startsWith(sym)) {
+                leadingNonWs += sym.length;
                 s = s.slice(sym.length);
                 changed = true;
                 break;
@@ -125,12 +150,17 @@ function parseNumberString(input: string): Result<number | null, void> {
         s = s.trimStart();
         if (s.startsWith("-") || s.startsWith("−")) {
             sign = -sign;
+            leadingNonWs += 1;
             s = s.slice(1);
             changed = true;
         } else if (s.startsWith("+")) {
+            leadingNonWs += 1;
             s = s.slice(1);
             changed = true;
         }
+    }
+    if (leadingNonWs > maxDecorationNonWhitespace) {
+        return {ok: false, error: undefined};
     }
 
     // US thousands separators: only strip when commas group

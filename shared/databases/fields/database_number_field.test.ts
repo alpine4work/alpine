@@ -62,9 +62,13 @@ describe("databaseNumberFieldProvider", () => {
             ["JPY1200", 1200],
             ["Fr. 3.14", 3.14],
             ["3.14 Fr.", 3.14],
-            // Permissive alpha — even non-currency letters strip.
+            // Permissive alpha within the 4-char limit — even
+            // non-currency letters strip.
             ["abc 3.14", 3.14],
             ["3.14 xyz", 3.14],
+            ["USD$ 3.14", 3.14],
+            ["3.14 USD$", 3.14],
+            ["abcd 3.14", 3.14],
             // Sign + currency in either order, with whitespace
             ["-£3.14", -3.14],
             ["£-3.14", -3.14],
@@ -98,19 +102,41 @@ describe("databaseNumberFieldProvider", () => {
         });
 
         test.each([
+            // Pure non-numeric input.
             ["abc"],
+            ["hello world"],
+            // Multiple decimal points.
             ["1.2.3"],
+            // Special float values JS understands but we reject.
             ["Infinity"],
             ["-Infinity"],
             ["NaN"],
+            // Decoration only, no number.
             ["$"],
             ["%"],
             ["()"],
+            ["USD"],
             // Ambiguous comma pattern: not stripped, then Number() rejects.
             ["1,23"],
             ["1,2345"],
-            // European decimal — we don't guess.
+            ["1,234,56"],
+            // European decimal — we don't guess locale.
             ["3,14"],
+            ["1.234,56"],
+            // Decoration longer than 4 non-whitespace chars on
+            // either side: looks more like text than a number.
+            ["abcde 3.14"],
+            ["USDXX 3.14"],
+            ["3.14 abcde"],
+            ["3.14 USDXX"],
+            ["UnitedStatesDollars 3.14"],
+            // Stray non-numeric junk inside the number portion.
+            ["3.14 dollars and cents"],
+            ["1 2 3"],
+            ["3..14"],
+            ["3.1.4"],
+            // Multiple percent signs.
+            ["50%%"],
         ])("rejects %j", input => {
             expect(databaseNumberFieldProvider.parseString(input, config).ok).toBe(false);
         });
