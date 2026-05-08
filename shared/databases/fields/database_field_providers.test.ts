@@ -67,9 +67,9 @@ describe("DatabaseFieldConfigSqlSchema", () => {
     });
 });
 
-describe("each provider's getDefaultConfig is valid against DatabaseFieldConfigSchema", () => {
+describe("each provider’s getDefaultConfig is valid against DatabaseFieldConfigSchema", () => {
     for (const provider of databaseFieldProviders.values()) {
-        test(provider.type, () => {
+        test(`provider type ${provider.type}`, () => {
             const config = provider.getDefaultConfig();
             // Round-trip through the union schema.
             const serialized = DatabaseFieldConfigSchema.serialize(config);

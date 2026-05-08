@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {sql} from "~/shared/databases/sql.js";
