@@ -1,4 +1,5 @@
 import type {SqlQuery} from "~/shared/databases/sql.js";
+import type {Result} from "~/shared/helpers/control/result.js";
 import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 // -- SQLite storage type mapping ----------------------------------------------
@@ -42,16 +43,42 @@ export function defineDatabaseFieldProvider<
     readonly valueSchema: Schema<Value>;
     readonly configSchema: Schema<Config>;
     readonly sqliteType: SqlType;
+    /**
+     * Whether the SQL column allows `NULL`. When `true`,
+     * the column is created without a `NOT NULL` clause
+     * and `generateCheckConstraint` must accept `NULL`.
+     */
+    readonly nullable: boolean;
     readonly defaultValue: string;
     readonly generateCheckConstraint: (columnName: string) => SqlQuery;
-    readonly toSqlValue: (value: Value) => SqliteTypeMap[SqlType];
-    readonly fromSqlValue: (sqlValue: SqliteTypeMap[SqlType]) => Value;
+    readonly toSqlValue: (value: Value) => SqliteTypeMap[SqlType] | null;
+    readonly fromSqlValue: (sqlValue: SqliteTypeMap[SqlType] | null) => Value;
+    /**
+     * Default config used when a field of this type is
+     * created. Lets `createField` produce a fully-formed
+     * config without hardcoding option defaults at the
+     * call site.
+     */
+    readonly getDefaultConfig: () => Config;
+    /**
+     * Parse a string (typically from an input element)
+     * into a cell value. Config-aware so types can apply
+     * configured precision, etc.
+     */
+    readonly parseString: (input: string, config: Config) => Result<Value, void>;
+    /**
+     * Format a cell value as a string for display, given
+     * the field's config.
+     */
+    readonly formatString: (value: Value, config: Config) => string;
 }) {
     const sqlValueSchema = options.valueSchema.migration({
         serialize: (serializedValue: SchemaSerializedValue) =>
             options.toSqlValue(serializedValue as Value) as SchemaSerializedValue,
         deserialize: (sqlValue: SchemaSerializedValue) =>
-            options.fromSqlValue(sqlValue as SqliteTypeMap[SqlType]) as SchemaSerializedValue,
+            options.fromSqlValue(
+                sqlValue as SqliteTypeMap[SqlType] | null,
+            ) as SchemaSerializedValue,
     });
     return {...options, sqlValueSchema};
 }

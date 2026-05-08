@@ -7,6 +7,7 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
     valueSchema: Schema.boolean,
     configSchema: Schema.object({type: Schema.value("checkbox")}),
     sqliteType: "INTEGER",
+    nullable: false,
     defaultValue: "0",
     generateCheckConstraint: columnName => sql`
         CHECK (
@@ -14,5 +15,14 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
         )
     `,
     toSqlValue: value => (value ? 1 : 0),
-    fromSqlValue: sqlValue => sqlValue !== 0,
+    fromSqlValue: sqlValue => sqlValue === 1,
+    getDefaultConfig: () => ({type: "checkbox"}),
+    parseString: input => {
+        if (input === "true" || input === "1") return {ok: true, value: true};
+        if (input === "false" || input === "0" || input === "") {
+            return {ok: true, value: false};
+        }
+        return {ok: false, error: undefined};
+    },
+    formatString: value => (value ? "true" : "false"),
 });

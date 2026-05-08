@@ -1,13 +1,19 @@
 import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
 import type {SqliteStorageType} from "~/shared/databases/fields/database_field_provider.js";
+import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import type {SqlQuery} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import type {Result} from "~/shared/helpers/control/result.js";
 import {Schema, type SchemaSerializedValue, type SchemaType} from "~/shared/schema/schema.js";
 
 // -- Provider registry --------------------------------------------------------
 
-const allProviders = [databasePlainTextFieldProvider, databaseCheckboxFieldProvider] as const;
+const allProviders = [
+    databasePlainTextFieldProvider,
+    databaseCheckboxFieldProvider,
+    databaseNumberFieldProvider,
+] as const;
 
 /**
  * Registry of all known field providers, keyed by the
@@ -53,11 +59,15 @@ export type DatabaseFieldProviderBase = {
     readonly valueSchema: Schema<unknown>;
     readonly configSchema: Schema<unknown>;
     readonly sqliteType: SqliteStorageType;
+    readonly nullable: boolean;
     readonly defaultValue: string;
     readonly generateCheckConstraint: (columnName: string) => SqlQuery;
     readonly toSqlValue: (value: unknown) => unknown;
     readonly fromSqlValue: (sqlValue: unknown) => unknown;
     readonly sqlValueSchema: Schema<any>;
+    readonly getDefaultConfig: () => any;
+    readonly parseString: (input: string, config: any) => Result<unknown, void>;
+    readonly formatString: (value: unknown, config: any) => string;
 };
 
 export type DatabaseFieldProvider<Type extends DatabaseFieldType = DatabaseFieldType> = Extract<
@@ -86,6 +96,7 @@ export const DatabaseFieldTypeSchema: Schema<DatabaseFieldType> = Schema.enum(
 export const DatabaseFieldConfigSchema = Schema.union({
     plainText: databasePlainTextFieldProvider.configSchema,
     checkbox: databaseCheckboxFieldProvider.configSchema,
+    number: databaseNumberFieldProvider.configSchema,
 });
 
 export type DatabaseFieldConfig<Type extends DatabaseFieldType = DatabaseFieldType> = Extract<

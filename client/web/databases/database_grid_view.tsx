@@ -40,6 +40,7 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {
     DatabaseCellValue,
+    DatabaseFieldConfig,
     DatabaseFieldType,
 } from "~/shared/databases/fields/database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
@@ -283,6 +284,7 @@ export function DatabaseGridView({
                                             onUpdateFieldVisibility={
                                                 gridFields.updateFieldVisibility
                                             }
+                                            onUpdateFieldConfig={gridFields.updateFieldConfig}
                                         />
                                     </Box>
                                 </div>
@@ -356,6 +358,7 @@ export function DatabaseGridView({
             gridFields.startResizingField,
             gridFields.resizingState,
             gridFields.updateFieldVisibility,
+            gridFields.updateFieldConfig,
             tree,
             rowCount,
             needsMore,
@@ -430,6 +433,7 @@ function DatabaseGridViewHeaderRow({
     startResizingField,
     resizingState,
     onUpdateFieldVisibility,
+    onUpdateFieldConfig,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
@@ -449,6 +453,7 @@ function DatabaseGridViewHeaderRow({
         position: OrderKey,
         isHidden: boolean,
     ) => void;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     return (
         <Box display="flex" borderBottom="grey-5-translucent">
@@ -459,6 +464,7 @@ function DatabaseGridViewHeaderRow({
                     onStartEditingField={onStartEditingField}
                     startResizingField={startResizingField}
                     isResizingThisField={resizingState?.fieldId === field.id}
+                    onUpdateFieldConfig={onUpdateFieldConfig}
                 />
             ))}
             <Box
@@ -493,6 +499,7 @@ function DatabaseGridViewHeaderCell({
     onStartEditingField,
     startResizingField,
     isResizingThisField,
+    onUpdateFieldConfig,
 }: {
     field: DatabaseGridViewFieldWithEditing;
     onStartEditingField: (fieldId: DatabaseFieldId) => void;
@@ -505,6 +512,7 @@ function DatabaseGridViewHeaderCell({
         onCancel: () => void;
     };
     isResizingThisField: boolean;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
@@ -565,13 +573,20 @@ function DatabaseGridViewHeaderCell({
                 </Overlay>
             ) : (
                 <Box
+                    display="flex"
+                    alignItems="center"
                     color="grey-80"
                     fontSize="75"
                     fontStyle="truncate-semi-bold"
                     padding="2"
                     textAlign="left"
+                    gap="1"
                 >
-                    {field.name}
+                    <DatabaseGridViewHeaderConfigTrigger
+                        field={field}
+                        onUpdateFieldConfig={onUpdateFieldConfig}
+                    />
+                    <Box fontStyle="truncate-semi-bold">{field.name}</Box>
                 </Box>
             )}
             <DatabaseGridViewResizeHandle
@@ -580,6 +595,54 @@ function DatabaseGridViewHeaderCell({
                 isResizingThisField={isResizingThisField}
             />
         </Box>
+    );
+}
+
+// -- Field config editor trigger ---------------------------------------------
+
+function DatabaseGridViewHeaderConfigTrigger({
+    field,
+    onUpdateFieldConfig,
+}: {
+    field: DatabaseGridViewFieldWithEditing;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const provider = getDatabaseFieldComponentProvider(field.config.type);
+    const ConfigEditorPopover = provider.ConfigEditorPopover;
+    if (ConfigEditorPopover == null) return null;
+    return (
+        <Overlay
+            isVisible={isOpen}
+            placement="bottom-start"
+            fallbackPlacements={["bottom-end"]}
+            preventOverflow={false}
+            overlay={
+                <ConfigEditorPopover
+                    config={field.config}
+                    onCommit={config => onUpdateFieldConfig(field.id, config)}
+                    onClose={() => setIsOpen(false)}
+                />
+            }
+        >
+            <Box
+                tabIndex={0}
+                cursor="pointer"
+                color="grey-50"
+                fontSize="75"
+                onClick={e => {
+                    e.stopPropagation();
+                    setIsOpen(o => !o);
+                }}
+                style={{
+                    minWidth: "1.25rem",
+                    textAlign: "center",
+                    userSelect: "none",
+                }}
+            >
+                {provider.label.charAt(0)}
+            </Box>
+        </Overlay>
     );
 }
 
@@ -828,7 +891,8 @@ function DatabaseGridViewCell({
 
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
-            initialValue={initialEditValue ?? String(optimisticValue ?? "")}
+            config={field.config}
+            initialString={initialEditValue ?? String(optimisticValue ?? "")}
             commitValue={commitValue}
             onClose={() => dispatch({type: "blur"})}
             moveSelection={moveSelection}
@@ -859,6 +923,7 @@ function DatabaseGridViewCell({
             >
                 <provider.GridViewCellContent
                     ref={cellRef}
+                    config={field.config}
                     value={optimisticValue as DatabaseCellValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}

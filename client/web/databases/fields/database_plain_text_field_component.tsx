@@ -37,13 +37,13 @@ function DatabasePlainTextGridViewCellContent({
 
 function DatabasePlainTextGridViewCellEditorOverlay({
     ref,
-    initialValue,
+    initialString,
     commitValue,
     onClose,
     moveSelection,
     onCreateRow,
 }: DatabaseGridViewCellEditorOverlayProps<"plainText">) {
-    const [editValue, setEditValue] = useState(initialValue);
+    const [editValue, setEditValue] = useState(initialString);
     const localRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -102,5 +102,6 @@ export const databasePlainTextFieldComponentProvider = defineDatabaseFieldCompon
         label: "Text",
         GridViewCellContent: DatabasePlainTextGridViewCellContent,
         GridViewCellEditorOverlay: DatabasePlainTextGridViewCellEditorOverlay,
+        ConfigEditorPopover: null,
     },
 );

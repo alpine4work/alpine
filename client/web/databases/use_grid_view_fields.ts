@@ -4,9 +4,10 @@ import {startTransition, useMemo, useOptimistic, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import type {
-    DatabaseFieldConfig,
-    DatabaseFieldType,
+import {
+    type DatabaseFieldConfig,
+    type DatabaseFieldType,
+    getDatabaseFieldProvider,
 } from "~/shared/databases/fields/database_field_providers.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -42,6 +43,7 @@ type DatabaseGridViewFieldOptimisticAction =
     | {type: "create"; field: DatabaseGridViewField}
     | {type: "rename"; fieldId: DatabaseFieldId; name: string}
     | {type: "resize"; fieldId: DatabaseFieldId; width: number}
+    | {type: "updateConfig"; fieldId: DatabaseFieldId; config: DatabaseFieldConfig}
     | {type: "updateVisibility"; fieldId: DatabaseFieldId; position: OrderKey; isHidden: boolean};
 
 type ResizingState = {
@@ -99,6 +101,7 @@ export function useGridViewFields({
         position: OrderKey,
         isHidden: boolean,
     ) => void;
+    updateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 } {
     const conn = useDatabaseConnection();
     const spacingScale = useSpacingScale();
@@ -119,6 +122,10 @@ export function useGridViewFields({
                 case "resize":
                     return prev.map(f =>
                         f.id === action.fieldId ? {...f, width: action.width} : f,
+                    );
+                case "updateConfig":
+                    return prev.map(f =>
+                        f.id === action.fieldId ? {...f, config: action.config} : f,
                     );
                 case "updateVisibility":
                     return prev
@@ -171,7 +178,7 @@ export function useGridViewFields({
                         field: {
                             id: addingId,
                             name: trimmed,
-                            config: {type: addingFieldType},
+                            config: getDatabaseFieldProvider(addingFieldType).getDefaultConfig(),
                             position: addPosition,
                             width: databaseViewDefaultColumnWidth,
                             hidden: false,
@@ -212,7 +219,7 @@ export function useGridViewFields({
                 field: {
                     id: addingId,
                     name: trimmed,
-                    config: {type: fieldType},
+                    config: getDatabaseFieldProvider(fieldType).getDefaultConfig(),
                     position: addPosition,
                     width: databaseViewDefaultColumnWidth,
                     hidden: false,
@@ -291,7 +298,7 @@ export function useGridViewFields({
                         id: editingState.id,
                         name: editingState.value,
                         columnName: "__pending__",
-                        config: {type: editingState.fieldType},
+                        config: getDatabaseFieldProvider(editingState.fieldType).getDefaultConfig(),
                         position: generateOrderKeyBetween(lastField?.position ?? null, null),
                         width: databaseViewDefaultColumnWidth,
                         hidden: false,
@@ -386,6 +393,13 @@ export function useGridViewFields({
         },
     );
 
+    const updateFieldConfig = useEvent((fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => {
+        startTransition(async () => {
+            applyOptimisticField({type: "updateConfig", fieldId, config});
+            await conn.executeAction("updateFieldConfig", {fieldId, config});
+        });
+    });
+
     // Total pixel width of all visible columns plus the
     // header toolbar (add-field + visibility buttons) at
     // the current spacing scale. Used by the grid view to
@@ -414,5 +428,6 @@ export function useGridViewFields({
         startResizingField,
         resizingState,
         updateFieldVisibility,
+        updateFieldConfig,
     };
 }
