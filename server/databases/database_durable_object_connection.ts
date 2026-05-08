@@ -7,11 +7,11 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import type {DatabaseTablePageDiffs} from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
-import type {DatabaseTablePageDiffs} from "~/shared/databases/database_table_pages.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

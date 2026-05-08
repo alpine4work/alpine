@@ -16,7 +16,7 @@ import {
 import type {
     DatabaseTablePageDiffs,
     DatabaseTablePages,
-} from "~/shared/databases/database_table_pages.js";
+} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {

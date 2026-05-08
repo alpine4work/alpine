@@ -1,5 +1,5 @@
 import {DatabaseActionResultSchema} from "~/shared/databases/database_actions.js";
-import {DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
+import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**

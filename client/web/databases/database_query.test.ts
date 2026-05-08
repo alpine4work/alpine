@@ -16,7 +16,7 @@ import type {
     DatabaseActionObject,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
-import type {DatabasePages} from "~/shared/databases/database_table_pages.js";
+import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";

@@ -1,5 +1,4 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {type DatabasePages, DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
@@ -889,44 +888,3 @@ export const DatabaseActionResultSchema = Schema.unionWithKey(
         }>;
     },
 );
-
-/**
- * Per-action schemas for loader-serialized action results.
- * Use a specific variant (e.g.
- * `LoaderDatabaseActionResultSchemas.getViewRowsPage`) when
- * the action name is known at compile time to get a
- * narrower type without casting.
- */
-export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
-    Object.entries(databaseActions).map(([name, def]) => [
-        name,
-        Schema.object({
-            name: Schema.value(name),
-            input: def.input,
-            output: def.output,
-            readPages: DatabasePagesSchema,
-        }),
-    ]),
-) as {
-    [K in DatabaseActionName]: ObjectSchema<LoaderDatabaseActionResult<K>>;
-};
-
-/**
- * Schema for loader-serialized action results. Includes
- * the action name, input, output, and the pages read
- * during execution. Used to pass initial data from SSR
- * loaders to client-side reactive action hooks.
- */
-export const LoaderDatabaseActionResultSchema = Schema.unionWithKey(
-    "name",
-    LoaderDatabaseActionResultSchemas,
-);
-
-export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseActionName> = {
-    [K in DatabaseActionName]: {
-        name: K;
-        input: DatabaseActionInput<K>;
-        output: DatabaseActionOutput<K>;
-        readPages: DatabasePages;
-    };
-}[N];

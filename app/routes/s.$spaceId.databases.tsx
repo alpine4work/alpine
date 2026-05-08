@@ -17,11 +17,11 @@ import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_a
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
+import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
 import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {
     DatabaseGroupId,

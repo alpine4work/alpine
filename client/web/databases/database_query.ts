@@ -4,7 +4,7 @@ import type {
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
-import type {DatabasePages} from "~/shared/databases/database_table_pages.js";
+import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

@@ -6,8 +6,8 @@ import type {
     DatabaseActionInput,
     DatabaseActionName,
     DatabaseActionOutput,
-    LoaderDatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
+import type {LoaderDatabaseActionResult} from "~/shared/databases/database_protocol_schemas.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 

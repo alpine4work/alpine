@@ -14,12 +14,12 @@ import {
     type DatabaseWorkerConnection,
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
-import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
+import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateId, getMinId} from "~/shared/id/id.js";
@@ -307,7 +307,7 @@ function createTestTab(config: {
             returnResult?: boolean;
             returnPages?: boolean;
         },
-    ) => Promise<ExecuteActionServerResult>;
+    ) => Promise<DatabaseExecuteActionResponse>;
 }): {
     manager: DatabaseActiveTabManager;
     fireUnload: () => void;
@@ -725,7 +725,7 @@ describe("DatabaseActiveTabManager mutations", () => {
                 return {
                     result: {name: action.name, output: {rows: []}},
                     readPages: new Map([[mainDatabaseTableId, new Map()]]),
-                } as ExecuteActionServerResult;
+                } as DatabaseExecuteActionResponse;
             },
         });
         const connB = await managerB.connect();

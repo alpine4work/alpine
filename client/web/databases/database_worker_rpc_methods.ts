@@ -3,18 +3,21 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
 import {
+    DatabaseEnsureCacheIsUpToDateResultConfig,
+    DatabaseExecuteActionInputConfig,
+    DatabaseExecuteActionOutputConfig,
     DatabasePageDiffsSchema,
+    DatabasePageIndexesSchema,
+    DatabasePageTimestampsByIndexSchema,
     DatabasePagesSchema,
-} from "~/shared/databases/database_table_pages.js";
+} from "~/shared/databases/database_protocol_schemas.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
-    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
@@ -60,30 +63,15 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
 /** Methods the worker can call on the tab. */
 export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
     executeActionServer: {
-        input: {
-            action: DatabaseActionObjectSchema,
-            mutationId: Schema.id<DatabaseMutationId>(),
-            returnResult: Schema.boolean.default(true),
-            returnPages: Schema.boolean.default(true),
-        },
-        output: {
-            result: DatabaseActionResultSchema.nullable(),
-            readPages: DatabasePagesSchema.nullable(),
-        },
+        input: DatabaseExecuteActionInputConfig,
+        output: DatabaseExecuteActionOutputConfig,
     },
     ensureCacheIsUpToDate: {
-        input: {
-            pageTimestampsByIndex: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.map(Schema.integer, Schema.integer),
-            ),
-        },
-        output: ensureCacheIsUpToDateResultConfig,
+        input: {pageTimestampsByIndex: DatabasePageTimestampsByIndexSchema},
+        output: DatabaseEnsureCacheIsUpToDateResultConfig,
     },
     acknowledgePages: {
-        input: {
-            pageIndexes: Schema.map(Schema.id<DatabaseTableId>(), Schema.array(Schema.integer)),
-        },
+        input: {pageIndexes: DatabasePageIndexesSchema},
         output: {},
     },
     reportError: {
@@ -105,8 +93,3 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         output: {},
     },
 });
-
-/** Result of a server executeAction: result plus any pages needed locally. */
-export type ExecuteActionServerResult = SchemaType<
-    (typeof workerToTabDatabaseRpcMethods)["executeActionServer"]["outputSchema"]
->;

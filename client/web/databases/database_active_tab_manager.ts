@@ -3,7 +3,6 @@ import {
     type DatabaseClientConnection,
 } from "~/client/web/databases/database_client.js";
 import {
-    type ExecuteActionServerResult,
     tabToWorkerDatabaseRpcMethods,
     workerToTabDatabaseRpcMethods,
 } from "~/client/web/databases/database_worker_rpc_methods.js";
@@ -16,8 +15,13 @@ import type {
     DatabaseActionOutput,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
-import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
-import type {DatabasePages} from "~/shared/databases/database_table_pages.js";
+import type {
+    DatabaseEnsureCacheIsUpToDateResult,
+    DatabaseExecuteActionResponse,
+    DatabasePageIndexes,
+    DatabasePageTimestampsByIndex,
+    DatabasePages,
+} from "~/shared/databases/database_protocol_schemas.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -484,13 +488,11 @@ export class DatabaseActiveTabManager {
                     returnResult?: boolean;
                     returnPages?: boolean;
                 },
-            ): Promise<ExecuteActionServerResult>;
+            ): Promise<DatabaseExecuteActionResponse>;
             ensureCacheIsUpToDate(
-                pageTimestampsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
-            ): Promise<EnsureCacheIsUpToDateResult>;
-            acknowledgePages(
-                pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>,
-            ): void;
+                pageTimestampsByIndex: DatabasePageTimestampsByIndex,
+            ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
+            acknowledgePages(pageIndexes: DatabasePageIndexes): void;
             reportError?(message: string): void;
         },
     ) {}

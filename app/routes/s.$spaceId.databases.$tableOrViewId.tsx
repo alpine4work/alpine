@@ -12,7 +12,7 @@ import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_a
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
-import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_actions.js";
+import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
