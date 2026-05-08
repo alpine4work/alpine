@@ -576,11 +576,9 @@ export class DatabaseClient {
      * store before cache validation. No invalidation is
      * scheduled because no reactive actions exist yet.
      */
-    seedPages(
-        pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
-    ): void {
-        for (const page of pages) {
-            this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, page.data);
+    seedPages(pages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>): void {
+        for (const [pageIndex, {timestamp, data}] of pages) {
+            this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
         this.pageStore.sync();
     }

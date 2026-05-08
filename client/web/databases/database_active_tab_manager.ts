@@ -17,6 +17,7 @@ import type {
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -203,10 +204,7 @@ export class DatabaseActiveTabServiceWorker {
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
-    private readonly initialPagesByDatabase = new Map<
-        DatabaseGroupId,
-        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
-    >();
+    private readonly initialPagesByDatabase = new Map<DatabaseGroupId, DatabaseTablePages>();
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
@@ -223,7 +221,10 @@ export class DatabaseActiveTabWorker {
                 const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
                     this.initialPagesByDatabase.delete(databaseGroupId);
-                    client.seedPages(initialPages);
+                    const mainPages = initialPages.get(mainDatabaseTableId);
+                    if (mainPages !== undefined) {
+                        client.seedPages(mainPages);
+                    }
                 }
 
                 try {
@@ -301,16 +302,7 @@ export class DatabaseActiveTabWorker {
                             "writeInitialPages called after database client was already created",
                         );
                     }
-                    const mainPages = input.pages.get(mainDatabaseTableId);
-                    const mainPageArray =
-                        mainPages == null
-                            ? []
-                            : Array.from(mainPages, ([pageIndex, {timestamp, data}]) => ({
-                                  pageIndex,
-                                  timestamp,
-                                  data,
-                              }));
-                    this.initialPagesByDatabase.set(input.databaseGroupId, mainPageArray);
+                    this.initialPagesByDatabase.set(input.databaseGroupId, input.pages);
                     return {};
                 },
                 executeAction: async input => {

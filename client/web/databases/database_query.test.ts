@@ -16,6 +16,7 @@ import type {
     DatabaseActionObject,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
+import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -51,21 +52,10 @@ function createTestConnection(client: DatabaseClient): {
     const conn: DatabaseWorkerConnection = {
         call(method, input) {
             if (method === "writeInitialPages") {
-                const {pages} = input as unknown as {
-                    pages: ReadonlyMap<
-                        DatabaseTableId,
-                        ReadonlyMap<number, {timestamp: number; data: Uint8Array}>
-                    >;
-                };
+                const {pages} = input as unknown as {pages: DatabaseTablePages};
                 const mainPages = pages.get(mainDatabaseTableId);
                 if (mainPages != null) {
-                    client.seedPages(
-                        Array.from(mainPages, ([pageIndex, {timestamp, data}]) => ({
-                            pageIndex,
-                            timestamp,
-                            data,
-                        })),
-                    );
+                    client.seedPages(mainPages);
                 }
                 return Promise.resolve({} as any);
             }

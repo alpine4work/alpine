@@ -10,10 +10,9 @@ import {Schema, type SchemaType} from "~/shared/schema/schema.js";
  * client). The inner key is the SQLite page index within
  * that table.
  *
- * Use this schema (and the inferred types
- * {@link DatabaseTablePages} / {@link MutableDatabaseTablePages})
- * anywhere a per-table snapshot of page bytes needs to
- * cross a wire format, an RPC boundary, or a function
+ * Use this schema (and the inferred {@link DatabaseTablePages}
+ * type) anywhere a per-table snapshot of page bytes needs
+ * to cross a wire format, an RPC boundary, or a function
  * signature.
  */
 export const DatabaseTablePagesSchema = Schema.map(
@@ -27,15 +26,4 @@ export const DatabaseTablePagesSchema = Schema.map(
     ),
 );
 
-/** Immutable view — what `SchemaType` infers. */
 export type DatabaseTablePages = SchemaType<typeof DatabaseTablePagesSchema>;
-
-/**
- * Mutable counterpart of {@link DatabaseTablePages}, for
- * building one up incrementally before handing it off to
- * code that consumes the immutable view.
- */
-export type MutableDatabaseTablePages = Map<
-    DatabaseTableId,
-    Map<number, {timestamp: number; data: Uint8Array}>
->;
