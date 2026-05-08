@@ -76,13 +76,7 @@ export class DatabasePageStores {
         } finally {
             this.currentWriteSets = null;
         }
-        const writtenPages = new Map<DatabaseTableId, ReadonlySet<number>>();
-        for (const [tableId, writeSet] of writeSets) {
-            if (writeSet.size > 0) {
-                writtenPages.set(tableId, writeSet);
-            }
-        }
-        return writtenPages;
+        return writeSets;
     }
 
     /** Discard every store's optimistic overlay. */
@@ -94,17 +88,24 @@ export class DatabasePageStores {
 
     /**
      * Returns the current call's {@link OptimisticUpdate}
-     * for `tableId`, allocating its write-set on first
-     * access. Returns `null` outside an optimistic
-     * action.
+     * for `tableId`. Returns `null` outside an optimistic
+     * action. The per-table write-set itself is allocated
+     * lazily on the first `markPageAsWritten`, so tables
+     * that are only read inside the action stay out of
+     * the result.
      */
     private getCurrentOptimisticUpdate(tableId: DatabaseTableId): OptimisticUpdate | null {
-        if (this.currentWriteSets === null) return null;
-        let writeSet = this.currentWriteSets.get(tableId);
-        if (writeSet === undefined) {
-            writeSet = new Set();
-            this.currentWriteSets.set(tableId, writeSet);
-        }
-        return {writeSet};
+        const writeSets = this.currentWriteSets;
+        if (writeSets === null) return null;
+        return {
+            markPageAsWritten(pageIndex: number): void {
+                let writeSet = writeSets.get(tableId);
+                if (writeSet === undefined) {
+                    writeSet = new Set();
+                    writeSets.set(tableId, writeSet);
+                }
+                writeSet.add(pageIndex);
+            },
+        };
     }
 }

@@ -16,14 +16,14 @@ const indexSchema = Schema.map(
 /**
  * Returned by `getCurrentOptimisticUpdate` while a store
  * is inside an optimistic action. Writes during that
- * window go to the store's in-memory overlay and add the
- * page index here so the enclosing call can report what
- * was actually touched. Outside of an optimistic action,
- * the callback returns `null` and writes go straight to
- * OPFS.
+ * window go to the store's in-memory overlay and call
+ * {@link markPageAsWritten} so the enclosing call can
+ * report what was actually touched. Outside of an
+ * optimistic action, the callback returns `null` and
+ * writes go straight to OPFS.
  */
 export interface OptimisticUpdate {
-    writeSet: Set<number>;
+    markPageAsWritten(pageIndex: number): void;
 }
 
 /**
@@ -134,7 +134,7 @@ export class OpfsPageStore implements VfsFile {
         const update = this.getCurrentOptimisticUpdate();
         if (update !== null) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
-            update.writeSet.add(pageIndex);
+            update.markPageAsWritten(pageIndex);
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }

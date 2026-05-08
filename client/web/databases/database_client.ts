@@ -267,9 +267,7 @@ export class DatabaseClient {
             throw error;
         }
 
-        let totalWrites = 0;
-        for (const pages of writtenPages.values()) totalWrites += pages.size;
-        if (totalWrites === 0) {
+        if (writtenPages.size === 0) {
             // Pure read — no server round-trip needed.
             return result;
         }
@@ -512,10 +510,6 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
-        // Discard every store's optimistic overlay — a
-        // single mutation may have touched multiple
-        // attached tables, all of which are now superseded
-        // by the realtime confirmation.
         this.pageStores.clearOptimisticPages();
         const store = this.pageStores.get(databaseMainTableId)!;
 
