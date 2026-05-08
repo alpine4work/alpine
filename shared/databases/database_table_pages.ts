@@ -31,19 +31,28 @@ export const DatabasePagesSchema = Schema.map(
 export type DatabasePages = SchemaType<typeof DatabasePagesSchema>;
 
 /**
- * The page diffs for a single database table, keyed by
- * SQLite page index. Each value is the diff bytes plus
- * the timestamp at which the canonical server produced
- * them. Mirrors {@link DatabaseTablePagesSchema} for
- * realtime updates.
+ * The page diffs for a single database table.
+ *
+ * `diffs` is keyed by SQLite page index; each value is
+ * the diff bytes plus the timestamp at which the
+ * canonical server produced them. Mirrors
+ * {@link DatabaseTablePagesSchema} for realtime updates.
+ *
+ * `fileSizeInPages` is the canonical SQLite file size
+ * after applying these diffs — sent alongside the diffs
+ * so the client can truncate / extend its OPFS store
+ * atomically with the page writes.
  */
-export const DatabaseTablePageDiffsSchema = Schema.map(
-    Schema.integer,
-    Schema.object({
-        timestamp: Schema.integer,
-        diff: pageDiffSchema,
-    }),
-);
+export const DatabaseTablePageDiffsSchema = Schema.object({
+    diffs: Schema.map(
+        Schema.integer,
+        Schema.object({
+            timestamp: Schema.integer,
+            diff: pageDiffSchema,
+        }),
+    ),
+    fileSizeInPages: Schema.integer,
+});
 
 export type DatabaseTablePageDiffs = SchemaType<typeof DatabaseTablePageDiffsSchema>;
 

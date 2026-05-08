@@ -817,15 +817,14 @@ describe("Reactive actions", () => {
         // Realtime confirmation with newer timestamps;
         // empty diffs because OPFS already has the content.
         const pages = await extractPages(dir);
-        const newerPageDiffs = new Map(
+        const newerDiffs = new Map(
             pages.map(({pageIndex, timestamp}) => [
                 pageIndex,
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, newerPageDiffs]]),
-            fileSizesInPages: new Map([[mainDatabaseTableId, 0]]),
+            pageDiffs: new Map([[mainDatabaseTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
 
@@ -899,7 +898,7 @@ describe("Reactive actions", () => {
         // region the production code filters out via
         // shouldIgnorePageInvalidation. The point of this
         // test is the non-page-0 case.
-        const changedPageDiffs = new Map(
+        const changedDiffs = new Map(
             pagesAfter
                 .filter(after => {
                     if (after.pageIndex === 0) return false;
@@ -915,11 +914,10 @@ describe("Reactive actions", () => {
         // Sanity: the t2 mutation should have changed at
         // least one non-page-0 page; otherwise the test
         // tells us nothing.
-        expect(changedPageDiffs.size).toBeGreaterThan(0);
+        expect(changedDiffs.size).toBeGreaterThan(0);
 
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, changedPageDiffs]]),
-            fileSizesInPages: new Map([[mainDatabaseTableId, 0]]),
+            pageDiffs: new Map([[mainDatabaseTableId, {diffs: changedDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -965,15 +963,14 @@ describe("Reactive actions", () => {
 
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
         const pages = await extractPages(dir);
-        const pageDiffs = new Map(
+        const diffs = new Map(
             pages.map(({pageIndex, timestamp}) => [
                 pageIndex,
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, pageDiffs]]),
-            fileSizesInPages: new Map([[mainDatabaseTableId, 0]]),
+            pageDiffs: new Map([[mainDatabaseTableId, {diffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -1048,7 +1045,7 @@ describe("watchAction", () => {
 
         // Compute actual diffs between seed and server
         // so writePagesFromRealtime applies real changes.
-        const newerPageDiffs = new Map(
+        const newerDiffs = new Map(
             serverPages.map(sp => {
                 const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
                 const base = seedPage?.data ?? new Uint8Array(sqlitePageSize);
@@ -1060,8 +1057,7 @@ describe("watchAction", () => {
         );
 
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, newerPageDiffs]]),
-            fileSizesInPages: new Map([[mainDatabaseTableId, 0]]),
+            pageDiffs: new Map([[mainDatabaseTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
 

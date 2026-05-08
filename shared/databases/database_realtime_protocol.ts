@@ -92,7 +92,6 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
         PagesChanged: Schema.object({
             type: Schema.value("PagesChanged"),
             pageDiffs: DatabasePageDiffsSchema,
-            fileSizesInPages: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer),
             mutationId: Schema.id<DatabaseMutationId>(),
         }),
     },

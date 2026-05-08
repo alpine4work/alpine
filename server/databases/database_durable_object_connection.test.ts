@@ -458,13 +458,15 @@ describe("per-browser page tracking", () => {
         // Simulate a realtime event touching pages 0, 1, 3
         const eventStub = {
             type: "PagesChanged" as const,
-            pageDiffs: new Map([
-                [0, {timestamp: 1, diff: []}],
-                [1, {timestamp: 1, diff: []}],
-                [3, {timestamp: 1, diff: []}],
-            ]),
+            tableDiffs: {
+                diffs: new Map([
+                    [0, {timestamp: 1, diff: []}],
+                    [1, {timestamp: 1, diff: []}],
+                    [3, {timestamp: 1, diff: []}],
+                ]),
+                fileSizeInPages: 4,
+            },
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 4,
         };
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
@@ -475,7 +477,7 @@ describe("per-browser page tracking", () => {
         //         event → N/A
         // Page 3: not tracked → excluded
         const main = event.pageDiffs.get(mainDatabaseTableId);
-        expect([...(main?.keys() ?? [])]).toEqual([0, 1]);
+        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
     test("transformEvent includes pending pages", async () => {
@@ -503,19 +505,21 @@ describe("per-browser page tracking", () => {
 
         const eventStub = {
             type: "PagesChanged" as const,
-            pageDiffs: new Map([
-                [0, {timestamp: 1, diff: []}],
-                [1, {timestamp: 1, diff: []}],
-            ]),
+            tableDiffs: {
+                diffs: new Map([
+                    [0, {timestamp: 1, diff: []}],
+                    [1, {timestamp: 1, diff: []}],
+                ]),
+                fileSizeInPages: 2,
+            },
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 2,
         };
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
         const main = event.pageDiffs.get(mainDatabaseTableId);
-        expect([...(main?.keys() ?? [])]).toEqual([0, 1]);
+        expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
     test("transformEvent returns empty pages for untracked client", async () => {
@@ -527,18 +531,20 @@ describe("per-browser page tracking", () => {
         // No ensureCacheIsUpToDate — tracker has no pages
         const eventStub = {
             type: "PagesChanged" as const,
-            pageDiffs: new Map([
-                [0, {timestamp: 1, diff: []}],
-                [1, {timestamp: 1, diff: []}],
-            ]),
+            tableDiffs: {
+                diffs: new Map([
+                    [0, {timestamp: 1, diff: []}],
+                    [1, {timestamp: 1, diff: []}],
+                ]),
+                fileSizeInPages: 2,
+            },
             mutationId: generateId<DatabaseMutationId>(),
-            fileSizeInPages: 2,
         };
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         const main = event.pageDiffs.get(mainDatabaseTableId);
-        expect(main?.size).toBe(0);
+        expect(main?.diffs.size).toBe(0);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {

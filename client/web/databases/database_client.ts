@@ -466,9 +466,8 @@ export class DatabaseClient {
      * written pages.
      */
     writePagesFromRealtime(
-        pageDiffs: DatabaseTablePageDiffs,
+        tableDiffs: DatabaseTablePageDiffs,
         mutationId: DatabaseMutationId,
-        fileSizeInPages: number,
     ): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
         assert(
@@ -483,7 +482,7 @@ export class DatabaseClient {
         this.pageStore.clearOptimisticPages();
 
         let anyWritten = false;
-        for (const [pageIndex, {timestamp, diff}] of pageDiffs) {
+        for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
             const base = this.pageStore.readPage(pageIndex);
             if (base === null) continue;
             const full = applyPageDiff(base, diff);
@@ -494,7 +493,7 @@ export class DatabaseClient {
                 }
             }
         }
-        this.pageStore.setServerFileSizeInPages(fileSizeInPages);
+        this.pageStore.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
         this.pageStore.sync();
         if (anyWritten) {
             this.scheduleInvalidation();

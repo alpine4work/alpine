@@ -32,9 +32,8 @@ const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 export type DatabaseRealtimeEventStub = {
     type: "PagesChanged";
-    pageDiffs: DatabaseTablePageDiffs;
+    tableDiffs: DatabaseTablePageDiffs;
     mutationId: DatabaseMutationId;
-    fileSizeInPages: number;
 };
 
 export class DatabaseDurableObjectConnection {
@@ -89,7 +88,7 @@ export class DatabaseDurableObjectConnection {
                 const result = this._server.executeAction(input.action);
 
                 if (result.changedPages.size > 0) {
-                    const pageDiffs: DatabaseTablePageDiffs = new Map(
+                    const diffs = new Map(
                         [...result.changedPages].map(([pageIndex, {before, after}]) => [
                             pageIndex,
                             {
@@ -100,9 +99,12 @@ export class DatabaseDurableObjectConnection {
                     );
                     this._sendEventToAll(this._processContext, {
                         type: "PagesChanged",
-                        pageDiffs,
+                        tableDiffs: {
+                            diffs,
+                            fileSizeInPages:
+                                this._durableObjectStorage.getFileSize() / sqlitePageSize,
+                        },
                         mutationId: input.mutationId,
-                        fileSizeInPages: this._durableObjectStorage.getFileSize() / sqlitePageSize,
                     });
                 }
 
@@ -212,16 +214,23 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                const filtered = new Map<number, {timestamp: number; diff: PageDiff}>();
-                for (const [pageIndex, value] of eventStub.pageDiffs) {
+                const filteredDiffs = new Map<number, {timestamp: number; diff: PageDiff}>();
+                for (const [pageIndex, value] of eventStub.tableDiffs.diffs) {
                     if (this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)) {
-                        filtered.set(pageIndex, value);
+                        filteredDiffs.set(pageIndex, value);
                     }
                 }
                 return {
                     type: "PagesChanged",
-                    pageDiffs: new Map([[mainDatabaseTableId, filtered]]),
-                    fileSizesInPages: new Map([[mainDatabaseTableId, eventStub.fileSizeInPages]]),
+                    pageDiffs: new Map([
+                        [
+                            mainDatabaseTableId,
+                            {
+                                diffs: filteredDiffs,
+                                fileSizeInPages: eventStub.tableDiffs.fileSizeInPages,
+                            },
+                        ],
+                    ]),
                     mutationId: eventStub.mutationId,
                 };
             }

@@ -84,7 +84,6 @@ export default function DatabaseGroupLayoutRoute() {
         if (event.type === "PagesChanged") {
             conn.call("writePagesFromRealtime", {
                 pageDiffs: event.pageDiffs,
-                fileSizesInPages: event.fileSizesInPages,
                 mutationId: event.mutationId,
             });
         }

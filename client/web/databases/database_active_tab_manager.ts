@@ -314,14 +314,9 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    const mainPageDiffs = input.pageDiffs.get(mainDatabaseTableId);
-                    const mainFileSize = input.fileSizesInPages.get(mainDatabaseTableId);
-                    if (mainPageDiffs !== undefined && mainFileSize !== undefined) {
-                        client.writePagesFromRealtime(
-                            mainPageDiffs,
-                            input.mutationId,
-                            mainFileSize,
-                        );
+                    const mainTableDiffs = input.pageDiffs.get(mainDatabaseTableId);
+                    if (mainTableDiffs !== undefined) {
+                        client.writePagesFromRealtime(mainTableDiffs, input.mutationId);
                     }
                     return {};
                 },
