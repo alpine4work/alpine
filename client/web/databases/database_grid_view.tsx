@@ -892,7 +892,8 @@ function DatabaseGridViewCell({
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
             config={field.config}
-            initialString={initialEditValue ?? String(optimisticValue ?? "")}
+            initialValue={optimisticValue as DatabaseCellValue}
+            initialEditString={initialEditValue}
             commitValue={commitValue}
             onClose={() => dispatch({type: "blur"})}
             moveSelection={moveSelection}

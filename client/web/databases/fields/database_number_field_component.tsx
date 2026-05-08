@@ -40,13 +40,16 @@ function DatabaseNumberGridViewCellContent({
 function DatabaseNumberGridViewCellEditorOverlay({
     ref,
     config,
-    initialString,
+    initialValue,
+    initialEditString,
     commitValue,
     onClose,
     moveSelection,
     onCreateRow,
 }: DatabaseGridViewCellEditorOverlayProps<"number">) {
-    const [editValue, setEditValue] = useState(initialString);
+    const [editValue, setEditValue] = useState(
+        initialEditString ?? (initialValue == null ? "" : String(initialValue)),
+    );
     const localRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {

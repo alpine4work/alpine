@@ -27,14 +27,17 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
 export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
     config: DatabaseFieldConfig<Type>;
+    /** The current typed value of the cell. */
+    initialValue: DatabaseCellValue<Type>;
     /**
-     * The initial text to render in the editor. Either a
-     * raw value-as-string (when opened on a populated
-     * cell) or a single-character seed (when opened by
-     * pressing a key). The editor parses this back into
-     * a typed value on commit.
+     * Optional string seed when the editor was opened by
+     * typing a character or pressing delete/backspace.
+     * Takes precedence over `initialValue` for the
+     * editor's initial content. The editor decides how
+     * (or whether) to use this — e.g. a number editor
+     * may ignore non-numeric seeds.
      */
-    initialString: string;
+    initialEditString: string | null;
     commitValue: (value: DatabaseCellValue<Type>) => void;
     onClose: () => void;
     moveSelection: (deltaRow: number, deltaField: number) => void;
