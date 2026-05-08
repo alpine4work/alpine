@@ -60,9 +60,13 @@ const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
  * - Whitespace anywhere on the outside.
  * - Sign variants in decoration: ASCII `-`/`+` and
  *   U+2212 `−` (multiple signs combine).
- * - Accounting parens at the outermost ends only:
- *   `(3.14)` → `-3.14`. Inner parens (`USD (3.14)`) are
- *   plain decoration, not negation.
+ * - Accounting parens around the number — outer
+ *   (`(USD 3.14)`) or inner (`USD (3.14)`,
+ *   `(3.14) USD`). Combined inner + outer parens nest
+ *   (cancel each other). Imbalanced or interspersed
+ *   parens (`(US)D 3.14`, `(3.14`, `3.14)`) reject.
+ *   Parens may not be combined with `%` or `-`/`−`:
+ *   they're the sole way to indicate negative when used.
  * - Trailing `%` immediately after the number (allowing
  *   whitespace): `3.14%` and `3.14 %` scale by `1/100`.
  *   Anything between the number and the `%` (e.g.
@@ -83,30 +87,36 @@ function parseNumberString(input: string): Result<number | null, void> {
     let s = input.trim();
     if (s === "") return {ok: true, value: null};
 
-    let parenSign = 1;
+    let outerSign = 1;
     if (s.startsWith("(") && s.endsWith(")")) {
-        parenSign = -1;
+        outerSign = -1;
         s = s.slice(1, -1).trim();
     }
 
     const match = numberStructurePattern.exec(s);
     if (match === null || match.groups === undefined) return {ok: false, error: undefined};
 
-    const prefix = analyseDecoration(match.groups.prefix);
-    const suffix = analyseDecoration(match.groups.suffix);
+    const prefix = splitPrefix(match.groups.prefix);
+    const suffix = splitSuffix(match.groups.suffix);
     if (!prefix.ok || !suffix.ok) return {ok: false, error: undefined};
 
-    // Percent rules:
-    // - Leading `%` is invalid.
-    // - At most one `%` total.
-    // - When present in the suffix, `%` must be the first
-    //   non-whitespace char (immediately after the number,
-    //   modulo whitespace).
-    if (prefix.percentCount > 0) return {ok: false, error: undefined};
-    if (suffix.percentCount > 1) return {ok: false, error: undefined};
-    if (suffix.percentCount === 1 && match.groups.suffix.trimStart()[0] !== "%") {
+    // Inner parens must be balanced.
+    if (prefix.hasOpenParen !== suffix.hasCloseParen) return {ok: false, error: undefined};
+    const innerSign = prefix.hasOpenParen ? -1 : 1;
+
+    const prefixOuter = analyseDecoration(prefix.outerDecoration);
+    const suffixOuter = analyseDecoration(suffix.outerDecoration);
+    if (!prefixOuter.ok || !suffixOuter.ok) return {ok: false, error: undefined};
+
+    // Accounting parens (outer or inner) are the sole way
+    // to indicate negative when used: combining them with
+    // an explicit `-`/`−` or with `%` is ambiguous, so we
+    // reject those combinations.
+    const hasAnyParens = outerSign === -1 || prefix.hasOpenParen;
+    if (hasAnyParens && (prefixOuter.hasNegativeSign || suffixOuter.hasNegativeSign)) {
         return {ok: false, error: undefined};
     }
+    if (hasAnyParens && suffix.hasPercent) return {ok: false, error: undefined};
 
     let body = match.groups.body;
     if (body.includes(",") && usThousandsPattern.test(body)) {
@@ -116,32 +126,87 @@ function parseNumberString(input: string): Result<number | null, void> {
     const n = Number(body);
     if (!Number.isFinite(n)) return {ok: false, error: undefined};
 
-    const sign = parenSign * prefix.sign * suffix.sign;
-    const scale = suffix.percentCount === 1 ? 0.01 : 1;
+    const sign = outerSign * innerSign * prefixOuter.sign * suffixOuter.sign;
+    const scale = suffix.hasPercent ? 0.01 : 1;
     return {ok: true, value: n * sign * scale};
 }
 
 /**
- * Inspect a decoration substring. Returns the accumulated
- * sign and percent count; rejects (`ok: false`) if the
- * decoration has more than {@link maxDecorationNonWhitespace}
- * non-whitespace chars or contains a digit (which would
- * mean the number extraction missed something).
+ * Split a prefix into an optional inner-paren `(` (which
+ * must be the last non-whitespace char) and the outer
+ * decoration that comes before it. Rejects if any stray
+ * `(`, `)`, or `%` appears in the outer decoration.
+ */
+function splitPrefix(prefix: string): {
+    ok: boolean;
+    hasOpenParen: boolean;
+    outerDecoration: string;
+} {
+    let s = prefix.trimEnd();
+    let hasOpenParen = false;
+    if (s.endsWith("(")) {
+        hasOpenParen = true;
+        s = s.slice(0, -1).trimEnd();
+    }
+    if (/[(%)]/.test(s)) return {ok: false, hasOpenParen, outerDecoration: ""};
+    return {ok: true, hasOpenParen, outerDecoration: s};
+}
+
+/**
+ * Split a suffix into (in order) an optional `%` (which
+ * must be the first non-whitespace char), an optional
+ * inner-paren `)` (which must come immediately after the
+ * `%` if any), and the outer decoration that follows.
+ * Rejects if any stray `(`, `)`, or `%` appears in the
+ * outer decoration.
+ */
+function splitSuffix(suffix: string): {
+    ok: boolean;
+    hasPercent: boolean;
+    hasCloseParen: boolean;
+    outerDecoration: string;
+} {
+    let s = suffix.trimStart();
+    let hasPercent = false;
+    let hasCloseParen = false;
+    if (s.startsWith("%")) {
+        hasPercent = true;
+        s = s.slice(1).trimStart();
+    }
+    if (s.startsWith(")")) {
+        hasCloseParen = true;
+        s = s.slice(1).trimStart();
+    }
+    if (/[(%)]/.test(s)) {
+        return {ok: false, hasPercent, hasCloseParen, outerDecoration: ""};
+    }
+    return {ok: true, hasPercent, hasCloseParen, outerDecoration: s};
+}
+
+/**
+ * Inspect outer decoration (after `splitPrefix` /
+ * `splitSuffix` extracted parens and percent). Returns the
+ * accumulated sign and a flag for whether any negative
+ * sign char was seen; rejects if more than
+ * {@link maxDecorationNonWhitespace} non-whitespace chars or
+ * any digit.
  */
 function analyseDecoration(decoration: string): {
     ok: boolean;
     sign: number;
-    percentCount: number;
+    hasNegativeSign: boolean;
 } {
     let sign = 1;
-    let percentCount = 0;
+    let hasNegativeSign = false;
     let nonWs = 0;
     for (const ch of decoration) {
         if (/\s/.test(ch)) continue;
-        if (ch >= "0" && ch <= "9") return {ok: false, sign, percentCount};
+        if (ch >= "0" && ch <= "9") return {ok: false, sign, hasNegativeSign};
         nonWs++;
-        if (ch === "-" || ch === "−") sign *= -1;
-        else if (ch === "%") percentCount++;
+        if (ch === "-" || ch === "−") {
+            sign *= -1;
+            hasNegativeSign = true;
+        }
     }
-    return {ok: nonWs <= maxDecorationNonWhitespace, sign, percentCount};
+    return {ok: nonWs <= maxDecorationNonWhitespace, sign, hasNegativeSign};
 }

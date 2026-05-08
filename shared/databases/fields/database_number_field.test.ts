@@ -74,15 +74,19 @@ describe("databaseNumberFieldProvider", () => {
             ["£-3.14", -3.14],
             ["- £ 3.14", -3.14],
             ["+ $10", 10],
-            // Accounting negatives — only when parens are at
-            // the absolute outermost position.
+            // Accounting negatives — outer parens.
             ["(3.14)", -3.14],
             ["(£3.14)", -3.14],
             ["($1,234.56)", -1234.56],
             ["(USD 3.14)", -3.14],
-            // Inner parens are just decoration (no negation).
-            ["USD (3.14)", 3.14],
-            ["(3.14) USD", 3.14],
+            // Inner parens (immediately around the number)
+            // also negate.
+            ["USD (3.14)", -3.14],
+            ["(3.14) USD", -3.14],
+            ["( 3.14 ) USD", -3.14],
+            // Outer + inner parens nest (cancel out).
+            ["((3.14))", 3.14],
+            ["(USD (3.14))", 3.14],
             // Percent — must be the first non-whitespace
             // character after the number.
             ["50%", 0.5],
@@ -157,6 +161,31 @@ describe("databaseNumberFieldProvider", () => {
             //   char of the suffix; anything between rejects.
             ["3.14 USD%"],
             ["3.14USD%"],
+            // - `%` after a closing inner paren rejects.
+            ["(3.14)%"],
+            // Paren placement rules:
+            // - Imbalanced inner parens.
+            ["(3.14"],
+            ["3.14)"],
+            ["USD (3.14"],
+            ["3.14) USD"],
+            // - Interspersed parens (not flanking the number).
+            ["(US)D 3.14"],
+            ["3.14 U(S)D"],
+            // - Multiple inner-paren layers without an outer
+            //   wrap to absorb them.
+            ["((3.14)"],
+            ["(3.14))"],
+            // Parens combined with `%` or `-` reject —
+            // parens are the sole indicator of negative.
+            ["(-3.14)"],
+            ["-(3.14)"],
+            ["(USD -3.14)"],
+            ["USD (-3.14)"],
+            ["(3.14%)"],
+            ["USD (3.14%)"],
+            ["USD ( 3.14% )"],
+            ["(USD (3.14%))"],
         ])("rejects %j", input => {
             expect(databaseNumberFieldProvider.parseString(input, config).ok).toBe(false);
         });
