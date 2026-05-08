@@ -103,6 +103,14 @@ def ts_project(
         tags = tags,
     )
 
+    test_names = []
+    for test_src in test_srcs:
+        test_names.append(_ts_test_name(test_src))
+
+    for test_name in tests.keys():
+        if not (test_name in test_names):
+            fail("tests contains key `{}` but there's no corresponding test file".format(test_name))
+
     if len(test_srcs) > 0:
         ts_typecheck_test(
             name = "{}_tests_typecheck_test".format(name),
@@ -117,11 +125,8 @@ def ts_project(
         )
 
         for test_src in test_srcs:
-            if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
-                fail("test source must end in `.test.{ts,tsx}`")
-
-            test_src_js = "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
-            test_name = "{}_test".format(test_src_js[:len(test_src_js) - 8])
+            test_src_js = _ts_test_src_js(test_src)
+            test_name = _ts_test_name(test_src)
 
             swc_compile(
                 name = "{}_src".format(test_name),
@@ -129,7 +134,7 @@ def ts_project(
                 js_outs = [test_src_js],
             )
 
-            extra_kwargs = tests[test_name] if test_name in tests else {}
+            extra_kwargs = dict(tests[test_name]) if test_name in tests else {}
             extra_tags = extra_kwargs.pop("tags", default = [])
             extra_node_options = extra_kwargs.pop("node_options", default = [])
             extra_data = extra_kwargs.pop("data", default = [])
@@ -192,6 +197,16 @@ def ts_project(
                 tags = ["jest", "dev-test"] + extra_tags + tags,
                 **extra_kwargs
             )
+
+def _ts_test_src_js(test_src):
+    if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
+        fail("test source must end in `.test.{ts,tsx}`")
+
+    return "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
+
+def _ts_test_name(test_src):
+    test_src_js = _ts_test_src_js(test_src)
+    return "{}_test".format(test_src_js[:len(test_src_js) - 8])
 
 _SWC_ES6_KWARGS = {
     "swcrc": "//admin/typescript:typescript_swc_es6_config",

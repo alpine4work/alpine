@@ -11,7 +11,6 @@ ts_project(
         "//shared/spaces/test_helpers",
     ],
     tests = {
-        "accept_space_account_invite_test": {"size": "medium"},
         "spaces_actions_test": {"size": "medium"},
     },
     visibility = [

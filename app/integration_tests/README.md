@@ -22,7 +22,7 @@ Some useful things to know when working with Playwright tests:
 
 - By default, when running a Playwright test the browser is hidden. If you want to see the browser
   while you may run a test in headed mode by adding the `--headed` flag. (e.g.
-  `bazel run //app/integration_tests:chat/chat_peek_chromium_test -- --headed`)
+  `bazel run //app/integration_tests:chat/chat_peek_desktop_chromium_test -- --headed`)
 
 - If you're running a Playwright test in headed mode you may call `page.pause()` in your test and
   you may interact directly with the test in the browser. It also opens a debugger you may use to

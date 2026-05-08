@@ -14,7 +14,6 @@ ts_project(
     tests = {
         "feed_actions_test": {"size": "medium"},
         "feed_actions_slow_test": {"size": "medium"},
-        "internal/rank_feed_entries_test": {},
     },
     visibility = [
         "//admin/crawl:__pkg__",

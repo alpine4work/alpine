@@ -17,9 +17,6 @@ ts_project(
         "//shared/messaging",
         "//shared/test_helpers",
     ],
-    tests = {
-        "get_message_references_for_multiple_accounts_test": {"size": "medium"},
-    },
     visibility = [
         "//app:__pkg__",
         "//server:__subpackages__",

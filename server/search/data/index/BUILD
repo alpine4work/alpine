@@ -49,6 +49,9 @@ ts_project(
             # process.
             "tags": ["cpu:3"],
         },
+        "get_message_references_for_multiple_accounts_test": {
+            "size": "medium",
+        },
     },
     visibility = [
         "//admin:__subpackages__",
@@ -68,7 +71,6 @@ ts_project(
         "//:node_modules/stemmer",
         "//server/access",
         "//server/accounts",
-        "//shared/api/content",
         "//server/chat/data",
         "//server/content",
         "//server/context",
@@ -88,6 +90,7 @@ ts_project(
         "//server/tokens",
         "//shared/access",
         "//shared/accounts",
+        "//shared/api/content",
         "//shared/content",
         "//shared/context",
         "//shared/design:design_core",

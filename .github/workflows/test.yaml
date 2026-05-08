@@ -44,15 +44,14 @@ jobs:
                   retention-days: 7
 
     integration-tests:
-        name: Integration tests (${{ matrix.category }})
+        name: Integration tests (${{ matrix.bucket }}/3)
         runs-on: [self-hosted, aws-test]
         strategy:
             matrix:
-                category:
-                    - tasks
-                    - documents
-                    - forum
-                    - miscellaneous
+                bucket:
+                    - "1"
+                    - "2"
+                    - "3"
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
@@ -66,7 +65,7 @@ jobs:
 
             # Run integration tests with Playwright. These tests are expensive to run and
             # are flaky. We run them after all other tests have passed and break them into
-            # categories to run in parallel.
+            # deterministic buckets to run in parallel.
             #
             # We set `--notest_keep_going`. If any integration test fails we immediately
             # fail the build and exit to speed up test result turnaround time for
@@ -76,7 +75,7 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       //... \
                       --config=github-runner \
-                      --test_tag_filters=${{ matrix.category == 'tasks' && 'playwright_tasks' || matrix.category == 'documents' && 'playwright_documents' || matrix.category == 'forum' && 'playwright_forum' || 'playwright,-playwright_forum,-playwright_documents,-playwright_tasks' }},-macos \
+                      --test_tag_filters=playwright_bucket_${{ matrix.bucket }},-macos \
                       --nofetch \
                       --nokeep_going \
                       --notest_keep_going
@@ -92,7 +91,7 @@ jobs:
               name: Upload Bazel test logs
               uses: actions/upload-artifact@v4
               with:
-                  name: bazel_${{ matrix.category }}_integration_testlogs
+                  name: bazel_integration_${{ matrix.bucket }}_testlogs
                   path: bazel-testlogs
                   retention-days: 7
 
