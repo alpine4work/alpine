@@ -630,13 +630,14 @@ export class DatabaseClient {
 
     /**
      * Write loader-provided pages into the local OPFS
-     * stores before cache validation. No invalidation is
-     * scheduled because no reactive actions exist yet.
+     * stores before cache validation, opening per-table
+     * stores on demand for tables that haven't been seen
+     * yet. No invalidation is scheduled because no
+     * reactive actions exist yet.
      */
-    seedPages(pages: DatabasePages): void {
+    async seedPages(pages: DatabasePages): Promise<void> {
         for (const [tableId, tablePages] of pages) {
-            const store = this.pageStores.get(tableId);
-            if (store === undefined) continue;
+            const store = this.pageStores.get(tableId) ?? (await this.pageStores.create(tableId));
             for (const [pageIndex, {timestamp, data}] of tablePages) {
                 store.writePageIfNewer(pageIndex, timestamp, data);
             }

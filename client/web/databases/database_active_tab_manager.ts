@@ -217,7 +217,7 @@ export class DatabaseActiveTabWorker {
                 const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
                     this.initialPagesByDatabase.delete(databaseGroupId);
-                    client.seedPages(initialPages);
+                    await client.seedPages(initialPages);
                 }
 
                 try {

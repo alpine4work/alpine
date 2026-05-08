@@ -47,11 +47,11 @@ function createTestConnection(client: DatabaseClient): {
     let watchIdCounter = 0;
 
     const conn: DatabaseWorkerConnection = {
-        call(method, input) {
+        async call(method, input) {
             if (method === "writeInitialPages") {
                 const {pages} = input as unknown as {pages: DatabasePages};
-                client.seedPages(pages);
-                return Promise.resolve({} as any);
+                await client.seedPages(pages);
+                return {} as any;
             }
             throw new InternalError(`Unsupported call method: ${method}`);
         },
