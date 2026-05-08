@@ -300,10 +300,6 @@ export class OpfsPageStore implements VfsFile {
         this.knownDatabaseSizeInPages = sizeInPages;
     }
 
-    isEmpty(): boolean {
-        return this.index.size === 0 && !this.hasOptimisticPages();
-    }
-
     /**
      * Remove pages from the index by page index. The
      * underlying slot data in `pages.bin` becomes

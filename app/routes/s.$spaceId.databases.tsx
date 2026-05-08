@@ -82,7 +82,7 @@ export default function DatabaseGroupLayoutRoute() {
 
     const handlePagesChanged = useEvent((event: DatabaseRealtimeEvent) => {
         if (event.type === "PagesChanged") {
-            conn.call("writePagesFromRealtime", {
+            conn.call("writePageDiffsFromRealtime", {
                 pageDiffs: event.pageDiffs,
                 mutationId: event.mutationId,
             });

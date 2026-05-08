@@ -131,11 +131,14 @@ export class DatabaseClient {
                 // `/${tableId}` (main below, attached
                 // databases later); strip the leading `/`
                 // and look up the per-table store.
-                if (filename === null || !filename.startsWith("/")) {
-                    return new VfsTempFile();
-                }
+                assert(
+                    filename !== null && filename.startsWith("/"),
+                    `MAIN_DB open with unexpected filename: ${filename}`,
+                );
                 const tableId = filename.slice(1) as DatabaseTableId;
-                return this.pageStores.get(tableId) ?? new VfsTempFile();
+                const store = this.pageStores.get(tableId);
+                assert(store !== undefined, `MAIN_DB open for unknown table: ${tableId}`);
+                return store;
             },
             delete: () => {},
             access: () => false,
@@ -216,7 +219,10 @@ export class DatabaseClient {
         const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
         for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
             const store = this.pageStores.get(tableId);
-            if (store === undefined) continue;
+            assert(
+                store !== undefined,
+                `ensureCacheIsUpToDate response references unknown table ${tableId}`,
+            );
 
             for (const [pageIndex, {timestamp, data}] of updatedPages) {
                 store.writePageIfNewer(pageIndex, timestamp, data);
@@ -544,7 +550,10 @@ export class DatabaseClient {
         let anyWritten = false;
         for (const [tableId, tablePages] of readPages) {
             const store = this.pageStores.get(tableId);
-            if (store === undefined) continue;
+            assert(
+                store !== undefined,
+                `executeActionServer response references unknown table ${tableId}`,
+            );
             for (const [pageIndex, {timestamp, data}] of tablePages) {
                 if (store.writePageIfNewer(pageIndex, timestamp, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
@@ -643,10 +652,6 @@ export class DatabaseClient {
             }
             store.sync();
         }
-    }
-
-    isEmpty(): boolean {
-        return this.pageStores.get(databaseMainTableId)!.isEmpty();
     }
 
     /**

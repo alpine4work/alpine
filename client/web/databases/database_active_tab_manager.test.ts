@@ -820,7 +820,7 @@ describe("Reactive actions", () => {
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
-        await conn.call("writePagesFromRealtime", {
+        await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
@@ -913,7 +913,7 @@ describe("Reactive actions", () => {
         // tells us nothing.
         expect(changedDiffs.size).toBeGreaterThan(0);
 
-        await conn.call("writePagesFromRealtime", {
+        await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs: changedDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
@@ -966,7 +966,7 @@ describe("Reactive actions", () => {
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
-        await conn.call("writePagesFromRealtime", {
+        await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
@@ -1013,7 +1013,7 @@ describe("watchAction", () => {
 
         // Pre-populate OPFS so data is in the base store
         // (no optimistic queue to replay on
-        // writePagesFromRealtime).
+        // writePageDiffsFromRealtime).
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
@@ -1041,7 +1041,7 @@ describe("watchAction", () => {
         const serverPages = await extractPages(serverDir);
 
         // Compute actual diffs between seed and server
-        // so writePagesFromRealtime applies real changes.
+        // so writePageDiffsFromRealtime applies real changes.
         const newerDiffs = new Map(
             serverPages.map(sp => {
                 const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
@@ -1053,7 +1053,7 @@ describe("watchAction", () => {
             }),
         );
 
-        await conn.call("writePagesFromRealtime", {
+        await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });

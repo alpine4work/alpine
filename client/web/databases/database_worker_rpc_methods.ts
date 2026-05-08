@@ -35,7 +35,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {result: DatabaseActionResultSchema},
     },
-    writePagesFromRealtime: {
+    writePageDiffsFromRealtime: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
             pageDiffs: DatabasePageDiffsSchema,

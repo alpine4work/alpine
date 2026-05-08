@@ -305,7 +305,7 @@ export class DatabaseActiveTabWorker {
                         result: {name: input.action.name, output: result} as any,
                     };
                 },
-                writePagesFromRealtime: async input => {
+                writePageDiffsFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
                     client.writePageDiffsFromRealtime(input.pageDiffs, input.mutationId);
                     return {};
