@@ -15,7 +15,6 @@ ts_project(
         "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@dnd-kit/utilities",
         "//:node_modules/@types/react",
-        "//:node_modules/@vanilla-extract/css",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//:node_modules/react-dom",

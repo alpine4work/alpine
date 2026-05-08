@@ -8,9 +8,8 @@ import {
     type DatabaseGridViewCellEditorOverlayProps,
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
-import {numberInputClassName} from "~/client/web/databases/fields/database_number_field_component.css.js";
 import {Box} from "~/client/web/design/box.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+import {databasesStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 
 function DatabaseNumberGridViewCellContent({
@@ -79,7 +78,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
                 step="any"
                 value={editValue}
                 onChange={e => setEditValue(e.currentTarget.value)}
-                className={`${numberInputClassName} ${sprinkles({
+                className={`${databasesStyles.numberInputClassName} ${sprinkles({
                     width: "full",
                     padding: "2",
                     fontSize: "75",
@@ -177,7 +176,7 @@ function DatabaseNumberConfigEditorPopover({
                     }
                     e.stopPropagation();
                 }}
-                className={`${numberInputClassName} ${sprinkles({
+                className={`${databasesStyles.numberInputClassName} ${sprinkles({
                     width: "full",
                     padding: "1.5",
                     fontSize: "75",

@@ -13,6 +13,7 @@ export * as contentFileAudioPlayerStyles from "~/client/web/styles/other/interna
 export * as contentFileVideoPlayerStyles from "~/client/web/styles/other/internal/content_file_video_player.css.js";
 export * as contentFileVideoAndAudioPlayerControlsStyles from "~/client/web/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
 export * as contentViewStyles from "~/client/web/styles/other/internal/content_view.css.js";
+export * as databasesStyles from "~/client/web/styles/other/internal/databases.css.js";
 export * as contentStyles from "~/client/web/styles/other/internal/content.css.js";
 export * as blobsArtStyles from "~/client/web/styles/other/internal/blobs_art.css.js";
 export * as documentBlobsStyles from "~/client/web/styles/other/internal/document_blobs.css.js";
