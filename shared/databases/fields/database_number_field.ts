@@ -23,14 +23,10 @@ export const databaseNumberFieldProvider = defineDatabaseFieldProvider({
     parseString: input => {
         if (input === "") return {ok: true, value: null};
         const n = Number(input);
-        return Number.isFinite(n)
-            ? {ok: true, value: n}
-            : {ok: false, error: undefined};
+        return Number.isFinite(n) ? {ok: true, value: n} : {ok: false, error: undefined};
     },
     formatString: (value, config) => {
         if (value == null) return "";
-        return config.decimalPlaces == null
-            ? String(value)
-            : value.toFixed(config.decimalPlaces);
+        return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
     },
 });
