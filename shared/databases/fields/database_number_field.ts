@@ -46,7 +46,7 @@ const maxDecorationNonWhitespace = 4;
  * 4. Single digit fallback.
  */
 const numberStructurePattern =
-    /^(?<prefix>.*?)(?<body>\d[\d,.eE+\-]*\d|\.\d+(?:[eE][+\-]?\d+)?|\d+\.|\d)(?<suffix>.*)$/;
+    /^(?<prefix>.*?)(?<body>\d[\d,.eE+-]*\d|\.\d+(?:[eE][+-]?\d+)?|\d+\.|\d)(?<suffix>.*)$/;
 
 /** Comma pattern for unambiguous US thousands grouping. */
 const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
