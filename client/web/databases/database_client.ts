@@ -193,13 +193,19 @@ export class DatabaseClient {
      * and background server confirmation.
      *
      * Falls back to the server when the local store
-     * is empty or missing pages.
+     * is empty or missing pages. Actions defined with
+     * `serverOnly: true` skip the local optimistic path
+     * entirely and go straight to the server.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
+
+        if (databaseActions[actionObject.name].serverOnly) {
+            return await this.executeActionViaServer(conn, actionObject, mutationId);
+        }
 
         let result!: DatabaseActionOutput<N>;
         let writtenPages: ReadonlySet<number>;

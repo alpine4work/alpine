@@ -58,14 +58,25 @@ function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
+    /**
+     * When `true`, the client skips optimistic local
+     * execution and routes the action straight to the
+     * server. Use for actions whose `run()` is
+     * non-deterministic in a way that would diverge
+     * between client and server — e.g. allocating IDs
+     * via `generateChronologicalId()` — making
+     * optimistic execution unsafe.
+     */
+    serverOnly?: boolean;
     run: (db: Database, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
+    serverOnly: boolean;
     run: (db: Database, input: Input) => Output;
 } {
-    return def;
+    return {...def, serverOnly: def.serverOnly ?? false};
 }
 
 /**
@@ -285,6 +296,7 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
+        serverOnly: true,
         run(db, {name}) {
             const existingTableNames = new Set(
                 sql`
