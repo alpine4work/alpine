@@ -137,13 +137,23 @@ export class DatabaseClient {
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
 
         this.vfs = installVfs(sqlite3, vfsName, {
-            open: filename => {
+            open: (filename, flags) => {
+                // SQLite calls `xOpen` for several file
+                // types (main DB, journals, WAL,
+                // sub-journals, transient DBs, sort
+                // spills); only `SQLITE_OPEN_MAIN_DB`
+                // identifies a real database file the
+                // application named — set both for the
+                // primary DB and for `ATTACH DATABASE`.
+                // Everything else is internal SQLite
+                // scratch space that belongs in memory.
+                if (!(flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB)) {
+                    return new VfsTempFile();
+                }
                 // Each database is opened with the path
                 // `/${tableId}` (main below, attached
                 // databases later); strip the leading `/`
-                // and look up the per-table store. Any
-                // other open (journals, internal temp
-                // files) gets a memory-backed temp file.
+                // and look up the per-table store.
                 if (filename === null || !filename.startsWith("/")) {
                     return new VfsTempFile();
                 }
