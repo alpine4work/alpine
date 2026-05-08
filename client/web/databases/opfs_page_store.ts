@@ -9,7 +9,7 @@ const indexSchema = Schema.map(
     Schema.integer,
     Schema.object({
         slot: Schema.integer,
-        timestamp: Schema.float,
+        version: Schema.integer,
     }),
 );
 
@@ -31,7 +31,7 @@ export interface OptimisticUpdate {
  *
  * Pages are stored as dense 4096-byte slots in a single
  * `pages.bin` file. An in-memory index maps page indices
- * to slot positions and timestamps.
+ * to slot positions and versions.
  *
  * Reads go to OPFS on-demand (SQLite's page cache handles
  * repeat reads). Writes are write-through.
@@ -43,12 +43,18 @@ export interface OptimisticUpdate {
  * so cross-store optimistic lifecycle stays in one place.
  */
 export class OpfsPageStore implements VfsFile {
-    private readonly index = new Map<number, {slot: number; timestamp: number}>();
+    private readonly index = new Map<number, {slot: number; version: number}>();
     private readonly pagesHandle: OpfsSyncAccessHandle;
     private readonly indexHandle: OpfsSyncAccessHandle;
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
+    // Local writes that haven't been confirmed by the server
+    // get a unique negative version so they're always
+    // superseded by any positive server version via
+    // writePageIfNewer, while still differing across writes
+    // for change-detection purposes.
+    private nextLocalVersion = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
     private readonly getCurrentOptimisticUpdate: () => OptimisticUpdate | null;
 
@@ -147,7 +153,7 @@ export class OpfsPageStore implements VfsFile {
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
 
         this.pagesHandle.write(data, {at: slot * sqlitePageSize});
-        this.index.set(pageIndex, {slot, timestamp: Date.now()});
+        this.index.set(pageIndex, {slot, version: --this.nextLocalVersion});
 
         if (pageIndex > this.maxPageIndex) {
             this.maxPageIndex = pageIndex;
@@ -208,7 +214,7 @@ export class OpfsPageStore implements VfsFile {
         const size = this.indexHandle.getSize();
         if (size === 0) return;
 
-        let index: ReadonlyMap<number, {slot: number; timestamp: number}>;
+        let index: ReadonlyMap<number, {slot: number; version: number}>;
         try {
             const data = new Uint8Array(size);
             this.indexHandle.read(data, {at: 0});
@@ -255,20 +261,20 @@ export class OpfsPageStore implements VfsFile {
 
     /**
      * Writes a page to the store only if the incoming
-     * timestamp is strictly newer than the local copy.
+     * version is strictly newer than the local copy.
      * Also updates the known database size from page 1's
      * header when page 0 is written.
      */
-    writePageIfNewer(pageIndex: number, timestamp: number, data: Uint8Array): boolean {
+    writePageIfNewer(pageIndex: number, version: number, data: Uint8Array): boolean {
         assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
         const existing = this.index.get(pageIndex);
-        if (existing !== undefined && existing.timestamp >= timestamp) {
+        if (existing !== undefined && existing.version >= version) {
             return false;
         }
 
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
         this.pagesHandle.write(data, {at: slot * sqlitePageSize});
-        this.index.set(pageIndex, {slot, timestamp});
+        this.index.set(pageIndex, {slot, version});
 
         if (pageIndex > this.maxPageIndex) {
             this.maxPageIndex = pageIndex;
@@ -327,14 +333,14 @@ export class OpfsPageStore implements VfsFile {
     }
 
     /**
-     * Returns the set of stored pages with their timestamps.
+     * Returns the set of stored pages with their versions.
      * Useful for understanding which pages are cached locally
      * and how old they are (e.g., for sync decisions).
      */
-    pageEntries(): Array<{pageIndex: number; timestamp: number}> {
-        const entries: Array<{pageIndex: number; timestamp: number}> = [];
-        for (const [pageIndex, {timestamp}] of this.index) {
-            entries.push({pageIndex, timestamp});
+    pageEntries(): Array<{pageIndex: number; version: number}> {
+        const entries: Array<{pageIndex: number; version: number}> = [];
+        for (const [pageIndex, {version}] of this.index) {
+            entries.push({pageIndex, version});
         }
         return entries;
     }

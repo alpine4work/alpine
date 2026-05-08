@@ -18,7 +18,7 @@ import type {
     DatabaseExecuteActionResponse,
     DatabasePageDiffs,
     DatabasePageIndexes,
-    DatabasePageTimestampsByIndex,
+    DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
@@ -74,7 +74,7 @@ export interface DatabaseClientConnection {
         },
     ): Promise<DatabaseExecuteActionResponse>;
     ensureCacheIsUpToDate(
-        pageTimestampsByIndex: DatabasePageTimestampsByIndex,
+        pageVersionsByIndex: DatabasePageVersionsByIndex,
     ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
     acknowledgePages(pageIndexes: DatabasePageIndexes): void;
     reportError(error: unknown): void;
@@ -193,7 +193,7 @@ export class DatabaseClient {
     /**
      * Validate the local OPFS page cache against the
      * server, across every open table. Sends the
-     * `tableId → pageIndex → timestamp` map the client
+     * `tableId → pageIndex → version` map the client
      * has cached and receives back, per table:
      *
      * - `updatedPages` — pages whose server data is
@@ -205,16 +205,16 @@ export class DatabaseClient {
      * up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
-        const pageTimestampsByIndex = new Map<DatabaseTableId, Map<number, number>>();
+        const pageVersionsByIndex = new Map<DatabaseTableId, Map<number, number>>();
         for (const [tableId, store] of this.pageStores) {
-            const tableTimestamps = new Map<number, number>();
+            const tableVersions = new Map<number, number>();
             for (const entry of store.pageEntries()) {
-                tableTimestamps.set(entry.pageIndex, entry.timestamp);
+                tableVersions.set(entry.pageIndex, entry.version);
             }
-            pageTimestampsByIndex.set(tableId, tableTimestamps);
+            pageVersionsByIndex.set(tableId, tableVersions);
         }
 
-        const {tables} = await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
+        const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
 
         const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
         for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
@@ -224,8 +224,8 @@ export class DatabaseClient {
                 `ensureCacheIsUpToDate response references unknown table ${tableId}`,
             );
 
-            for (const [pageIndex, {timestamp, data}] of updatedPages) {
-                store.writePageIfNewer(pageIndex, timestamp, data);
+            for (const [pageIndex, {version, data}] of updatedPages) {
+                store.writePageIfNewer(pageIndex, version, data);
             }
             if (updatedPages.size > 0) {
                 acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
@@ -501,7 +501,7 @@ export class DatabaseClient {
     /**
      * Write page diffs received from realtime events into
      * the local OPFS stores, skipping pages already at a
-     * newer timestamp. If the `mutationId` matches a
+     * newer version. If the `mutationId` matches a
      * queued optimistic mutation, removes it from the
      * queue and replays the remaining mutations.
      * Automatically schedules invalidation for any
@@ -525,11 +525,11 @@ export class DatabaseClient {
         for (const [tableId, tableDiffs] of pageDiffs) {
             const store = this.pageStores.get(tableId);
             if (store === undefined) continue;
-            for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
+            for (const [pageIndex, {version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
                 if (base === null) continue;
                 const full = applyPageDiff(base, diff);
-                if (store.writePageIfNewer(pageIndex, timestamp, full)) {
+                if (store.writePageIfNewer(pageIndex, version, full)) {
                     if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
                         this.addPageToInvalidate(tableId, pageIndex);
                         anyWritten = true;
@@ -554,8 +554,8 @@ export class DatabaseClient {
                 store !== undefined,
                 `executeActionServer response references unknown table ${tableId}`,
             );
-            for (const [pageIndex, {timestamp, data}] of tablePages) {
-                if (store.writePageIfNewer(pageIndex, timestamp, data)) {
+            for (const [pageIndex, {version, data}] of tablePages) {
+                if (store.writePageIfNewer(pageIndex, version, data)) {
                     this.addPageToInvalidate(tableId, pageIndex);
                     anyWritten = true;
                 }
@@ -647,8 +647,8 @@ export class DatabaseClient {
     async seedPages(pages: DatabasePages): Promise<void> {
         for (const [tableId, tablePages] of pages) {
             const store = this.pageStores.get(tableId) ?? (await this.pageStores.create(tableId));
-            for (const [pageIndex, {timestamp, data}] of tablePages) {
-                store.writePageIfNewer(pageIndex, timestamp, data);
+            for (const [pageIndex, {version, data}] of tablePages) {
+                store.writePageIfNewer(pageIndex, version, data);
             }
             store.sync();
         }

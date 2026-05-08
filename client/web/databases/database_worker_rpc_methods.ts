@@ -9,7 +9,7 @@ import {
     DatabaseExecuteActionOutputConfig,
     DatabasePageDiffsSchema,
     DatabasePageIndexesSchema,
-    DatabasePageTimestampsByIndexSchema,
+    DatabasePageVersionsByIndexSchema,
     DatabasePagesSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import type {
@@ -67,7 +67,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         output: DatabaseExecuteActionOutputConfig,
     },
     ensureCacheIsUpToDate: {
-        input: {pageTimestampsByIndex: DatabasePageTimestampsByIndexSchema},
+        input: {pageVersionsByIndex: DatabasePageVersionsByIndexSchema},
         output: DatabaseEnsureCacheIsUpToDateResultConfig,
     },
     acknowledgePages: {

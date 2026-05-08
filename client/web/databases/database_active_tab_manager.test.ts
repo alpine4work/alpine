@@ -63,7 +63,7 @@ async function executeSql(
 async function extractPages(
     dir: OpfsDirectoryHandle,
     databaseGroupId: string = testDatabaseGroupId,
-): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
+): Promise<Array<{pageIndex: number; version: number; data: Uint8Array}>> {
     const dbsDir = await dir.getDirectoryHandle("databases");
     const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
     return extractOpfsPages(groupDir);
@@ -331,16 +331,16 @@ function createTestTab(config: {
                 // pages are preserved during tests.
                 return new Promise(() => {});
             }),
-        ensureCacheIsUpToDate: async pageTimestampsByTable => {
-            const clientTimestamps =
-                pageTimestampsByTable.get(databaseMainTableId) ?? new Map<number, number>();
+        ensureCacheIsUpToDate: async pageVersionsByTable => {
+            const clientVersions =
+                pageVersionsByTable.get(databaseMainTableId) ?? new Map<number, number>();
 
             const empty = {
                 tables: new Map([
                     [
                         databaseMainTableId,
                         {
-                            updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
+                            updatedPages: new Map<number, {version: number; data: Uint8Array}>(),
                             stalePageIndexes: [] as Array<number>,
                             fileSizeInPages: 0,
                         },
@@ -349,7 +349,7 @@ function createTestTab(config: {
             };
 
             // Read the local OPFS index to compare against
-            // client timestamps, simulating a server that
+            // client versions, simulating a server that
             // agrees with the local cache.
             try {
                 const dbsDir = await config.dir.getDirectoryHandle("databases");
@@ -363,11 +363,11 @@ function createTestTab(config: {
                     const raw = new Uint8Array(size);
                     indexHandle.read(raw, {at: 0});
                     const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-                        [number, {slot: number; timestamp: number}]
+                        [number, {slot: number; version: number}]
                     >;
-                    const serverTimestamps = new Map<number, number>();
-                    for (const [pageIndex, {timestamp}] of entries) {
-                        serverTimestamps.set(pageIndex, timestamp);
+                    const serverVersions = new Map<number, number>();
+                    for (const [pageIndex, {version}] of entries) {
+                        serverVersions.set(pageIndex, version);
                     }
 
                     // Test page counts are tiny — always
@@ -380,17 +380,17 @@ function createTestTab(config: {
                         slotMap.set(pageIndex, slot);
                     }
 
-                    const updatedPages = new Map<number, {timestamp: number; data: Uint8Array}>();
+                    const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
                     const stalePageIndexes: Array<number> = [];
-                    for (const [pageIndex, clientTs] of clientTimestamps) {
-                        const serverTs = serverTimestamps.get(pageIndex) ?? 0;
-                        if (serverTs === clientTs) continue;
+                    for (const [pageIndex, clientVersion] of clientVersions) {
+                        const serverVersion = serverVersions.get(pageIndex) ?? 0;
+                        if (serverVersion === clientVersion) continue;
                         const slot = slotMap.get(pageIndex);
                         if (slot !== undefined) {
                             const data = new Uint8Array(sqlitePageSize);
                             pagesHandle.read(data, {at: slot * sqlitePageSize});
                             updatedPages.set(pageIndex, {
-                                timestamp: serverTs,
+                                version: serverVersion,
                                 data,
                             });
                         } else {
@@ -811,14 +811,11 @@ describe("Reactive actions", () => {
         // overlap with the reactive action's read-set.
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
 
-        // Realtime confirmation with newer timestamps;
+        // Realtime confirmation with newer versions;
         // empty diffs because OPFS already has the content.
         const pages = await extractPages(dir);
         const newerDiffs = new Map(
-            pages.map(({pageIndex, timestamp}) => [
-                pageIndex,
-                {timestamp: timestamp + 1000, diff: []},
-            ]),
+            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
         await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
@@ -900,12 +897,9 @@ describe("Reactive actions", () => {
                 .filter(after => {
                     if (after.pageIndex === 0) return false;
                     const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
-                    return before === undefined || before.timestamp !== after.timestamp;
+                    return before === undefined || before.version !== after.version;
                 })
-                .map(({pageIndex, timestamp}) => [
-                    pageIndex,
-                    {timestamp: timestamp + 1000, diff: []},
-                ]),
+                .map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
 
         // Sanity: the t2 mutation should have changed at
@@ -961,10 +955,7 @@ describe("Reactive actions", () => {
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
         const pages = await extractPages(dir);
         const diffs = new Map(
-            pages.map(({pageIndex, timestamp}) => [
-                pageIndex,
-                {timestamp: timestamp + 1000, diff: []},
-            ]),
+            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
         await conn.call("writePageDiffsFromRealtime", {
             pageDiffs: new Map([[databaseMainTableId, {diffs, fileSizeInPages: 0}]]),
@@ -1046,10 +1037,9 @@ describe("watchAction", () => {
             serverPages.map(sp => {
                 const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
                 const base = seedPage?.data ?? new Uint8Array(sqlitePageSize);
-                return [
-                    sp.pageIndex,
-                    {timestamp: sp.timestamp + 10000, diff: diffPage(base, sp.data)},
-                ];
+                // Local writes have negative versions; any positive
+                // value wins via writePageIfNewer.
+                return [sp.pageIndex, {version: 1, diff: diffPage(base, sp.data)}];
             }),
         );
 

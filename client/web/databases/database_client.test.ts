@@ -29,9 +29,9 @@ async function execute(
 }
 
 function pagesToMap(
-    pages: Array<{pageIndex: number; timestamp: number; data: Uint8Array}>,
-): Map<number, {timestamp: number; data: Uint8Array}> {
-    return new Map(pages.map(p => [p.pageIndex, {timestamp: p.timestamp, data: p.data}]));
+    pages: Array<{pageIndex: number; version: number; data: Uint8Array}>,
+): Map<number, {version: number; data: Uint8Array}> {
+    return new Map(pages.map(p => [p.pageIndex, {version: p.version, data: p.data}]));
 }
 
 // ---------------------------------------------------------------------------
@@ -664,15 +664,12 @@ describe("registerReactiveAction", () => {
         // Insert another row directly to OPFS base store
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
 
-        // Write as realtime with newer timestamps to
+        // Write as realtime with newer versions to
         // trigger invalidation. Empty diffs since OPFS
         // already has the current content.
         const pages = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, timestamp}) => [
-                pageIndex,
-                {timestamp: timestamp + 1000, diff: []},
-            ]),
+            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
@@ -730,12 +727,9 @@ describe("registerReactiveAction", () => {
                     // trigger a notification.
                     if (after.pageIndex === 0) return false;
                     const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
-                    return before === undefined || before.timestamp !== after.timestamp;
+                    return before === undefined || before.version !== after.version;
                 })
-                .map(({pageIndex, timestamp}) => [
-                    pageIndex,
-                    {timestamp: timestamp + 1000, diff: []},
-                ]),
+                .map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
 
         client.writePageDiffsFromRealtime(
@@ -776,10 +770,7 @@ describe("registerReactiveAction", () => {
         // readPages is null so any page write overlaps.
         const pages = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, timestamp}) => [
-                pageIndex,
-                {timestamp: timestamp + 1000, diff: []},
-            ]),
+            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
@@ -815,10 +806,7 @@ describe("registerReactiveAction", () => {
         // Write pages — should not trigger notification
         const pages = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
-            pages.map(({pageIndex, timestamp}) => [
-                pageIndex,
-                {timestamp: timestamp + 1000, diff: []},
-            ]),
+            pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
         client.writePageDiffsFromRealtime(
             new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),

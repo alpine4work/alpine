@@ -19,12 +19,12 @@ describe("DatabaseDurableObjectStorage", () => {
 
         doStorage.writePages(new Map([[0, page]]));
 
-        const {data: read, timestamp} = doStorage.readPage(0)!;
+        const {data: read, version} = doStorage.readPage(0)!;
 
         expect(read![0]).toBe(0xab);
         expect(read![sqlitePageSize - 1]).toBe(0xcd);
         expect(read!.byteLength).toBe(sqlitePageSize);
-        expect(timestamp).toBeGreaterThan(0);
+        expect(version).toBeGreaterThan(0);
     });
 
     test("readPage returns null for unwritten index", () => {
@@ -65,7 +65,7 @@ describe("DatabaseDurableObjectStorage", () => {
         const page1 = doStorage.readPage(1);
         expect(page1).not.toBeNull();
         expect(page1!.data).toBeNull();
-        expect(page1!.timestamp).toBeGreaterThan(0);
+        expect(page1!.version).toBeGreaterThan(0);
 
         const page2 = doStorage.readPage(2);
         expect(page2).not.toBeNull();
@@ -83,7 +83,7 @@ describe("DatabaseDurableObjectStorage", () => {
         const page = doStorage.readPage(0);
         expect(page).not.toBeNull();
         expect(page!.data).toBeNull();
-        expect(page!.timestamp).toBeGreaterThan(0);
+        expect(page!.version).toBeGreaterThan(0);
     });
 
     test("getFileSize is correct after truncate", () => {
@@ -119,36 +119,32 @@ describe("DatabaseDurableObjectStorage", () => {
         expect(doStorage.getFileSize()).toBe(4 * sqlitePageSize);
     });
 
-    test("writePages returns the timestamp it stamped onto the rows", () => {
+    test("writePages returns the version it stamped onto the rows", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
         const returned = doStorage.writePages(new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
-        const {timestamp} = doStorage.readPage(0)!;
-        expect(returned).toBe(timestamp);
+        const {version} = doStorage.readPage(0)!;
+        expect(returned).toBe(version);
     });
 
-    test("consecutive writes have strictly increasing timestamps", () => {
+    test("consecutive writes have strictly increasing versions", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        // Many writes in a tight loop. With Date.now() at
-        // millisecond resolution, several of these will land in
-        // the same wall-clock millisecond — the `prev + 1`
-        // branch is what guarantees monotonicity.
-        const timestamps: Array<number> = [];
+        const versions: Array<number> = [];
         for (let i = 0; i < 50; i++) {
-            timestamps.push(doStorage.writePages(new Map([[i, new Uint8Array(sqlitePageSize)]])));
+            versions.push(doStorage.writePages(new Map([[i, new Uint8Array(sqlitePageSize)]])));
         }
 
-        for (let i = 1; i < timestamps.length; i++) {
-            expect(timestamps[i]!).toBeGreaterThan(timestamps[i - 1]!);
+        for (let i = 1; i < versions.length; i++) {
+            expect(versions[i]!).toBe(versions[i - 1]! + 1);
         }
     });
 
-    test("truncate timestamp is strictly greater than prior writePages timestamp", () => {
+    test("truncate version is strictly greater than prior writePages version", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        const writeTs = doStorage.writePages(
+        const writeVersion = doStorage.writePages(
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -156,8 +152,8 @@ describe("DatabaseDurableObjectStorage", () => {
         );
         doStorage.truncate(0);
 
-        const tombstoneTs = doStorage.readPage(0)!.timestamp;
-        expect(tombstoneTs).toBeGreaterThan(writeTs);
+        const tombstoneVersion = doStorage.readPage(0)!.version;
+        expect(tombstoneVersion).toBeGreaterThan(writeVersion);
     });
 
     test("readPage returns the latest version when a page is rewritten", () => {
@@ -175,19 +171,19 @@ describe("DatabaseDurableObjectStorage", () => {
         expect(data![0]).toBe(0x22);
     });
 
-    test("getLastWriteTimestamp recovers MAX(timestamp) on cold load", () => {
+    test("getLastWriteVersion recovers MAX(version) on cold load", () => {
         // Seed the underlying storage via one instance, then
         // construct a fresh instance over the same SqlStorage
         // (simulating a Durable Object restart). The next
-        // write must produce a timestamp strictly greater than
+        // write must produce a version strictly greater than
         // the previously-persisted one.
         const first = new DatabaseDurableObjectStorage(storage.sql);
-        const seedTs = first.writePages(new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const seedVersion = first.writePages(new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
         const reloaded = new DatabaseDurableObjectStorage(storage.sql);
-        const nextTs = reloaded.writePages(new Map([[1, new Uint8Array(sqlitePageSize)]]));
+        const nextVersion = reloaded.writePages(new Map([[1, new Uint8Array(sqlitePageSize)]]));
 
-        expect(nextTs).toBeGreaterThan(seedTs);
+        expect(nextVersion).toBeGreaterThan(seedVersion);
     });
 
     test("getFileSize ignores tombstones in the interior of the file", () => {
@@ -209,9 +205,9 @@ describe("DatabaseDurableObjectStorage", () => {
         // for page 1 directly so we can probe the size query.
         const reloaded = new DatabaseDurableObjectStorage(storage.sql);
         storage.sql.exec(
-            "INSERT INTO pages (page_index, timestamp, data) VALUES (?, ?, NULL)",
+            "INSERT INTO pages (page_index, version, data) VALUES (?, ?, NULL)",
             1,
-            Date.now() + 1000,
+            999_999,
         );
 
         // Page 2 is still the highest live page — file size

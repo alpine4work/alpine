@@ -25,7 +25,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     result: DatabaseActionOutput<N>;
     readPages: ReadonlyMap<
         DatabaseTableId,
-        ReadonlyMap<number, {timestamp: number; data: Uint8Array}>
+        ReadonlyMap<number, {version: number; data: Uint8Array}>
     >;
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);

@@ -29,12 +29,12 @@ import {
 /**
  * The pages of a single database table, keyed by SQLite
  * page index. Each value is the page bytes plus the
- * timestamp at which the canonical server observed them.
+ * version at which the canonical server observed them.
  */
 export const DatabaseTablePagesSchema = Schema.map(
     Schema.integer,
     Schema.object({
-        timestamp: Schema.integer,
+        version: Schema.integer,
         data: Schema.bytes,
     }),
 );
@@ -60,7 +60,7 @@ export type DatabasePages = SchemaType<typeof DatabasePagesSchema>;
  * The page diffs for a single database table.
  *
  * `diffs` is keyed by SQLite page index; each value is
- * the diff bytes plus the timestamp at which the
+ * the diff bytes plus the version at which the
  * canonical server produced them. Mirrors
  * {@link DatabaseTablePagesSchema} for realtime updates.
  *
@@ -73,7 +73,7 @@ export const DatabaseTablePageDiffsSchema = Schema.object({
     diffs: Schema.map(
         Schema.integer,
         Schema.object({
-            timestamp: Schema.integer,
+            version: Schema.integer,
             diff: pageDiffSchema,
         }),
     ),
@@ -98,15 +98,15 @@ export type DatabasePageDiffs = SchemaType<typeof DatabasePageDiffsSchema>;
 
 /**
  * Map a client sends to validate its page cache: per
- * table, the page-index → timestamp pairs the client
+ * table, the page-index → version pairs the client
  * believes it has cached.
  */
-export const DatabasePageTimestampsByIndexSchema = Schema.map(
+export const DatabasePageVersionsByIndexSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
     Schema.map(Schema.integer, Schema.integer),
 );
 
-export type DatabasePageTimestampsByIndex = SchemaType<typeof DatabasePageTimestampsByIndexSchema>;
+export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersionsByIndexSchema>;
 
 /**
  * Result config for `ensureCacheIsUpToDate`.

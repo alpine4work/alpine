@@ -116,11 +116,11 @@ export class BrowserPageTracker {
      */
     filterReadPages(
         browserId: BrowserId,
-        readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>,
-    ): Map<number, {timestamp: number; data: Uint8Array}> {
+        readPages: ReadonlyMap<number, {version: number; data: Uint8Array}>,
+    ): Map<number, {version: number; data: Uint8Array}> {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return new Map(readPages);
-        const filtered = new Map<number, {timestamp: number; data: Uint8Array}>();
+        const filtered = new Map<number, {version: number; data: Uint8Array}>();
         for (const [pageIndex, value] of readPages) {
             if (entry.pages.get(pageIndex) !== "confirmed") {
                 filtered.set(pageIndex, value);

@@ -96,7 +96,7 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
  */
 export async function extractOpfsPages(
     groupDir: OpfsDirectoryHandle,
-): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
+): Promise<Array<{pageIndex: number; version: number; data: Uint8Array}>> {
     const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId);
     const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
@@ -107,13 +107,13 @@ export async function extractOpfsPages(
     const raw = new Uint8Array(indexSize);
     indexHandle.read(raw, {at: 0});
     const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-        [number, {slot: number; timestamp: number}]
+        [number, {slot: number; version: number}]
     >;
 
-    return entries.map(([pageIndex, {slot, timestamp}]) => {
+    return entries.map(([pageIndex, {slot, version}]) => {
         const data = new Uint8Array(sqlitePageSize);
         pagesHandle.read(data, {at: slot * sqlitePageSize});
-        return {pageIndex, timestamp, data};
+        return {pageIndex, version, data};
     });
 }
 
@@ -124,17 +124,17 @@ export async function extractOpfsPages(
  */
 export async function prepopulateOpfsPages(
     groupDir: OpfsDirectoryHandle,
-    pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
+    pages: ReadonlyArray<{pageIndex: number; version: number; data: Uint8Array}>,
 ): Promise<void> {
     const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId, {create: true});
     const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 
-    const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
+    const indexEntries: Array<[number, {slot: number; version: number}]> = [];
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i]!;
         pagesHandle.write(page.data, {at: i * sqlitePageSize});
-        indexEntries.push([page.pageIndex, {slot: i, timestamp: page.timestamp}]);
+        indexEntries.push([page.pageIndex, {slot: i, version: page.version}]);
     }
     pagesHandle.flush();
 

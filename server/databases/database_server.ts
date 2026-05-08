@@ -43,9 +43,9 @@ type DatabaseServerAction =
     | {
           type: "execute";
           allowWrites: SqliteWriteLevel;
-          readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+          readPages: Map<number, {data: Uint8Array; version: number}>;
           changedPages: Map<number, DatabaseServerPageChange>;
-          timestamp: number;
+          version: number;
       };
 
 export interface DatabaseServerPageChange {
@@ -55,7 +55,7 @@ export interface DatabaseServerPageChange {
 
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
-    readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+    readPages: Map<number, {data: Uint8Array; version: number}>;
     changedPages: Map<number, DatabaseServerPageChange>;
 }
 
@@ -167,7 +167,7 @@ export class DatabaseServer {
         actionObject: DatabaseActionObject<N>,
     ): {
         result: DatabaseActionOutput<N>;
-        readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+        readPages: Map<number, {data: Uint8Array; version: number}>;
         changedPages: Map<number, DatabaseServerPageChange>;
     } {
         const action = databaseActions[actionObject.name];
@@ -182,7 +182,7 @@ export class DatabaseServer {
         fn: (db: Database) => T,
     ): {
         result: T;
-        readPages: Map<number, {data: Uint8Array; timestamp: number}>;
+        readPages: Map<number, {data: Uint8Array; version: number}>;
         changedPages: Map<number, DatabaseServerPageChange>;
     } {
         this.action = {
@@ -190,7 +190,7 @@ export class DatabaseServer {
             allowWrites: writeLevel,
             readPages: new Map(),
             changedPages: new Map(),
-            timestamp: 0,
+            version: 0,
         };
         this.db.exec("BEGIN");
         this.db.pageAccessHook((_pArg, pgno, flags) => {
@@ -204,8 +204,8 @@ export class DatabaseServer {
                         page !== null && page.data !== null
                             ? page.data
                             : new Uint8Array(sqlitePageSize);
-                    const timestamp = page?.timestamp ?? 0;
-                    this.action.readPages.set(pageIndex, {data: new Uint8Array(data), timestamp});
+                    const version = page?.version ?? 0;
+                    this.action.readPages.set(pageIndex, {data: new Uint8Array(data), version});
                 }
             }
         });
@@ -228,7 +228,7 @@ export class DatabaseServer {
                 for (const [pageIndex, change] of this.action.changedPages) {
                     this.action.readPages.set(pageIndex, {
                         data: change.after,
-                        timestamp: this.action.timestamp,
+                        version: this.action.version,
                     });
                 }
             }
@@ -305,7 +305,7 @@ export class DatabaseServer {
                 if (this.action.type === "execute" && !this.action.readPages.has(pageIndex)) {
                     this.action.readPages.set(pageIndex, {
                         data: new Uint8Array(pageData),
-                        timestamp: page?.timestamp ?? 0,
+                        version: page?.version ?? 0,
                     });
                 }
 
@@ -350,10 +350,10 @@ export class DatabaseServer {
 
             sync: () => {
                 if (pendingWrites.size > 0) {
-                    const timestamp = this.storage.writePages(pendingWrites);
+                    const version = this.storage.writePages(pendingWrites);
                     pendingWrites.clear();
                     if (this.action.type === "execute") {
-                        this.action.timestamp = timestamp;
+                        this.action.version = version;
                     }
                 }
             },

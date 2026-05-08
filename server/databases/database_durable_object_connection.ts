@@ -87,7 +87,7 @@ export class DatabaseDurableObjectConnection {
                         [...result.changedPages].map(([pageIndex, {before, after}]) => [
                             pageIndex,
                             {
-                                timestamp: result.readPages.get(pageIndex)!.timestamp,
+                                version: result.readPages.get(pageIndex)!.version,
                                 diff: diffPage(before, after),
                             },
                         ]),
@@ -121,18 +121,18 @@ export class DatabaseDurableObjectConnection {
             });
         },
         ensureCacheIsUpToDate: async (_context, input) => {
-            const updatedPages = new Map<number, {timestamp: number; data: Uint8Array}>();
+            const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
             const stalePageIndexes: Array<number> = [];
             let overLimit = false;
 
-            const tableTimestamps =
-                input.pageTimestampsByIndex.get(databaseMainTableId) ?? new Map<number, number>();
+            const tableVersions =
+                input.pageVersionsByIndex.get(databaseMainTableId) ?? new Map<number, number>();
 
-            for (const [pageIndex, clientTs] of tableTimestamps) {
+            for (const [pageIndex, clientVersion] of tableVersions) {
                 const page = this._durableObjectStorage.readPage(pageIndex);
 
                 // Page matches — skip.
-                if (page !== null && page.data !== null && page.timestamp === clientTs) continue;
+                if (page !== null && page.data !== null && page.version === clientVersion) continue;
 
                 // Over limit, or page is gone (null/tombstone) — stale index.
                 if (overLimit || page === null || page.data === null) {
@@ -140,7 +140,7 @@ export class DatabaseDurableObjectConnection {
                     continue;
                 }
 
-                updatedPages.set(pageIndex, {timestamp: page.timestamp, data: page.data});
+                updatedPages.set(pageIndex, {version: page.version, data: page.data});
                 if (updatedPages.size >= cacheUpdateStalePageLimit) {
                     // Too many stale pages to inline — dump
                     // everything collected so far into
@@ -157,9 +157,9 @@ export class DatabaseDurableObjectConnection {
             if (!updatedPages.has(0)) {
                 const page0 = this._durableObjectStorage.readPage(0);
                 if (page0 !== null && page0.data !== null) {
-                    const clientTs = tableTimestamps.get(0);
-                    if (clientTs === undefined || clientTs !== page0.timestamp) {
-                        updatedPages.set(0, {timestamp: page0.timestamp, data: page0.data});
+                    const clientVersion = tableVersions.get(0);
+                    if (clientVersion === undefined || clientVersion !== page0.version) {
+                        updatedPages.set(0, {version: page0.version, data: page0.data});
                     }
                 }
             }
@@ -169,7 +169,7 @@ export class DatabaseDurableObjectConnection {
             // minus those we're updating or marking stale.
             const staleSet = new Set(stalePageIndexes);
             const matchingPages: Array<number> = [];
-            for (const pageIndex of tableTimestamps.keys()) {
+            for (const pageIndex of tableVersions.keys()) {
                 if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
                     matchingPages.push(pageIndex);
                 }
@@ -209,7 +209,7 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                const filteredDiffs = new Map<number, {timestamp: number; diff: PageDiff}>();
+                const filteredDiffs = new Map<number, {version: number; diff: PageDiff}>();
                 for (const [pageIndex, value] of eventStub.tableDiffs.diffs) {
                     if (this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)) {
                         filteredDiffs.set(pageIndex, value);

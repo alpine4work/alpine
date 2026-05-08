@@ -7,25 +7,24 @@ import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 class InMemoryStorage implements DatabaseServerStorage {
-    private pages = new Map<number, {data: Uint8Array | null; timestamp: number}>();
+    private pages = new Map<number, {data: Uint8Array | null; version: number}>();
     private _fileSize = 0;
-    private lastWriteTimestamp = 0;
+    private lastWriteVersion = 0;
 
-    readPage(index: number): {data: Uint8Array | null; timestamp: number} | null {
+    readPage(index: number): {data: Uint8Array | null; version: number} | null {
         return this.pages.get(index) ?? null;
     }
 
     writePages(pages: ReadonlyMap<number, Uint8Array>): number {
-        const timestamp = Math.max(Date.now(), this.lastWriteTimestamp + 1);
-        this.lastWriteTimestamp = timestamp;
+        const version = ++this.lastWriteVersion;
         for (const [index, data] of pages) {
-            this.pages.set(index, {data: new Uint8Array(data), timestamp});
+            this.pages.set(index, {data: new Uint8Array(data), version});
             const end = (index + 1) * sqlitePageSize;
             if (end > this._fileSize) {
                 this._fileSize = end;
             }
         }
-        return timestamp;
+        return version;
     }
 
     getFileSize(): number {
@@ -35,11 +34,10 @@ class InMemoryStorage implements DatabaseServerStorage {
     truncate(size: number): void {
         this._fileSize = size;
         const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const timestamp = Math.max(Date.now(), this.lastWriteTimestamp + 1);
-        this.lastWriteTimestamp = timestamp;
+        const version = ++this.lastWriteVersion;
         for (const [index] of this.pages) {
             if (index >= maxPageIndex) {
-                this.pages.set(index, {data: null, timestamp});
+                this.pages.set(index, {data: null, version});
             }
         }
     }

@@ -19,7 +19,7 @@ import type {
     DatabaseEnsureCacheIsUpToDateResult,
     DatabaseExecuteActionResponse,
     DatabasePageIndexes,
-    DatabasePageTimestampsByIndex,
+    DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {CancelledError} from "~/shared/error/error.js";
@@ -370,8 +370,8 @@ export class DatabaseActiveTabWorker {
                     returnResult: options.returnResult ?? true,
                     returnPages: options.returnPages ?? true,
                 }),
-            ensureCacheIsUpToDate: pageTimestampsByIndex =>
-                rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
+            ensureCacheIsUpToDate: pageVersionsByIndex =>
+                rpc.call("ensureCacheIsUpToDate", {pageVersionsByIndex}),
             acknowledgePages: pageIndexes => {
                 void rpc.call("acknowledgePages", {pageIndexes});
             },
@@ -456,7 +456,7 @@ export class DatabaseActiveTabManager {
                 },
             ): Promise<DatabaseExecuteActionResponse>;
             ensureCacheIsUpToDate(
-                pageTimestampsByIndex: DatabasePageTimestampsByIndex,
+                pageVersionsByIndex: DatabasePageVersionsByIndex,
             ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
             acknowledgePages(pageIndexes: DatabasePageIndexes): void;
             reportError?(message: string): void;
@@ -756,7 +756,7 @@ export class DatabaseActiveTabManager {
                     };
                 },
                 ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                    this.deps.ensureCacheIsUpToDate(input.pageVersionsByIndex),
                 acknowledgePages: async input => {
                     this.deps.acknowledgePages(input.pageIndexes);
                     return {};
@@ -827,7 +827,7 @@ export class DatabaseActiveTabManager {
                     };
                 },
                 ensureCacheIsUpToDate: async input =>
-                    this.deps.ensureCacheIsUpToDate(input.pageTimestampsByIndex),
+                    this.deps.ensureCacheIsUpToDate(input.pageVersionsByIndex),
                 acknowledgePages: async input => {
                     this.deps.acknowledgePages(input.pageIndexes);
                     return {};

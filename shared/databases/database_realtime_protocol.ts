@@ -4,7 +4,7 @@ import {
     DatabaseExecuteActionOutputConfig,
     DatabasePageDiffsSchema,
     DatabasePageIndexesSchema,
-    DatabasePageTimestampsByIndexSchema,
+    DatabasePageVersionsByIndexSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -22,7 +22,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             output: DatabaseExecuteActionOutputConfig,
         },
         ensureCacheIsUpToDate: {
-            input: {pageTimestampsByIndex: DatabasePageTimestampsByIndexSchema},
+            input: {pageVersionsByIndex: DatabasePageVersionsByIndexSchema},
             output: DatabaseEnsureCacheIsUpToDateResultConfig,
         },
         acknowledgePages: {

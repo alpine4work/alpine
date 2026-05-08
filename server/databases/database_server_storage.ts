@@ -14,17 +14,17 @@ export interface DatabaseServerStorage {
      * Read a single page by its zero-based index.
      *
      * - `null` — page never existed (no rows for this index).
-     * - `{data: null, timestamp}` — tombstone (page was
+     * - `{data: null, version}` — tombstone (page was
      *   truncated/deleted).
-     * - `{data: Uint8Array, timestamp}` — real page with
+     * - `{data: Uint8Array, version}` — real page with
      *   content.
      */
-    readPage(index: number): {data: Uint8Array | null; timestamp: number} | null;
+    readPage(index: number): {data: Uint8Array | null; version: number} | null;
 
     /**
      * Write a batch of pages. Called from `xSync` with all
      * pages that were dirtied since the last sync. Returns the
-     * monotonically increasing timestamp assigned to this write.
+     * monotonically increasing version assigned to this write.
      */
     writePages(pages: ReadonlyMap<number, Uint8Array>): number;
 

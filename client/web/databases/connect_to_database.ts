@@ -10,7 +10,7 @@ import type {
     DatabaseEnsureCacheIsUpToDateResult,
     DatabaseExecuteActionResponse,
     DatabasePageIndexes,
-    DatabasePageTimestampsByIndex,
+    DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {CancelledError} from "~/shared/error/error.js";
@@ -34,7 +34,7 @@ type ConnectOptions = {
         },
     ): Promise<DatabaseExecuteActionResponse>;
     ensureCacheIsUpToDate(
-        pageTimestampsByIndex: DatabasePageTimestampsByIndex,
+        pageVersionsByIndex: DatabasePageVersionsByIndex,
     ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
     acknowledgePages(pageIndexes: DatabasePageIndexes): void;
     reportError?(message: string): void;

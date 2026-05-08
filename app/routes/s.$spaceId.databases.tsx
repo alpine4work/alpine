@@ -110,9 +110,9 @@ export default function DatabaseGroupLayoutRoute() {
             });
         },
         ensureCacheIsUpToDate: async (
-            pageTimestampsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
+            pageVersionsByIndex: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, number>>,
         ) => {
-            return procedures.ensureCacheIsUpToDate({pageTimestampsByIndex});
+            return procedures.ensureCacheIsUpToDate({pageVersionsByIndex});
         },
         acknowledgePages: (pageIndexes: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>) => {
             void procedures.acknowledgePages({pageIndexes});

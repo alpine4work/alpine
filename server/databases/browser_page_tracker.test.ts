@@ -10,8 +10,8 @@ function cid(): WebSocketConnectionId {
     return generateId<WebSocketConnectionId>();
 }
 
-function pageData(marker: number): {timestamp: number; data: Uint8Array} {
-    return {timestamp: marker, data: new Uint8Array([marker])};
+function pageData(marker: number): {version: number; data: Uint8Array} {
+    return {version: marker, data: new Uint8Array([marker])};
 }
 
 describe("BrowserPageTracker", () => {

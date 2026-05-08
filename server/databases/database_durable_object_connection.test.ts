@@ -37,16 +37,16 @@ function createConnection(doStorage: DatabaseDurableObjectStorage) {
 
 async function ensureCacheIsUpToDate(
     conn: DatabaseDurableObjectConnection,
-    pageTimestampsByIndex: ReadonlyMap<number, number>,
+    pageVersionsByIndex: ReadonlyMap<number, number>,
 ) {
     const result = await conn.procedures.ensureCacheIsUpToDate(
         null as any,
-        {pageTimestampsByIndex: new Map([[databaseMainTableId, pageTimestampsByIndex]])},
+        {pageVersionsByIndex: new Map([[databaseMainTableId, pageVersionsByIndex]])},
         null as any,
     );
     return (
         result.tables.get(databaseMainTableId) ?? {
-            updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
+            updatedPages: new Map<number, {version: number; data: Uint8Array}>(),
             stalePageIndexes: [] as ReadonlyArray<number>,
             fileSizeInPages: 0,
         }
@@ -74,7 +74,7 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts = doStorage.readPage(0)!.timestamp;
+        const ts = doStorage.readPage(0)!.version;
         const conn = createConnection(doStorage);
 
         const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
@@ -91,10 +91,10 @@ describe("ensureCacheIsUpToDate", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
         const conn = createConnection(doStorage);
 
-        // Page 0 matches, page 1 has stale client timestamp
+        // Page 0 matches, page 1 has stale client version
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
@@ -112,7 +112,7 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
         const conn = createConnection(doStorage);
 
         // Page 5 doesn't exist on the server
@@ -160,12 +160,12 @@ describe("ensureCacheIsUpToDate", () => {
         const conn = createConnection(doStorage);
 
         // All pages are stale (client has ts=0 for each)
-        const clientTimestamps = new Map<number, number>();
+        const clientVersions = new Map<number, number>();
         for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
-            clientTimestamps.set(i, 0);
+            clientVersions.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await ensureCacheIsUpToDate(conn, clientVersions);
 
         // Exactly at the limit — should dump all into
         // stalePageIndexes. Page 0 is always included
@@ -187,12 +187,12 @@ describe("ensureCacheIsUpToDate", () => {
         const conn = createConnection(doStorage);
 
         // All pages stale
-        const clientTimestamps = new Map<number, number>();
+        const clientVersions = new Map<number, number>();
         for (let i = 0; i < count; i++) {
-            clientTimestamps.set(i, 0);
+            clientVersions.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await ensureCacheIsUpToDate(conn, clientVersions);
 
         expect(result.updatedPages.size).toBe(count);
         expect(result.stalePageIndexes).toEqual([]);
@@ -206,8 +206,8 @@ describe("ensureCacheIsUpToDate", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
-        const ts1 = doStorage.readPage(1)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
+        const ts1 = doStorage.readPage(1)!.version;
 
         // Truncate page 1 away.
         doStorage.truncate(1 * sqlitePageSize);
@@ -238,12 +238,12 @@ describe("ensureCacheIsUpToDate", () => {
         doStorage.writePages(pages);
         const conn = createConnection(doStorage);
 
-        const clientTimestamps = new Map<number, number>();
+        const clientVersions = new Map<number, number>();
         for (let i = 0; i < count; i++) {
-            clientTimestamps.set(i, 0);
+            clientVersions.set(i, 0);
         }
 
-        const result = await ensureCacheIsUpToDate(conn, clientTimestamps);
+        const result = await ensureCacheIsUpToDate(conn, clientVersions);
 
         // All pages should be in stalePageIndexes.
         // Page 0 is always included in updatedPages
@@ -286,8 +286,8 @@ describe("per-browser page tracking", () => {
                 [2, makePage(0xcc)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
-        const ts1 = doStorage.readPage(1)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
+        const ts1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -307,9 +307,9 @@ describe("per-browser page tracking", () => {
         // Page 2 was returned as updatedPages → pending
         // (not skipped by filterReadPages).
         const allPages = new Map([
-            [0, {timestamp: 1, data: new Uint8Array(1)}],
-            [1, {timestamp: 1, data: new Uint8Array(1)}],
-            [2, {timestamp: 1, data: new Uint8Array(1)}],
+            [0, {version: 1, data: new Uint8Array(1)}],
+            [1, {version: 1, data: new Uint8Array(1)}],
+            [2, {version: 1, data: new Uint8Array(1)}],
         ]);
         const filtered = tracker.filterReadPages(browserId, allPages);
         expect(filtered.size).toBe(1);
@@ -324,7 +324,7 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -345,8 +345,8 @@ describe("per-browser page tracking", () => {
 
         // Now page 1 is confirmed (skipped)
         const allPages = new Map([
-            [0, {timestamp: 1, data: new Uint8Array(1)}],
-            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [0, {version: 1, data: new Uint8Array(1)}],
+            [1, {version: 1, data: new Uint8Array(1)}],
         ]);
         expect(tracker.filterReadPages(browserId, allPages).size).toBe(0);
     });
@@ -361,9 +361,9 @@ describe("per-browser page tracking", () => {
 
         // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
-            [5, {timestamp: 1, data: new Uint8Array(1)}],
-            [6, {timestamp: 1, data: new Uint8Array(1)}],
-            [8, {timestamp: 1, data: new Uint8Array(1)}],
+            [5, {version: 1, data: new Uint8Array(1)}],
+            [6, {version: 1, data: new Uint8Array(1)}],
+            [8, {version: 1, data: new Uint8Array(1)}],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.size).toBe(1);
@@ -381,7 +381,7 @@ describe("per-browser page tracking", () => {
 
         // After close, entry should be deleted (last connection).
         // filterReadPages returns everything for an unknown browser.
-        const pages = new Map([[0, {timestamp: 1, data: new Uint8Array(1)}]]);
+        const pages = new Map([[0, {version: 1, data: new Uint8Array(1)}]]);
         expect(tracker.filterReadPages(browserId, pages)).toEqual(pages);
     });
 
@@ -396,11 +396,11 @@ describe("per-browser page tracking", () => {
         await acknowledgePages(conn2, [2, 3]);
 
         const pages = new Map([
-            [0, {timestamp: 1, data: new Uint8Array(1)}],
-            [1, {timestamp: 1, data: new Uint8Array(1)}],
-            [2, {timestamp: 1, data: new Uint8Array(1)}],
-            [3, {timestamp: 1, data: new Uint8Array(1)}],
-            [4, {timestamp: 1, data: new Uint8Array(1)}],
+            [0, {version: 1, data: new Uint8Array(1)}],
+            [1, {version: 1, data: new Uint8Array(1)}],
+            [2, {version: 1, data: new Uint8Array(1)}],
+            [3, {version: 1, data: new Uint8Array(1)}],
+            [4, {version: 1, data: new Uint8Array(1)}],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.size).toBe(1);
@@ -419,8 +419,8 @@ describe("per-browser page tracking", () => {
 
         // Entry should still exist — conn2 is still open
         const pages = new Map([
-            [0, {timestamp: 1, data: new Uint8Array(1)}],
-            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [0, {version: 1, data: new Uint8Array(1)}],
+            [1, {version: 1, data: new Uint8Array(1)}],
         ]);
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
     });
@@ -434,8 +434,8 @@ describe("per-browser page tracking", () => {
                 [2, makePage(0xcc)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
-        const ts1 = doStorage.readPage(1)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
+        const ts1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -456,9 +456,9 @@ describe("per-browser page tracking", () => {
             type: "PagesChanged" as const,
             tableDiffs: {
                 diffs: new Map([
-                    [0, {timestamp: 1, diff: []}],
-                    [1, {timestamp: 1, diff: []}],
-                    [3, {timestamp: 1, diff: []}],
+                    [0, {version: 1, diff: []}],
+                    [1, {version: 1, diff: []}],
+                    [3, {version: 1, diff: []}],
                 ]),
                 fileSizeInPages: 4,
             },
@@ -484,7 +484,7 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -503,8 +503,8 @@ describe("per-browser page tracking", () => {
             type: "PagesChanged" as const,
             tableDiffs: {
                 diffs: new Map([
-                    [0, {timestamp: 1, diff: []}],
-                    [1, {timestamp: 1, diff: []}],
+                    [0, {version: 1, diff: []}],
+                    [1, {version: 1, diff: []}],
                 ]),
                 fileSizeInPages: 2,
             },
@@ -529,8 +529,8 @@ describe("per-browser page tracking", () => {
             type: "PagesChanged" as const,
             tableDiffs: {
                 diffs: new Map([
-                    [0, {timestamp: 1, diff: []}],
-                    [1, {timestamp: 1, diff: []}],
+                    [0, {version: 1, diff: []}],
+                    [1, {version: 1, diff: []}],
                 ]),
                 fileSizeInPages: 2,
             },
@@ -551,8 +551,8 @@ describe("per-browser page tracking", () => {
                 [1, makePage(0xbb)],
             ]),
         );
-        const ts0 = doStorage.readPage(0)!.timestamp;
-        const ts1 = doStorage.readPage(1)!.timestamp;
+        const ts0 = doStorage.readPage(0)!.version;
+        const ts1 = doStorage.readPage(1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -572,8 +572,8 @@ describe("per-browser page tracking", () => {
 
         // Tracker should only know about page 0 now
         const pages = new Map([
-            [0, {timestamp: 1, data: new Uint8Array(1)}],
-            [1, {timestamp: 1, data: new Uint8Array(1)}],
+            [0, {version: 1, data: new Uint8Array(1)}],
+            [1, {version: 1, data: new Uint8Array(1)}],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
         expect(filtered.size).toBe(1);
