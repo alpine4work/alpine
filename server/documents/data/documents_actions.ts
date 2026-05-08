@@ -2253,6 +2253,7 @@ export class DocumentContentCacheForUpdate {
     public async getAndCacheDocument(
         context: ServerActionContext,
         id: DocumentId,
+        {clientVersion}: {clientVersion: number},
     ): Promise<{
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
@@ -2335,23 +2336,37 @@ export class DocumentContentCacheForUpdate {
             if (!nullableEntry) return null;
             let entry = nullableEntry;
 
-            // If our content was already cached, then we want to verify that the cached
-            // content version is the same as the content version in the database.
-            //
-            // Another process may have written to the database in which case the cache in this
-            // process wouldn't know. If another process wrote to the database we can't use our
-            // cached entry so should update our cache appropriately.
-            if (wasEntryCached) {
+            if (
+                // If our content was already cached, then we want to verify that the cached
+                // content version is the same as the content version in the database.
+                //
+                // Another process may have written to the database in which case the cache in this
+                // process wouldn't know. If another process wrote to the database we can't use our
+                // cached entry so should update our cache appropriately.
+                wasEntryCached ||
+                // If the client has a newer version of the document than us (and the entry was NOT
+                // cached), that may mean our eventually consistent `getInternalDocumentIfExists()`
+                // returned stale data. So re-read the document `Attributes` again to see if the
+                // client is wrong or if we have stale data and need to load more steps.
+                clientVersion > entry.version
+            ) {
                 let nullableAttributes = await DocumentsTable.getItemIfExists(context, {
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "Attributes",
                 });
 
-                if (!nullableAttributes || entry.version > nullableAttributes.version) {
+                if (
                     // If we read a past version of the document that might be because we're using
                     // DynamoDB eventual consistency and we can't yet read the latest write. So try to
                     // load the document one more time but with strong consistency instead.
+                    !nullableAttributes ||
+                    entry.version > nullableAttributes.version ||
+                    // If the client has a newer version of the document than what we got from an
+                    // eventually consistent read of `Attributes` then the item we read might be stale.
+                    // So try reading again but with strong consistency.
+                    clientVersion > nullableAttributes.version
+                ) {
                     nullableAttributes = await DocumentsTable.getItem(
                         context,
                         {
@@ -2366,6 +2381,13 @@ export class DocumentContentCacheForUpdate {
                         throw new InternalError(
                             "We\u2019ve cached document content that has a version number ahead of what\u2019s in the database",
                         );
+                    }
+
+                    if (clientVersion > nullableAttributes.version) {
+                        // If the client version is STILL higher than what we have in the database, now we
+                        // know the client's version is incorrect. We don't throw an error here. An error
+                        // will be thrown later by `getCollaborativelyUpdateContentResult()` (which will
+                        // also include some useful span data for debugging).
                     }
                 }
 
@@ -2957,7 +2979,9 @@ export async function updateDocumentContent(
             }
         }
 
-        const internalDocument = await cache.getAndCacheDocument(context, documentId);
+        const internalDocument = await cache.getAndCacheDocument(context, documentId, {
+            clientVersion,
+        });
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn\u2019t exist");
 
