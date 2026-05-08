@@ -60,8 +60,13 @@ const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
  * - Whitespace anywhere on the outside.
  * - Sign variants in decoration: ASCII `-`/`+` and
  *   U+2212 `−` (multiple signs combine).
- * - Accounting parens: `(3.14)` → `-3.14`.
- * - `%` anywhere in decoration: scales by `1/100`.
+ * - Accounting parens at the outermost ends only:
+ *   `(3.14)` → `-3.14`. Inner parens (`USD (3.14)`) are
+ *   plain decoration, not negation.
+ * - Trailing `%` immediately after the number (allowing
+ *   whitespace): `3.14%` and `3.14 %` scale by `1/100`.
+ *   Anything between the number and the `%` (e.g.
+ *   `3.14 USD%`) rejects.
  * - Up to {@link maxDecorationNonWhitespace} non-whitespace
  *   decoration chars per side, of any kind (currency
  *   codes, symbols, single letters). `USD$ 3.14` parses;
@@ -70,9 +75,9 @@ const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
  *   Mismatched comma patterns like `1,23` are rejected,
  *   not silently reinterpreted.
  *
- * Rejects `Infinity`, `NaN`, multiple `%` signs, and
- * decoration containing digits (a digit in decoration
- * means a number was missed).
+ * Rejects `Infinity`, `NaN`, leading `%`, multiple `%`
+ * signs, and decoration containing digits (a digit in
+ * decoration means a number was missed).
  */
 function parseNumberString(input: string): Result<number | null, void> {
     let s = input.trim();
@@ -91,8 +96,17 @@ function parseNumberString(input: string): Result<number | null, void> {
     const suffix = analyseDecoration(match.groups.suffix);
     if (!prefix.ok || !suffix.ok) return {ok: false, error: undefined};
 
-    const percentCount = prefix.percentCount + suffix.percentCount;
-    if (percentCount > 1) return {ok: false, error: undefined};
+    // Percent rules:
+    // - Leading `%` is invalid.
+    // - At most one `%` total.
+    // - When present in the suffix, `%` must be the first
+    //   non-whitespace char (immediately after the number,
+    //   modulo whitespace).
+    if (prefix.percentCount > 0) return {ok: false, error: undefined};
+    if (suffix.percentCount > 1) return {ok: false, error: undefined};
+    if (suffix.percentCount === 1 && match.groups.suffix.trimStart()[0] !== "%") {
+        return {ok: false, error: undefined};
+    }
 
     let body = match.groups.body;
     if (body.includes(",") && usThousandsPattern.test(body)) {
@@ -103,7 +117,7 @@ function parseNumberString(input: string): Result<number | null, void> {
     if (!Number.isFinite(n)) return {ok: false, error: undefined};
 
     const sign = parenSign * prefix.sign * suffix.sign;
-    const scale = percentCount === 1 ? 0.01 : 1;
+    const scale = suffix.percentCount === 1 ? 0.01 : 1;
     return {ok: true, value: n * sign * scale};
 }
 

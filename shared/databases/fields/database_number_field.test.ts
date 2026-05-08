@@ -74,11 +74,17 @@ describe("databaseNumberFieldProvider", () => {
             ["£-3.14", -3.14],
             ["- £ 3.14", -3.14],
             ["+ $10", 10],
-            // Accounting negatives
+            // Accounting negatives — only when parens are at
+            // the absolute outermost position.
             ["(3.14)", -3.14],
             ["(£3.14)", -3.14],
             ["($1,234.56)", -1234.56],
-            // Percent (cases where `× 0.01` is exact in IEEE-754).
+            ["(USD 3.14)", -3.14],
+            // Inner parens are just decoration (no negation).
+            ["USD (3.14)", 3.14],
+            ["(3.14) USD", 3.14],
+            // Percent — must be the first non-whitespace
+            // character after the number.
             ["50%", 0.5],
             ["-25%", -0.25],
             // US thousands separators
@@ -93,10 +99,16 @@ describe("databaseNumberFieldProvider", () => {
             });
         });
 
-        test("percent of a non-power-of-two scales approximately", () => {
-            // `3.14 × 0.01` isn't exact in IEEE-754, so use
-            // a tolerant compare instead of `toEqual`.
-            const result = databaseNumberFieldProvider.parseString("3.14%", config);
+        test.each([
+            ["3.14%"],
+            ["3.14 %"],
+            // `%` is the first non-whitespace char of the
+            // suffix — followup decoration after `%` is fine.
+            ["3.14 %USD"],
+        ])("scales %j as ~0.0314", input => {
+            // `3.14 × 0.01` isn't exact in IEEE-754, so use a
+            // tolerant compare instead of `toEqual`.
+            const result = databaseNumberFieldProvider.parseString(input, config);
             expect(result.ok).toBe(true);
             if (result.ok) expect(result.value!).toBeCloseTo(0.0314, 10);
         });
@@ -135,8 +147,16 @@ describe("databaseNumberFieldProvider", () => {
             ["1 2 3"],
             ["3..14"],
             ["3.1.4"],
-            // Multiple percent signs.
+            // Percent placement rules:
+            // - Multiple `%` signs.
             ["50%%"],
+            // - Leading `%` not allowed.
+            ["%50"],
+            ["% 3.14"],
+            // - Trailing `%` must be the first non-whitespace
+            //   char of the suffix; anything between rejects.
+            ["3.14 USD%"],
+            ["3.14USD%"],
         ])("rejects %j", input => {
             expect(databaseNumberFieldProvider.parseString(input, config).ok).toBe(false);
         });
