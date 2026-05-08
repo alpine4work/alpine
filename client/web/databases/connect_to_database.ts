@@ -8,6 +8,7 @@ import {
 import type {ExecuteActionServerResult} from "~/client/web/databases/database_worker_rpc_methods.js";
 import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
+import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
 import {CancelledError} from "~/shared/error/error.js";
 import type {
     DatabaseGroupId,
@@ -23,10 +24,7 @@ export type {
 
 type ConnectOptions = {
     databaseGroupId: DatabaseGroupId;
-    initialPages?: ReadonlyMap<
-        DatabaseTableId,
-        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
-    >;
+    initialPages?: DatabaseTablePages;
     executeActionServer(
         action: DatabaseActionObject,
         options: {

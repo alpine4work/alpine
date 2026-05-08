@@ -4,11 +4,12 @@ import type {
 } from "~/client/web/databases/database_active_tab_manager.js";
 import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
+import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -104,29 +105,12 @@ export class DatabaseQuery {
      * after the connection is available. Seeds OPFS pages
      * from SSR data and begins watching the initial page.
      */
-    listen(options: {
-        conn: DatabaseWorkerConnection;
-        readPages?: ReadonlyMap<
-            DatabaseTableId,
-            ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>
-        >;
-    }): void {
+    listen(options: {conn: DatabaseWorkerConnection; readPages?: DatabaseTablePages}): void {
         this.conn = options.conn;
         this._disposed = false;
 
         if (options.readPages && options.readPages.size > 0) {
-            void this.conn.call("writeInitialPages", {
-                pages: new Map(
-                    Array.from(options.readPages, ([tableId, tablePages]) => [
-                        tableId,
-                        Array.from(tablePages, ([pageIndex, {timestamp, data}]) => ({
-                            pageIndex,
-                            timestamp,
-                            data,
-                        })),
-                    ]),
-                ),
-            });
+            void this.conn.call("writeInitialPages", {pages: options.readPages});
         }
 
         // If we have initial data, start watching the first

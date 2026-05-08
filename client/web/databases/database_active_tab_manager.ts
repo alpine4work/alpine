@@ -301,8 +301,16 @@ export class DatabaseActiveTabWorker {
                             "writeInitialPages called after database client was already created",
                         );
                     }
-                    const mainPages = input.pages.get(mainDatabaseTableId) ?? [];
-                    this.initialPagesByDatabase.set(input.databaseGroupId, mainPages);
+                    const mainPages = input.pages.get(mainDatabaseTableId);
+                    const mainPageArray =
+                        mainPages == null
+                            ? []
+                            : Array.from(mainPages, ([pageIndex, {timestamp, data}]) => ({
+                                  pageIndex,
+                                  timestamp,
+                                  data,
+                              }));
+                    this.initialPagesByDatabase.set(input.databaseGroupId, mainPageArray);
                     return {};
                 },
                 executeAction: async input => {

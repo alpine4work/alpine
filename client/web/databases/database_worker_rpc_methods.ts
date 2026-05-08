@@ -4,6 +4,7 @@ import {
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
 import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
+import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {
     DatabaseGroupId,
@@ -13,21 +14,10 @@ import type {
 } from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-const pageValueSchema = Schema.object({
-    timestamp: Schema.integer,
-    data: Schema.bytes,
-});
-
 const pageDiffEntrySchema = Schema.object({
     pageIndex: Schema.integer,
     timestamp: Schema.integer,
     diff: pageDiffSchema,
-});
-
-const pageEntrySchema = Schema.object({
-    pageIndex: Schema.integer,
-    timestamp: Schema.integer,
-    data: Schema.bytes,
 });
 
 /** Methods the tab can call on the worker. */
@@ -35,7 +25,7 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writeInitialPages: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: Schema.map(Schema.id<DatabaseTableId>(), Schema.array(pageEntrySchema)),
+            pages: DatabaseTablePagesSchema,
         },
         output: {},
     },
@@ -88,10 +78,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {
             result: DatabaseActionResultSchema.nullable(),
-            readPages: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.map(Schema.integer, pageValueSchema),
-            ).nullable(),
+            readPages: DatabaseTablePagesSchema.nullable(),
         },
     },
     ensureCacheIsUpToDate: {

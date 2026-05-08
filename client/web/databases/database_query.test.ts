@@ -54,11 +54,19 @@ function createTestConnection(client: DatabaseClient): {
                 const {pages} = input as unknown as {
                     pages: ReadonlyMap<
                         DatabaseTableId,
-                        ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>
+                        ReadonlyMap<number, {timestamp: number; data: Uint8Array}>
                     >;
                 };
-                const mainPages = pages.get(mainDatabaseTableId) ?? [];
-                client.seedPages(mainPages);
+                const mainPages = pages.get(mainDatabaseTableId);
+                if (mainPages != null) {
+                    client.seedPages(
+                        Array.from(mainPages, ([pageIndex, {timestamp, data}]) => ({
+                            pageIndex,
+                            timestamp,
+                            data,
+                        })),
+                    );
+                }
                 return Promise.resolve({} as any);
             }
             throw new InternalError(`Unsupported call method: ${method}`);

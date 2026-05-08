@@ -21,6 +21,7 @@ import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {
     DatabaseGroupId,
@@ -38,16 +39,7 @@ const LoaderSchema = Schema.object({
             tableName: Schema.string,
         }),
     ),
-    pages: Schema.map(
-        Schema.id<DatabaseTableId>(),
-        Schema.array(
-            Schema.object({
-                pageIndex: Schema.integer,
-                timestamp: Schema.integer,
-                data: Schema.bytes,
-            }),
-        ),
-    ),
+    pages: DatabaseTablePagesSchema,
 });
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Databases"}]);
@@ -62,25 +54,10 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         input: {},
     });
 
-    const pages = new Map<
-        DatabaseTableId,
-        Array<{pageIndex: number; timestamp: number; data: Uint8Array}>
-    >();
-    for (const [tableId, tablePages] of readPages) {
-        pages.set(
-            tableId,
-            Array.from(tablePages, ([pageIndex, {timestamp, data}]) => ({
-                pageIndex,
-                timestamp,
-                data,
-            })),
-        );
-    }
-
     return jsonWithSchema(LoaderSchema, {
         databaseGroupId,
         tables: result.tables,
-        pages,
+        pages: readPages,
     });
 }
 

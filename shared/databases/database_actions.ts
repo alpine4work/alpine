@@ -1,5 +1,9 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
+    type DatabaseTablePages,
+    DatabaseTablePagesSchema,
+} from "~/shared/databases/database_table_pages.js";
+import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
     DatabaseFieldTypeSchema,
@@ -889,22 +893,6 @@ export const DatabaseActionResultSchema = Schema.unionWithKey(
     },
 );
 
-const readPagesSchema = Schema.map(
-    Schema.id<DatabaseTableId>(),
-    Schema.map(
-        Schema.integer,
-        Schema.object({
-            timestamp: Schema.integer,
-            data: Schema.bytes,
-        }),
-    ),
-);
-
-type ReadPages = ReadonlyMap<
-    DatabaseTableId,
-    ReadonlyMap<number, {readonly timestamp: number; readonly data: Uint8Array}>
->;
-
 /**
  * Per-action schemas for loader-serialized action results.
  * Use a specific variant (e.g.
@@ -919,7 +907,7 @@ export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
             name: Schema.value(name),
             input: def.input,
             output: def.output,
-            readPages: readPagesSchema,
+            readPages: DatabaseTablePagesSchema,
         }),
     ]),
 ) as {
@@ -942,6 +930,6 @@ export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseAc
         name: K;
         input: DatabaseActionInput<K>;
         output: DatabaseActionOutput<K>;
-        readPages: ReadPages;
+        readPages: DatabaseTablePages;
     };
 }[N];

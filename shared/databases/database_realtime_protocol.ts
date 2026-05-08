@@ -2,6 +2,7 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
+import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
@@ -66,16 +67,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 result: DatabaseActionResultSchema.nullable(),
-                readPages: Schema.map(
-                    Schema.id<DatabaseTableId>(),
-                    Schema.map(
-                        Schema.integer,
-                        Schema.object({
-                            timestamp: Schema.integer,
-                            data: Schema.bytes,
-                        }),
-                    ),
-                ).nullable(),
+                readPages: DatabaseTablePagesSchema.nullable(),
             },
         },
         ensureCacheIsUpToDate: {
