@@ -52,12 +52,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
     const localRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const input = localRef.current;
-        if (input) {
-            input.focus();
-            input.selectionStart = input.value.length;
-            input.selectionEnd = input.value.length;
-        }
+        localRef.current?.focus();
     }, []);
 
     const tryCommit = (raw: string) => {
