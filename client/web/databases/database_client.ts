@@ -15,8 +15,10 @@ import {
 } from "~/shared/databases/database_actions.js";
 import type {
     DatabaseEnsureCacheIsUpToDateResult,
+    DatabaseExecuteActionResponse,
     DatabasePageIndexes,
     DatabasePageTimestampsByIndex,
+    DatabasePages,
     DatabaseTablePageDiffs,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
@@ -71,18 +73,6 @@ async function openTablePageStore(
 }
 
 /**
- * Server's response to {@link DatabaseClientConnection.executeActionServer}.
- * Single-table for now: action execution still operates
- * on the main table only, so the active-tab worker
- * extracts the main table's pages from the per-table
- * network response before handing them to the client.
- */
-export interface ExecuteActionServerSingleDatabaseResult {
-    result: DatabaseActionResult | null;
-    readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}> | null;
-}
-
-/**
  * Represents a connected tab's route to the server.
  * Passed into {@link DatabaseClient.executeAction} so
  * server fallbacks route through the correct tab's
@@ -96,7 +86,7 @@ export interface DatabaseClientConnection {
             returnResult?: boolean;
             returnPages?: boolean;
         },
-    ): Promise<ExecuteActionServerSingleDatabaseResult>;
+    ): Promise<DatabaseExecuteActionResponse>;
     ensureCacheIsUpToDate(
         pageTimestampsByIndex: DatabasePageTimestampsByIndex,
     ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
@@ -559,19 +549,26 @@ export class DatabaseClient {
         this.replayOptimisticQueue();
     }
 
-    private applyServerPages(
-        readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>,
-    ): void {
-        const store = this.pageStores.get(databaseMainTableId)!;
-        let anyWritten = false;
-        for (const [pageIndex, {timestamp, data}] of readPages) {
-            if (store.writePageIfNewer(pageIndex, timestamp, data)) {
-                this.pagesToInvalidate.add(pageIndex);
-                anyWritten = true;
+    private applyServerPages(readPages: DatabasePages): void {
+        let anyMainWritten = false;
+        for (const [tableId, tablePages] of readPages) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+            for (const [pageIndex, {timestamp, data}] of tablePages) {
+                if (store.writePageIfNewer(pageIndex, timestamp, data)) {
+                    // Reactive invalidation only tracks
+                    // main-table pages today; per-table
+                    // tracking will land alongside the
+                    // SQL-level multi-table split.
+                    if (tableId === databaseMainTableId) {
+                        this.pagesToInvalidate.add(pageIndex);
+                        anyMainWritten = true;
+                    }
+                }
             }
+            store.sync();
         }
-        store.sync();
-        if (anyWritten) {
+        if (anyMainWritten) {
             this.scheduleInvalidation();
         }
     }
@@ -701,9 +698,15 @@ export class DatabaseClient {
         this.pageStores.get(databaseMainTableId)!.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
-            conn.acknowledgePages(
-                new Map([[databaseMainTableId, [...serverResult.readPages.keys()]]]),
-            );
+            const acknowledged = new Map<DatabaseTableId, Array<number>>();
+            for (const [tableId, tablePages] of serverResult.readPages) {
+                if (tablePages.size > 0) {
+                    acknowledged.set(tableId, [...tablePages.keys()]);
+                }
+            }
+            if (acknowledged.size > 0) {
+                conn.acknowledgePages(acknowledged);
+            }
         }
         this.replayOptimisticQueue();
         if (returnResult) {

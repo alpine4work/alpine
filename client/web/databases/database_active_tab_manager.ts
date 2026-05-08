@@ -370,21 +370,13 @@ export class DatabaseActiveTabWorker {
             send,
         });
         const conn: DatabaseClientConnection = {
-            executeActionServer: async (action, options) => {
-                const result = await rpc.call("executeActionServer", {
+            executeActionServer: (action, options) =>
+                rpc.call("executeActionServer", {
                     action,
                     mutationId: options.mutationId,
                     returnResult: options.returnResult ?? true,
                     returnPages: options.returnPages ?? true,
-                });
-                return {
-                    result: result.result,
-                    readPages:
-                        result.readPages === null
-                            ? null
-                            : (result.readPages.get(databaseMainTableId) ?? new Map()),
-                };
-            },
+                }),
             ensureCacheIsUpToDate: pageTimestampsByIndex =>
                 rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
             acknowledgePages: pageIndexes => {

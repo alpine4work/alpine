@@ -1,9 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
-import type {
-    DatabaseClientConnection,
-    ExecuteActionServerSingleDatabaseResult,
-} from "~/client/web/databases/database_client.js";
+import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
 import {
     createInMemoryOpfsDirectoryHandle,
@@ -11,7 +8,11 @@ import {
     prepopulateOpfsPages,
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
-import type {DatabaseActionObject} from "~/shared/databases/database_actions.js";
+import type {
+    DatabaseActionObject,
+    DatabaseActionResult,
+} from "~/shared/databases/database_actions.js";
+import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
@@ -393,9 +394,9 @@ describe("server fallback", () => {
                 serverCalled = true;
                 const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
-                    result: {name: action.name, output: {rows}},
-                    readPages: pagesToMap(allPages),
-                } as ExecuteActionServerSingleDatabaseResult;
+                    result: {name: action.name, output: {rows}} as DatabaseActionResult,
+                    readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                };
             },
         });
 
@@ -425,9 +426,9 @@ describe("server fallback", () => {
             async executeActionServer(action) {
                 const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
-                    result: {name: action.name, output: {rows}},
-                    readPages: pagesToMap(allPages),
-                } as ExecuteActionServerSingleDatabaseResult;
+                    result: {name: action.name, output: {rows}} as DatabaseActionResult,
+                    readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                };
             },
         });
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
@@ -563,9 +564,9 @@ describe("executeActionWithTracking", () => {
             async executeActionServer(action) {
                 const rows = await execute(server, testConn, (action.input as any).sql);
                 return {
-                    result: {name: action.name, output: {rows}},
-                    readPages: pagesToMap(allPages),
-                } as ExecuteActionServerSingleDatabaseResult;
+                    result: {name: action.name, output: {rows}} as DatabaseActionResult,
+                    readPages: new Map([[databaseMainTableId, pagesToMap(allPages)]]),
+                };
             },
         });
 
