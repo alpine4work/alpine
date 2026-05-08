@@ -220,10 +220,7 @@ export class DatabaseActiveTabWorker {
         if (!promise) {
             promise = (async () => {
                 const groupDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
-                const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId, {
-                    create: true,
-                });
-                const client = await DatabaseClient.create(tableDir);
+                const client = await DatabaseClient.create(groupDir);
 
                 const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
@@ -432,10 +429,7 @@ export class DatabaseActiveTabWorker {
         if (!promise) {
             promise = (async () => {
                 const groupDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
-                const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId, {
-                    create: true,
-                });
-                return DatabaseClient.create(tableDir);
+                return DatabaseClient.create(groupDir);
             })();
             this.clientPromises.set(databaseGroupId, promise);
         }

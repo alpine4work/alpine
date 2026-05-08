@@ -41,8 +41,8 @@ import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import {generateId, getMinId} from "~/shared/id/id.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 interface OptimisticMutation {
     mutationId: DatabaseMutationId;
@@ -110,18 +110,33 @@ export interface DatabaseClientConnection {
 export class DatabaseClient {
     private readonly db: Database;
     private readonly vfs: InstalledVfs;
-    private readonly pageStore: OpfsPageStore;
+    private readonly mainPageStore: OpfsPageStore;
+    /**
+     * Page stores for ATTACHed databases, keyed by the
+     * filename used in the `ATTACH DATABASE` statement.
+     * The VFS `open` callback consults this map for any
+     * open that isn't the main database. Empty today —
+     * populated once each table gets its own SQLite file
+     * attached alongside the main database.
+     */
+    private readonly attachedPageStores = new Map<string, OpfsPageStore>();
     private optimisticQueue: Array<OptimisticMutation> = [];
     private writeLevel: SqliteWriteLevel | null = null;
 
-    private constructor(sqlite3: Sqlite3Static, pageStore: OpfsPageStore) {
-        this.pageStore = pageStore;
+    private constructor(sqlite3: Sqlite3Static, mainPageStore: OpfsPageStore) {
+        this.mainPageStore = mainPageStore;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
 
         this.vfs = installVfs(sqlite3, vfsName, {
-            open: (_filename, flags) => {
+            open: (filename, flags) => {
                 if (flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB) {
-                    return pageStore;
+                    return mainPageStore;
+                }
+                if (filename !== null) {
+                    const attached = this.attachedPageStores.get(filename);
+                    if (attached !== undefined) {
+                        return attached;
+                    }
                 }
                 return new VfsTempFile();
             },
@@ -155,15 +170,26 @@ export class DatabaseClient {
         this.db.exec("PRAGMA journal_mode = MEMORY");
     }
 
-    static async create(dir: OpfsDirectoryHandle): Promise<DatabaseClient> {
+    /**
+     * Open the SQLite database for a database group. The
+     * given `groupDir` is the per-group OPFS directory:
+     * each table's page store lives in a `{tableId}/`
+     * subdirectory inside it. Today only the main table
+     * is opened; future work will attach additional table
+     * databases under the same SQLite connection.
+     */
+    static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
         if (sqlite3Promise === undefined) {
             sqlite3Promise = sqlite3InitModule();
         }
         const sqlite3 = await sqlite3Promise;
 
-        const pageStore = await OpfsPageStore.create(dir);
+        const mainTableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>(), {
+            create: true,
+        });
+        const mainPageStore = await OpfsPageStore.create(mainTableDir);
 
-        return new DatabaseClient(sqlite3, pageStore);
+        return new DatabaseClient(sqlite3, mainPageStore);
     }
 
     /**
@@ -179,7 +205,7 @@ export class DatabaseClient {
      * Both empty means the cache is already up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
-        const entries = this.pageStore.pageEntries();
+        const entries = this.mainPageStore.pageEntries();
 
         const pageTimestampsByIndex = new Map<number, number>();
         for (const entry of entries) {
@@ -190,7 +216,7 @@ export class DatabaseClient {
             await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
 
         for (const [pageIndex, {timestamp, data}] of updatedPages) {
-            this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
+            this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
 
         if (updatedPages.size > 0) {
@@ -198,11 +224,11 @@ export class DatabaseClient {
         }
 
         if (stalePageIndexes.length > 0) {
-            this.pageStore.deletePages(new Set(stalePageIndexes));
+            this.mainPageStore.deletePages(new Set(stalePageIndexes));
         }
 
-        this.pageStore.setServerFileSizeInPages(fileSizeInPages);
-        this.pageStore.sync();
+        this.mainPageStore.setServerFileSizeInPages(fileSizeInPages);
+        this.mainPageStore.sync();
     }
 
     /**
@@ -225,7 +251,7 @@ export class DatabaseClient {
         let result!: DatabaseActionOutput<N>;
         let writtenPages: ReadonlySet<number>;
         try {
-            writtenPages = this.pageStore.optimistic(() => {
+            writtenPages = this.mainPageStore.optimistic(() => {
                 result = this.executeActionLocally(actionObject);
             });
         } catch (error) {
@@ -478,22 +504,22 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
-        this.pageStore.clearOptimisticPages();
+        this.mainPageStore.clearOptimisticPages();
 
         let anyWritten = false;
         for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
-            const base = this.pageStore.readPage(pageIndex);
+            const base = this.mainPageStore.readPage(pageIndex);
             if (base === null) continue;
             const full = applyPageDiff(base, diff);
-            if (this.pageStore.writePageIfNewer(pageIndex, timestamp, full)) {
+            if (this.mainPageStore.writePageIfNewer(pageIndex, timestamp, full)) {
                 if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
                     this.pagesToInvalidate.add(pageIndex);
                     anyWritten = true;
                 }
             }
         }
-        this.pageStore.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
-        this.pageStore.sync();
+        this.mainPageStore.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
+        this.mainPageStore.sync();
         if (anyWritten) {
             this.scheduleInvalidation();
         }
@@ -506,12 +532,12 @@ export class DatabaseClient {
     ): void {
         let anyWritten = false;
         for (const [pageIndex, {timestamp, data}] of readPages) {
-            if (this.pageStore.writePageIfNewer(pageIndex, timestamp, data)) {
+            if (this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data)) {
                 this.pagesToInvalidate.add(pageIndex);
                 anyWritten = true;
             }
         }
-        this.pageStore.sync();
+        this.mainPageStore.sync();
         if (anyWritten) {
             this.scheduleInvalidation();
         }
@@ -519,7 +545,7 @@ export class DatabaseClient {
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
-        this.pageStore.clearOptimisticPages();
+        this.mainPageStore.clearOptimisticPages();
         this.replayOptimisticQueue();
     }
 
@@ -527,7 +553,7 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const writtenPages = this.pageStore.optimistic(() => {
+                const writtenPages = this.mainPageStore.optimistic(() => {
                     this.executeActionLocally(mutation.action);
                 });
                 if (this.markWrittenPages(writtenPages)) {
@@ -553,8 +579,8 @@ export class DatabaseClient {
         let anyMarked = false;
         for (const pageIndex of writtenPages) {
             if (pageIndex === 0) {
-                const base = this.pageStore.readPage(0);
-                const overlay = this.pageStore.getOptimisticPage(0);
+                const base = this.mainPageStore.readPage(0);
+                const overlay = this.mainPageStore.getOptimisticPage(0);
                 if (base !== null && overlay !== undefined) {
                     const diff = diffPage(base, overlay);
                     if (shouldIgnorePageInvalidation(0, diff)) continue;
@@ -579,13 +605,13 @@ export class DatabaseClient {
      */
     seedPages(pages: DatabaseTablePages): void {
         for (const [pageIndex, {timestamp, data}] of pages) {
-            this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
+            this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data);
         }
-        this.pageStore.sync();
+        this.mainPageStore.sync();
     }
 
     isEmpty(): boolean {
-        return this.pageStore.isEmpty();
+        return this.mainPageStore.isEmpty();
     }
 
     /**
@@ -636,7 +662,7 @@ export class DatabaseClient {
             mutationId,
             returnResult,
         });
-        this.pageStore.clearOptimisticPages();
+        this.mainPageStore.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
             conn.acknowledgePages([...serverResult.readPages.keys()]);

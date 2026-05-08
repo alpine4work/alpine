@@ -4,6 +4,8 @@ import type {
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {getMinId} from "~/shared/id/id.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
  * Creates an {@link OpfsSyncAccessHandle} backed by a
@@ -89,15 +91,17 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
 }
 
 /**
- * Reads the `pages.bin` + `index.json` files from `dir`
- * into a flat array. Mirrors the on-disk layout written
- * by {@link OpfsPageStore}.
+ * Reads the main table's `pages.bin` + `index.json`
+ * files from a group dir into a flat array. Mirrors the
+ * on-disk layout that {@link OpfsPageStore} writes
+ * inside `groupDir/{mainTableId}/`.
  */
 export async function extractOpfsPages(
-    dir: OpfsDirectoryHandle,
+    groupDir: OpfsDirectoryHandle,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const pagesHandle = await (await dir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dir.getFileHandle("index.json")).createSyncAccessHandle();
+    const tableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>());
+    const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
+    const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexSize = indexHandle.getSize();
     if (indexSize === 0) return [];
@@ -116,16 +120,17 @@ export async function extractOpfsPages(
 }
 
 /**
- * Writes pages + index into `dir` so that a subsequent
- * {@link OpfsPageStore} or `DatabaseClient.create` opens
- * an existing DB rather than creating a fresh one.
+ * Writes pages + index into a group dir's main table
+ * subdirectory so that a subsequent `DatabaseClient.create`
+ * opens an existing DB rather than creating a fresh one.
  */
 export async function prepopulateOpfsPages(
-    dir: OpfsDirectoryHandle,
+    groupDir: OpfsDirectoryHandle,
     pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
 ): Promise<void> {
-    const pagesHandle = await (await dir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dir.getFileHandle("index.json")).createSyncAccessHandle();
+    const tableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>(), {create: true});
+    const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
+    const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
     for (let i = 0; i < pages.length; i++) {

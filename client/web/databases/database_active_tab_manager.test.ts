@@ -45,8 +45,7 @@ async function createSeededClient(
 ): Promise<DatabaseClient> {
     const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
     const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId, {create: true});
-    const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId, {create: true});
-    return DatabaseClient.create(tableDir);
+    return DatabaseClient.create(groupDir);
 }
 
 async function executeSql(
@@ -70,8 +69,7 @@ async function extractPages(
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
     const dbsDir = await dir.getDirectoryHandle("databases");
     const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-    const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId);
-    return extractOpfsPages(tableDir);
+    return extractOpfsPages(groupDir);
 }
 
 // ---------------------------------------------------------------------------
