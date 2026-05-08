@@ -723,19 +723,21 @@ export class DatabaseClient {
 
     /**
      * Execute a migration locally without server
-     * interaction. Writes go directly to the base OPFS
-     * store (not optimistic pages). Use for test setup
-     * only.
+     * interaction. Writes land in the optimistic overlay;
+     * pair with {@link commitOptimisticPagesForTests} to
+     * materialize them on disk. Use for test setup only.
      */
     executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
         this.writeLevel = "schema+data";
         try {
-            if (typeof migration === "function") {
-                migration(this.db);
-            } else {
-                this.db.exec(migration);
-            }
+            this.pageStores.optimistic(() => {
+                if (typeof migration === "function") {
+                    migration(this.db);
+                } else {
+                    this.db.exec(migration);
+                }
+            });
         } catch (error) {
             const stashed = this.vfs.takeError();
             if (stashed !== null) {
@@ -748,6 +750,18 @@ export class DatabaseClient {
         } finally {
             this.writeLevel = null;
         }
+    }
+
+    /**
+     * Drain the optimistic overlay onto disk so subsequent
+     * realtime/server events don't clear test-setup writes
+     * and {@link extractOpfsPages}-style helpers can see
+     * them. Test-only counterpart to
+     * {@link executeLocallyForTests}.
+     */
+    commitOptimisticPagesForTests(): void {
+        assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
+        this.pageStores.commitOptimisticPagesForTests();
     }
 
     /** Exposed for tests only. Do not use in production code. */

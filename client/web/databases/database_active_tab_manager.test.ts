@@ -461,6 +461,7 @@ describe("DatabaseActiveTabManager", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)",
         );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(connA, "INSERT INTO t (name) VALUES ('hello')");
 
         const rows = await executeSql(connB, "SELECT * FROM t");
@@ -484,6 +485,7 @@ describe("DatabaseActiveTabManager", () => {
             testDatabaseGroupId,
             "CREATE TABLE items (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(connA, "INSERT INTO items (val) VALUES ('from-a')");
         await executeSql(connB, "INSERT INTO items (val) VALUES ('from-b')");
 
@@ -502,7 +504,9 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (42)");
+        seed.commitOptimisticPagesForTests();
 
         // Tab A — leader
         const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
@@ -531,7 +535,9 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
+        seed.commitOptimisticPagesForTests();
 
         // Tab A — leader
         const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
@@ -561,8 +567,11 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (1)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (id) VALUES (2)");
+        seed.commitOptimisticPagesForTests();
 
         const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         await managerA.connect();
@@ -593,7 +602,9 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('nav')");
+        seed.commitOptimisticPagesForTests();
 
         // Tab A — leader
         const {manager: managerA} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
@@ -623,7 +634,9 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('data')");
+        seed.commitOptimisticPagesForTests();
 
         const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
 
@@ -676,6 +689,7 @@ describe("DatabaseActiveTabManager mutations", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, title TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const rows = await executeSql(conn, "INSERT INTO t (title) VALUES ('hello') RETURNING *");
 
         // Result comes from local optimistic execution
@@ -707,6 +721,7 @@ describe("DatabaseActiveTabManager mutations", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, done INTEGER DEFAULT 0)",
         );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(connA, "INSERT INTO t (id) VALUES (1)");
 
         // Tab B — follower with working executeActionServer
@@ -771,6 +786,7 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const id = generateId<DatabaseReactiveActionId>();
@@ -796,6 +812,7 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         // Use watchAction so the store snapshot reflects
@@ -853,18 +870,22 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t2 (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t1 (val) VALUES ('a')",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t2 (val) VALUES ('b')",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch only t1.
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t1"});
@@ -885,6 +906,7 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "INSERT INTO t2 (val) VALUES ('c')",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const pagesAfter = await extractPages(dir);
 
         // Drop page 0 — SQLite touches its file-change
@@ -936,6 +958,7 @@ describe("Reactive actions", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
@@ -986,6 +1009,7 @@ describe("watchAction", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('hello')");
 
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
@@ -1007,7 +1031,9 @@ describe("watchAction", () => {
         // writePageDiffsFromRealtime).
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        seed.commitOptimisticPagesForTests();
         seed.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
+        seed.commitOptimisticPagesForTests();
 
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
@@ -1027,19 +1053,23 @@ describe("watchAction", () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await createSeededClient(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        server.commitOptimisticPagesForTests();
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
+        server.commitOptimisticPagesForTests();
         server.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
+        server.commitOptimisticPagesForTests();
         const serverPages = await extractPages(serverDir);
 
         // Compute actual diffs between seed and server
         // so writePageDiffsFromRealtime applies real changes.
+        // Seed pages were committed at small versions; pick
+        // a sufficiently large one so writePageIfNewer
+        // overwrites them.
         const newerDiffs = new Map(
             serverPages.map(sp => {
                 const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
                 const base = seedPage?.data ?? new Uint8Array(sqlitePageSize);
-                // Local writes have negative versions; any positive
-                // value wins via writePageIfNewer.
-                return [sp.pageIndex, {version: 1, diff: diffPage(base, sp.data)}];
+                return [sp.pageIndex, {version: 1000, diff: diffPage(base, sp.data)}];
             }),
         );
 
@@ -1083,10 +1113,12 @@ describe("watchAction", () => {
             testDatabaseGroupId,
             "CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)",
         );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await tabA.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "INSERT INTO t (val) VALUES ('hello')",
         );
+        await tabA.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
 
         // Watch from follower
         const handle = await connB.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});

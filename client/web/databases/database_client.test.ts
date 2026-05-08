@@ -52,6 +52,7 @@ describe("DatabaseClient", () => {
         client.executeLocallyForTests(
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
         );
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO items (name) VALUES ('alpha'), ('beta')");
         const rows = await execute(client, testConn, "SELECT * FROM items ORDER BY id");
 
@@ -67,6 +68,7 @@ describe("DatabaseClient", () => {
         client.executeLocallyForTests(
             "CREATE TABLE tasks (id INTEGER PRIMARY KEY, status TEXT NOT NULL)",
         );
+        client.commitOptimisticPagesForTests();
         await execute(
             client,
             testConn,
@@ -89,9 +91,11 @@ describe("DatabaseClient", () => {
         const client2 = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client1.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client1.commitOptimisticPagesForTests();
         await execute(client1, testConn, "INSERT INTO t (id) VALUES (1)");
 
         client2.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client2.commitOptimisticPagesForTests();
         await execute(client2, testConn, "INSERT INTO t (id) VALUES (99)");
 
         expect(await execute(client1, testConn, "SELECT * FROM t")).toMatchObject([{id: 1}]);
@@ -103,6 +107,7 @@ describe("execute — mutations", () => {
     test("executes mutation locally and returns rows", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+        client.commitOptimisticPagesForTests();
 
         const rows = await execute(
             client,
@@ -116,6 +121,7 @@ describe("execute — mutations", () => {
     test("sends mutation to server in background", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         let capturedAction: DatabaseActionObject | null = null;
         let capturedMutationId: DatabaseMutationId | null = null;
@@ -150,8 +156,10 @@ describe("execute — mutations", () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.commitOptimisticPagesForTests();
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
+            server.commitOptimisticPagesForTests();
         }
 
         const allPages = await extractOpfsPages(serverDir);
@@ -202,6 +210,7 @@ describe("execute — mutations", () => {
         // because the DB has no user data pages yet
         // beyond the schema page.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         const rows = await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
 
         // DML executes locally — returns no rows.
@@ -225,6 +234,7 @@ describe("optimistic mutations", () => {
     test("writePageDiffsFromRealtime dequeues confirmed mutation", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         let capturedMutationId: DatabaseMutationId | null = null;
         const conn = makeDatabaseClientConnection({
@@ -247,6 +257,7 @@ describe("optimistic mutations", () => {
     test("replays remaining mutations after confirmation", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
 
         const mutationIds: Array<DatabaseMutationId> = [];
         const conn = makeDatabaseClientConnection({
@@ -273,6 +284,7 @@ describe("optimistic mutations", () => {
     test("asserts on out-of-order confirmation", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         const mutationIds: Array<DatabaseMutationId> = [];
         const conn = makeDatabaseClientConnection({
@@ -296,6 +308,7 @@ describe("optimistic mutations", () => {
     test("external mutation applies pages without dequeue", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         // No optimistic mutations queued — just apply pages
         client.writePageDiffsFromRealtime(
@@ -311,6 +324,7 @@ describe("optimistic mutations", () => {
     test("reports error when server mutation fails", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         let reportedError: unknown = null;
         const conn = makeDatabaseClientConnection({
@@ -332,6 +346,7 @@ describe("optimistic mutations", () => {
     test("removes optimistic mutation on server error", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         const conn = makeDatabaseClientConnection({
             async executeActionServer() {
@@ -351,6 +366,7 @@ describe("optimistic mutations", () => {
     test("asserts mutation confirmed before server responds", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
 
         let reportedError: unknown = null;
         const conn = makeDatabaseClientConnection({
@@ -384,8 +400,10 @@ describe("server fallback", () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.commitOptimisticPagesForTests();
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
+            server.commitOptimisticPagesForTests();
         }
 
         const allPages = await extractOpfsPages(serverDir);
@@ -419,8 +437,10 @@ describe("server fallback", () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.commitOptimisticPagesForTests();
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
+            server.commitOptimisticPagesForTests();
         }
 
         const allPages = await extractOpfsPages(serverDir);
@@ -455,6 +475,7 @@ describe("executeActionWithTracking", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
 
         const {output, readPages} = await client.executeActionWithTracking(testConn, {
@@ -471,7 +492,9 @@ describe("executeActionWithTracking", () => {
         const db = client.unsafeGetDbForTests();
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t1 (id) VALUES (1)");
         await execute(client, testConn, "INSERT INTO t2 (id) VALUES (2)");
 
@@ -501,7 +524,9 @@ describe("executeActionWithTracking", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t1 (id) VALUES (1)");
         await execute(client, testConn, "INSERT INTO t2 (id) VALUES (2)");
 
@@ -524,6 +549,7 @@ describe("executeActionWithTracking", () => {
     test("throws on write attempts without contacting server", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
         let serverCalled = false;
@@ -559,8 +585,10 @@ describe("executeActionWithTracking", () => {
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
+        server.commitOptimisticPagesForTests();
         for (let i = 0; i < 20; i++) {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
+            server.commitOptimisticPagesForTests();
         }
         const allPages = await extractOpfsPages(serverDir);
 
@@ -596,6 +624,7 @@ describe("registerReactiveAction", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('hello')");
 
         const result = await client.registerReactiveAction(
@@ -614,6 +643,7 @@ describe("registerReactiveAction", () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t (val) VALUES ('v1')");
 
         const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
@@ -648,7 +678,9 @@ describe("registerReactiveAction", () => {
         // base store (not optimistic pages) — extractPages
         // reads from the base store.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
+        client.commitOptimisticPagesForTests();
 
         const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
         await client.registerReactiveAction(
@@ -663,6 +695,7 @@ describe("registerReactiveAction", () => {
 
         // Insert another row directly to OPFS base store
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
+        client.commitOptimisticPagesForTests();
 
         // Write as realtime with newer versions to
         // trigger invalidation. Empty diffs since OPFS
@@ -695,9 +728,13 @@ describe("registerReactiveAction", () => {
         // page-0 noise correctly (readPage(0) must return
         // non-null for the noise check to work).
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t1 (id) VALUES (1)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t2 (id) VALUES (2)");
+        client.commitOptimisticPagesForTests();
 
         // Watch only t1
         const notifications: Array<unknown> = [];
@@ -764,7 +801,9 @@ describe("registerReactiveAction", () => {
         // Now create the table. The write goes to the
         // base store so extractPages picks it up.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
+        client.commitOptimisticPagesForTests();
 
         // Trigger invalidation via realtime page writes.
         // readPages is null so any page write overlaps.
@@ -788,6 +827,7 @@ describe("registerReactiveAction", () => {
         const client = await DatabaseClient.create(dir);
 
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+        client.commitOptimisticPagesForTests();
         await execute(client, testConn, "INSERT INTO t (id) VALUES (1)");
 
         const notifications: Array<unknown> = [];

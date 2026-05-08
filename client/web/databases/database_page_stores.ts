@@ -29,6 +29,13 @@ export class DatabasePageStores {
      * optimistic action.
      */
     private currentWriteSets: Map<DatabaseTableId, Set<number>> | null = null;
+    /**
+     * Auto-incrementing version assigned by
+     * {@link commitOptimisticPagesForTests} so test-setup
+     * writes land on disk with strictly increasing
+     * versions across calls.
+     */
+    private nextTestCommitVersion = 0;
 
     constructor(groupDir: OpfsDirectoryHandle) {
         this.groupDir = groupDir;
@@ -83,6 +90,21 @@ export class DatabasePageStores {
     clearOptimisticPages(): void {
         for (const store of this.stores.values()) {
             store.clearOptimisticPages();
+        }
+    }
+
+    /**
+     * Drain every store's optimistic overlay onto disk at a
+     * fresh, monotonically increasing version. Pairs with
+     * {@link DatabaseClient.executeLocallyForTests} to
+     * persist test-setup writes as if a server had
+     * confirmed them.
+     */
+    commitOptimisticPagesForTests(): void {
+        assert(import.meta.jest);
+        const version = ++this.nextTestCommitVersion;
+        for (const store of this.stores.values()) {
+            store.commitOptimisticPagesForTests(version);
         }
     }
 

@@ -49,12 +49,6 @@ export class OpfsPageStore implements VfsFile {
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
-    // Local writes that haven't been confirmed by the server
-    // get a unique negative version so they're always
-    // superseded by any positive server version via
-    // writePageIfNewer, while still differing across writes
-    // for change-detection purposes.
-    private nextLocalVersion = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
     private readonly getCurrentOptimisticUpdate: () => OptimisticUpdate | null;
 
@@ -138,23 +132,10 @@ export class OpfsPageStore implements VfsFile {
         const pageIndex = offset / sqlitePageSize;
 
         const update = this.getCurrentOptimisticUpdate();
-        if (update !== null) {
-            this.optimisticPages.set(pageIndex, new Uint8Array(data));
-            update.markPageAsWritten(pageIndex);
-            if (pageIndex > this.maxPageIndex) {
-                this.maxPageIndex = pageIndex;
-            }
-            return;
-        }
+        assert(update !== null, "OPFS write outside an optimistic update");
 
-        assert(!this.hasOptimisticPages(), "cannot write to OPFS while optimistic pages exist");
-
-        const existing = this.index.get(pageIndex);
-        const slot = existing !== undefined ? existing.slot : this.nextSlot++;
-
-        this.pagesHandle.write(data, {at: slot * sqlitePageSize});
-        this.index.set(pageIndex, {slot, version: --this.nextLocalVersion});
-
+        this.optimisticPages.set(pageIndex, new Uint8Array(data));
+        update.markPageAsWritten(pageIndex);
         if (pageIndex > this.maxPageIndex) {
             this.maxPageIndex = pageIndex;
         }
@@ -288,6 +269,22 @@ export class OpfsPageStore implements VfsFile {
         }
 
         return true;
+    }
+
+    /**
+     * Drain the optimistic overlay onto disk at `version`.
+     * Pairs with {@link DatabaseClient.executeLocallyForTests}
+     * to materialize test-setup writes as if a server had
+     * confirmed them.
+     */
+    commitOptimisticPagesForTests(version: number): void {
+        assert(import.meta.jest);
+        const overlay = new Map(this.optimisticPages);
+        this.optimisticPages.clear();
+        for (const [pageIndex, data] of overlay) {
+            this.writePageIfNewer(pageIndex, version, data);
+        }
+        this.sync();
     }
 
     /**

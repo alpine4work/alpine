@@ -387,10 +387,31 @@ export class DatabaseActiveTabWorker {
     /**
      * Execute SQL with full permissions (including DDL)
      * on the worker's client. Creates the client if it
-     * doesn't exist yet. Use for test schema setup only.
+     * doesn't exist yet. Writes land in the optimistic
+     * overlay; pair with {@link commitOptimisticPagesForTests}
+     * to materialize them on disk. Use for test schema
+     * setup only.
      */
     async executeLocallyForTests(databaseGroupId: DatabaseGroupId, sql: string): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
+        const client = await this.getOrCreateClientForTests(databaseGroupId);
+        client.executeLocallyForTests(sql);
+    }
+
+    /**
+     * Drain the optimistic overlay onto disk for the named
+     * database group. Test-only counterpart to
+     * {@link executeLocallyForTests}.
+     */
+    async commitOptimisticPagesForTests(databaseGroupId: DatabaseGroupId): Promise<void> {
+        assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
+        const client = await this.getOrCreateClientForTests(databaseGroupId);
+        client.commitOptimisticPagesForTests();
+    }
+
+    private async getOrCreateClientForTests(
+        databaseGroupId: DatabaseGroupId,
+    ): Promise<DatabaseClient> {
         let promise = this.clientPromises.get(databaseGroupId);
         if (!promise) {
             promise = (async () => {
@@ -399,8 +420,7 @@ export class DatabaseActiveTabWorker {
             })();
             this.clientPromises.set(databaseGroupId, promise);
         }
-        const client = await promise;
-        client.executeLocallyForTests(sql);
+        return promise;
     }
 }
 
