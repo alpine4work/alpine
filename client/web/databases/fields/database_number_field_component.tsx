@@ -9,7 +9,7 @@ import {
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
-import {databasesStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 
 function DatabaseNumberGridViewCellContent({
@@ -52,7 +52,12 @@ function DatabaseNumberGridViewCellEditorOverlay({
     const localRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        localRef.current?.focus();
+        const input = localRef.current;
+        if (input) {
+            input.focus();
+            input.selectionStart = input.value.length;
+            input.selectionEnd = input.value.length;
+        }
     }, []);
 
     const tryCommit = (raw: string) => {
@@ -68,17 +73,16 @@ function DatabaseNumberGridViewCellEditorOverlay({
         >
             <input
                 ref={localRef}
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="any"
                 value={editValue}
                 onChange={e => setEditValue(e.currentTarget.value)}
-                className={`${databasesStyles.numberInputClassName} ${sprinkles({
+                className={sprinkles({
                     width: "full",
                     padding: "2",
                     fontSize: "75",
                     color: "grey-100",
-                })}`}
+                })}
                 onBlur={() => {
                     tryCommit(editValue);
                     onClose();
@@ -153,10 +157,8 @@ function DatabaseNumberConfigEditorPopover({
             </Box>
             <input
                 ref={localRef}
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min="0"
-                step="1"
                 placeholder="Unlimited"
                 value={editValue}
                 onChange={e => setEditValue(e.currentTarget.value)}
@@ -171,14 +173,14 @@ function DatabaseNumberConfigEditorPopover({
                     }
                     e.stopPropagation();
                 }}
-                className={`${databasesStyles.numberInputClassName} ${sprinkles({
+                className={sprinkles({
                     width: "full",
                     padding: "1.5",
                     fontSize: "75",
                     color: "grey-100",
                     border: "grey-10",
                     borderRadius: "1",
-                })}`}
+                })}
             />
         </Box>
     );
