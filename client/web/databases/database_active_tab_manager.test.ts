@@ -43,9 +43,10 @@ async function createSeededClient(
     dir: OpfsDirectoryHandle,
     databaseGroupId: string = testDatabaseGroupId,
 ): Promise<DatabaseClient> {
-    const dbsDir = await dir.getDirectoryHandle("databaseGroups", {create: true});
-    const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId, {create: true});
-    return DatabaseClient.create(perDbDir);
+    const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
+    const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId, {create: true});
+    const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId, {create: true});
+    return DatabaseClient.create(tableDir);
 }
 
 async function executeSql(
@@ -67,9 +68,10 @@ async function extractPages(
     dir: OpfsDirectoryHandle,
     databaseGroupId: string = testDatabaseGroupId,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const dbsDir = await dir.getDirectoryHandle("databaseGroups");
-    const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-    return extractOpfsPages(perDbDir);
+    const dbsDir = await dir.getDirectoryHandle("databases");
+    const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
+    const tableDir = await groupDir.getDirectoryHandle(mainDatabaseTableId);
+    return extractOpfsPages(tableDir);
 }
 
 // ---------------------------------------------------------------------------
@@ -259,7 +261,7 @@ function createMockWorker(dir: OpfsDirectoryHandle): {
     let resolvedWorker!: DatabaseActiveTabWorker;
     const [mainEnd, workerEnd] = createMockPortPair();
 
-    const ready = dir.getDirectoryHandle("databaseGroups", {create: true}).then(dbsDir => {
+    const ready = dir.getDirectoryHandle("databases", {create: true}).then(dbsDir => {
         resolvedWorker = new DatabaseActiveTabWorker(dbsDir);
         handler = resolvedWorker.createMessageHandler(message => workerEnd.postMessage(message));
         workerEnd.onmessage = event => handler!(event.data, event.ports);
@@ -355,10 +357,10 @@ function createTestTab(config: {
             // client timestamps, simulating a server that
             // agrees with the local cache.
             try {
-                const dbsDir = await config.dir.getDirectoryHandle("databaseGroups");
+                const dbsDir = await config.dir.getDirectoryHandle("databases");
                 const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
-                const perDbDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-                const dataDir = await perDbDir.getDirectoryHandle("databases");
+                const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
+                const dataDir = await groupDir.getDirectoryHandle(mainDatabaseTableId);
                 const indexFile = await dataDir.getFileHandle("index.json");
                 const indexHandle = await indexFile.createSyncAccessHandle();
                 const size = indexHandle.getSize();

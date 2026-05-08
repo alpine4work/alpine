@@ -161,8 +161,7 @@ export class DatabaseClient {
         }
         const sqlite3 = await sqlite3Promise;
 
-        const dbDir = await dir.getDirectoryHandle("databases", {create: true});
-        const pageStore = await OpfsPageStore.create(dbDir);
+        const pageStore = await OpfsPageStore.create(dir);
 
         return new DatabaseClient(sqlite3, pageStore);
     }

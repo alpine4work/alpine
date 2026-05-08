@@ -89,17 +89,15 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
 }
 
 /**
- * Reads the `pages.bin` + `index.json` files from a
- * `databases` subdirectory of `dir` into a flat array.
- * Mirrors the on-disk layout written by
- * {@link OpfsPageStore}.
+ * Reads the `pages.bin` + `index.json` files from `dir`
+ * into a flat array. Mirrors the on-disk layout written
+ * by {@link OpfsPageStore}.
  */
 export async function extractOpfsPages(
     dir: OpfsDirectoryHandle,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const dbDir = await dir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dbDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dbDir.getFileHandle("index.json")).createSyncAccessHandle();
+    const pagesHandle = await (await dir.getFileHandle("pages.bin")).createSyncAccessHandle();
+    const indexHandle = await (await dir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexSize = indexHandle.getSize();
     if (indexSize === 0) return [];
@@ -118,18 +116,16 @@ export async function extractOpfsPages(
 }
 
 /**
- * Writes pages + index into a `databases` subdirectory of
- * `dir` so that a subsequent {@link OpfsPageStore} or
- * `DatabaseClient.create` opens an existing DB rather
- * than creating a fresh one.
+ * Writes pages + index into `dir` so that a subsequent
+ * {@link OpfsPageStore} or `DatabaseClient.create` opens
+ * an existing DB rather than creating a fresh one.
  */
 export async function prepopulateOpfsPages(
     dir: OpfsDirectoryHandle,
     pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
 ): Promise<void> {
-    const dbDir = await dir.getDirectoryHandle("databases");
-    const pagesHandle = await (await dbDir.getFileHandle("pages.bin")).createSyncAccessHandle();
-    const indexHandle = await (await dbDir.getFileHandle("index.json")).createSyncAccessHandle();
+    const pagesHandle = await (await dir.getFileHandle("pages.bin")).createSyncAccessHandle();
+    const indexHandle = await (await dir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexEntries: Array<[number, {slot: number; timestamp: number}]> = [];
     for (let i = 0; i < pages.length; i++) {
