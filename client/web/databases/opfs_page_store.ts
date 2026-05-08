@@ -31,7 +31,13 @@ export class OpfsPageStore implements VfsFile {
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
     private readonly optimisticPages = new Map<number, Uint8Array>();
-    private inOptimistic = false;
+    /**
+     * Set externally — typically by
+     * {@link DatabasePageStores.optimistic} — to put the
+     * store in optimistic mode. While non-null, writes go
+     * to {@link optimisticPages} instead of the OPFS file
+     * and the page indices written are added to this set.
+     */
     private activeWriteSet: Set<number> | null = null;
 
     private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
@@ -51,20 +57,16 @@ export class OpfsPageStore implements VfsFile {
     }
 
     /**
-     * Runs `cb` with writes directed to the optimistic
-     * overlay. Returns the set of page indices written.
+     * Install or clear this store's optimistic write-set.
+     * While installed, writes go to the in-memory overlay
+     * and the page indices touched are added to `set`.
+     * The cross-store optimistic flag and lifecycle live
+     * on {@link DatabasePageStores}; callers should reach
+     * for `DatabasePageStores.optimistic` rather than
+     * driving this directly.
      */
-    optimistic(cb: () => void): ReadonlySet<number> {
-        this.inOptimistic = true;
-        const writtenPages = new Set<number>();
-        this.activeWriteSet = writtenPages;
-        try {
-            cb();
-        } finally {
-            this.inOptimistic = false;
-            this.activeWriteSet = null;
-        }
-        return writtenPages;
+    setOptimisticWriteSet(set: Set<number> | null): void {
+        this.activeWriteSet = set;
     }
 
     /**
@@ -122,9 +124,9 @@ export class OpfsPageStore implements VfsFile {
 
         const pageIndex = offset / sqlitePageSize;
 
-        if (this.inOptimistic) {
+        if (this.activeWriteSet !== null) {
             this.optimisticPages.set(pageIndex, new Uint8Array(data));
-            this.activeWriteSet?.add(pageIndex);
+            this.activeWriteSet.add(pageIndex);
             if (pageIndex > this.maxPageIndex) {
                 this.maxPageIndex = pageIndex;
             }
@@ -168,7 +170,7 @@ export class OpfsPageStore implements VfsFile {
     }
 
     sync(): void {
-        if (this.inOptimistic) return;
+        if (this.activeWriteSet !== null) return;
         assert(!this.hasOptimisticPages(), "cannot sync OPFS while optimistic pages exist");
         this.pagesHandle.flush();
         this.flushIndex();

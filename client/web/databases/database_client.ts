@@ -1,3 +1,4 @@
+import {DatabasePageStores} from "~/client/web/databases/database_page_stores.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {
@@ -109,20 +110,21 @@ export class DatabaseClient {
     private readonly db: Database;
     private readonly vfs: InstalledVfs;
     /**
-     * One {@link OpfsPageStore} per SQLite database
-     * attached to {@link db}, keyed by table id. The main
-     * database (under {@link databaseMainTableId}) is
-     * always present; other tables will be added once the
-     * client opens them via `ATTACH DATABASE` against the
-     * same connection. The VFS `open` callback resolves
-     * the per-database store by stripping the leading `/`
+     * Per-table {@link OpfsPageStore}s backing the
+     * databases attached to {@link db}, keyed by table
+     * id. The main database (under
+     * {@link databaseMainTableId}) is always present;
+     * other tables will be added once the client opens
+     * them via `ATTACH DATABASE` against the same
+     * connection. The VFS `open` callback resolves the
+     * per-database store by stripping the leading `/`
      * from the path SQLite was given.
      */
-    private readonly pageStores: Map<DatabaseTableId, OpfsPageStore>;
+    private readonly pageStores: DatabasePageStores;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private writeLevel: SqliteWriteLevel | null = null;
 
-    private constructor(sqlite3: Sqlite3Static, pageStores: Map<DatabaseTableId, OpfsPageStore>) {
+    private constructor(sqlite3: Sqlite3Static, pageStores: DatabasePageStores) {
         this.pageStores = pageStores;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
 
@@ -194,13 +196,10 @@ export class DatabaseClient {
         }
         const sqlite3 = await sqlite3Promise;
 
-        const pageStores = new Map<DatabaseTableId, OpfsPageStore>();
-        pageStores.set(
-            databaseMainTableId,
-            await openTablePageStore(groupDir, databaseMainTableId),
-        );
+        const stores = new Map<DatabaseTableId, OpfsPageStore>();
+        stores.set(databaseMainTableId, await openTablePageStore(groupDir, databaseMainTableId));
 
-        return new DatabaseClient(sqlite3, pageStores);
+        return new DatabaseClient(sqlite3, new DatabasePageStores(stores));
     }
 
     /**
@@ -270,9 +269,9 @@ export class DatabaseClient {
         const mutationId = generateId<DatabaseMutationId>();
 
         let result!: DatabaseActionOutput<N>;
-        let writtenPages: ReadonlySet<number>;
+        let writtenPages: Map<DatabaseTableId, ReadonlySet<number>>;
         try {
-            writtenPages = this.pageStores.get(databaseMainTableId)!.optimistic(() => {
+            writtenPages = this.pageStores.optimistic(() => {
                 result = this.executeActionLocally(actionObject);
             });
         } catch (error) {
@@ -282,7 +281,9 @@ export class DatabaseClient {
             throw error;
         }
 
-        if (writtenPages.size === 0) {
+        let totalWrites = 0;
+        for (const pages of writtenPages.values()) totalWrites += pages.size;
+        if (totalWrites === 0) {
             // Pure read — no server round-trip needed.
             return result;
         }
@@ -525,8 +526,12 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
+        // Discard every store's optimistic overlay — a
+        // single mutation may have touched multiple
+        // attached tables, all of which are now superseded
+        // by the realtime confirmation.
+        this.pageStores.clearOptimisticPages();
         const store = this.pageStores.get(databaseMainTableId)!;
-        store.clearOptimisticPages();
 
         let anyWritten = false;
         for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
@@ -575,16 +580,15 @@ export class DatabaseClient {
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
-        this.pageStores.get(databaseMainTableId)!.clearOptimisticPages();
+        this.pageStores.clearOptimisticPages();
         this.replayOptimisticQueue();
     }
 
     private replayOptimisticQueue(): void {
-        const store = this.pageStores.get(databaseMainTableId)!;
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const writtenPages = store.optimistic(() => {
+                const writtenPages = this.pageStores.optimistic(() => {
                     this.executeActionLocally(mutation.action);
                 });
                 if (this.markWrittenPages(writtenPages)) {
@@ -603,13 +607,19 @@ export class DatabaseClient {
     /**
      * Adds optimistically written pages to
      * {@link pagesToInvalidate}, filtering out noise-only
-     * changes on page 0. Returns true if any pages were
+     * changes on page 0. Reactive invalidation today
+     * tracks main-table reads only; pages written to
+     * attached tables are ignored until per-table read
+     * tracking lands. Returns true if any pages were
      * marked.
      */
-    private markWrittenPages(writtenPages: ReadonlySet<number>): boolean {
+    private markWrittenPages(writtenPages: Map<DatabaseTableId, ReadonlySet<number>>): boolean {
+        const mainWrites = writtenPages.get(databaseMainTableId);
+        if (mainWrites === undefined) return false;
+
         const store = this.pageStores.get(databaseMainTableId)!;
         let anyMarked = false;
-        for (const pageIndex of writtenPages) {
+        for (const pageIndex of mainWrites) {
             if (pageIndex === 0) {
                 const base = store.readPage(0);
                 const overlay = store.getOptimisticPage(0);
@@ -624,7 +634,9 @@ export class DatabaseClient {
         return anyMarked;
     }
 
-    private invalidateForWrittenPages(writtenPages: ReadonlySet<number>): void {
+    private invalidateForWrittenPages(
+        writtenPages: Map<DatabaseTableId, ReadonlySet<number>>,
+    ): void {
         if (this.markWrittenPages(writtenPages)) {
             this.scheduleInvalidation();
         }
@@ -695,7 +707,7 @@ export class DatabaseClient {
             mutationId,
             returnResult,
         });
-        this.pageStores.get(databaseMainTableId)!.clearOptimisticPages();
+        this.pageStores.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
             const acknowledged = new Map<DatabaseTableId, Array<number>>();
