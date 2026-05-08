@@ -1,6 +1,5 @@
 import {DatabasePageStores} from "~/client/web/databases/database_page_stores.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
-import {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import type {
     Database,
     Sqlite3Static,
@@ -59,19 +58,6 @@ interface OptimisticMutation {
 const vfsNamePrefix = "alpine-client";
 let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
-
-/**
- * Open the {@link OpfsPageStore} for a single table
- * inside a database group's OPFS directory. Each table's
- * store lives in a `{tableId}/` subdirectory.
- */
-async function openTablePageStore(
-    groupDir: OpfsDirectoryHandle,
-    tableId: DatabaseTableId,
-): Promise<OpfsPageStore> {
-    const tableDir = await groupDir.getDirectoryHandle(tableId, {create: true});
-    return OpfsPageStore.create(tableDir);
-}
 
 /**
  * Represents a connected tab's route to the server.
@@ -196,10 +182,10 @@ export class DatabaseClient {
         }
         const sqlite3 = await sqlite3Promise;
 
-        const stores = new Map<DatabaseTableId, OpfsPageStore>();
-        stores.set(databaseMainTableId, await openTablePageStore(groupDir, databaseMainTableId));
+        const pageStores = new DatabasePageStores();
+        await pageStores.create(groupDir, databaseMainTableId);
 
-        return new DatabaseClient(sqlite3, new DatabasePageStores(stores));
+        return new DatabaseClient(sqlite3, pageStores);
     }
 
     /**
