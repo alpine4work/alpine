@@ -3,9 +3,7 @@ import type {
     OpfsFileHandle,
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/opfs.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {getMinId} from "~/shared/id/id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 /**
  * Creates an {@link OpfsSyncAccessHandle} backed by a
@@ -99,7 +97,7 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
 export async function extractOpfsPages(
     groupDir: OpfsDirectoryHandle,
 ): Promise<Array<{pageIndex: number; timestamp: number; data: Uint8Array}>> {
-    const tableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>());
+    const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId);
     const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 
@@ -128,7 +126,7 @@ export async function prepopulateOpfsPages(
     groupDir: OpfsDirectoryHandle,
     pages: ReadonlyArray<{pageIndex: number; timestamp: number; data: Uint8Array}>,
 ): Promise<void> {
-    const tableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>(), {create: true});
+    const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId, {create: true});
     const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 

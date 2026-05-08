@@ -3,22 +3,18 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
-import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    cacheUpdateStalePageLimit,
+    databaseMainTableId,
+    sqlitePageSize,
+} from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
     DatabaseMutationId,
-    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-
-/**
- * The single internal database lives under the minimum
- * {@link DatabaseTableId}; protocol calls wrap and
- * unwrap with this constant.
- */
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 let storage: any;
 
@@ -45,11 +41,11 @@ async function ensureCacheIsUpToDate(
 ) {
     const result = await conn.procedures.ensureCacheIsUpToDate(
         null as any,
-        {pageTimestampsByIndex: new Map([[mainDatabaseTableId, pageTimestampsByIndex]])},
+        {pageTimestampsByIndex: new Map([[databaseMainTableId, pageTimestampsByIndex]])},
         null as any,
     );
     return (
-        result.tables.get(mainDatabaseTableId) ?? {
+        result.tables.get(databaseMainTableId) ?? {
             updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
             stalePageIndexes: [] as ReadonlyArray<number>,
             fileSizeInPages: 0,
@@ -63,7 +59,7 @@ async function acknowledgePages(
 ) {
     return conn.procedures.acknowledgePages(
         null as any,
-        {pageIndexes: new Map([[mainDatabaseTableId, pageIndexes]])},
+        {pageIndexes: new Map([[databaseMainTableId, pageIndexes]])},
         null as any,
     );
 }
@@ -476,7 +472,7 @@ describe("per-browser page tracking", () => {
         // Page 2: pending (sent as updatedPages) but not in
         //         event → N/A
         // Page 3: not tracked → excluded
-        const main = event.pageDiffs.get(mainDatabaseTableId);
+        const main = event.pageDiffs.get(databaseMainTableId);
         expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
@@ -518,7 +514,7 @@ describe("per-browser page tracking", () => {
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
         // Both included: page 0 confirmed, page 1 pending
-        const main = event.pageDiffs.get(mainDatabaseTableId);
+        const main = event.pageDiffs.get(databaseMainTableId);
         expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
@@ -543,7 +539,7 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        const main = event.pageDiffs.get(mainDatabaseTableId);
+        const main = event.pageDiffs.get(databaseMainTableId);
         expect(main?.diffs.size).toBe(0);
     });
 

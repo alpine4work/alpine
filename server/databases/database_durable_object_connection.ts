@@ -13,22 +13,17 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
-import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {
+    cacheUpdateStalePageLimit,
+    databaseMainTableId,
+    sqlitePageSize,
+} from "~/shared/databases/sqlite_constants.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {getMinId} from "~/shared/id/id.js";
 import type {
     BrowserId,
     DatabaseMutationId,
-    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-
-/**
- * Constant {@link DatabaseTableId} used to key the
- * single internal SQLite database. Once each table has
- * its own database this is replaced by per-table IDs.
- */
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 export type DatabaseRealtimeEventStub = {
     type: "PagesChanged";
@@ -121,7 +116,7 @@ export class DatabaseDurableObjectConnection {
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
                     readPages:
-                        readPages === null ? null : new Map([[mainDatabaseTableId, readPages]]),
+                        readPages === null ? null : new Map([[databaseMainTableId, readPages]]),
                 };
             });
         },
@@ -131,7 +126,7 @@ export class DatabaseDurableObjectConnection {
             let overLimit = false;
 
             const tableTimestamps =
-                input.pageTimestampsByIndex.get(mainDatabaseTableId) ?? new Map<number, number>();
+                input.pageTimestampsByIndex.get(databaseMainTableId) ?? new Map<number, number>();
 
             for (const [pageIndex, clientTs] of tableTimestamps) {
                 const page = this._durableObjectStorage.readPage(pageIndex);
@@ -188,12 +183,12 @@ export class DatabaseDurableObjectConnection {
             const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
             return {
                 tables: new Map([
-                    [mainDatabaseTableId, {updatedPages, stalePageIndexes, fileSizeInPages}],
+                    [databaseMainTableId, {updatedPages, stalePageIndexes, fileSizeInPages}],
                 ]),
             };
         },
         acknowledgePages: async (_context, input) => {
-            const pageIndexes = input.pageIndexes.get(mainDatabaseTableId) ?? [];
+            const pageIndexes = input.pageIndexes.get(databaseMainTableId) ?? [];
             this._browserPageTracker.addPages(this._browserId, pageIndexes);
             return {};
         },
@@ -224,7 +219,7 @@ export class DatabaseDurableObjectConnection {
                     type: "PagesChanged",
                     pageDiffs: new Map([
                         [
-                            mainDatabaseTableId,
+                            databaseMainTableId,
                             {
                                 diffs: filteredDiffs,
                                 fileSizeInPages: eventStub.tableDiffs.fileSizeInPages,

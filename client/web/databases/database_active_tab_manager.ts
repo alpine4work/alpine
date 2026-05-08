@@ -22,26 +22,19 @@ import type {
     DatabasePageTimestampsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
+import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
-    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
 import type {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-
-/**
- * Constant {@link DatabaseTableId} used to key the
- * single internal SQLite database. Once each table has
- * its own database this is replaced by per-table IDs.
- */
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 // ---------------------------------------------------------------------------
 // Dependency interfaces — mirror browser APIs at the lowest level
@@ -225,7 +218,7 @@ export class DatabaseActiveTabWorker {
                 const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
                     this.initialPagesByDatabase.delete(databaseGroupId);
-                    const mainPages = initialPages.get(mainDatabaseTableId);
+                    const mainPages = initialPages.get(databaseMainTableId);
                     if (mainPages !== undefined) {
                         client.seedPages(mainPages);
                     }
@@ -318,7 +311,7 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    const mainTableDiffs = input.pageDiffs.get(mainDatabaseTableId);
+                    const mainTableDiffs = input.pageDiffs.get(databaseMainTableId);
                     if (mainTableDiffs !== undefined) {
                         client.writePagesFromRealtime(mainTableDiffs, input.mutationId);
                     }
@@ -389,25 +382,13 @@ export class DatabaseActiveTabWorker {
                     readPages:
                         result.readPages === null
                             ? null
-                            : (result.readPages.get(mainDatabaseTableId) ?? new Map()),
+                            : (result.readPages.get(databaseMainTableId) ?? new Map()),
                 };
             },
-            ensureCacheIsUpToDate: async pageTimestampsByIndex => {
-                const result = await rpc.call("ensureCacheIsUpToDate", {
-                    pageTimestampsByIndex: new Map([[mainDatabaseTableId, pageTimestampsByIndex]]),
-                });
-                return (
-                    result.tables.get(mainDatabaseTableId) ?? {
-                        updatedPages: new Map(),
-                        stalePageIndexes: [],
-                        fileSizeInPages: 0,
-                    }
-                );
-            },
+            ensureCacheIsUpToDate: pageTimestampsByIndex =>
+                rpc.call("ensureCacheIsUpToDate", {pageTimestampsByIndex}),
             acknowledgePages: pageIndexes => {
-                void rpc.call("acknowledgePages", {
-                    pageIndexes: new Map([[mainDatabaseTableId, pageIndexes]]),
-                });
+                void rpc.call("acknowledgePages", {pageIndexes});
             },
             reportError: error => {
                 void rpc.call("reportError", {

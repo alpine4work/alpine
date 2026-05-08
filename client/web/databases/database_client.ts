@@ -14,6 +14,9 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {
+    DatabaseEnsureCacheIsUpToDateResult,
+    DatabasePageIndexes,
+    DatabasePageTimestampsByIndex,
     DatabaseTablePageDiffs,
     DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
@@ -31,6 +34,7 @@ import {
     sqliteAuthorizerActionName,
 } from "~/shared/databases/sqlite_authorizer.js";
 import {
+    databaseMainTableId,
     pageAccessFlagRead,
     pageAccessFlagWrite,
     sqliteOpenPragmas,
@@ -41,7 +45,7 @@ import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 interface OptimisticMutation {
@@ -54,24 +58,28 @@ let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
+ * Open the {@link OpfsPageStore} for a single table
+ * inside a database group's OPFS directory. Each table's
+ * store lives in a `{tableId}/` subdirectory.
+ */
+async function openTablePageStore(
+    groupDir: OpfsDirectoryHandle,
+    tableId: DatabaseTableId,
+): Promise<OpfsPageStore> {
+    const tableDir = await groupDir.getDirectoryHandle(tableId, {create: true});
+    return OpfsPageStore.create(tableDir);
+}
+
+/**
  * Server's response to {@link DatabaseClientConnection.executeActionServer}.
- * Single-table for now: {@link DatabaseClient} backs one
- * OPFS store, so the active-tab worker extracts the main
- * table's pages from the per-table network response.
+ * Single-table for now: action execution still operates
+ * on the main table only, so the active-tab worker
+ * extracts the main table's pages from the per-table
+ * network response before handing them to the client.
  */
 export interface ExecuteActionServerSingleDatabaseResult {
     result: DatabaseActionResult | null;
     readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}> | null;
-}
-
-/**
- * Server's response to {@link DatabaseClientConnection.ensureCacheIsUpToDate}.
- * Single-table; see {@link ExecuteActionServerSingleDatabaseResult}.
- */
-export interface EnsureCacheIsUpToDateSingleDatabaseResult {
-    updatedPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>;
-    stalePageIndexes: ReadonlyArray<number>;
-    fileSizeInPages: number;
 }
 
 /**
@@ -90,9 +98,9 @@ export interface DatabaseClientConnection {
         },
     ): Promise<ExecuteActionServerSingleDatabaseResult>;
     ensureCacheIsUpToDate(
-        pageTimestampsByIndex: ReadonlyMap<number, number>,
-    ): Promise<EnsureCacheIsUpToDateSingleDatabaseResult>;
-    acknowledgePages(pageIndexes: ReadonlyArray<number>): void;
+        pageTimestampsByIndex: DatabasePageTimestampsByIndex,
+    ): Promise<DatabaseEnsureCacheIsUpToDateResult>;
+    acknowledgePages(pageIndexes: DatabasePageIndexes): void;
     reportError(error: unknown): void;
 }
 
@@ -110,41 +118,43 @@ export interface DatabaseClientConnection {
 export class DatabaseClient {
     private readonly db: Database;
     private readonly vfs: InstalledVfs;
-    private readonly mainPageStore: OpfsPageStore;
     /**
-     * Page stores for ATTACHed databases, keyed by the
-     * filename used in the `ATTACH DATABASE` statement.
-     * The VFS `open` callback consults this map for any
-     * open that isn't the main database. Empty today —
-     * populated once each table gets its own SQLite file
-     * attached alongside the main database.
+     * One {@link OpfsPageStore} per SQLite database
+     * attached to {@link db}, keyed by table id. The main
+     * database (under {@link databaseMainTableId}) is
+     * always present; other tables will be added once the
+     * client opens them via `ATTACH DATABASE` against the
+     * same connection. The VFS `open` callback resolves
+     * the per-database store by stripping the leading `/`
+     * from the path SQLite was given.
      */
-    private readonly attachedPageStores = new Map<string, OpfsPageStore>();
+    private readonly pageStores: Map<DatabaseTableId, OpfsPageStore>;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private writeLevel: SqliteWriteLevel | null = null;
 
-    private constructor(sqlite3: Sqlite3Static, mainPageStore: OpfsPageStore) {
-        this.mainPageStore = mainPageStore;
+    private constructor(sqlite3: Sqlite3Static, pageStores: Map<DatabaseTableId, OpfsPageStore>) {
+        this.pageStores = pageStores;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
 
         this.vfs = installVfs(sqlite3, vfsName, {
-            open: (filename, flags) => {
-                if (flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB) {
-                    return mainPageStore;
+            open: filename => {
+                // Each database is opened with the path
+                // `/${tableId}` (main below, attached
+                // databases later); strip the leading `/`
+                // and look up the per-table store. Any
+                // other open (journals, internal temp
+                // files) gets a memory-backed temp file.
+                if (filename === null || !filename.startsWith("/")) {
+                    return new VfsTempFile();
                 }
-                if (filename !== null) {
-                    const attached = this.attachedPageStores.get(filename);
-                    if (attached !== undefined) {
-                        return attached;
-                    }
-                }
-                return new VfsTempFile();
+                const tableId = filename.slice(1) as DatabaseTableId;
+                return this.pageStores.get(tableId) ?? new VfsTempFile();
             },
             delete: () => {},
             access: () => false,
         });
 
-        this.db = new sqlite3.oo1.DB("/db.sqlite3", "c", vfsName);
+        this.db = new sqlite3.oo1.DB(`/${databaseMainTableId}`, "c", vfsName);
         installTracing(this.db);
 
         const capi = sqlite3.capi;
@@ -184,51 +194,62 @@ export class DatabaseClient {
         }
         const sqlite3 = await sqlite3Promise;
 
-        const mainTableDir = await groupDir.getDirectoryHandle(getMinId<DatabaseTableId>(), {
-            create: true,
-        });
-        const mainPageStore = await OpfsPageStore.create(mainTableDir);
+        const pageStores = new Map<DatabaseTableId, OpfsPageStore>();
+        pageStores.set(
+            databaseMainTableId,
+            await openTablePageStore(groupDir, databaseMainTableId),
+        );
 
-        return new DatabaseClient(sqlite3, mainPageStore);
+        return new DatabaseClient(sqlite3, pageStores);
     }
 
     /**
      * Validate the local OPFS page cache against the
-     * server. Sends the client's `pageIndex → timestamp`
-     * map and receives back:
+     * server, across every open table. Sends the
+     * `tableId → pageIndex → timestamp` map the client
+     * has cached and receives back, per table:
      *
      * - `updatedPages` — pages whose server data is
-     *   newer; written directly into the local store.
+     *   newer; written directly into that table's store.
      * - `stalePageIndexes` — pages the client should
      *   delete (re-fetched on demand).
      *
-     * Both empty means the cache is already up to date.
+     * Both empty for a table means its cache is already
+     * up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
-        const entries = this.mainPageStore.pageEntries();
-
-        const pageTimestampsByIndex = new Map<number, number>();
-        for (const entry of entries) {
-            pageTimestampsByIndex.set(entry.pageIndex, entry.timestamp);
+        const pageTimestampsByIndex = new Map<DatabaseTableId, Map<number, number>>();
+        for (const [tableId, store] of this.pageStores) {
+            const tableTimestamps = new Map<number, number>();
+            for (const entry of store.pageEntries()) {
+                tableTimestamps.set(entry.pageIndex, entry.timestamp);
+            }
+            pageTimestampsByIndex.set(tableId, tableTimestamps);
         }
 
-        const {updatedPages, stalePageIndexes, fileSizeInPages} =
-            await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
+        const {tables} = await conn.ensureCacheIsUpToDate(pageTimestampsByIndex);
 
-        for (const [pageIndex, {timestamp, data}] of updatedPages) {
-            this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data);
+        const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
+        for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+
+            for (const [pageIndex, {timestamp, data}] of updatedPages) {
+                store.writePageIfNewer(pageIndex, timestamp, data);
+            }
+            if (updatedPages.size > 0) {
+                acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
+            }
+            if (stalePageIndexes.length > 0) {
+                store.deletePages(new Set(stalePageIndexes));
+            }
+            store.setServerFileSizeInPages(fileSizeInPages);
+            store.sync();
         }
 
-        if (updatedPages.size > 0) {
-            conn.acknowledgePages([...updatedPages.keys()]);
+        if (acknowledgedPageIndexes.size > 0) {
+            conn.acknowledgePages(acknowledgedPageIndexes);
         }
-
-        if (stalePageIndexes.length > 0) {
-            this.mainPageStore.deletePages(new Set(stalePageIndexes));
-        }
-
-        this.mainPageStore.setServerFileSizeInPages(fileSizeInPages);
-        this.mainPageStore.sync();
     }
 
     /**
@@ -251,7 +272,7 @@ export class DatabaseClient {
         let result!: DatabaseActionOutput<N>;
         let writtenPages: ReadonlySet<number>;
         try {
-            writtenPages = this.mainPageStore.optimistic(() => {
+            writtenPages = this.pageStores.get(databaseMainTableId)!.optimistic(() => {
                 result = this.executeActionLocally(actionObject);
             });
         } catch (error) {
@@ -504,22 +525,23 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
-        this.mainPageStore.clearOptimisticPages();
+        const store = this.pageStores.get(databaseMainTableId)!;
+        store.clearOptimisticPages();
 
         let anyWritten = false;
         for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
-            const base = this.mainPageStore.readPage(pageIndex);
+            const base = store.readPage(pageIndex);
             if (base === null) continue;
             const full = applyPageDiff(base, diff);
-            if (this.mainPageStore.writePageIfNewer(pageIndex, timestamp, full)) {
+            if (store.writePageIfNewer(pageIndex, timestamp, full)) {
                 if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
                     this.pagesToInvalidate.add(pageIndex);
                     anyWritten = true;
                 }
             }
         }
-        this.mainPageStore.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
-        this.mainPageStore.sync();
+        store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
+        store.sync();
         if (anyWritten) {
             this.scheduleInvalidation();
         }
@@ -530,14 +552,15 @@ export class DatabaseClient {
     private applyServerPages(
         readPages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>,
     ): void {
+        const store = this.pageStores.get(databaseMainTableId)!;
         let anyWritten = false;
         for (const [pageIndex, {timestamp, data}] of readPages) {
-            if (this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data)) {
+            if (store.writePageIfNewer(pageIndex, timestamp, data)) {
                 this.pagesToInvalidate.add(pageIndex);
                 anyWritten = true;
             }
         }
-        this.mainPageStore.sync();
+        store.sync();
         if (anyWritten) {
             this.scheduleInvalidation();
         }
@@ -545,15 +568,16 @@ export class DatabaseClient {
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
-        this.mainPageStore.clearOptimisticPages();
+        this.pageStores.get(databaseMainTableId)!.clearOptimisticPages();
         this.replayOptimisticQueue();
     }
 
     private replayOptimisticQueue(): void {
+        const store = this.pageStores.get(databaseMainTableId)!;
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const writtenPages = this.mainPageStore.optimistic(() => {
+                const writtenPages = store.optimistic(() => {
                     this.executeActionLocally(mutation.action);
                 });
                 if (this.markWrittenPages(writtenPages)) {
@@ -576,11 +600,12 @@ export class DatabaseClient {
      * marked.
      */
     private markWrittenPages(writtenPages: ReadonlySet<number>): boolean {
+        const store = this.pageStores.get(databaseMainTableId)!;
         let anyMarked = false;
         for (const pageIndex of writtenPages) {
             if (pageIndex === 0) {
-                const base = this.mainPageStore.readPage(0);
-                const overlay = this.mainPageStore.getOptimisticPage(0);
+                const base = store.readPage(0);
+                const overlay = store.getOptimisticPage(0);
                 if (base !== null && overlay !== undefined) {
                     const diff = diffPage(base, overlay);
                     if (shouldIgnorePageInvalidation(0, diff)) continue;
@@ -604,14 +629,15 @@ export class DatabaseClient {
      * scheduled because no reactive actions exist yet.
      */
     seedPages(pages: DatabaseTablePages): void {
+        const store = this.pageStores.get(databaseMainTableId)!;
         for (const [pageIndex, {timestamp, data}] of pages) {
-            this.mainPageStore.writePageIfNewer(pageIndex, timestamp, data);
+            store.writePageIfNewer(pageIndex, timestamp, data);
         }
-        this.mainPageStore.sync();
+        store.sync();
     }
 
     isEmpty(): boolean {
-        return this.mainPageStore.isEmpty();
+        return this.pageStores.get(databaseMainTableId)!.isEmpty();
     }
 
     /**
@@ -662,10 +688,12 @@ export class DatabaseClient {
             mutationId,
             returnResult,
         });
-        this.mainPageStore.clearOptimisticPages();
+        this.pageStores.get(databaseMainTableId)!.clearOptimisticPages();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
-            conn.acknowledgePages([...serverResult.readPages.keys()]);
+            conn.acknowledgePages(
+                new Map([[databaseMainTableId, [...serverResult.readPages.keys()]]]),
+            );
         }
         this.replayOptimisticQueue();
         if (returnResult) {

@@ -15,8 +15,7 @@ export function makeDatabaseClientConnection(
 ): DatabaseClientConnection {
     return {
         executeActionServer: () => new Promise(() => {}),
-        ensureCacheIsUpToDate: () =>
-            Promise.resolve({updatedPages: new Map(), stalePageIndexes: [], fileSizeInPages: 0}),
+        ensureCacheIsUpToDate: () => Promise.resolve({tables: new Map()}),
         acknowledgePages: () => {},
         reportError: () => {},
         ...overrides,

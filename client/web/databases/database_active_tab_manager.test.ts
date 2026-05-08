@@ -21,16 +21,13 @@ import {
 } from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseReactiveActionId,
-    DatabaseTableId,
 } from "~/shared/id/types/id_types.js";
-
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
@@ -336,12 +333,12 @@ function createTestTab(config: {
             }),
         ensureCacheIsUpToDate: async pageTimestampsByTable => {
             const clientTimestamps =
-                pageTimestampsByTable.get(mainDatabaseTableId) ?? new Map<number, number>();
+                pageTimestampsByTable.get(databaseMainTableId) ?? new Map<number, number>();
 
             const empty = {
                 tables: new Map([
                     [
-                        mainDatabaseTableId,
+                        databaseMainTableId,
                         {
                             updatedPages: new Map<number, {timestamp: number; data: Uint8Array}>(),
                             stalePageIndexes: [] as Array<number>,
@@ -358,7 +355,7 @@ function createTestTab(config: {
                 const dbsDir = await config.dir.getDirectoryHandle("databases");
                 const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
                 const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-                const dataDir = await groupDir.getDirectoryHandle(mainDatabaseTableId);
+                const dataDir = await groupDir.getDirectoryHandle(databaseMainTableId);
                 const indexFile = await dataDir.getFileHandle("index.json");
                 const indexHandle = await indexFile.createSyncAccessHandle();
                 const size = indexHandle.getSize();
@@ -403,7 +400,7 @@ function createTestTab(config: {
                     return {
                         tables: new Map([
                             [
-                                mainDatabaseTableId,
+                                databaseMainTableId,
                                 {updatedPages, stalePageIndexes, fileSizeInPages: 0},
                             ],
                         ]),
@@ -724,7 +721,7 @@ describe("DatabaseActiveTabManager mutations", () => {
                 capturedAction = action;
                 return {
                     result: {name: action.name, output: {rows: []}},
-                    readPages: new Map([[mainDatabaseTableId, new Map()]]),
+                    readPages: new Map([[databaseMainTableId, new Map()]]),
                 } as DatabaseExecuteActionResponse;
             },
         });
@@ -824,7 +821,7 @@ describe("Reactive actions", () => {
             ]),
         );
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
+            pageDiffs: new Map([[databaseMainTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
 
@@ -917,7 +914,7 @@ describe("Reactive actions", () => {
         expect(changedDiffs.size).toBeGreaterThan(0);
 
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, {diffs: changedDiffs, fileSizeInPages: 0}]]),
+            pageDiffs: new Map([[databaseMainTableId, {diffs: changedDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -970,7 +967,7 @@ describe("Reactive actions", () => {
             ]),
         );
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, {diffs, fileSizeInPages: 0}]]),
+            pageDiffs: new Map([[databaseMainTableId, {diffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -1057,7 +1054,7 @@ describe("watchAction", () => {
         );
 
         await conn.call("writePagesFromRealtime", {
-            pageDiffs: new Map([[mainDatabaseTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
+            pageDiffs: new Map([[databaseMainTableId, {diffs: newerDiffs, fileSizeInPages: 0}]]),
             mutationId: generateId<DatabaseMutationId>(),
         });
 

@@ -1,8 +1,19 @@
+import {getMinId} from "~/shared/id/id.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+
 /**
  * Page size used by all Alpine SQLite databases. Set via
  * `PRAGMA page_size` when a database is first created.
  */
 export const sqlitePageSize = 4096;
+
+/**
+ * {@link DatabaseTableId} reserved for each group's main
+ * SQLite database — the one that holds Alpine's metadata
+ * and acts as the connection target for `ATTACH DATABASE`
+ * statements that mount per-table databases.
+ */
+export const databaseMainTableId = getMinId<DatabaseTableId>();
 
 /**
  * SQLite page cache size. Negative values specify the

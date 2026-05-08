@@ -17,15 +17,15 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
-import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
+import {
+    databaseMainTableId,
+    databaseViewTargetRowsPerPage,
+} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import {getMinId} from "~/shared/id/id.js";
-import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-
-const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 // ---------------------------------------------------------------------------
 // Test connection adapter
@@ -53,7 +53,7 @@ function createTestConnection(client: DatabaseClient): {
         call(method, input) {
             if (method === "writeInitialPages") {
                 const {pages} = input as unknown as {pages: DatabasePages};
-                const mainPages = pages.get(mainDatabaseTableId);
+                const mainPages = pages.get(databaseMainTableId);
                 if (mainPages != null) {
                     client.seedPages(mainPages);
                 }
