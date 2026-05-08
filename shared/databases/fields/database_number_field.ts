@@ -28,150 +28,106 @@ export const databaseNumberFieldProvider = defineDatabaseFieldProvider({
     },
 });
 
-// -- parseString helpers ------------------------------------------------------
+// -- parseString --------------------------------------------------------------
 
-/**
- * Non-alphabetic currency symbols stripped from the start
- * or end of a number string. Letter-based currency tokens
- * (`USD`, `AU$`, `Fr.`, `kr`, etc.) are handled by the
- * generic alphabetic-prefix/suffix stripping in
- * `parseNumberString` and don't need to be enumerated here.
- */
-const currencySymbols: ReadonlyArray<string> = ["$", "£", "€", "¥", "¢", "₩", "₹"];
-
-/** Match an alphabetic prefix, optionally followed by a `.` (e.g. `Fr.`). */
-const leadingAlphaPattern = /^[A-Za-z]+\.?/;
-
-/** Match an alphabetic suffix, optionally followed by a `.` (e.g. `Fr.`). */
-const trailingAlphaPattern = /[A-Za-z]+\.?$/;
-
-/**
- * Maximum non-whitespace characters allowed in the
- * leading or trailing decoration around a number.
- * `USD$ 3.14` (4) parses; `USDXX 3.14` (5) does not.
- */
+/** Maximum non-whitespace decoration chars per side. */
 const maxDecorationNonWhitespace = 4;
+
+/**
+ * Splits an input into `<prefix><body><suffix>`. The body
+ * is a number-shaped run that must contain at least one
+ * digit; everything before and after is decoration. The
+ * prefix is non-greedy so the body anchors as early as
+ * possible. Body alternatives, in order:
+ *
+ * 1. Digit + (`,.eE+-` and digits) + digit — the usual case.
+ * 2. Leading-decimal forms like `.5` or `.5e-3`.
+ * 3. Trailing-decimal form `3.`.
+ * 4. Single digit fallback.
+ */
+const numberStructurePattern =
+    /^(?<prefix>.*?)(?<body>\d[\d,.eE+\-]*\d|\.\d+(?:[eE][+\-]?\d+)?|\d+\.|\d)(?<suffix>.*)$/;
+
+/** Comma pattern for unambiguous US thousands grouping. */
+const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
 
 /**
  * Parse a string into a nullable number. Forgiving for
  * common copy-paste shapes; assumes en-US conventions
- * (`,` thousands, `.` decimal). Specifically tolerates:
+ * (`,` thousands, `.` decimal). Tolerates:
  *
- * - Whitespace (leading, trailing, around signs/symbols).
  * - Empty string → `null`.
- * - Sign variants: ASCII `-`/`+` and U+2212 `−`.
- * - Accounting negatives: `(3.14)` → `-3.14`.
- * - Trailing `%`: scales by `1/100` (`50%` → `0.5`).
- * - Currency symbols at either end (`$`, `£`, `€`,
- *   `¥`, `¢`, `₩`, `₹`).
- * - Any alphabetic prefix/suffix (currency codes like
- *   `USD`, `JPY`, `AU$`, `Fr.`, `kr`), capped at 4
- *   non-whitespace characters total per side. So
- *   `USD$ 3.14` parses but `USDXX 3.14` does not.
- * - US thousands separators when the comma pattern is
- *   unambiguous (`1,234.56` → `1234.56`). Mismatched
- *   patterns like `1,23` are rejected, not silently
- *   reinterpreted.
- * - Trailing or leading decimal point (`3.`, `.5`).
+ * - Whitespace anywhere on the outside.
+ * - Sign variants in decoration: ASCII `-`/`+` and
+ *   U+2212 `−` (multiple signs combine).
+ * - Accounting parens: `(3.14)` → `-3.14`.
+ * - `%` anywhere in decoration: scales by `1/100`.
+ * - Up to {@link maxDecorationNonWhitespace} non-whitespace
+ *   decoration chars per side, of any kind (currency
+ *   codes, symbols, single letters). `USD$ 3.14` parses;
+ *   `UnitedStatesDollars 3.14` does not.
+ * - US thousands separators when unambiguous (`1,234.56`).
+ *   Mismatched comma patterns like `1,23` are rejected,
+ *   not silently reinterpreted.
  *
- * Rejects `Infinity`, `NaN`, and any leftover
- * non-numeric content.
+ * Rejects `Infinity`, `NaN`, multiple `%` signs, and
+ * decoration containing digits (a digit in decoration
+ * means a number was missed).
  */
 function parseNumberString(input: string): Result<number | null, void> {
     let s = input.trim();
     if (s === "") return {ok: true, value: null};
 
-    let sign = 1;
-    let scale = 1;
-
-    // Accounting negative: `(...)` wraps a negative.
+    let parenSign = 1;
     if (s.startsWith("(") && s.endsWith(")")) {
-        sign = -1;
+        parenSign = -1;
         s = s.slice(1, -1).trim();
     }
 
-    // Trailing percent: `50%` → 0.5.
-    if (s.endsWith("%")) {
-        scale = 0.01;
-        s = s.slice(0, -1).trimEnd();
+    const match = numberStructurePattern.exec(s);
+    if (match === null || match.groups === undefined) return {ok: false, error: undefined};
+
+    const prefix = analyseDecoration(match.groups.prefix);
+    const suffix = analyseDecoration(match.groups.suffix);
+    if (!prefix.ok || !suffix.ok) return {ok: false, error: undefined};
+
+    const percentCount = prefix.percentCount + suffix.percentCount;
+    if (percentCount > 1) return {ok: false, error: undefined};
+
+    let body = match.groups.body;
+    if (body.includes(",") && usThousandsPattern.test(body)) {
+        body = body.replace(/,/g, "");
     }
 
-    // Trailing alphabetic suffix and/or non-alpha currency
-    // symbol, in any order. Iterates so `3.14 USD$` (alpha
-    // then symbol) and `3.14 $USD` strip cleanly.
-    let trailingNonWs = 0;
-    let trailingChanged = true;
-    while (trailingChanged) {
-        trailingChanged = false;
-        s = s.trimEnd();
-        const trailingAlphaMatch = trailingAlphaPattern.exec(s);
-        if (trailingAlphaMatch !== null) {
-            trailingNonWs += trailingAlphaMatch[0].length;
-            s = s.slice(0, -trailingAlphaMatch[0].length);
-            trailingChanged = true;
-        }
-        s = s.trimEnd();
-        for (const sym of currencySymbols) {
-            if (s.endsWith(sym)) {
-                trailingNonWs += sym.length;
-                s = s.slice(0, -sym.length);
-                trailingChanged = true;
-                break;
-            }
-        }
-    }
-    if (trailingNonWs > maxDecorationNonWhitespace) {
-        return {ok: false, error: undefined};
-    }
-
-    // Leading currency and/or sign in any order. Iterates so
-    // arrangements like `- £ 3.14`, `£ -3.14`, `+$10`, or
-    // `AU$3.14` (alpha then symbol) all strip cleanly.
-    let leadingNonWs = 0;
-    let changed = true;
-    while (changed) {
-        changed = false;
-        s = s.trimStart();
-        const leadingAlphaMatch = leadingAlphaPattern.exec(s);
-        if (leadingAlphaMatch !== null) {
-            leadingNonWs += leadingAlphaMatch[0].length;
-            s = s.slice(leadingAlphaMatch[0].length);
-            changed = true;
-        }
-        s = s.trimStart();
-        for (const sym of currencySymbols) {
-            if (s.startsWith(sym)) {
-                leadingNonWs += sym.length;
-                s = s.slice(sym.length);
-                changed = true;
-                break;
-            }
-        }
-        s = s.trimStart();
-        if (s.startsWith("-") || s.startsWith("−")) {
-            sign = -sign;
-            leadingNonWs += 1;
-            s = s.slice(1);
-            changed = true;
-        } else if (s.startsWith("+")) {
-            leadingNonWs += 1;
-            s = s.slice(1);
-            changed = true;
-        }
-    }
-    if (leadingNonWs > maxDecorationNonWhitespace) {
-        return {ok: false, error: undefined};
-    }
-
-    // US thousands separators: only strip when commas group
-    // exactly 3 digits each. Ambiguous shapes like `1,23`
-    // fall through and are rejected by `Number()`.
-    if (s.includes(",") && /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
-        s = s.replace(/,/g, "");
-    }
-
-    if (s === "") return {ok: false, error: undefined};
-    const n = Number(s);
+    const n = Number(body);
     if (!Number.isFinite(n)) return {ok: false, error: undefined};
+
+    const sign = parenSign * prefix.sign * suffix.sign;
+    const scale = percentCount === 1 ? 0.01 : 1;
     return {ok: true, value: n * sign * scale};
+}
+
+/**
+ * Inspect a decoration substring. Returns the accumulated
+ * sign and percent count; rejects (`ok: false`) if the
+ * decoration has more than {@link maxDecorationNonWhitespace}
+ * non-whitespace chars or contains a digit (which would
+ * mean the number extraction missed something).
+ */
+function analyseDecoration(decoration: string): {
+    ok: boolean;
+    sign: number;
+    percentCount: number;
+} {
+    let sign = 1;
+    let percentCount = 0;
+    let nonWs = 0;
+    for (const ch of decoration) {
+        if (/\s/.test(ch)) continue;
+        if (ch >= "0" && ch <= "9") return {ok: false, sign, percentCount};
+        nonWs++;
+        if (ch === "-" || ch === "−") sign *= -1;
+        else if (ch === "%") percentCount++;
+    }
+    return {ok: nonWs <= maxDecorationNonWhitespace, sign, percentCount};
 }
