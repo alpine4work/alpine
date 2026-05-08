@@ -17,10 +17,7 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
-import {
-    databaseMainTableId,
-    databaseViewTargetRowsPerPage,
-} from "~/shared/databases/sqlite_constants.js";
+import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
@@ -53,10 +50,7 @@ function createTestConnection(client: DatabaseClient): {
         call(method, input) {
             if (method === "writeInitialPages") {
                 const {pages} = input as unknown as {pages: DatabasePages};
-                const mainPages = pages.get(databaseMainTableId);
-                if (mainPages != null) {
-                    client.seedPages(mainPages);
-                }
+                client.seedPages(pages);
                 return Promise.resolve({} as any);
             }
             throw new InternalError(`Unsupported call method: ${method}`);

@@ -16,11 +16,10 @@ import {
 import type {
     DatabaseEnsureCacheIsUpToDateResult,
     DatabaseExecuteActionResponse,
+    DatabasePageDiffs,
     DatabasePageIndexes,
     DatabasePageTimestampsByIndex,
     DatabasePages,
-    DatabaseTablePageDiffs,
-    DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
@@ -384,7 +383,7 @@ export class DatabaseClient {
             reExecuting: boolean;
         }
     >();
-    private pagesToInvalidate = new Set<number>();
+    private pagesToInvalidate = new Map<DatabaseTableId, Set<number>>();
     private invalidationScheduled = false;
 
     /**
@@ -446,20 +445,27 @@ export class DatabaseClient {
         queueMicrotask(() => {
             this.invalidationScheduled = false;
             const pages = this.pagesToInvalidate;
-            this.pagesToInvalidate = new Set();
+            this.pagesToInvalidate = new Map();
             void this.checkInvalidation(pages);
         });
     }
 
-    private async checkInvalidation(writtenPages: ReadonlySet<number>): Promise<void> {
+    private async checkInvalidation(
+        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
+    ): Promise<void> {
+        // Reactive action read-tracking is still
+        // single-table; treat each action's `readPages` as
+        // referring to main-table pages and check overlap
+        // against just main-table writes.
+        const mainWrites = writtenPages.get(databaseMainTableId);
         for (const [, reg] of this.reactiveActions) {
             if (reg.reExecuting) continue;
 
             let overlaps = false;
             if (reg.readPages === null) {
                 overlaps = true;
-            } else {
-                for (const page of writtenPages) {
+            } else if (mainWrites !== undefined) {
+                for (const page of mainWrites) {
                     if (reg.readPages.has(page)) {
                         overlaps = true;
                         break;
@@ -487,19 +493,16 @@ export class DatabaseClient {
     // -- Page writes ---------------------------------------------------------
 
     /**
-     * Write pages received from realtime events into the
-     * local OPFS store, skipping pages that are already at
-     * a newer timestamp. If the `mutationId` matches a
+     * Write page diffs received from realtime events into
+     * the local OPFS stores, skipping pages already at a
+     * newer timestamp. If the `mutationId` matches a
      * queued optimistic mutation, removes it from the
      * queue and replays the remaining mutations.
      * Automatically schedules invalidation for any
      * reactive queries whose read-set overlaps the
      * written pages.
      */
-    writePagesFromRealtime(
-        tableDiffs: DatabaseTablePageDiffs,
-        mutationId: DatabaseMutationId,
-    ): void {
+    writePageDiffsFromRealtime(pageDiffs: DatabasePageDiffs, mutationId: DatabaseMutationId): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
         assert(
             headIndex === 0 || headIndex === -1,
@@ -511,22 +514,25 @@ export class DatabaseClient {
         }
 
         this.pageStores.clearOptimisticPages();
-        const store = this.pageStores.get(databaseMainTableId)!;
 
         let anyWritten = false;
-        for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
-            const base = store.readPage(pageIndex);
-            if (base === null) continue;
-            const full = applyPageDiff(base, diff);
-            if (store.writePageIfNewer(pageIndex, timestamp, full)) {
-                if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
-                    this.pagesToInvalidate.add(pageIndex);
-                    anyWritten = true;
+        for (const [tableId, tableDiffs] of pageDiffs) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+            for (const [pageIndex, {timestamp, diff}] of tableDiffs.diffs) {
+                const base = store.readPage(pageIndex);
+                if (base === null) continue;
+                const full = applyPageDiff(base, diff);
+                if (store.writePageIfNewer(pageIndex, timestamp, full)) {
+                    if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
+                        this.addPageToInvalidate(tableId, pageIndex);
+                        anyWritten = true;
+                    }
                 }
             }
+            store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
+            store.sync();
         }
-        store.setServerFileSizeInPages(tableDiffs.fileSizeInPages);
-        store.sync();
         if (anyWritten) {
             this.scheduleInvalidation();
         }
@@ -535,25 +541,19 @@ export class DatabaseClient {
     }
 
     private applyServerPages(readPages: DatabasePages): void {
-        let anyMainWritten = false;
+        let anyWritten = false;
         for (const [tableId, tablePages] of readPages) {
             const store = this.pageStores.get(tableId);
             if (store === undefined) continue;
             for (const [pageIndex, {timestamp, data}] of tablePages) {
                 if (store.writePageIfNewer(pageIndex, timestamp, data)) {
-                    // Reactive invalidation only tracks
-                    // main-table pages today; per-table
-                    // tracking will land alongside the
-                    // SQL-level multi-table split.
-                    if (tableId === databaseMainTableId) {
-                        this.pagesToInvalidate.add(pageIndex);
-                        anyMainWritten = true;
-                    }
+                    this.addPageToInvalidate(tableId, pageIndex);
+                    anyWritten = true;
                 }
             }
             store.sync();
         }
-        if (anyMainWritten) {
+        if (anyWritten) {
             this.scheduleInvalidation();
         }
     }
@@ -587,31 +587,37 @@ export class DatabaseClient {
     /**
      * Adds optimistically written pages to
      * {@link pagesToInvalidate}, filtering out noise-only
-     * changes on page 0. Reactive invalidation today
-     * tracks main-table reads only; pages written to
-     * attached tables are ignored until per-table read
-     * tracking lands. Returns true if any pages were
+     * changes on page 0. Returns true if any pages were
      * marked.
      */
     private markWrittenPages(writtenPages: Map<DatabaseTableId, ReadonlySet<number>>): boolean {
-        const mainWrites = writtenPages.get(databaseMainTableId);
-        if (mainWrites === undefined) return false;
-
-        const store = this.pageStores.get(databaseMainTableId)!;
         let anyMarked = false;
-        for (const pageIndex of mainWrites) {
-            if (pageIndex === 0) {
-                const base = store.readPage(0);
-                const overlay = store.getOptimisticPage(0);
-                if (base !== null && overlay !== undefined) {
-                    const diff = diffPage(base, overlay);
-                    if (shouldIgnorePageInvalidation(0, diff)) continue;
+        for (const [tableId, tablePages] of writtenPages) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+            for (const pageIndex of tablePages) {
+                if (pageIndex === 0) {
+                    const base = store.readPage(0);
+                    const overlay = store.getOptimisticPage(0);
+                    if (base !== null && overlay !== undefined) {
+                        const diff = diffPage(base, overlay);
+                        if (shouldIgnorePageInvalidation(0, diff)) continue;
+                    }
                 }
+                this.addPageToInvalidate(tableId, pageIndex);
+                anyMarked = true;
             }
-            this.pagesToInvalidate.add(pageIndex);
-            anyMarked = true;
         }
         return anyMarked;
+    }
+
+    private addPageToInvalidate(tableId: DatabaseTableId, pageIndex: number): void {
+        let pages = this.pagesToInvalidate.get(tableId);
+        if (pages === undefined) {
+            pages = new Set();
+            this.pagesToInvalidate.set(tableId, pages);
+        }
+        pages.add(pageIndex);
     }
 
     private invalidateForWrittenPages(
@@ -624,15 +630,18 @@ export class DatabaseClient {
 
     /**
      * Write loader-provided pages into the local OPFS
-     * store before cache validation. No invalidation is
+     * stores before cache validation. No invalidation is
      * scheduled because no reactive actions exist yet.
      */
-    seedPages(pages: DatabaseTablePages): void {
-        const store = this.pageStores.get(databaseMainTableId)!;
-        for (const [pageIndex, {timestamp, data}] of pages) {
-            store.writePageIfNewer(pageIndex, timestamp, data);
+    seedPages(pages: DatabasePages): void {
+        for (const [tableId, tablePages] of pages) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+            for (const [pageIndex, {timestamp, data}] of tablePages) {
+                store.writePageIfNewer(pageIndex, timestamp, data);
+            }
+            store.sync();
         }
-        store.sync();
     }
 
     isEmpty(): boolean {

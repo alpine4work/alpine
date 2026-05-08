@@ -125,8 +125,8 @@ describe("execute — mutations", () => {
                 capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving
                 // before server response (same as production).
-                client.writePagesFromRealtime(
-                    {diffs: new Map(), fileSizeInPages: 0},
+                client.writePageDiffsFromRealtime(
+                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
                     options.mutationId,
                 );
                 return {
@@ -186,8 +186,8 @@ describe("execute — mutations", () => {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving
                 // before server response.
-                client.writePagesFromRealtime(
-                    {diffs: new Map(), fileSizeInPages: 0},
+                client.writePageDiffsFromRealtime(
+                    new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
                     options.mutationId,
                 );
                 return {
@@ -222,7 +222,7 @@ describe("execute — mutations", () => {
 });
 
 describe("optimistic mutations", () => {
-    test("writePagesFromRealtime dequeues confirmed mutation", async () => {
+    test("writePageDiffsFromRealtime dequeues confirmed mutation", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
@@ -238,7 +238,10 @@ describe("optimistic mutations", () => {
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
-        client.writePagesFromRealtime({diffs: new Map(), fileSizeInPages: 0}, capturedMutationId!);
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            capturedMutationId!,
+        );
     });
 
     test("replays remaining mutations after confirmation", async () => {
@@ -257,7 +260,10 @@ describe("optimistic mutations", () => {
         await execute(client, conn, "INSERT INTO t (val) VALUES ('second')");
 
         // Confirm first mutation
-        client.writePagesFromRealtime({diffs: new Map(), fileSizeInPages: 0}, mutationIds[0]!);
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+            mutationIds[0]!,
+        );
 
         // Second mutation should still be visible via replay
         const rows = await execute(client, testConn, "SELECT val FROM t ORDER BY id");
@@ -280,7 +286,10 @@ describe("optimistic mutations", () => {
         await execute(client, conn, "INSERT INTO t (id) VALUES (2)");
 
         expect(() =>
-            client.writePagesFromRealtime({diffs: new Map(), fileSizeInPages: 0}, mutationIds[1]!),
+            client.writePageDiffsFromRealtime(
+                new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
+                mutationIds[1]!,
+            ),
         ).toThrow("unexpected mutation confirmation order");
     });
 
@@ -289,8 +298,8 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         // No optimistic mutations queued — just apply pages
-        client.writePagesFromRealtime(
-            {diffs: new Map(), fileSizeInPages: 0},
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
             "unknown-mutation-id" as DatabaseMutationId,
         );
 
@@ -346,7 +355,7 @@ describe("optimistic mutations", () => {
         let reportedError: unknown = null;
         const conn = makeDatabaseClientConnection({
             async executeActionServer() {
-                // Return without calling writePagesFromRealtime
+                // Return without calling writePageDiffsFromRealtime
                 // — the mutation is still in the queue.
                 return {
                     result: {name: "rawSql", output: {rows: []}},
@@ -665,8 +674,8 @@ describe("registerReactiveAction", () => {
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
-        client.writePagesFromRealtime(
-            {diffs: newerPageDiffs, fileSizeInPages: 0},
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -729,8 +738,8 @@ describe("registerReactiveAction", () => {
                 ]),
         );
 
-        client.writePagesFromRealtime(
-            {diffs: changedPageDiffs, fileSizeInPages: 0},
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: changedPageDiffs, fileSizeInPages: 0}]]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -772,8 +781,8 @@ describe("registerReactiveAction", () => {
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
-        client.writePagesFromRealtime(
-            {diffs: newerPageDiffs, fileSizeInPages: 0},
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
             generateId<DatabaseMutationId>(),
         );
 
@@ -811,8 +820,8 @@ describe("registerReactiveAction", () => {
                 {timestamp: timestamp + 1000, diff: []},
             ]),
         );
-        client.writePagesFromRealtime(
-            {diffs: newerPageDiffs, fileSizeInPages: 0},
+        client.writePageDiffsFromRealtime(
+            new Map([[databaseMainTableId, {diffs: newerPageDiffs, fileSizeInPages: 0}]]),
             generateId<DatabaseMutationId>(),
         );
 

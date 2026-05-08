@@ -22,7 +22,6 @@ import type {
     DatabasePageTimestampsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
-import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -218,10 +217,7 @@ export class DatabaseActiveTabWorker {
                 const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
                 if (initialPages !== undefined) {
                     this.initialPagesByDatabase.delete(databaseGroupId);
-                    const mainPages = initialPages.get(databaseMainTableId);
-                    if (mainPages !== undefined) {
-                        client.seedPages(mainPages);
-                    }
+                    client.seedPages(initialPages);
                 }
 
                 try {
@@ -311,10 +307,7 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    const mainTableDiffs = input.pageDiffs.get(databaseMainTableId);
-                    if (mainTableDiffs !== undefined) {
-                        client.writePagesFromRealtime(mainTableDiffs, input.mutationId);
-                    }
+                    client.writePageDiffsFromRealtime(input.pageDiffs, input.mutationId);
                     return {};
                 },
                 registerReactiveAction: async input => {
