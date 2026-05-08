@@ -55,9 +55,7 @@ describe("DatabaseFieldConfigSqlSchema", () => {
         const plain = {type: "plainText" as const};
         const checkbox = {type: "checkbox" as const};
         expect(
-            DatabaseFieldConfigSqlSchema.deserialize(
-                DatabaseFieldConfigSqlSchema.serialize(plain),
-            ),
+            DatabaseFieldConfigSqlSchema.deserialize(DatabaseFieldConfigSqlSchema.serialize(plain)),
         ).toEqual(plain);
         expect(
             DatabaseFieldConfigSqlSchema.deserialize(
