@@ -45,12 +45,16 @@ export class TestAccount {
             hasInternalAccess = false,
             observedTimeZone = defaultTimeZone,
             reactionCharacter,
+            hasNotSignedUp,
+            overrideCreatedTime,
         }: {
             id?: AccountId;
             name?: string;
             hasInternalAccess?: boolean;
             observedTimeZone?: TimeZone | null;
             reactionCharacter?: ReactionCharacter;
+            hasNotSignedUp?: true;
+            overrideCreatedTime?: Date;
         } = {},
     ) {
         await createAccountForTest(context, {
@@ -59,6 +63,8 @@ export class TestAccount {
             hasInternalAccess,
             observedTimeZone,
             reactionCharacter,
+            hasNotSignedUp,
+            createdTime: overrideCreatedTime,
         });
 
         return new TestAccount(context, id, name);

@@ -32,7 +32,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;
@@ -91,7 +91,7 @@ export class TestDocument {
                   content?: undefined;
               }
             | {
-                  content: Node;
+                  content: Node | ReadonlyArray<Node>;
                   title?: undefined;
                   body?: undefined;
               }
@@ -99,7 +99,18 @@ export class TestDocument {
     ): Promise<TestDocument> {
         let content: Node;
         if (options.content) {
-            if (
+            const defaultAccessPolicy: AccessPolicy = {
+                type: "Local",
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+
+            if (isReadonlyArray(options.content)) {
+                content = assertDocumentContent(
+                    schema.node("doc", {accessPolicy: defaultAccessPolicy}, options.content),
+                );
+            } else if (
                 !isDeepEqual(
                     options.content.attrs.accessPolicy,
                     dangerousLegacyDefaultDocumentAccessPolicy,
@@ -114,17 +125,7 @@ export class TestDocument {
                 content = assertDocumentContent(
                     schema.node(
                         "doc",
-                        {
-                            ...options.content.attrs,
-                            accessPolicy: {
-                                type: "Local",
-                                accountGrantById: new Map([
-                                    [session.account.id, {level: "Manage", generation: 0}],
-                                ]),
-                                defaultGrant: null,
-                                urlGrant: null,
-                            },
-                        },
+                        {...options.content.attrs, accessPolicy: defaultAccessPolicy},
                         options.content.content,
                     ),
                 );
@@ -374,7 +375,7 @@ export class TestDocument {
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | Node = TestDocumentCommentThread.createDefaultMessageContent(),
-        options?: {overrideCreatedTime?: Date},
+        options?: {id?: DocumentCommentThreadId; overrideCreatedTime?: Date},
     ) {
         return TestDocumentCommentThread._create(this, session, range, content, options);
     }

@@ -422,6 +422,8 @@ Resources:
                           Type: string
                         - Name: http__request__header__cyberworlds_transient_error
                           Type: string
+                        - Name: http__request__header__cyberworlds_fixed_time_for_test
+                          Type: string
                         - Name: http__request__header__x_ratelimit_limit
                           Type: string
                         - Name: http__request__header__x_ratelimit_remaining
@@ -593,6 +595,8 @@ Resources:
                         - Name: http__response__header__cyberworlds_route
                           Type: string
                         - Name: http__response__header__cyberworlds_transient_error
+                          Type: string
+                        - Name: http__response__header__cyberworlds_fixed_time_for_test
                           Type: string
                         - Name: http__response__header__x_ratelimit_limit
                           Type: string

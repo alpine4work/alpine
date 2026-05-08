@@ -30,6 +30,7 @@ export async function createAccountForTest(
         observedTimeZone = null,
         plan,
         reactionCharacter = getUnstableReactionCharacterForNewAccountId(id),
+        hasNotSignedUp,
     }: {
         id?: AccountId;
         name: string;
@@ -38,6 +39,7 @@ export async function createAccountForTest(
         observedTimeZone?: TimeZone | null;
         plan?: AccountItem["plan"];
         reactionCharacter?: ReactionCharacter;
+        hasNotSignedUp?: true;
     },
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
@@ -52,6 +54,7 @@ export async function createAccountForTest(
         hasInternalAccess,
         plan,
         reactionCharacter,
+        hasNotSignedUp,
     };
 
     const accountSettingsItem: AccountSettingsItem = {

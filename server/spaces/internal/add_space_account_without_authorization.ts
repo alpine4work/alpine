@@ -39,21 +39,23 @@ export async function addSpaceAccountWithoutAuthorization(
         spaceId,
         accountId,
         role = "Member",
+        overrideCurrentTimeForTest,
         withoutInviteForTest = false,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         role?: SpaceRole;
+        overrideCurrentTimeForTest?: Date;
         withoutInviteForTest?: boolean;
     },
 ): Promise<AccountModel> {
     // Only allow setting this option in test environments.
-    if (withoutInviteForTest) {
+    if (overrideCurrentTimeForTest || withoutInviteForTest) {
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     const createdAccount: AccountModel = await context.dynamo.retryTransaction(async context => {
-        const currentTime = new Date();
+        const currentTime = overrideCurrentTimeForTest ?? new Date();
 
         const {account, newSpaceAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {

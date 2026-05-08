@@ -25,6 +25,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
@@ -49,7 +50,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
  * - Communicating with the task realtime service
  */
 export class TaskContextModule extends TaskContextModuleBase {
-    private readonly _tokenAgent: TokenAgent;
+    private readonly _tokenAgent: MaybeThunk<TokenAgent>;
     public readonly router: TaskRealtimeServiceRouterBase;
 
     constructor({
@@ -57,7 +58,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         router,
         dangerouslyEscalateToSystemContext,
     }: {
-        tokenAgent: TokenAgent;
+        tokenAgent: MaybeThunk<TokenAgent>;
         router: TaskRealtimeServiceRouterBase;
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
@@ -84,6 +85,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
         actionTransaction: TaskContextModuleActionTransaction,
     ) {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         return this._context.tracer.withSpan(
             "Apply task action transaction",
             async (context, span) => {
@@ -97,10 +101,10 @@ export class TaskContextModule extends TaskContextModuleBase {
 
                 const [hosts, token] = await runAllPromises([
                     this.router.getHosts(this._context, actionTransaction.spaceId),
-                    this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "TaskRealtimeService",
-                        {type: "System", spaceId: actionTransaction.spaceId},
-                    ),
+                    tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                        type: "System",
+                        spaceId: actionTransaction.spaceId,
+                    }),
                 ]);
 
                 const requestBody = JSON.stringify(
@@ -182,6 +186,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         input: TaskRealtimeLoadQueriesInput,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -193,7 +200,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                   // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
                   // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),
@@ -234,6 +241,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         taskId: TaskId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskModel> | null> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -245,7 +255,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                   // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
                   // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),
@@ -283,6 +293,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         collectionId: TaskCollectionId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -294,7 +307,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                   // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
                   // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),

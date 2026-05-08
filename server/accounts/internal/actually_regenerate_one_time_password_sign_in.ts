@@ -101,7 +101,7 @@ export async function afterRegenerateOneTimePasswordSignIn(
     // In development (or Playwright integration tests), log the one time password so
     // developers can sign in. In integration tests we watch the app service stdout for
     // this log line and capture it so we can use the one time password to log in.
-    if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
+    if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console
         console.log(quote`The one time password for ${emailAddress} is ${password}`);
     }

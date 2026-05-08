@@ -569,7 +569,7 @@ export function getTaskCollectionIndexDocIfExistsForTest(
 export function refreshTaskIndexForTest(
     context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
 ) {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     return context.opensearch.refresh(TaskIndex);
 }
@@ -581,7 +581,7 @@ export function refreshTaskIndexForTest(
 export function refreshTaskCollectionIndexForTest(
     context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
 ) {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     return context.opensearch.refresh(TaskCollectionIndex);
 }
@@ -620,6 +620,9 @@ export function indexTaskActionTransactionAssumingItsCommitted(
                 actionTransactionId: actionTransaction.actionTransactionId,
             },
         });
+
+        // If we're in a unit test where OpenSearch is disabled then don't bother indexing.
+        if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) return;
 
         try {
             await actuallyIndexTaskActionTransactionAssumingItsCommitted(
@@ -2008,8 +2011,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
 ): Promise<Value> {
     // If this is a test where OpenSearch is disabled then don't bother trying to
     // schedule a search entity indexing job.
-    if (context.opensearch.isDisabledForTest()) {
-        assert(process.env.NODE_ENV === "test");
+    if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) {
         return action();
     }
 

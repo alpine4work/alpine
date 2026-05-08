@@ -9,6 +9,8 @@
         "!tailwindcss-language-server",
         "!buck2-lsp",
         "!tilt",
+        "!oxfmt",
+        "!oxlint",
         "..."
     ],
     "lsp": {

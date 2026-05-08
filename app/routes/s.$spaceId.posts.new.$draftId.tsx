@@ -26,7 +26,6 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     draftId: Schema.id<PostDraftId>(),
-    displayCreatedTime: Schema.date,
     channel: ChannelPreviewModel.schema().nullable(),
     content: PostContentWithReferencesSchema,
 });
@@ -110,7 +109,6 @@ export async function loader({context: unauthenticatedContext, params, request}:
 
     return jsonWithSchema(LoaderSchema, {
         draftId,
-        displayCreatedTime: new Date(),
         channel: channelOverride ?? draft?.channel ?? null,
         content,
     });
@@ -135,7 +133,6 @@ export default function PostCreateRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
         draftId,
-        displayCreatedTime,
         channel: initialChannel,
         content: initialContent,
     } = useLoaderDataWithSchema(LoaderSchema);
@@ -162,7 +159,6 @@ export default function PostCreateRoute() {
     return (
         <PostCreator
             draftId={draftId}
-            displayCreatedTime={displayCreatedTime}
             initialChannel={initialChannel}
             initialContent={initialContent}
             shouldReturnBack={shouldReturnBack}

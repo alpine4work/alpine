@@ -18,9 +18,9 @@ const backgroundColorsByReactionCharacter: ReactionCharacterMap<
     ReadonlyArray<Exclude<ThemeColor, "yellow" | "indigo">>
 > = {
     Cat: {
-        Grey: ["orange", "green", "cyan", "pink"],
+        Grey: ["orange", "cyan", "pink"],
         Pink: ["green", "cyan"],
-        Yellow: ["green", "cyan", "blue", "purple"],
+        Yellow: ["green", "cyan", "purple"],
     },
     Tree: {
         Blue: ["orange", "cyan", "pink"],

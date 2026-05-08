@@ -79,6 +79,9 @@ import {
     TestSystemActionContextModules,
     TestUnknownActionContext,
 } from "~/server/spaces/test_helpers/test_context.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -97,6 +100,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -147,6 +151,8 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
     getSqsLocalFileProcessorJobQueueUrl(): string;
     getSqsLocalFileProcessorLightJobQueueUrl(): string;
     getSqsLocalFileProcessorHeavyJobQueueUrl(): string;
+    waitForSqsProcessJobs(): Promise<void>;
+
     restartSqsLocal(): Promise<void>;
     resetDynamoLocal(): Promise<void>;
 
@@ -309,6 +315,10 @@ export function actuallyCreateUnitTestEnvironment(
         sitesInjection?: Partial<SitesInjection>;
         spacesInjection?: Partial<SpacesInjection>;
         tasksInjection?: Partial<TasksInjection>;
+        taskContextModule?: {
+            tokenAgent: MaybeThunk<TokenAgent>;
+            router: TaskRealtimeServiceRouterBase;
+        };
     } & (
         | {
               shouldSendJobsToSqs: true;
@@ -407,6 +417,20 @@ export function actuallyCreateUnitTestEnvironment(
         return `http://localhost:${getSqsLocalPort()}/local/FileProcessorHeavyJobQueue`;
     };
 
+    const waitForSqsProcessJobs = () => {
+        if (sqsLocal === null) {
+            if (shouldSendJobsToSqs) {
+                throw new InternalError("SQS local has not started");
+            } else {
+                throw new InternalError(
+                    "SQS local is not enabled for this test context, to start SQS set `shouldSendJobsToSqs: true` in `createTestContext()`",
+                );
+            }
+        }
+
+        return sqsLocal.waitForProcessJobs();
+    };
+
     const restartSqsLocal = async () => {
         assert(sqsLocal, "SQS local must have been started before");
 
@@ -428,7 +452,7 @@ export function actuallyCreateUnitTestEnvironment(
                     : currentSqsLocal.logsPath
             }-${counter}`,
             port: currentSqsLocal.port,
-            statsPort: null,
+            statsPort: currentSqsLocal.statsPort,
         });
     };
 
@@ -625,6 +649,16 @@ export function actuallyCreateUnitTestEnvironment(
         };
     }
 
+    const taskContextModule = options.taskContextModule
+        ? new TaskContextModule({
+              tokenAgent: options.taskContextModule.tokenAgent,
+              router: options.taskContextModule.router,
+              dangerouslyEscalateToSystemContext: escalateToSystemContext,
+          })
+        : new TestTaskContextModule({
+              dangerouslyEscalateToSystemContext: escalateToSystemContext,
+          });
+
     let durableObjectBroadcasts: Array<{
         readonly url: `/api/durable-objects/${string}`;
         readonly body: SchemaSerializedValue | null | undefined;
@@ -676,9 +710,7 @@ export function actuallyCreateUnitTestEnvironment(
         sitesInjection: SitesInjectionContextModule.test(options.sitesInjection),
         spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
         tasksInjection: TasksInjectionContextModule.test(tasksInjection),
-        tasks: new TestTaskContextModule({
-            dangerouslyEscalateToSystemContext: escalateToSystemContext,
-        }),
+        tasks: taskContextModule,
         billing: new BillingNoopDevelopmentContextModule(),
         // Tests that just want to track calls to startValidateNotionImport and
         // startNotionImport use TestImporterContextModule without a callback. Only tests
@@ -706,6 +738,7 @@ export function actuallyCreateUnitTestEnvironment(
         getSqsLocalFileProcessorJobQueueUrl,
         getSqsLocalFileProcessorLightJobQueueUrl,
         getSqsLocalFileProcessorHeavyJobQueueUrl,
+        waitForSqsProcessJobs,
         restartSqsLocal,
         resetDynamoLocal,
         action: createSessionContext,
@@ -757,12 +790,12 @@ export function actuallyCreateUnitTestEnvironment(
     testHooks.beforeAll(async () => {
         debug("Starting services");
 
-        const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
+        const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPorts] =
             await runAllPromises([
                 createTemporaryDirectoryPath(),
                 getPort(),
                 shouldStartOpensearch ? getPort() : null,
-                shouldSendJobsToSqs ? getPort() : null,
+                shouldSendJobsToSqs ? runAllPromises([getPort(), getPort()]) : null,
             ]);
 
         temporaryDirectoryPath = newTemporaryDirectoryPath;
@@ -784,20 +817,20 @@ export function actuallyCreateUnitTestEnvironment(
                       dataPath: joinPath(temporaryDirectoryPath, "opensearch/data"),
                       logsPath: joinPath(undeclaredOutputsDirectoryPath, "opensearch"),
                       port: assertExists(opensearchLocalPort),
-                  }).then(dynamoLocal => {
+                  }).then(opensearchLocal => {
                       debug("OpenSearch is ready");
-                      return dynamoLocal;
+                      return opensearchLocal;
                   })
                 : null,
             shouldSendJobsToSqs
                 ? startSqsLocal({
                       withInMemoryData: true,
                       logsPath: joinPath(undeclaredOutputsDirectoryPath, "sqs"),
-                      port: assertExists(sqsLocalPort),
-                      statsPort: null,
-                  }).then(dynamoLocal => {
+                      port: assertExists(sqsLocalPorts)[0],
+                      statsPort: assertExists(sqsLocalPorts)[1],
+                  }).then(sqsLocal => {
                       debug("SQS is ready");
-                      return dynamoLocal;
+                      return sqsLocal;
                   })
                 : null,
         ]);

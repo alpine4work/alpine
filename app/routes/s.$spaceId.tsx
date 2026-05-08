@@ -21,6 +21,7 @@ import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_registry_context.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
 import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
+import {waitForContentFileImagePreviewContentsToLoad} from "~/client/web/content/wait_for_content_file_image_preview_contents_to_load.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuContextProvider} from "~/client/web/design/context_menu.js";
@@ -569,6 +570,10 @@ export default function SpaceLayoutRoute() {
                 isDebugModeEnabled: debugOptions.isDebugModeEnabled,
                 options: standardSearchOptions,
             }),
+    }));
+
+    useDevConsoleTool("files", () => ({
+        waitForImagePreviewContentsToLoad: waitForContentFileImagePreviewContentsToLoad,
     }));
 
     // In native mobile iOS apps, save any iOS device tokens to the server. We'll use

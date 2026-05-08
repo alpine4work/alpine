@@ -35,20 +35,25 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     // 2. The user is actively having a conversation at the end of the messaging view
     //    and another person in the conversation sends a message.
 
-    const lastItemCountRef = useRef(messages?.getItemCount() ?? null);
-    const lastHasTypingIndicatorsItemRef = useRef(false);
-    const lastFinalMessageHasEndingReactionsRef = useRef(false);
+    const lastItemCountRef = useRef<number | null>(null);
+    const lastHasTypingIndicatorsItemRef = useRef<boolean | null>(null);
+    const lastFinalMessageHasEndingReactionsRef = useRef<boolean | null>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (messages === null) {
             lastItemCountRef.current = null;
-            lastHasTypingIndicatorsItemRef.current = false;
-            lastFinalMessageHasEndingReactionsRef.current = false;
+            lastHasTypingIndicatorsItemRef.current = null;
+            lastFinalMessageHasEndingReactionsRef.current = null;
             return;
         }
 
-        // If this ref was previously null, set it to the current item count.
+        const finalMessage = messages.getLastLoadedMessageIfExists();
+
+        // If these refs were previously null, set them to the current values.
         lastItemCountRef.current ??= messages.getItemCount();
+        lastHasTypingIndicatorsItemRef.current ??= messages.hasTypingIndicatorsItem();
+        lastFinalMessageHasEndingReactionsRef.current ??=
+            getFinalMessageHasEndingReactions(finalMessage);
 
         const lastItemCount = lastItemCountRef.current;
         const itemCount = messages.getItemCount();
@@ -57,8 +62,6 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         const lastHasTypingIndicatorsItem = lastHasTypingIndicatorsItemRef.current;
         const hasTypingIndicatorsItem = messages.hasTypingIndicatorsItem();
         lastHasTypingIndicatorsItemRef.current = hasTypingIndicatorsItem;
-
-        const finalMessage = messages.getLastLoadedMessageIfExists();
 
         const lastFinalMessageHasEndingReactions = lastFinalMessageHasEndingReactionsRef.current;
         const finalMessageHasEndingReactions = getFinalMessageHasEndingReactions(finalMessage);

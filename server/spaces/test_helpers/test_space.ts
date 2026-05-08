@@ -63,13 +63,13 @@ export class TestSpace {
     public static async create(
         context: TestContext,
         {
+            id = generateId<SpaceId>(),
             name = `Test Space ${testSpaceCount++}`,
         }: {
+            id?: SpaceId;
             name?: string;
         } = {},
     ) {
-        const id = generateId<SpaceId>();
-
         await createSpaceForTest(context, {
             id,
             name,
@@ -144,23 +144,28 @@ export class TestSpace {
                   id?: AccountId;
                   name?: string;
                   hasInternalAccess?: boolean;
-                  role?: SpaceRole;
                   reactionCharacter?: ReactionCharacter;
+                  overrideCreatedTime?: Date;
+                  role?: SpaceRole;
               },
     ): Promise<TestSpaceSession> {
+        let overrideCreatedTime: Date | undefined;
         let role: SpaceRole | undefined;
         let actualAccount: TestAccount;
 
         if (account instanceof TestAccount) {
             actualAccount = account;
         } else {
+            overrideCreatedTime = account?.overrideCreatedTime;
             role = account?.role;
             actualAccount = await TestAccount.create(this.context, account);
         }
 
         const [session] = await runAllPromises([
             TestSpaceSession._create(this, actualAccount),
-            this.addAccountIfNotExists(actualAccount, role),
+            this.addAccountIfNotExists(actualAccount, role, {
+                overrideCurrentTime: overrideCreatedTime,
+            }),
         ]);
 
         return session;
@@ -171,7 +176,11 @@ export class TestSpace {
         return runAllPromises(createArrayWithLength(count, () => this.createSession()));
     }
 
-    public async addAccount(account?: TestAccount | TestSession, role?: SpaceRole) {
+    public async addAccount(
+        account?: TestAccount | TestSession,
+        role?: SpaceRole,
+        {overrideCurrentTime}: {overrideCurrentTime?: Date} = {},
+    ) {
         let actualAccount: TestAccount;
 
         if (account instanceof TestAccount) {
@@ -186,6 +195,7 @@ export class TestSpace {
             spaceId: this.id,
             accountId: actualAccount.id,
             role: role ?? "Member",
+            overrideCurrentTime,
         });
 
         return actualAccount;
@@ -198,7 +208,11 @@ export class TestSpace {
         });
     }
 
-    public async addAccountIfNotExists(account: TestAccount | TestSession, role?: SpaceRole) {
+    public async addAccountIfNotExists(
+        account: TestAccount | TestSession,
+        role?: SpaceRole,
+        options?: {overrideCurrentTime?: Date},
+    ) {
         if (
             await isAccountMemberOfSpaceWithoutAuthorization(
                 this.context.clone({cache: CacheContextModule.new()}),
@@ -209,7 +223,7 @@ export class TestSpace {
             return;
         }
 
-        await this.addAccount(account, role);
+        await this.addAccount(account, role, options);
     }
 
     /**

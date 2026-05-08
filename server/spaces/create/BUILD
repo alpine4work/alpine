@@ -15,7 +15,7 @@ ts_project(
         "//shared/spaces/test_helpers",
     ],
     visibility = [
-        "//app:__pkg__",
+        "//app:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

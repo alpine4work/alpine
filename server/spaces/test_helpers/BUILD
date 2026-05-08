@@ -6,6 +6,7 @@ ts_project(
         "//admin:__subpackages__",
         "//app/integration_tests:__subpackages__",
         "//app/routes_test:__pkg__",
+        "//app/screenshot_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

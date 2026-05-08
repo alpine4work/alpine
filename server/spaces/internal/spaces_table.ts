@@ -50,11 +50,7 @@ export const SpacesTable = DynamoTableSchema.new({
                         name: LabelStringSchema,
                         createdTime: Schema.date,
 
-                        /**
-                         * During our alpha phase, you can manually set this property in the database and
-                         * it will be used for some navigation elements until we have proper
-                         * implementations.
-                         */
+                        // TODO(calebmer, 2026-04-28): This is no longer used. Remove it?
                         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
 
                         /**

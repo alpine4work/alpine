@@ -26,7 +26,7 @@ jobs:
             # on failures.
             - name: Unit tests
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-playwright,-macos --nofetch
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-integration_test,-screenshot_test,-macos --nofetch
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -75,7 +75,7 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       //... \
                       --config=github-runner \
-                      --test_tag_filters=playwright_bucket_${{ matrix.bucket }},-macos \
+                      --test_tag_filters=integration_test_bucket_${{ matrix.bucket }},-macos \
                       --nofetch \
                       --nokeep_going \
                       --notest_keep_going
@@ -95,6 +95,46 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
+    screenshot-tests:
+        name: Screenshot tests
+        runs-on: [self-hosted, aws-test]
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v3
+
+            - name: Check for “[SKIP CI]”
+              if: github.ref != 'refs/heads/main'
+              uses: ./.github/actions/check-skip-ci
+
+            - name: Initialize Bazel cache
+              uses: ./.github/actions/initialize-bazel-cache
+
+            # Run screenshot tests with Playwright. These tests are expensive to run and
+            # are flaky. We run them after all other tests have passed and break them into
+            # deterministic buckets to run in parallel.
+            - name: Screenshot tests
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                      //... \
+                      --config=github-runner \
+                      --test_tag_filters=screenshot_test,-macos \
+                      --nofetch
+
+            # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
+            # and outputs for all tests that passed leaving only the logs and outputs for
+            # tests that failed.
+            - if: failure()
+              name: Prepare Bazel test logs
+              run: admin/bazel/prepare_bazel_testlogs_failure_artifact.sh
+
+            - if: failure()
+              name: Upload Bazel test logs
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bazel_screenshot_testlogs
+                  path: bazel-testlogs
+                  retention-days: 7
+
     schedule-deploy:
         name: Schedule deploy
         runs-on: ubuntu-latest
@@ -105,7 +145,7 @@ jobs:
         # a message to our job queue via lambda. This will make sure our commit is eventually
         # deployed.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        needs: [integration-tests, unit-tests]
+        needs: [unit-tests, integration-tests, screenshot-tests]
         steps:
             - name: Schedule deploy
               run: |

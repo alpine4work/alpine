@@ -19,6 +19,7 @@ filegroup(
     visibility = [
         "//admin:__subpackages__",
         "//app/integration_tests:__pkg__",
+        "//app/screenshot_tests:__pkg__",
     ],
 )
 
@@ -27,6 +28,7 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app/integration_tests:__pkg__",
+        "//app/screenshot_tests:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",
@@ -39,6 +41,7 @@ ts_project(
         "//admin/environment/test/unit",
         "//admin/helpers",
         "//server/chat/data",
+        "//server/context",
         "//server/documents/data",
         "//server/forum/data",
         "//server/helpers/node",
@@ -53,5 +56,7 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
+        "//shared/tasks",
+        "//shared/tracer",
     ],
 )

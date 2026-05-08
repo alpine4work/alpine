@@ -1301,7 +1301,7 @@ export async function getTaskItemForTest(
     context: DynamoContext,
     taskId: TaskId,
 ): Promise<TaskEssentialAttributesItem> {
-    assert(import.meta.jest);
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     return TaskTable.getItem(context, {
         partitionType: "Task",
@@ -1314,7 +1314,7 @@ export async function getTaskCommentsSummaryItemIfExistsForTest(
     context: DynamoContext,
     taskId: TaskId,
 ): Promise<TaskCommentsSummaryItem | null> {
-    assert(import.meta.jest);
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     return TaskTable.getItemIfExists(context, {
         partitionType: "Task",

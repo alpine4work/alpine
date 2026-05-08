@@ -7,7 +7,10 @@ ts_project(
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = ["fixtures/**/.*"],
     ),
-    visibility = ["//admin:__subpackages__"],
+    visibility = [
+        "//admin:__subpackages__",
+        "//app/screenshot_tests:__pkg__",
+    ],
     deps = [
         "//:node_modules/cookie",
         "//:node_modules/gpt-tokenizer",

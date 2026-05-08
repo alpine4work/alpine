@@ -32,6 +32,7 @@ import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -62,11 +63,13 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         emailAddress,
         oneTimePassword,
         inviteEmailAddresses,
+        autoAddAccountsFromEmailDomainSpaceIdForTest,
         ...options
     }: AttemptOneTimePasswordSignInOptions & {
         emailAddress: EmailAddress;
         oneTimePassword: string;
         inviteEmailAddresses: ReadonlyArray<EmailAddress>;
+        autoAddAccountsFromEmailDomainSpaceIdForTest?: SpaceId;
     },
 ): Promise<{
     sessionId: SessionId;
@@ -436,7 +439,15 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                             common: {branch: "CreateAutoAddAccountsFromEmailDomainSpace"},
                         });
 
-                        const autoAddAccountsFromEmailDomainSpaceId = generateId<SpaceId>();
+                        let autoAddAccountsFromEmailDomainSpaceId;
+
+                        if (autoAddAccountsFromEmailDomainSpaceIdForTest) {
+                            assert(process.env.NODE_ENV === "test");
+                            autoAddAccountsFromEmailDomainSpaceId =
+                                autoAddAccountsFromEmailDomainSpaceIdForTest;
+                        } else {
+                            autoAddAccountsFromEmailDomainSpaceId = generateId<SpaceId>();
+                        }
 
                         const [
                             {

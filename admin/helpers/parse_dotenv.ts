@@ -21,6 +21,10 @@ export function parseDotenv(): DotenvParseOutput {
 
 const env = new Lazy(() => {
     const nodeEnv = process.env.NODE_ENV ?? "development";
+    return parseDotenvForNodeEnv(nodeEnv);
+});
+
+export function parseDotenvForNodeEnv(nodeEnv: string): DotenvParseOutput {
     assert(isIdentifier(nodeEnv));
 
     const files = [
@@ -33,13 +37,13 @@ const env = new Lazy(() => {
         //
         // Don't load a local `.env.test` file because tests run in a Bazel sandbox where
         // we don't have access to the workspace directory.
-        process.env.NODE_ENV !== "test" && process.env.BUILD_WORKSPACE_DIRECTORY
+        nodeEnv !== "test" && process.env.BUILD_WORKSPACE_DIRECTORY
             ? loadDotenvFile(path.join(getWorkspacePath(), `.env.${nodeEnv}.local`))
             : null,
     ];
 
     return Object.assign({}, ...files);
-});
+}
 
 function loadDotenvFile(filePath: string): DotenvParseOutput {
     if (!fs.pathExistsSync(filePath)) return {};

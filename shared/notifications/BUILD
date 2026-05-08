@@ -12,6 +12,7 @@ ts_project(
         "//shared/dynamo",
         "//shared/error",
         "//shared/forum",
+        "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
         "//shared/schema",

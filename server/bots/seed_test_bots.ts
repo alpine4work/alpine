@@ -9,10 +9,10 @@ import {assertApiKey} from "~/shared/id/api_key.js";
 export async function seedTestBots(
     context: DynamoContext,
     options: {
-        agentServiceLocalPort: string;
-        chatGptLocalUnscopedApiKey: string;
-        chatGptLocalScopedApiKey: string;
-        cursorLocalUnscopedApiKey: string;
+        agentServiceLocalPort: string | number;
+        chatGptLocalUnscopedApiKey: string | null;
+        chatGptLocalScopedApiKey: string | null;
+        cursorLocalUnscopedApiKey: string | null;
         mockChatGptLocalUnscopedApiKey: string;
     },
 ) {
@@ -35,9 +35,9 @@ async function seedTestChatGptBot(
         chatGptLocalUnscopedApiKey,
         chatGptLocalScopedApiKey,
     }: {
-        agentServiceLocalPort: string;
-        chatGptLocalUnscopedApiKey: string;
-        chatGptLocalScopedApiKey: string;
+        agentServiceLocalPort: string | number;
+        chatGptLocalUnscopedApiKey: string | null;
+        chatGptLocalScopedApiKey: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -46,7 +46,7 @@ async function seedTestChatGptBot(
 
     const currentTime = new Date();
 
-    await runAllPromises([
+    const promises: Array<Promise<unknown>> = [
         BotsTable.updateItem(
             context,
             {
@@ -74,30 +74,42 @@ async function seedTestChatGptBot(
                 }
             },
         ),
-        BotsTable.createItemIfNoneExists(context, {
-            partitionType: "ApiKey",
-            sortRangeType: "Attributes",
-            apiKey: assertApiKey(chatGptLocalUnscopedApiKey),
-            botId: chatGptBotId,
-            spaceId: null,
-            space: null,
-            createdTime: currentTime,
-            name: "Unscoped API Key",
-        }),
-        BotsTable.createItemIfNoneExists(context, {
-            partitionType: "ApiKey",
-            sortRangeType: "Attributes",
-            apiKey: assertApiKey(chatGptLocalScopedApiKey),
-            botId: chatGptBotId,
-            spaceId: defaultSpaceId,
-            space: {
-                accountId: chatGptBotAccountIdForDefaultSpace,
-                scope: {type: "Account", accountId: adminAccountId},
-            },
-            createdTime: currentTime,
-            name: "Scoped API Key",
-        }),
-    ]);
+    ];
+
+    if (chatGptLocalUnscopedApiKey !== null) {
+        promises.push(
+            BotsTable.createItemIfNoneExists(context, {
+                partitionType: "ApiKey",
+                sortRangeType: "Attributes",
+                apiKey: assertApiKey(chatGptLocalUnscopedApiKey),
+                botId: chatGptBotId,
+                spaceId: null,
+                space: null,
+                createdTime: currentTime,
+                name: "Unscoped API Key",
+            }),
+        );
+    }
+
+    if (chatGptLocalScopedApiKey !== null) {
+        promises.push(
+            BotsTable.createItemIfNoneExists(context, {
+                partitionType: "ApiKey",
+                sortRangeType: "Attributes",
+                apiKey: assertApiKey(chatGptLocalScopedApiKey),
+                botId: chatGptBotId,
+                spaceId: defaultSpaceId,
+                space: {
+                    accountId: chatGptBotAccountIdForDefaultSpace,
+                    scope: {type: "Account", accountId: adminAccountId},
+                },
+                createdTime: currentTime,
+                name: "Scoped API Key",
+            }),
+        );
+    }
+
+    await runAllPromises(promises);
 }
 
 async function seedTestCursorBot(
@@ -106,8 +118,8 @@ async function seedTestCursorBot(
         agentServiceLocalPort,
         cursorLocalUnscopedApiKey,
     }: {
-        agentServiceLocalPort: string;
-        cursorLocalUnscopedApiKey: string;
+        agentServiceLocalPort: string | number;
+        cursorLocalUnscopedApiKey: string | null;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
@@ -115,7 +127,7 @@ async function seedTestCursorBot(
 
     const currentTime = new Date();
 
-    await runAllPromises([
+    const promises: Array<Promise<unknown>> = [
         BotsTable.updateItem(
             context,
             {
@@ -143,17 +155,24 @@ async function seedTestCursorBot(
                 }
             },
         ),
-        BotsTable.createItemIfNoneExists(context, {
-            partitionType: "ApiKey",
-            sortRangeType: "Attributes",
-            apiKey: assertApiKey(cursorLocalUnscopedApiKey),
-            botId: cursorBotId,
-            spaceId: null,
-            space: null,
-            createdTime: currentTime,
-            name: "Unscoped API Key",
-        }),
-    ]);
+    ];
+
+    if (cursorLocalUnscopedApiKey !== null) {
+        promises.push(
+            BotsTable.createItemIfNoneExists(context, {
+                partitionType: "ApiKey",
+                sortRangeType: "Attributes",
+                apiKey: assertApiKey(cursorLocalUnscopedApiKey),
+                botId: cursorBotId,
+                spaceId: null,
+                space: null,
+                createdTime: currentTime,
+                name: "Unscoped API Key",
+            }),
+        );
+    }
+
+    await runAllPromises(promises);
 }
 
 export async function seedTestMockChatGptBot(

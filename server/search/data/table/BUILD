@@ -16,6 +16,7 @@ ts_project(
         "search_entity_actions_index_embedding_chunks_job_test": {"size": "medium"},
     },
     visibility = [
+        "//app/screenshot_tests:__pkg__",
         "//admin/crawl:__pkg__",
         "//server:__subpackages__",
     ],

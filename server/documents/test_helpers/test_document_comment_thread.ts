@@ -85,9 +85,14 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | Node,
-        {overrideCreatedTime}: {overrideCreatedTime?: Date} = {},
+        {
+            id = generateId<DocumentCommentThreadId>(),
+            overrideCreatedTime,
+        }: {
+            id?: DocumentCommentThreadId;
+            overrideCreatedTime?: Date;
+        } = {},
     ) {
-        const id = generateId<DocumentCommentThreadId>();
         const createdTime = new Date();
 
         await document.update(

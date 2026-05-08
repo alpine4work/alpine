@@ -137,6 +137,21 @@ export function renderTaskCollectionChipBase({
         );
     }
 
+    if (isPrivate) {
+        chipHtml.appendChild(
+            createSvgHtmlGenerator(
+                lockBoldFillIconSvg({
+                    size: spacing["2.5"],
+                    ariaLabel: "Private lock icon",
+                    className:
+                        color !== null
+                            ? taskCollectionChipLockIconClassName
+                            : taskCollectionChipLockIconWithoutColorClassName,
+                }),
+            ),
+        );
+    }
+
     const nameContainerHtml = chipHtml.appendChild(new HtmlElementGenerator("div"));
     nameContainerHtml.setAttribute("class", taskCollectionChipBaseNameClassName);
 
@@ -157,21 +172,6 @@ export function renderTaskCollectionChipBase({
         "style",
         `background: linear-gradient(to right, transparent, ${backgroundColor} ${spacing["0.5"]})`,
     );
-
-    if (isPrivate) {
-        nameContainerHtml.appendChild(
-            createSvgHtmlGenerator(
-                lockBoldFillIconSvg({
-                    size: spacing["2.5"],
-                    ariaLabel: "Private lock icon",
-                    className:
-                        color !== null
-                            ? taskCollectionChipLockIconClassName
-                            : taskCollectionChipLockIconWithoutColorClassName,
-                }),
-            ),
-        );
-    }
 
     nameContainerHtml.appendChild(new HtmlTextGenerator(name));
 

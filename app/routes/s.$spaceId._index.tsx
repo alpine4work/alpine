@@ -18,6 +18,7 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FeedEntryCursorSchema} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModelSchema} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -49,7 +50,7 @@ export const meta = createMetaFunction(LoaderSchema, ({getParentData}) => {
     return [{title: spaceRouteData?.space.name ?? "Home"}];
 });
 
-export async function loader({context: unauthenticatedContext, params, span}: LoaderArgs) {
+export async function loader({request, context: unauthenticatedContext, params, span}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
 
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -70,6 +71,13 @@ export async function loader({context: unauthenticatedContext, params, span}: Lo
         getAndUpdateFeedEntries(context, {
             spaceId,
             limit: feedEntryLimit,
+            // In screenshot tests, override the current time so we generate the welcome feed
+            // entry with a deterministic timestamp.
+            overrideCurrentTimeForTest:
+                isTestNodeEnvOrAdminScenariosScript &&
+                request.headers.has("cyberworlds-fixed-time-for-test")
+                    ? context.loader.getInitialTime()
+                    : undefined,
         }),
     ]);
 

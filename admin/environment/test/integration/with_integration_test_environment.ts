@@ -26,6 +26,7 @@ import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -82,6 +83,11 @@ export type TestServices = {
      * promise which resolves once our services are ready.
      */
     waitForBaseUrl(): Promise<string>;
+
+    /**
+     * Wait for `JobQueueService` to process all the jobs on the SQS job queue.
+     */
+    waitForSqsProcessJobs(): Promise<void>;
 
     /**
      * Get the port `AgentService` is listening on.
@@ -293,7 +299,9 @@ export function actuallyCreateIntegrationTestEnvironment(
         agentServiceSubprocess = undefined;
 
         agentServicePort = null;
+        taskRealtimeServicePort = null;
         appServiceTokenAgent = null;
+        jobQueueServiceTokenAgent = null;
         mockChatGptUnscopedApiKeyPath = null;
 
         unwrapResult(result1);
@@ -312,6 +320,25 @@ export function actuallyCreateIntegrationTestEnvironment(
         searchInjection,
         spacesInjection,
         tasksInjection,
+
+        // In integration tests we run the full `TaskRealtimeService` server so when using
+        // `context.tasks` you can directly access `TaskRealtimeService`.
+        taskContextModule: {
+            tokenAgent: () => {
+                if (jobQueueServiceTokenAgent === null)
+                    throw new InternalError("Test services haven’t initialized");
+
+                return jobQueueServiceTokenAgent;
+            },
+            router: new TaskRealtimeServiceLocalRouter({
+                port: () => {
+                    if (taskRealtimeServicePort === null)
+                        throw new InternalError("Test services haven’t initialized");
+
+                    return taskRealtimeServicePort;
+                },
+            }),
+        },
     });
 
     const context = unitTestContext.cloneWithHelpers({
@@ -331,6 +358,7 @@ export function actuallyCreateIntegrationTestEnvironment(
     let edgeServicePort: number | null = null;
     void edgeServicePortPromise.then(port => (edgeServicePort = port));
 
+    let taskRealtimeServicePort: number | null = null;
     let agentServicePort: number | null = null;
     let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide> | null = null;
     let jobQueueServiceTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | null = null;
@@ -449,7 +477,7 @@ export function actuallyCreateIntegrationTestEnvironment(
 
         const [
             edgeServicePort,
-            taskRealtimeServicePort,
+            newTaskRealtimeServicePort,
             appServicePort,
             fileProcessorServicePort,
             apiServicePort,
@@ -511,6 +539,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 );
             }),
         ]);
+        taskRealtimeServicePort = newTaskRealtimeServicePort;
         agentServicePort = newAgentServicePort;
         appServiceTokenAgent = newAppServiceTokenAgent;
         jobQueueServiceTokenAgent = newJobQueueServiceTokenAgent;
@@ -918,6 +947,9 @@ export function actuallyCreateIntegrationTestEnvironment(
             waitForBaseUrl: async () => {
                 const edgeServicePort = await edgeServicePortPromise;
                 return `http://localhost:${edgeServicePort}`;
+            },
+            waitForSqsProcessJobs: () => {
+                return context.waitForSqsProcessJobs();
             },
             getAgentServicePort: () => {
                 if (agentServicePort === null)

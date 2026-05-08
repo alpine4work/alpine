@@ -2,7 +2,7 @@ import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -41,16 +41,12 @@ export class SpaceModel extends Model(
         id: Schema.id<SpaceId>(),
         name: Schema.string,
         version: Schema.integer,
-        /**
-         * During our alpha phase, you can manually set this property in the database and
-         * it will be used for some navigation elements until we have proper
-         * implementations.
-         */
-        alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
+
         avatars: Schema.object({
             darkTheme: AvatarModelSchema.nullable().default(null),
             lightTheme: AvatarModelSchema.nullable().default(null),
         }),
+
         /**
          * The theme color used for accent UI elements throughout the space. Defaults to
          * blue if not set.

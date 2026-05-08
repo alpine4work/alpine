@@ -14,6 +14,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteTopBarId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 let testTaskCollectionCount = 1;
 
@@ -47,9 +48,11 @@ export class TestTaskCollection {
         {
             name = TestTaskCollection.getNewName(),
             access,
+            color = null,
         }: {
             name?: string;
             access?: "Public" | "Private" | CreateOrUpdateAccessPolicy;
+            color?: ThemeColor | null;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
@@ -75,7 +78,7 @@ export class TestTaskCollection {
             accessPolicy = access;
         }
 
-        await commitTaskActionTransaction(session.action(), session.space.id, [
+        const actions: Array<TaskAction> = [
             {
                 type: "UpdateCollection",
                 time,
@@ -96,7 +99,21 @@ export class TestTaskCollection {
                             : accessPolicy,
                 },
             },
-        ]);
+        ];
+
+        if (color !== null) {
+            actions.push({
+                type: "UpdateCollection",
+                time: testTaskClock.now(),
+                collectionId: id,
+                collectionAction: {
+                    type: "UpdateColor",
+                    color,
+                },
+            });
+        }
+
+        await commitTaskActionTransaction(session.action(), session.space.id, actions);
 
         return new TestTaskCollection(session.context, session.space, id, time, name);
     }

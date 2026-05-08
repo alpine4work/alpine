@@ -27,6 +27,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/web/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
@@ -48,14 +49,12 @@ import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_defin
 
 export function PostCreator({
     draftId,
-    displayCreatedTime,
     initialChannel,
     initialContent,
     shouldReturnBack,
     initiallyFocus,
 }: {
     draftId: PostDraftId;
-    displayCreatedTime: Date;
     initialChannel: ChannelPreviewModel | null;
     initialContent: PostContentWithReferences;
     shouldReturnBack: boolean;
@@ -67,6 +66,12 @@ export function PostCreator({
     const platform = usePlatform();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+
+    const displayCreatedDate = useCurrentDate();
+    const displayCreatedTime = useMemo(
+        () => new Date(displayCreatedDate.toDate(clientInfo.timeZone)),
+        [clientInfo.timeZone, displayCreatedDate],
+    );
 
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);

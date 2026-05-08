@@ -105,9 +105,11 @@ export class TestChat extends TestMessageRoomBase {
     public static async createRoom(
         session: TestSpaceSession,
         {
+            id,
             name = `Test Chat ${testRoomChatCount++}`,
             access,
         }: {
+            id?: ChatId;
             name?: string;
             access?: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         } = {},
@@ -131,13 +133,14 @@ export class TestChat extends TestMessageRoomBase {
             accessPolicy = access;
         }
 
-        const {id} = await createRoomChat(session.action(), {
+        const {id: actualId} = await createRoomChat(session.action(), {
             spaceId: session.space.id,
+            chatId: id,
             name,
             accessPolicy,
         });
 
-        return new TestChat(session.context, session.space, id, []);
+        return new TestChat(session.context, session.space, actualId, []);
     }
 
     protected override _getRoomKey() {

@@ -34,13 +34,8 @@ import {
     decodeElenIntegerIfPossible,
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer.js";
-import {
-    OrderKey,
-    isOrderKey,
-    maxOrderKey,
-    minOrderKey,
-    orderKeyDigits,
-} from "~/shared/helpers/sort/order_key.js";
+import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
+import {OrderKey, isOrderKey, maxOrderKey, minOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
@@ -176,10 +171,6 @@ export type DynamoKeyAttributeSchemaDescription =
           readonly nullsOrder: "First" | "Last";
           readonly schema: DynamoKeyAttributeSchemaDescription;
       };
-
-const orderKeyDigitIndexByChar = new Map<string, number>(
-    orderKeyDigits.split("").map((char, index) => [char, index]),
-);
 
 /**
  * The maximum label string is the largest Unicode code point [U+10FFFF
@@ -511,41 +502,52 @@ export class DynamoKeyAttributeSchema<Value> {
         },
 
         binary: {
-            getByteCount: orderKey => orderKey.length + 1,
+            getByteCount: orderKey => {
+                let byteCount = 1;
+
+                // TODO(calebmer): It's inefficient to encode twice. Could we return a `Uint8Array`
+                // directly and skip `serializeBytes()`?
+                for (const byte of encodeOrderKey(orderKey)) {
+                    byteCount += byte <= 1 ? 2 : 1;
+                }
+
+                return byteCount;
+            },
 
             serializeBytes: (orderKey, bytes, byteOffset) => {
                 let byteIndex = byteOffset;
 
-                for (let i = 0; i < orderKey.length; i++) {
-                    const char = orderKey[i]!;
-                    bytes[byteIndex++] =
-                        assertExists(
-                            orderKeyDigitIndexByChar.get(char),
-                            "Unrecognized order key character",
-                        ) + 1;
+                for (const byte of encodeOrderKey(orderKey)) {
+                    if (byte <= 1) {
+                        bytes[byteIndex++] = 1;
+                        bytes[byteIndex++] = byte + 1;
+                    } else {
+                        bytes[byteIndex++] = byte;
+                    }
                 }
 
-                // Null byte terminates the order key.
                 bytes[byteIndex++] = 0;
             },
 
             deserializeBytes: (bytes, byteOffset) => {
-                let orderKey = "";
+                const orderKeyBytes: Array<number> = [];
                 let byteIndex = byteOffset;
 
                 while (true) {
-                    const byte = assertExists(
-                        bytes[byteIndex++],
-                        "Unexpected end of order key bytes",
-                    );
+                    const byte = bytes[byteIndex++]!;
                     if (byte === 0) break;
-                    orderKey += assertExists(
-                        orderKeyDigits[byte - 1],
-                        "Unrecognized order key digit",
-                    );
+
+                    if (byte === 1) {
+                        const escapedByte = bytes[byteIndex++]!;
+                        assert(escapedByte === 1 || escapedByte === 2);
+                        orderKeyBytes.push(escapedByte - 1);
+                    } else {
+                        orderKeyBytes.push(byte);
+                    }
                 }
 
-                return orderKey as OrderKey;
+                const orderKey = decodeOrderKey(new Uint8Array(orderKeyBytes));
+                return orderKey;
             },
         },
     });
@@ -565,6 +567,10 @@ export class DynamoKeyAttributeSchema<Value> {
     ): DynamoKeyAttributeSchema<Value> {
         // Use a cache to optimize a `getByteCount()` that may be immediately followed by
         // `serializeBytes()` for the same value.
+        //
+        // TODO(calebmer): It's inefficient to keep a cache around in memory. Could we
+        // return a `Uint8Array` directly from `getByteCount()` and skip
+        // `serializeBytes()`?
         const valueToBytesCache = new Map<string, Uint8Array>();
 
         const baseSchema = maxLength

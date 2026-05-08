@@ -47,6 +47,7 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -334,7 +335,15 @@ export async function addFeedAccountCandidateEntry(
  */
 export async function getAndUpdateFeedEntries(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+    {
+        spaceId,
+        limit,
+        overrideCurrentTimeForTest,
+    }: {
+        spaceId: SpaceId;
+        limit: number;
+        overrideCurrentTimeForTest?: Date;
+    },
 ): Promise<{
     startCursor: FeedEntryCursor | null;
     endCursor: FeedEntryCursor | null;
@@ -366,7 +375,9 @@ export async function getAndUpdateFeedEntries(
                 });
 
                 const {wasCreated: wasFeedCreated, entryBlocks: newEntryBlocks} =
-                    await updateFeedEntries(context, spaceId, feedItem);
+                    await updateFeedEntries(context, spaceId, feedItem, {
+                        overrideCurrentTimeForTest,
+                    });
 
                 let entryCount = 0;
                 for (const entryBlock of newEntryBlocks) {
@@ -504,15 +515,20 @@ async function updateFeedEntries(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     feedItem: FeedAttributesItem | null,
+    {overrideCurrentTimeForTest}: {overrideCurrentTimeForTest: Date | undefined},
 ): Promise<{wasCreated: boolean; entryBlocks: ReadonlyArray<FeedEntryBlockItem>}> {
+    if (overrideCurrentTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
+    const currentTime = overrideCurrentTimeForTest ?? new Date();
+
     // Limit the number of feed candidates we look at. This does mean if the user is
     // joining the space for the first time or opening a space again after a long time
     // away they may miss some feed entries. We accept this possibility. Long term this
     // will be an algorithmic feed anyway with no guarantee that the user will see
     // everything.
     const limit = 500;
-
-    const currentTime = new Date();
 
     function getCreatorIdForEntry(
         entry: FeedEntry & {type: "Document" | "Task" | "TaskCollection" | "Channel" | "RoomChat"},

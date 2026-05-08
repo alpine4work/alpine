@@ -104,6 +104,13 @@ export class TestFile {
         return new TestFile(session.context, session.space, fileId, null);
     }
 
+    public static async get(space: TestSpace, fileId: FileId): Promise<TestFile> {
+        // Confirm the file exists. The system actor can see any file.
+        await getFileAsUploader(space.systemAction(), fileId);
+
+        return new TestFile(space.context, space, fileId, null);
+    }
+
     public get(): Promise<FileModel> {
         return getFileAsUploader(this.space.systemAction(), this.id);
     }

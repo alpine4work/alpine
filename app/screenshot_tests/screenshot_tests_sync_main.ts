@@ -1,0 +1,287 @@
+/* eslint-disable no-console */
+
+import glob from "fast-glob";
+import fs from "fs/promises";
+import looksSame from "looks-same";
+import os from "os";
+import {dirname, join as joinPath} from "path";
+import {screenshotTestLooksSameTolerance} from "~/app/screenshot_tests/helpers/screenshot_test_looks_same_tolerance.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
+import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+
+const githubOwner = "cyberworlds";
+const githubRepo = "cyberworlds";
+const artifactName = "bazel_screenshot_testlogs";
+
+type ScreenshotSyncCounts = {
+    foundCount: number;
+    copiedCount: number;
+    skippedCount: number;
+};
+
+async function main(): Promise<void> {
+    await checkGithubCliAuth();
+
+    const pr = await getGithubPullRequest();
+    console.log(`Found PR: ${pr.url}`);
+
+    const {artifact, run} = await getGithubActionsScreenshotTestArtifact(pr);
+    console.log(`Downloading \`${artifact.name}\` from: ${run.url}`);
+
+    await withTemporaryDirectory(
+        os.tmpdir(),
+        "cyberworlds_screenshot_tests_sync_",
+        async temporaryDirectoryPath => {
+            await downloadGithubActionsRunArtifact({
+                run,
+                downloadDirectoryPath: temporaryDirectoryPath,
+            });
+
+            const {foundCount, copiedCount} =
+                await syncScreenshotsFromBazelTestlogs(temporaryDirectoryPath);
+
+            if (foundCount === 0) {
+                throw new FailedPreconditionError(
+                    quote`No screenshots found in \`${artifact.name}\``,
+                );
+            }
+
+            console.log(`Synced ${copiedCount} screenshot${copiedCount === 1 ? "" : "s"}`);
+        },
+    );
+}
+
+async function checkGithubCliAuth(): Promise<void> {
+    try {
+        await runGh(["auth", "status"]);
+    } catch {
+        throw new FailedPreconditionError(
+            "GitHub CLI (`gh`) is not installed or not authenticated (install: `https://cli.github.com`, authenticate: `gh auth login`)",
+        );
+    }
+}
+
+function runGh(args: Array<string>): Promise<string> {
+    return runProcess("gh", args, {
+        // Pass HOME so `gh` can find its auth config.
+        env: {HOME: process.env.HOME},
+    });
+}
+
+type GithubPullRequest = {
+    number: number;
+    headRefName: string;
+    headRefOid: string;
+    url: string;
+};
+
+async function getGithubPullRequest(): Promise<GithubPullRequest> {
+    const output = await runGh(["pr", "view", "--json", "number,headRefName,headRefOid,url"]);
+    return JSON.parse(output);
+}
+
+async function getGithubActionsScreenshotTestArtifact(
+    pr: GithubPullRequest,
+): Promise<{artifact: GithubActionsRunArtifact; run: GithubActionsRun}> {
+    const runs = await listGithubActionsRunsForBranch(pr.headRefName);
+
+    if (runs.length === 0) {
+        throw new FailedPreconditionError(
+            quote`No GitHub Actions runs found for branch ${pr.headRefName}.`,
+        );
+    }
+
+    for (const run of runs.filter(run => run.headSha === pr.headRefOid)) {
+        const artifacts = await listGithubActionsRunArtifacts(run.databaseId);
+        const artifact = artifacts.find(candidate => candidate.name === artifactName);
+
+        if (artifact === undefined) continue;
+
+        if (artifact.expired) {
+            throw new FailedPreconditionError(
+                quote`Found ${artifactName}, but the artifact has expired`,
+            );
+        }
+
+        return {artifact, run};
+    }
+
+    throw new FailedPreconditionError(
+        quote`No ${artifactName} artifact found in recent GitHub Actions runs for ${pr.headRefName}`,
+    );
+}
+
+type GithubActionsRun = {
+    databaseId: number;
+    headSha: string;
+    status: string;
+    conclusion: string | null;
+    createdAt: string;
+    displayTitle: string;
+    name: string;
+    url: string;
+};
+
+async function listGithubActionsRunsForBranch(branch: string): Promise<Array<GithubActionsRun>> {
+    const output = await runGh([
+        "run",
+        "list",
+        "--repo",
+        `${githubOwner}/${githubRepo}`,
+        "--branch",
+        branch,
+        "--limit",
+        "50",
+        "--json",
+        "databaseId,headSha,status,conclusion,createdAt,displayTitle,name,url",
+    ]);
+    return JSON.parse(output);
+}
+
+type GithubActionsRunArtifact = {
+    id: number;
+    name: string;
+    expired: boolean;
+    archive_download_url: string;
+};
+
+async function listGithubActionsRunArtifacts(
+    runId: number,
+): Promise<Array<GithubActionsRunArtifact>> {
+    const output = await runGh([
+        "api",
+        `/repos/${githubOwner}/${githubRepo}/actions/runs/${runId}/artifacts?per_page=100`,
+    ]);
+    return JSON.parse(output).artifacts;
+}
+
+async function downloadGithubActionsRunArtifact({
+    run,
+    downloadDirectoryPath,
+}: {
+    run: GithubActionsRun;
+    downloadDirectoryPath: string;
+}): Promise<void> {
+    await runGh([
+        "run",
+        "download",
+        String(run.databaseId),
+        "--repo",
+        `${githubOwner}/${githubRepo}`,
+        "--name",
+        artifactName,
+        "--dir",
+        downloadDirectoryPath,
+    ]);
+}
+
+async function syncScreenshotsFromBazelTestlogs(
+    directoryPath: string,
+): Promise<ScreenshotSyncCounts> {
+    const workspacePath = getWorkspacePath();
+
+    const outputZipPaths = await glob(
+        joinPath(directoryPath, "app/screenshot_tests/*_test/test.outputs/outputs.zip"),
+    );
+
+    const counts: ScreenshotSyncCounts = {foundCount: 0, copiedCount: 0, skippedCount: 0};
+
+    if (outputZipPaths.length === 0) {
+        throw new FailedPreconditionError(quote`No \`outputs.zip\` files found`);
+    }
+
+    await runAllPromises(
+        outputZipPaths.map(async outputZipPath => {
+            const match = assertExists(outputZipPath.match(/\/([a-z0-9]+)_screenshot_test\//));
+            const testName = match[1]!;
+
+            const unzipDirectoryPath = dirname(outputZipPath);
+            const actualDirectoryPath = joinPath(unzipDirectoryPath, "actual");
+
+            await runProcess("unzip", ["-q", "-o", outputZipPath, "-d", unzipDirectoryPath]);
+
+            await syncScreenshotsFromBazelTestlogsForTest({
+                workspacePath,
+                testName,
+                actualDirectoryPath,
+                counts,
+            });
+        }),
+    );
+
+    return counts;
+}
+
+async function syncScreenshotsFromBazelTestlogsForTest({
+    workspacePath,
+    testName,
+    actualDirectoryPath,
+    counts,
+}: {
+    workspacePath: string;
+    testName: string;
+    actualDirectoryPath: string;
+    counts: ScreenshotSyncCounts;
+}) {
+    const actualDirectoryEntries = await fs.readdir(actualDirectoryPath, {withFileTypes: true});
+
+    await runAllPromises(
+        actualDirectoryEntries.map(async actualDirectoryEntry => {
+            if (!actualDirectoryEntry.isFile()) return;
+
+            counts.foundCount++;
+
+            const actualFileName = actualDirectoryEntry.name;
+            const actualPath = joinPath(actualDirectoryPath, actualFileName);
+            const destinationDirectoryPath = joinPath(
+                workspacePath,
+                "app/screenshot_tests/screenshots",
+                testName,
+            );
+            const destinationPath = joinPath(destinationDirectoryPath, actualFileName);
+
+            await fs.mkdir(destinationDirectoryPath, {recursive: true});
+
+            if (await shouldCopyScreenshot({actualPath, destinationPath})) {
+                await fs.copyFile(actualPath, destinationPath);
+                counts.copiedCount++;
+            } else {
+                counts.skippedCount++;
+            }
+        }),
+    );
+}
+
+async function shouldCopyScreenshot({
+    actualPath,
+    destinationPath,
+}: {
+    actualPath: string;
+    destinationPath: string;
+}): Promise<boolean> {
+    if (!(await pathExists(destinationPath))) return true;
+
+    const result = await looksSame(actualPath, destinationPath, {
+        tolerance: screenshotTestLooksSameTolerance,
+    });
+    return !result.equal;
+}
+
+async function pathExists(path: string): Promise<boolean> {
+    try {
+        await fs.access(path);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+main().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

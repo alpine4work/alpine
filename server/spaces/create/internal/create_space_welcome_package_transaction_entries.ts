@@ -1,3 +1,4 @@
+import {getBotIfExists} from "~/server/bots/get_bot.js";
 import {
     chatGptKnownBotId,
     cursorKnownBotId,
@@ -9,6 +10,7 @@ import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} f
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {Context} from "~/shared/context/context.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -66,14 +68,23 @@ export async function createSpaceWelcomePackageTransactionEntries(
 
     switch (process.env.NODE_ENV) {
         case "development":
-        case "production":
+        case "production": {
             chatGptBotId = chatGptKnownBotId;
             cursorBotId = cursorKnownBotId;
             break;
-        case "test":
-            chatGptBotId = chatGptBotIdForTest;
-            cursorBotId = cursorBotIdForTest;
+        }
+        case "test": {
+            // If the known bots exist in our test environment, use them! For example, they'll
+            // exist in `auth_screenshot_test.ts`.
+            const [chatGptKnownBot, cursorKnownBot] = await runAllPromises([
+                getBotIfExists(context, chatGptKnownBotId),
+                getBotIfExists(context, cursorKnownBotId),
+            ]);
+
+            chatGptBotId = chatGptBotIdForTest ?? (chatGptKnownBot ? chatGptKnownBotId : null);
+            cursorBotId = cursorBotIdForTest ?? (cursorKnownBot ? cursorKnownBotId : null);
             break;
+        }
     }
 
     // Don't instantiate ChatGPT in test environments where we haven't created a

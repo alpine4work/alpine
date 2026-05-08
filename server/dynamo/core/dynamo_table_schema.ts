@@ -66,7 +66,11 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {
+    OrderKey,
+    generateOrderKeysBetween,
+    orderKeyDigits,
+} from "~/shared/helpers/sort/order_key.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
@@ -1249,9 +1253,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const partitionKeyByteCount = totalByteCount;
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount++;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
@@ -1276,14 +1278,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -1455,11 +1451,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 key[attributeKey] = value;
             }
 
-            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
-                bytes,
-                bytesIndex,
-            );
-            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+            const orderKey = deserializeOrderKeyWithDeprecatedEncoding(bytes, bytesIndex);
+            bytesIndex += getOrderKeyByteCountWithDeprecatedEncoding(orderKey);
 
             const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
             assert(sortRangeName, "Invalid sort key");
@@ -1559,9 +1552,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         let totalByteCount = 0;
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount++;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
@@ -1577,14 +1568,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const bytes = new Uint8Array(totalByteCount);
         let byteIndex = 0;
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -5059,9 +5044,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount += 1;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
@@ -5116,14 +5099,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -5240,11 +5217,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
 
-            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
-                bytes,
-                bytesIndex,
-            );
-            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+            const orderKey = deserializeOrderKeyWithDeprecatedEncoding(bytes, bytesIndex);
+            bytesIndex += getOrderKeyByteCountWithDeprecatedEncoding(orderKey);
 
             const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
             assert(sortRangeName, "Invalid sort key");
@@ -6288,4 +6262,82 @@ function checkDynamoTableSchemaIndexOverloadDescriptionBackwardsCompatibility(
     // migrations!
     if (!isDeepEqual(lastSortKeyAttributeDescriptions, nextSortKeyAttributeDescriptions))
         throw new InvalidArgumentError(`Incompatible sort key for index overload \`${name}\``);
+}
+
+const orderKeyDigitIndexByChar = new Map<string, number>(
+    orderKeyDigits.split("").map((char, index) => [char, index]),
+);
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function getOrderKeyByteCountWithDeprecatedEncoding(orderKey: OrderKey) {
+    return orderKey.length + 1;
+}
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function serializeOrderKeyWithDeprecatedEncoding(
+    orderKey: OrderKey,
+    bytes: Uint8Array,
+    byteOffset: number,
+) {
+    let byteIndex = byteOffset;
+
+    for (let i = 0; i < orderKey.length; i++) {
+        const char = orderKey[i]!;
+        bytes[byteIndex++] =
+            assertExists(orderKeyDigitIndexByChar.get(char), "Unrecognized order key character") +
+            1;
+    }
+
+    // Null byte terminates the order key.
+    bytes[byteIndex++] = 0;
+}
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function deserializeOrderKeyWithDeprecatedEncoding(
+    bytes: Uint8Array,
+    byteOffset: number,
+): OrderKey {
+    let orderKey = "";
+    let byteIndex = byteOffset;
+
+    while (true) {
+        const byte = assertExists(bytes[byteIndex++], "Unexpected end of order key bytes");
+        if (byte === 0) break;
+        orderKey += assertExists(orderKeyDigits[byte - 1], "Unrecognized order key digit");
+    }
+
+    return orderKey as OrderKey;
 }

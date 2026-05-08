@@ -120,6 +120,7 @@ type TracerEventHttpHeaderNameMap = {
     "cyberworlds-durable-object-if-initialized": true;
     "cyberworlds-route": true;
     "cyberworlds-transient-error": true;
+    "cyberworlds-fixed-time-for-test": true;
 
     // DEPRECATED: We keep this around for tracer event backwards compatibility but we
     // don't use this header anymore.
@@ -216,6 +217,7 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cyberworlds-space-id-hint": true,
     "cyberworlds-route": true,
     "cyberworlds-transient-error": true,
+    "cyberworlds-fixed-time-for-test": true,
     "x-ratelimit-limit": true,
     "x-ratelimit-remaining": true,
 };

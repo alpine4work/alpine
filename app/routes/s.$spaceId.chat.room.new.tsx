@@ -27,7 +27,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return defaultShouldRevalidate;
 };
 
-export default function NewChannelRoute() {
+export default function NewRoomChatRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [initiallyFocus] = useState(() => {

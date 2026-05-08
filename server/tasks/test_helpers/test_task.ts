@@ -107,20 +107,26 @@ export class TestTask extends TestCommentRoomBase {
     public static async create(
         session: TestSpaceSession,
         {
+            id = generateId<TaskId>(),
             time,
+            status: statusType,
             title: titleText = "",
             parent,
             assignee,
+            assigneeStatus,
             priority,
             layout,
             dueDate,
             collections,
             notes = "",
         }: {
+            id?: TaskId;
             time?: HybridLogicalTime;
+            status?: TaskStatus["type"];
             title?: string;
             parent?: TestTask;
             assignee?: TestAccount | TestSession | null;
+            assigneeStatus?: "Inactive" | "Active";
             priority?: TaskPriority;
             layout?: TaskLayout | null;
             dueDate?: CalendarDate | null;
@@ -128,8 +134,6 @@ export class TestTask extends TestCommentRoomBase {
             notes?: string;
         } = {},
     ) {
-        const id = generateId<TaskId>();
-
         if (time) {
             testTaskClock.tick(time);
         } else {
@@ -148,6 +152,27 @@ export class TestTask extends TestCommentRoomBase {
                 },
             },
         ];
+
+        if (statusType) {
+            const status: TaskStatus =
+                statusType === "Open"
+                    ? {type: "Open"}
+                    : {
+                          type: "Closed",
+                          closerId: session.account.id,
+                          closedTime: TaskFilterableTime.test(time),
+                      };
+
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status,
+                },
+            });
+        }
 
         let titleState: MutexValue<TaskTitle>;
 
@@ -198,6 +223,21 @@ export class TestTask extends TestCommentRoomBase {
                               assignedTime: TaskFilterableTime.test(time),
                           }
                         : null,
+                },
+            });
+        }
+
+        if (assigneeStatus) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus:
+                        assigneeStatus === "Active"
+                            ? {type: "Active", activatedTime: TaskFilterableTime.test(time)}
+                            : {type: assigneeStatus},
                 },
             });
         }

@@ -4,14 +4,23 @@ import {createDebug} from "~/admin/helpers/create_debug.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const debug = createDebug(import.meta.url);
 
 export type DemoSpaceAccounts = Awaited<ReturnType<typeof createDemoSpaceAccounts>>;
 
-export async function createDemoSpace(context: TestContext, tokenAgent: TokenAgent) {
-    const {space, accounts} = await createDemoSpaceWithoutUploadingAvatars(context);
+export async function createDemoSpace(
+    context: TestContext,
+    tokenAgent: TokenAgent,
+    options?: {stableRandom?: StableRandom},
+) {
+    const {space, accounts} = await createDemoSpaceWithoutUploadingAvatars(context, options);
 
     await runAllPromises([
         uploadDemoSpaceAvatars(tokenAgent, accounts),
@@ -21,17 +30,24 @@ export async function createDemoSpace(context: TestContext, tokenAgent: TokenAge
     return {space, accounts};
 }
 
-export async function createDemoSpaceWithoutUploadingAvatars(context: TestContext) {
+export async function createDemoSpaceWithoutUploadingAvatars(
+    context: TestContext,
+    options?: {stableRandom?: StableRandom},
+) {
     debug("Creating space");
 
     const space = await TestSpace.create(context, {
+        id: options?.stableRandom
+            ? unsafelyGenerateStableId<SpaceId>(options.stableRandom, "demoSpace")
+            : undefined,
+
         // We use our company name for the space since a fictional product name might not
         // be clear (it may look like an Alpine product name). Plus it's good to get our
         // company name in more screenshots.
         name: "Alpine",
     });
 
-    const accounts = await createDemoSpaceAccounts(space);
+    const accounts = await createDemoSpaceAccounts(space, options);
 
     debug("Created accounts");
 
@@ -81,51 +97,74 @@ export async function uploadDemoSpaceAvatars(tokenAgent: TokenAgent, accounts: D
     debug("Uploaded avatars");
 }
 
-async function createDemoSpaceAccounts(space: TestSpace) {
-    const roseCompasPromise = space.createSession({
-        name: "Rose Compás",
-        role: "Owner",
-        reactionCharacter: {type: "Tree", variant: "Green"},
-        hasInternalAccess: true,
-    });
+async function createDemoSpaceAccounts(space: TestSpace, options?: {stableRandom?: StableRandom}) {
+    // Generate all `AccountId`s up front and sort them. So anything in the product
+    // that depends on `AccountId` sort order is consistent across demo spaces.
+    const accountIds = createArrayWithLength(7, index =>
+        options?.stableRandom
+            ? unsafelyGenerateStableId<AccountId>(options.stableRandom, `demoSpaceAccount:${index}`)
+            : generateId<AccountId>(),
+    ).sort(defaultCompareStrings);
+
+    const currentTime = Date.now();
+    const createdTimes = createArrayWithLength(7, index => new Date(currentTime + index));
 
     return runAllObjectPromises({
         // Chief of Staff (landing page is from Cass's perspective)
         cassCade: space.createSession({
+            id: accountIds[0],
+            overrideCreatedTime: createdTimes[0],
             name: "Cass Cade",
             role: "Admin",
             reactionCharacter: {type: "Yeti", variant: "Blue"},
         }),
 
         // CEO (launch video is from Rose's perspective)
-        roseCompas: roseCompasPromise,
+        roseCompas: space.createSession({
+            id: accountIds[1],
+            overrideCreatedTime: createdTimes[1],
+            name: "Rose Compás",
+            role: "Owner",
+            reactionCharacter: {type: "Tree", variant: "Green"},
+            hasInternalAccess: true,
+        }),
 
         // Designer
         mattRHorn: space.createSession({
+            id: accountIds[2],
+            overrideCreatedTime: createdTimes[2],
             name: "Matt R. Horn",
             reactionCharacter: {type: "Frog", variant: "Green"},
         }),
 
         // Engineer 1
         masonClay: space.createSession({
+            id: accountIds[3],
+            overrideCreatedTime: createdTimes[3],
             name: "Mason Clay",
             reactionCharacter: {type: "Pigeon", variant: "Plain"},
         }),
 
         // Engineer 2
         elleKappaTan: space.createSession({
+            id: accountIds[4],
+            overrideCreatedTime: createdTimes[4],
             name: "Elle Kappa-Tan",
             reactionCharacter: {type: "Cat", variant: "Yellow"},
         }),
 
         // Sales
         cliffWeathers: space.createSession({
+            id: accountIds[5],
+            overrideCreatedTime: createdTimes[5],
             name: "Cliff Weathers",
             reactionCharacter: {type: "Tree", variant: "Blue"},
         }),
 
         // HR
         hollyEvergreen: space.createSession({
+            id: accountIds[6],
+            overrideCreatedTime: createdTimes[6],
             name: "Holly Evergreen",
             reactionCharacter: {type: "Tulip", variant: "Pink"},
         }),

@@ -85,10 +85,12 @@ export async function addSpaceAccountForTest(
         spaceId,
         accountId,
         role,
+        overrideCurrentTime,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         role?: SpaceRole;
+        overrideCurrentTime?: Date;
     },
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
@@ -103,6 +105,7 @@ export async function addSpaceAccountForTest(
             spaceId,
             accountId,
             role,
+            overrideCurrentTimeForTest: overrideCurrentTime,
             withoutInviteForTest: true,
         },
     );

@@ -129,7 +129,6 @@ describe("merge", () => {
                 id: space1.id,
                 name: space1.name,
                 version: space1.version,
-                alphaAccessDefaultChannelId: space1.alphaAccessDefaultChannelId,
                 themeColor: space1.themeColor,
                 avatars: {
                     darkTheme: createTestAvatarModel({
@@ -170,7 +169,6 @@ describe("merge", () => {
                 id: space1.id,
                 name: space1.name,
                 version: space1.version,
-                alphaAccessDefaultChannelId: space1.alphaAccessDefaultChannelId,
                 themeColor: space1.themeColor,
                 avatars: {
                     darkTheme: createTestAvatarModel({version: 3, avatarId: darkThemeAvatar2}),
@@ -206,7 +204,6 @@ describe("merge", () => {
                 id: space1.id,
                 name: space1.name,
                 version: space1.version,
-                alphaAccessDefaultChannelId: space1.alphaAccessDefaultChannelId,
                 themeColor: space1.themeColor,
                 avatars: {
                     darkTheme: createTestAvatarModel({version: 3, avatarId: darkThemeAvatar2}),
@@ -263,7 +260,6 @@ describe("merge", () => {
                     id: space1.id,
                     name: space1.name,
                     version: space1.version,
-                    alphaAccessDefaultChannelId: space1.alphaAccessDefaultChannelId,
                     themeColor: space1.themeColor,
                     avatars: {
                         darkTheme: createTestAvatarModel({version: 2, avatarId: darkThemeAvatar2}),
@@ -300,7 +296,6 @@ describe("merge", () => {
                     id: space1.id,
                     name: space1.name,
                     version: space1.version,
-                    alphaAccessDefaultChannelId: space1.alphaAccessDefaultChannelId,
                     themeColor: space1.themeColor,
                     avatars: {
                         darkTheme: createTestAvatarModel({version: 1, avatarId: darkThemeAvatar1}),
@@ -352,7 +347,6 @@ describe("merge", () => {
                 id: space2.id,
                 name: space2.name,
                 version: space2.version,
-                alphaAccessDefaultChannelId: space2.alphaAccessDefaultChannelId,
                 themeColor: space2.themeColor,
                 avatars: {
                     darkTheme: createTestAvatarModel({version: 1, avatarId: darkThemeAvatar2}),

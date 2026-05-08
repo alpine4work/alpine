@@ -208,24 +208,17 @@ def _playwright_project_test(
             "FORCE_COLOR": "true",
         },
         tags = tags + [
-                   "playwright",
-                   "playwright_bucket_{}".format(bucket),
-                   # Playwright tests are chunky, increase CPU requirements to reduce parallelism
-                   # while one is running. We need CPU to run all our databases, services, and the
-                   # browser.
-                   #
-                   # CPU requirement of 4 so two Playwright tests can run in parallel in CI given
-                   # our CI runners have 8 cores.
-                   "cpu:4",
-               ] +
-               # Firefox creates sandboxes for web content and you can't nest sandboxes. So
-               # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
-               # runtime and have the entire Firefox process run in the Bazel sandbox but it's
-               # unclear if that's possible. Or if the Bazel sandbox is as strong as the
-               # Firefox sandbox.
-               #
-               # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
-               (["no-sandbox"] if project == "firefox" else []),
+            "playwright",
+            "integration_test",
+            "integration_test_bucket_{}".format(bucket),
+            # Playwright tests are chunky, increase CPU requirements to reduce parallelism
+            # while one is running. We need CPU to run all our databases, services, and the
+            # browser.
+            #
+            # CPU requirement of 4 so two Playwright tests can run in parallel in CI given
+            # our CI runners have 8 cores.
+            "cpu:4",
+        ],
         # End-to-end tests are considered to be large sized.
         # https://bazel.build/reference/be/common-definitions
         size = "large",

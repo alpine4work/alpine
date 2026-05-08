@@ -12,7 +12,7 @@ ts_project(
     ],
     visibility = [
         "//admin/crawl:__pkg__",
-        "//app:__pkg__",
+        "//app:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [

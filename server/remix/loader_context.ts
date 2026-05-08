@@ -10,6 +10,8 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
@@ -298,6 +300,19 @@ export class LoaderContextModule extends ContextModuleBase {
      * on the client as time passes.
      */
     public getInitialTime() {
+        // In test environments, we may include a `cyberworlds-fixed-time-for-test` header
+        // to set the time stamp used for hooks like `useCurrentDate()`.
+        if (isTestNodeEnvOrAdminScenariosScript && this._state.initialTime === null) {
+            const fixedTimeForTestString = this._request.headers.get(
+                "cyberworlds-fixed-time-for-test",
+            );
+            if (fixedTimeForTestString !== null) {
+                const fixedTimeForTest = new Date(fixedTimeForTestString);
+                assert(isValidDate(fixedTimeForTest));
+                this._state.initialTime = fixedTimeForTest;
+            }
+        }
+
         return (this._state.initialTime ??= new Date());
     }
 }

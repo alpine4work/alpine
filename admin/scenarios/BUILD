@@ -1,13 +1,19 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
+
+copy_to_bin(
+    name = "fixtures",
+    srcs = glob(
+        ["fixtures/**"],
+        exclude = ["fixtures/**/.*"],
+    ),
+    visibility = ["//app/screenshot_tests:__pkg__"],
+)
 
 ts_project(
     name = "scenarios_lib",
-    data = glob(
-        ["fixtures/**"],
-        # Exclude dot-files like `.DS_Store` on MacOS.
-        exclude = ["fixtures/**/.*"],
-    ),
+    data = [":fixtures"],
     visibility = ["//admin/scenarios:__subpackages__"],
     deps = [
         "//:node_modules/@inquirer/prompts",

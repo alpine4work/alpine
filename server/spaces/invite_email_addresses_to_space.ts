@@ -261,7 +261,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         }/auth/sign-in?email=${encodeURIComponent(emailAddress)}&invite=${spaceId}`;
         const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
-        if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
+        if (process.env.NODE_ENV !== "production") {
             // Use strong consistency for the `/invite/accept` route to make sure we correctly
             // read any data from sign in.
 
