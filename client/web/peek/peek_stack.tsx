@@ -37,6 +37,7 @@ import {
     useNavigation,
     useNavigationType,
 } from "react-router";
+import {useSearchParams} from "react-router-dom";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {Box} from "~/client/web/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
@@ -114,7 +115,7 @@ import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
 } from "~/shared/remix/peek_path_helpers.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
@@ -390,6 +391,7 @@ function PeekStackContextProvider(
     const location = useLocation();
     const navigation = useNavigation();
     const navigationType = useNavigationType();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // If we are navigating to a location with a peek stack we need to restore then
     // start preloading the peek stack during the transition so our data is ready when
@@ -410,7 +412,13 @@ function PeekStackContextProvider(
 
         preloadRestoreStackRef.current?.abortController.abort();
 
-        const result = restorePeekStack(navigation.location.key, peekRoutes, createPeekRouter);
+        const result = restorePeekStack({
+            locationKey: navigation.location.key,
+            peekSearchParam: new URLSearchParams(navigation.location.search).get("peek"),
+            peekRoutes,
+            createPeekRouter,
+        });
+
         if (result === null) {
             preloadRestoreStackRef.current = null;
             return;
@@ -444,7 +452,27 @@ function PeekStackContextProvider(
             result = preloadRestoreStackRef.current;
             preloadRestoreStackRef.current = null;
         } else {
-            result = restorePeekStack(location.key, peekRoutes, createPeekRouter);
+            result = restorePeekStack({
+                locationKey: location.key,
+                peekSearchParam: new URLSearchParams(location.search).get("peek"),
+                peekRoutes,
+                createPeekRouter,
+            });
+        }
+
+        // If we have a `peek` search param then remove it from the URL since we've used it
+        // at this point.
+        if (searchParams.has("peek")) {
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("peek");
+                    return newSearchParams;
+                },
+                // We don't want to revalidate when removing these search params or push new
+                // entries into the history stack.
+                {replace: true, unstable_shouldRevalidate: false},
+            );
         }
 
         if (result === null) {
@@ -468,7 +496,17 @@ function PeekStackContextProvider(
                 reporter.logErrorWithoutDisplaying("Couldn\u2019t restore peek stack", error);
             },
         );
-    }, [createPeekRouter, peekRoutes, location.key, navigationType, state, reporter]);
+    }, [
+        createPeekRouter,
+        peekRoutes,
+        location.key,
+        navigationType,
+        state,
+        reporter,
+        location.search,
+        searchParams,
+        setSearchParams,
+    ]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -1830,30 +1868,82 @@ function storePeekStack(locationKey: string, stack: ReadonlyArray<PeekStackEntry
     );
 }
 
-function restorePeekStack(
-    locationKey: string,
-    peekRoutes: Array<DataRouteObject>,
+function restorePeekStack({
+    locationKey,
+    peekSearchParam,
+    peekRoutes,
+    createPeekRouter,
+}: {
+    locationKey: string;
+    peekSearchParam: string | null;
+    peekRoutes: Array<DataRouteObject>;
     createPeekRouter: ({
         history,
         hydrationData,
     }: {
         history: MemoryHistory;
         hydrationData?: HydrationState;
-    }) => PeekRemixEmbedRouter,
-): {
+    }) => PeekRemixEmbedRouter;
+}): {
     abortController: AbortController;
     stackPromise: Promise<Array<PeekStackEntry>>;
 } | null {
-    const stateString = sessionStorage.getItem(`cyberworlds/location/${locationKey}/peekStack`);
-    if (stateString === null) return null;
+    let state: SchemaType<typeof PeekStackStorageSchema>;
 
-    let state;
-    try {
-        state = PeekStackStorageSchema.deserialize(JSON.parse(stateString));
-    } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn(InternalError.from(error, "Could not deserialize peek stack state"));
-        return null;
+    // If there was a `?peek` search param then ignore whatever is in session storage
+    // and just use the `?peek` search param as the stack.
+    if (peekSearchParam === null) {
+        const stateString = sessionStorage.getItem(`cyberworlds/location/${locationKey}/peekStack`);
+        if (stateString === null) return null;
+
+        try {
+            state = PeekStackStorageSchema.deserialize(JSON.parse(stateString));
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(InternalError.from(error, "Could not deserialize peek stack state"));
+            return null;
+        }
+    } else {
+        let url;
+        try {
+            url = new URL(peekSearchParam, window.location.href);
+
+            // Can only render peeks as URLs from our app.
+            assert(url.origin === window.location.origin);
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(InternalError.from(error, "Could not parse `peek` search param"));
+            return null;
+        }
+
+        let peekPath = {
+            pathname: url.pathname,
+            search: url.search,
+            hash: url.hash,
+        };
+
+        // Add `/peek` to the pathname if it's not already there.
+        peekPath = convertSpacePathToPeekPath(peekPath) ?? peekPath;
+
+        state = {
+            stack: [
+                {
+                    id: generateId(),
+                    history: {
+                        index: 0,
+                        entries: [
+                            {
+                                ...peekPath,
+                                state: null,
+                                // Forked from:
+                                // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L501-L503
+                                key: Math.random().toString(36).substr(2, 8),
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
     }
 
     const abortController = new AbortController();
