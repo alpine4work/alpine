@@ -13,10 +13,13 @@ import {
     type DatabaseActionResult,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
+import type {
+    DatabaseTablePageDiffs,
+    DatabaseTablePages,
+} from "~/shared/databases/database_table_pages.js";
 import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
-    type PageDiff,
     applyPageDiff,
     diffPage,
     shouldIgnorePageInvalidation,
@@ -463,7 +466,7 @@ export class DatabaseClient {
      * written pages.
      */
     writePagesFromRealtime(
-        pages: ReadonlyArray<{pageIndex: number; timestamp: number; diff: PageDiff}>,
+        pageDiffs: DatabaseTablePageDiffs,
         mutationId: DatabaseMutationId,
         fileSizeInPages: number,
     ): void {
@@ -480,13 +483,13 @@ export class DatabaseClient {
         this.pageStore.clearOptimisticPages();
 
         let anyWritten = false;
-        for (const page of pages) {
-            const base = this.pageStore.readPage(page.pageIndex);
+        for (const [pageIndex, {timestamp, diff}] of pageDiffs) {
+            const base = this.pageStore.readPage(pageIndex);
             if (base === null) continue;
-            const full = applyPageDiff(base, page.diff);
-            if (this.pageStore.writePageIfNewer(page.pageIndex, page.timestamp, full)) {
-                if (!shouldIgnorePageInvalidation(page.pageIndex, page.diff)) {
-                    this.pagesToInvalidate.add(page.pageIndex);
+            const full = applyPageDiff(base, diff);
+            if (this.pageStore.writePageIfNewer(pageIndex, timestamp, full)) {
+                if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
+                    this.pagesToInvalidate.add(pageIndex);
                     anyWritten = true;
                 }
             }
@@ -576,7 +579,7 @@ export class DatabaseClient {
      * store before cache validation. No invalidation is
      * scheduled because no reactive actions exist yet.
      */
-    seedPages(pages: ReadonlyMap<number, {timestamp: number; data: Uint8Array}>): void {
+    seedPages(pages: DatabaseTablePages): void {
         for (const [pageIndex, {timestamp, data}] of pages) {
             this.pageStore.writePageIfNewer(pageIndex, timestamp, data);
         }

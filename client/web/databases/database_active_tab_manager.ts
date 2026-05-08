@@ -17,7 +17,7 @@ import type {
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
 import type {EnsureCacheIsUpToDateResult} from "~/shared/databases/database_realtime_protocol.js";
-import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
+import type {DatabasePages} from "~/shared/databases/database_table_pages.js";
 import {CancelledError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -204,7 +204,7 @@ export class DatabaseActiveTabServiceWorker {
 export class DatabaseActiveTabWorker {
     private readonly clientPromises = new Map<string, Promise<DatabaseClient>>();
     private readonly actionToDatabase = new Map<DatabaseReactiveActionId, DatabaseGroupId>();
-    private readonly initialPagesByDatabase = new Map<DatabaseGroupId, DatabaseTablePages>();
+    private readonly initialPagesByDatabase = new Map<DatabaseGroupId, DatabasePages>();
 
     constructor(private readonly dir: OpfsDirectoryHandle) {}
 
@@ -314,12 +314,13 @@ export class DatabaseActiveTabWorker {
                 },
                 writePagesFromRealtime: async input => {
                     const client = await this.getOrCreateClient(input.databaseGroupId, conn);
-                    const main = input.tables.get(mainDatabaseTableId);
-                    if (main !== undefined) {
+                    const mainPageDiffs = input.pageDiffs.get(mainDatabaseTableId);
+                    const mainFileSize = input.fileSizesInPages.get(mainDatabaseTableId);
+                    if (mainPageDiffs !== undefined && mainFileSize !== undefined) {
                         client.writePagesFromRealtime(
-                            main.pages,
+                            mainPageDiffs,
                             input.mutationId,
-                            main.fileSizeInPages,
+                            mainFileSize,
                         );
                     }
                     return {};

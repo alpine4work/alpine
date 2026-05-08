@@ -1,5 +1,5 @@
 import {DatabaseActionResultSchema} from "~/shared/databases/database_actions.js";
-import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
+import {DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -9,5 +9,5 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export const DatabaseActionFetchResponseSchema = Schema.object({
     result: DatabaseActionResultSchema,
-    readPages: DatabaseTablePagesSchema,
+    readPages: DatabasePagesSchema,
 });

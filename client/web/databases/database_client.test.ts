@@ -124,7 +124,7 @@ describe("execute — mutations", () => {
                 capturedMutationId = options.mutationId;
                 // Simulate realtime confirmation arriving
                 // before server response (same as production).
-                client.writePagesFromRealtime([], options.mutationId, 0);
+                client.writePagesFromRealtime(new Map(), options.mutationId, 0);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
@@ -182,7 +182,7 @@ describe("execute — mutations", () => {
                 serverCallCount++;
                 // Simulate realtime confirmation arriving
                 // before server response.
-                client.writePagesFromRealtime([], options.mutationId, 0);
+                client.writePagesFromRealtime(new Map(), options.mutationId, 0);
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
@@ -231,7 +231,7 @@ describe("optimistic mutations", () => {
         expect(capturedMutationId).not.toBeNull();
 
         // Confirm the mutation — should not throw
-        client.writePagesFromRealtime([], capturedMutationId!, 0);
+        client.writePagesFromRealtime(new Map(), capturedMutationId!, 0);
     });
 
     test("replays remaining mutations after confirmation", async () => {
@@ -250,7 +250,7 @@ describe("optimistic mutations", () => {
         await execute(client, conn, "INSERT INTO t (val) VALUES ('second')");
 
         // Confirm first mutation
-        client.writePagesFromRealtime([], mutationIds[0]!, 0);
+        client.writePagesFromRealtime(new Map(), mutationIds[0]!, 0);
 
         // Second mutation should still be visible via replay
         const rows = await execute(client, testConn, "SELECT val FROM t ORDER BY id");
@@ -272,7 +272,7 @@ describe("optimistic mutations", () => {
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await execute(client, conn, "INSERT INTO t (id) VALUES (2)");
 
-        expect(() => client.writePagesFromRealtime([], mutationIds[1]!, 0)).toThrow(
+        expect(() => client.writePagesFromRealtime(new Map(), mutationIds[1]!, 0)).toThrow(
             "unexpected mutation confirmation order",
         );
     });
@@ -282,7 +282,7 @@ describe("optimistic mutations", () => {
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
 
         // No optimistic mutations queued — just apply pages
-        client.writePagesFromRealtime([], "unknown-mutation-id" as DatabaseMutationId, 0);
+        client.writePagesFromRealtime(new Map(), "unknown-mutation-id" as DatabaseMutationId, 0);
 
         // Should succeed without assertion error
         const rows = await execute(client, testConn, "SELECT count(*) AS n FROM t");
@@ -649,12 +649,13 @@ describe("registerReactiveAction", () => {
         // trigger invalidation. Empty diffs since OPFS
         // already has the current content.
         const pages = await extractOpfsPages(dir);
-        const newerPages = pages.map(({pageIndex, timestamp}) => ({
-            pageIndex,
-            timestamp: timestamp + 1000,
-            diff: [],
-        }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
+        const newerPageDiffs = new Map(
+            pages.map(({pageIndex, timestamp}) => [
+                pageIndex,
+                {timestamp: timestamp + 1000, diff: []},
+            ]),
+        );
+        client.writePagesFromRealtime(newerPageDiffs, generateId<DatabaseMutationId>(), 0);
 
         // Wait for microtask-based invalidation
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -698,23 +699,24 @@ describe("registerReactiveAction", () => {
         await execute(client, testConn, "INSERT INTO t2 (id) VALUES (3)");
 
         const pagesAfter = await extractOpfsPages(dir);
-        const changedPages = pagesAfter
-            .filter(after => {
-                // Skip page 0 — it always changes (SQLite
-                // file change counter) and is in every
-                // query's read set, so it would always
-                // trigger a notification.
-                if (after.pageIndex === 0) return false;
-                const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
-                return before === undefined || before.timestamp !== after.timestamp;
-            })
-            .map(({pageIndex, timestamp}) => ({
-                pageIndex,
-                timestamp: timestamp + 1000,
-                diff: [],
-            }));
+        const changedPageDiffs = new Map(
+            pagesAfter
+                .filter(after => {
+                    // Skip page 0 — it always changes (SQLite
+                    // file change counter) and is in every
+                    // query's read set, so it would always
+                    // trigger a notification.
+                    if (after.pageIndex === 0) return false;
+                    const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
+                    return before === undefined || before.timestamp !== after.timestamp;
+                })
+                .map(({pageIndex, timestamp}) => [
+                    pageIndex,
+                    {timestamp: timestamp + 1000, diff: []},
+                ]),
+        );
 
-        client.writePagesFromRealtime(changedPages, generateId<DatabaseMutationId>(), 0);
+        client.writePagesFromRealtime(changedPageDiffs, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -748,12 +750,13 @@ describe("registerReactiveAction", () => {
         // Trigger invalidation via realtime page writes.
         // readPages is null so any page write overlaps.
         const pages = await extractOpfsPages(dir);
-        const newerPages = pages.map(({pageIndex, timestamp}) => ({
-            pageIndex,
-            timestamp: timestamp + 1000,
-            diff: [],
-        }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
+        const newerPageDiffs = new Map(
+            pages.map(({pageIndex, timestamp}) => [
+                pageIndex,
+                {timestamp: timestamp + 1000, diff: []},
+            ]),
+        );
+        client.writePagesFromRealtime(newerPageDiffs, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -783,12 +786,13 @@ describe("registerReactiveAction", () => {
 
         // Write pages — should not trigger notification
         const pages = await extractOpfsPages(dir);
-        const newerPages = pages.map(({pageIndex, timestamp}) => ({
-            pageIndex,
-            timestamp: timestamp + 1000,
-            diff: [],
-        }));
-        client.writePagesFromRealtime(newerPages, generateId<DatabaseMutationId>(), 0);
+        const newerPageDiffs = new Map(
+            pages.map(({pageIndex, timestamp}) => [
+                pageIndex,
+                {timestamp: timestamp + 1000, diff: []},
+            ]),
+        );
+        client.writePagesFromRealtime(newerPageDiffs, generateId<DatabaseMutationId>(), 0);
 
         await new Promise(resolve => setTimeout(resolve, 50));
 

@@ -4,8 +4,10 @@ import {
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
 import {ensureCacheIsUpToDateResultConfig} from "~/shared/databases/database_realtime_protocol.js";
-import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
-import {pageDiffSchema} from "~/shared/databases/page_diff.js";
+import {
+    DatabasePageDiffsSchema,
+    DatabasePagesSchema,
+} from "~/shared/databases/database_table_pages.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
@@ -14,18 +16,12 @@ import type {
 } from "~/shared/id/types/id_types.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
-const pageDiffEntrySchema = Schema.object({
-    pageIndex: Schema.integer,
-    timestamp: Schema.integer,
-    diff: pageDiffSchema,
-});
-
 /** Methods the tab can call on the worker. */
 export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writeInitialPages: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            pages: DatabaseTablePagesSchema,
+            pages: DatabasePagesSchema,
         },
         output: {},
     },
@@ -39,13 +35,8 @@ export const tabToWorkerDatabaseRpcMethods = defineWebWorkerRpcMethods({
     writePagesFromRealtime: {
         input: {
             databaseGroupId: Schema.id<DatabaseGroupId>(),
-            tables: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.object({
-                    pages: Schema.array(pageDiffEntrySchema),
-                    fileSizeInPages: Schema.integer,
-                }),
-            ),
+            pageDiffs: DatabasePageDiffsSchema,
+            fileSizesInPages: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer),
             mutationId: Schema.id<DatabaseMutationId>(),
         },
         output: {},
@@ -78,7 +69,7 @@ export const workerToTabDatabaseRpcMethods = defineWebWorkerRpcMethods({
         },
         output: {
             result: DatabaseActionResultSchema.nullable(),
-            readPages: DatabaseTablePagesSchema.nullable(),
+            readPages: DatabasePagesSchema.nullable(),
         },
     },
     ensureCacheIsUpToDate: {

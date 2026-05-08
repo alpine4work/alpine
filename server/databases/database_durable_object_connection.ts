@@ -11,6 +11,7 @@ import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
+import type {DatabaseTablePageDiffs} from "~/shared/databases/database_table_pages.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -31,7 +32,7 @@ const mainDatabaseTableId = getMinId<DatabaseTableId>();
 
 export type DatabaseRealtimeEventStub = {
     type: "PagesChanged";
-    pages: Array<{pageIndex: number; timestamp: number; diff: PageDiff}>;
+    pageDiffs: DatabaseTablePageDiffs;
     mutationId: DatabaseMutationId;
     fileSizeInPages: number;
 };
@@ -88,16 +89,18 @@ export class DatabaseDurableObjectConnection {
                 const result = this._server.executeAction(input.action);
 
                 if (result.changedPages.size > 0) {
-                    const diffPages = [...result.changedPages].map(
-                        ([pageIndex, {before, after}]) => ({
+                    const pageDiffs: DatabaseTablePageDiffs = new Map(
+                        [...result.changedPages].map(([pageIndex, {before, after}]) => [
                             pageIndex,
-                            timestamp: result.readPages.get(pageIndex)!.timestamp,
-                            diff: diffPage(before, after),
-                        }),
+                            {
+                                timestamp: result.readPages.get(pageIndex)!.timestamp,
+                                diff: diffPage(before, after),
+                            },
+                        ]),
                     );
                     this._sendEventToAll(this._processContext, {
                         type: "PagesChanged",
-                        pages: diffPages,
+                        pageDiffs,
                         mutationId: input.mutationId,
                         fileSizeInPages: this._durableObjectStorage.getFileSize() / sqlitePageSize,
                     });
@@ -209,14 +212,16 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                const pages = eventStub.pages.filter(p =>
-                    this._browserPageTracker.clientMightHavePage(this._browserId, p.pageIndex),
-                );
+                const filtered = new Map<number, {timestamp: number; diff: PageDiff}>();
+                for (const [pageIndex, value] of eventStub.pageDiffs) {
+                    if (this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)) {
+                        filtered.set(pageIndex, value);
+                    }
+                }
                 return {
                     type: "PagesChanged",
-                    tables: new Map([
-                        [mainDatabaseTableId, {pages, fileSizeInPages: eventStub.fileSizeInPages}],
-                    ]),
+                    pageDiffs: new Map([[mainDatabaseTableId, filtered]]),
+                    fileSizesInPages: new Map([[mainDatabaseTableId, eventStub.fileSizeInPages]]),
                     mutationId: eventStub.mutationId,
                 };
             }

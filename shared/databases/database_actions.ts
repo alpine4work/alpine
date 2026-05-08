@@ -1,8 +1,5 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {
-    type DatabaseTablePages,
-    DatabaseTablePagesSchema,
-} from "~/shared/databases/database_table_pages.js";
+import {type DatabasePages, DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
@@ -907,7 +904,7 @@ export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
             name: Schema.value(name),
             input: def.input,
             output: def.output,
-            readPages: DatabaseTablePagesSchema,
+            readPages: DatabasePagesSchema,
         }),
     ]),
 ) as {
@@ -930,6 +927,6 @@ export type LoaderDatabaseActionResult<N extends DatabaseActionName = DatabaseAc
         name: K;
         input: DatabaseActionInput<K>;
         output: DatabaseActionOutput<K>;
-        readPages: DatabaseTablePages;
+        readPages: DatabasePages;
     };
 }[N];

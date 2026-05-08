@@ -16,7 +16,7 @@ import type {
     DatabaseActionObject,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
-import type {DatabaseTablePages} from "~/shared/databases/database_table_pages.js";
+import type {DatabasePages} from "~/shared/databases/database_table_pages.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -52,7 +52,7 @@ function createTestConnection(client: DatabaseClient): {
     const conn: DatabaseWorkerConnection = {
         call(method, input) {
             if (method === "writeInitialPages") {
-                const {pages} = input as unknown as {pages: DatabaseTablePages};
+                const {pages} = input as unknown as {pages: DatabasePages};
                 const mainPages = pages.get(mainDatabaseTableId);
                 if (mainPages != null) {
                     client.seedPages(mainPages);

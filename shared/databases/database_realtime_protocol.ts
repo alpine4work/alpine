@@ -2,8 +2,10 @@ import {
     DatabaseActionObjectSchema,
     DatabaseActionResultSchema,
 } from "~/shared/databases/database_actions.js";
-import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
-import {pageDiffSchema} from "~/shared/databases/page_diff.js";
+import {
+    DatabasePageDiffsSchema,
+    DatabasePagesSchema,
+} from "~/shared/databases/database_table_pages.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {type ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 import {
@@ -67,7 +69,7 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 result: DatabaseActionResultSchema.nullable(),
-                readPages: DatabaseTablePagesSchema.nullable(),
+                readPages: DatabasePagesSchema.nullable(),
             },
         },
         ensureCacheIsUpToDate: {
@@ -89,19 +91,8 @@ export const DatabaseRealtimeProtocol = defineWebSocketProtocol({
     events: {
         PagesChanged: Schema.object({
             type: Schema.value("PagesChanged"),
-            tables: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.object({
-                    pages: Schema.array(
-                        Schema.object({
-                            pageIndex: Schema.integer,
-                            timestamp: Schema.integer,
-                            diff: pageDiffSchema,
-                        }),
-                    ),
-                    fileSizeInPages: Schema.integer,
-                }),
-            ),
+            pageDiffs: DatabasePageDiffsSchema,
+            fileSizesInPages: Schema.map(Schema.id<DatabaseTableId>(), Schema.integer),
             mutationId: Schema.id<DatabaseMutationId>(),
         }),
     },

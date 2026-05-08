@@ -21,7 +21,7 @@ import {
     type DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {DatabaseTablePagesSchema} from "~/shared/databases/database_table_pages.js";
+import {DatabasePagesSchema} from "~/shared/databases/database_table_pages.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {
     DatabaseGroupId,
@@ -39,7 +39,7 @@ const LoaderSchema = Schema.object({
             tableName: Schema.string,
         }),
     ),
-    pages: DatabaseTablePagesSchema,
+    pages: DatabasePagesSchema,
 });
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Databases"}]);
@@ -83,7 +83,8 @@ export default function DatabaseGroupLayoutRoute() {
     const handlePagesChanged = useEvent((event: DatabaseRealtimeEvent) => {
         if (event.type === "PagesChanged") {
             conn.call("writePagesFromRealtime", {
-                tables: event.tables,
+                pageDiffs: event.pageDiffs,
+                fileSizesInPages: event.fileSizesInPages,
                 mutationId: event.mutationId,
             });
         }
