@@ -70,26 +70,6 @@ class InMemoryStorage implements ReadonlyDatabaseStorage {
             }
         }
     }
-
-    /** Forcibly overwrite a single page (simulates an external write). */
-    forceWritePage(tableId: DatabaseTableId, pageIndex: number, data: Uint8Array): void {
-        const version = ++this.nextVersion;
-        const table = this.getTable(tableId);
-        table.pages.set(pageIndex, {data: new Uint8Array(data), version});
-        const end = (pageIndex + 1) * sqlitePageSize;
-        if (end > table.fileSize) table.fileSize = end;
-    }
-
-    /** Forcibly truncate (simulates external storage shrink). */
-    forceTruncate(tableId: DatabaseTableId, size: number): void {
-        const table = this.getTable(tableId);
-        table.fileSize = size;
-        for (const [pageIndex] of table.pages) {
-            if ((pageIndex + 1) * sqlitePageSize > size) {
-                table.pages.delete(pageIndex);
-            }
-        }
-    }
 }
 
 /**
