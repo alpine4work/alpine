@@ -310,9 +310,11 @@ export class Database {
         // invalidation regression test can prove this
         // pragma is load-bearing — never set it in
         // production code.
-        if (options?.skipClearCacheForTests !== true) {
-            this.db.exec("PRAGMA shrink_memory");
+        if (options?.skipClearCacheForTests === true) {
+            assert(import.meta.jest, "skipClearCacheForTests is test-only");
+            return;
         }
+        this.db.exec("PRAGMA shrink_memory");
     }
 
     close(): void {
