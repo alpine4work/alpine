@@ -1,11 +1,6 @@
 import {DatabasePageStores} from "~/client/web/databases/database_page_stores.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
-import type {
-    Database,
-    Sqlite3Static,
-    WasmPointer,
-} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {Database} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -21,29 +16,14 @@ import type {
     DatabasePageVersionsByIndex,
     DatabasePages,
 } from "~/shared/databases/database_protocol_schemas.js";
-import type {InstalledVfs} from "~/shared/databases/install_vfs.js";
-import {installVfs} from "~/shared/databases/install_vfs.js";
 import {
     applyPageDiff,
     diffPage,
     shouldIgnorePageInvalidation,
 } from "~/shared/databases/page_diff.js";
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
-import {
-    type SqliteWriteLevel,
-    isSqliteActionAllowed,
-    sqliteAuthorizerActionName,
-} from "~/shared/databases/sqlite_authorizer.js";
-import {
-    databaseMainTableId,
-    pageAccessFlagRead,
-    pageAccessFlagWrite,
-    sqliteOpenPragmas,
-} from "~/shared/databases/sqlite_constants.js";
-import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
+import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
-import {installTracing} from "~/shared/databases/sqlite_tracing.js";
-import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {generateId} from "~/shared/id/id.js";
@@ -53,10 +33,6 @@ interface OptimisticMutation {
     mutationId: DatabaseMutationId;
     action: DatabaseActionObject;
 }
-
-const vfsNamePrefix = "alpine-client";
-let vfsCounter = 0;
-let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
  * Represents a connected tab's route to the server.
@@ -81,92 +57,28 @@ export interface DatabaseClientConnection {
 }
 
 /**
- * Client-side SQLite database backed by OPFS page
- * storage. Handles server fallback transparently:
- * when a local query hits a missing page, calls
- * {@link DatabaseClientConnection.executeActionServer}
- * to fetch pages from the server, stores them locally,
- * and returns the server's result.
+ * Client-side SQLite database.
+ *
+ * Wraps a {@link Database} that reads through a
+ * {@link DatabasePageStores} adapter over OPFS-backed
+ * page storage. Optimistic SQL writes accumulate in the
+ * underlying {@link Database}'s in-memory buffer and only
+ * land on disk once the server confirms them via
+ * {@link writePageDiffsFromRealtime} (or are dropped on
+ * server error / discarded after a server fallback).
  *
  * Inject the result of `navigator.storage.getDirectory()`
  * to construct. For tests, pass an in-memory mock.
  */
 export class DatabaseClient {
-    private readonly db: Database;
-    private readonly vfs: InstalledVfs;
-    /**
-     * Per-table {@link OpfsPageStore}s backing the
-     * databases attached to {@link db}, keyed by table
-     * id. The main database (under
-     * {@link databaseMainTableId}) is always present;
-     * other tables will be added once the client opens
-     * them via `ATTACH DATABASE` against the same
-     * connection. The VFS `open` callback resolves the
-     * per-database store by stripping the leading `/`
-     * from the path SQLite was given.
-     */
+    private readonly database: Database;
     private readonly pageStores: DatabasePageStores;
     private optimisticQueue: Array<OptimisticMutation> = [];
-    private writeLevel: SqliteWriteLevel | null = null;
+    private nextTestCommitVersion = 0;
 
-    private constructor(sqlite3: Sqlite3Static, pageStores: DatabasePageStores) {
+    private constructor(database: Database, pageStores: DatabasePageStores) {
+        this.database = database;
         this.pageStores = pageStores;
-        const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
-
-        this.vfs = installVfs(sqlite3, vfsName, {
-            open: (filename, flags) => {
-                // SQLite calls `xOpen` for several file
-                // types (main DB, journals, WAL,
-                // sub-journals, transient DBs, sort
-                // spills); only `SQLITE_OPEN_MAIN_DB`
-                // identifies a real database file the
-                // application named — set both for the
-                // primary DB and for `ATTACH DATABASE`.
-                // Everything else is internal SQLite
-                // scratch space that belongs in memory.
-                if (!(flags & sqlite3.capi.SQLITE_OPEN_MAIN_DB)) {
-                    return new VfsTempFile();
-                }
-                // Each database is opened with the path
-                // `/${tableId}` (main below, attached
-                // databases later); strip the leading `/`
-                // and look up the per-table store.
-                assert(
-                    filename !== null && filename.startsWith("/"),
-                    `MAIN_DB open with unexpected filename: ${filename}`,
-                );
-                const tableId = filename.slice(1) as DatabaseTableId;
-                const store = this.pageStores.get(tableId);
-                assert(store !== undefined, `MAIN_DB open for unknown table: ${tableId}`);
-                return store;
-            },
-            delete: () => {},
-            access: () => false,
-        });
-
-        this.db = new sqlite3.oo1.DB(`/${databaseMainTableId}`, "c", vfsName);
-        installTracing(this.db);
-
-        const capi = sqlite3.capi;
-        capi.sqlite3_set_authorizer(
-            this.db.pointer!,
-            (_cbArg: WasmPointer, actionCode: number) => {
-                const action = sqliteAuthorizerActionName(actionCode);
-                if (action === undefined) {
-                    return capi.SQLITE_DENY;
-                }
-                return isSqliteActionAllowed(action, this.writeLevel)
-                    ? capi.SQLITE_OK
-                    : capi.SQLITE_DENY;
-            },
-            0,
-        );
-
-        registerSqliteCustomFunctions(sqlite3, this.db);
-
-        for (const pragma of sqliteOpenPragmas) {
-            this.db.exec(pragma);
-        }
     }
 
     /**
@@ -178,15 +90,10 @@ export class DatabaseClient {
      * databases under the same SQLite connection.
      */
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
-        if (sqlite3Promise === undefined) {
-            sqlite3Promise = sqlite3InitModule();
-        }
-        const sqlite3 = await sqlite3Promise;
-
         const pageStores = new DatabasePageStores(groupDir);
         await pageStores.create(databaseMainTableId);
-
-        return new DatabaseClient(sqlite3, pageStores);
+        const database = await Database.create(pageStores);
+        return new DatabaseClient(database, pageStores);
     }
 
     /**
@@ -216,6 +123,7 @@ export class DatabaseClient {
         const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
 
         const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
+        let anyChanged = false;
         for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
             const store = this.pageStores.get(tableId);
             assert(
@@ -224,13 +132,16 @@ export class DatabaseClient {
             );
 
             for (const [pageIndex, {version, data}] of updatedPages) {
-                store.writePageIfNewer(pageIndex, version, data);
+                if (store.writePageIfNewer(pageIndex, version, data)) {
+                    anyChanged = true;
+                }
             }
             if (updatedPages.size > 0) {
                 acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
             }
             if (stalePageIndexes.length > 0) {
                 store.deletePages(new Set(stalePageIndexes));
+                anyChanged = true;
             }
             store.setServerFileSizeInPages(fileSizeInPages);
             store.sync();
@@ -239,18 +150,25 @@ export class DatabaseClient {
         if (acknowledgedPageIndexes.size > 0) {
             conn.acknowledgePages(acknowledgedPageIndexes);
         }
+
+        // Storage just changed under SQLite's feet; drop
+        // the pager cache so subsequent reads observe the
+        // fresh durable state.
+        if (anyChanged) {
+            this.database.discardBuffer();
+        }
     }
 
     /**
      * Execute a named action. Detects reads vs writes
-     * via the optimistic page store: if the local
-     * execution writes no pages, it's a read and returns
-     * immediately. If pages are written, it's treated
-     * as a mutation with optimistic local execution
-     * and background server confirmation.
+     * via the action's effect on storage: if local
+     * execution writes no pages, the result is returned
+     * immediately. If pages are written, the action is
+     * treated as a mutation with optimistic local
+     * execution and background server confirmation.
      *
-     * Falls back to the server when the local store
-     * is empty or missing pages.
+     * Falls back to the server when the local store is
+     * empty or missing pages.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
@@ -258,12 +176,12 @@ export class DatabaseClient {
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
 
-        let result!: DatabaseActionOutput<N>;
-        let writtenPages: Map<DatabaseTableId, ReadonlySet<number>>;
+        let output: DatabaseActionOutput<N>;
+        let writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
         try {
-            writtenPages = this.pageStores.optimistic(() => {
-                result = this.executeActionLocally(actionObject);
-            });
+            const result = this.database.executeAction(actionObject);
+            output = result.output;
+            writtenPages = result.writtenPages;
         } catch (error) {
             if (error instanceof PageMissingError) {
                 return await this.executeActionViaServer(conn, actionObject, mutationId);
@@ -273,7 +191,7 @@ export class DatabaseClient {
 
         if (writtenPages.size === 0) {
             // Pure read — no server round-trip needed.
-            return result;
+            return output;
         }
 
         this.optimisticQueue.push({mutationId, action: actionObject});
@@ -297,22 +215,16 @@ export class DatabaseClient {
             }
         })();
 
-        return result;
+        return output;
     }
 
     /**
      * Execute a read-only action while tracking which
-     * database pages are read. Uses `pageAccessHook` to
-     * capture reads including cache hits. Asserts the
-     * action's `writeLevel` is `"none"`.
+     * database pages are read. Asserts the action's
+     * `writeLevel` is `"none"`.
      *
      * On missing pages, falls back to the server, then
      * retries locally to build an accurate read-set.
-     *
-     * The hook is only active during synchronous
-     * `executeActionLocally` calls — never across an
-     * `await` — so concurrent tracking calls cannot
-     * interfere with each other.
      */
     async executeActionWithTracking<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
@@ -323,56 +235,26 @@ export class DatabaseClient {
             "executeActionWithTracking only supports read-only actions",
         );
         try {
-            return this.executeActionLocallyInReadOnlyTxn(actionObject);
+            return this.executeReadOnly(actionObject);
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
             await this.executeActionViaServer(
                 conn,
                 actionObject,
                 generateId<DatabaseMutationId>(),
-                {
-                    returnResult: false,
-                },
+                {returnResult: false},
             );
-            return this.executeActionLocallyInReadOnlyTxn(actionObject);
+            return this.executeReadOnly(actionObject);
         }
     }
 
-    /**
-     * Executes an action inside a BEGIN/ROLLBACK
-     * transaction with page-read tracking. Asserts that
-     * the action does not write any pages (writes are
-     * rolled back and an assertion error is thrown).
-     */
-    private executeActionLocallyInReadOnlyTxn<N extends DatabaseActionName>(
+    private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-    ): {
-        output: DatabaseActionOutput<N>;
-        readPages: ReadonlySet<number>;
-    } {
-        const readPages = new Set<number>();
-        let writeDetected = false;
-
-        this.db.exec("BEGIN");
-        this.db.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === pageAccessFlagRead) readPages.add(pgno - 1);
-            if (flags === pageAccessFlagWrite) writeDetected = true;
-        });
-        try {
-            const output = this.executeActionLocally(actionObject);
-            assert(!writeDetected, "executeActionWithTracking does not support writes");
-            return {output, readPages};
-        } finally {
-            this.db.pageAccessHook(null);
-            try {
-                this.db.exec("ROLLBACK");
-            } catch {
-                // VFS errors (e.g. PageMissingError) may
-                // leave SQLite's pager in a state where
-                // ROLLBACK fails. Swallow so the original
-                // exception propagates.
-            }
-        }
+    ): {output: DatabaseActionOutput<N>; readPages: ReadonlySet<number>} {
+        const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
+        assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
+        const main = readPages.get(databaseMainTableId) ?? new Set<number>();
+        return {output, readPages: main};
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -410,7 +292,7 @@ export class DatabaseClient {
     ): Promise<Result<DatabaseActionOutput<N>>> {
         assert(
             databaseActions[actionObject.name].writeLevel === "none",
-            "reactive actions must have writeLevel \u2018none\u2019",
+            "reactive actions must have writeLevel ‘none’",
         );
         try {
             const {output, readPages} = await this.executeActionWithTracking(conn, actionObject);
@@ -500,12 +382,11 @@ export class DatabaseClient {
     /**
      * Write page diffs received from realtime events into
      * the local OPFS stores, skipping pages already at a
-     * newer version. If the `mutationId` matches a
-     * queued optimistic mutation, removes it from the
-     * queue and replays the remaining mutations.
-     * Automatically schedules invalidation for any
-     * reactive queries whose read-set overlaps the
-     * written pages.
+     * newer version. If the `mutationId` matches a queued
+     * optimistic mutation, removes it from the queue and
+     * replays the remaining mutations. Automatically
+     * schedules invalidation for any reactive queries
+     * whose read-set overlaps the written pages.
      */
     writePageDiffsFromRealtime(pageDiffs: DatabasePageDiffs, mutationId: DatabaseMutationId): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
@@ -518,7 +399,10 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
-        this.pageStores.clearOptimisticPages();
+        // Drop the buffer (and SQLite's pager cache) so
+        // the pages we're about to write to durable
+        // storage are observed on the next read.
+        this.database.discardBuffer();
 
         let anyWritten = false;
         for (const [tableId, tableDiffs] of pageDiffs) {
@@ -527,7 +411,7 @@ export class DatabaseClient {
             for (const [pageIndex, {version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
                 if (base === null) continue;
-                const full = applyPageDiff(base, diff);
+                const full = applyPageDiff(base.data, diff);
                 if (store.writePageIfNewer(pageIndex, version, full)) {
                     if (!shouldIgnorePageInvalidation(pageIndex, diff)) {
                         this.addPageToInvalidate(tableId, pageIndex);
@@ -568,7 +452,11 @@ export class DatabaseClient {
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
-        this.pageStores.clearOptimisticPages();
+        // The buffer still holds writes from the failed
+        // mutation (and any subsequent queued mutations
+        // that ran on top of it). Drop it and rebuild from
+        // the remaining queue.
+        this.database.discardBuffer();
         this.replayOptimisticQueue();
     }
 
@@ -576,9 +464,7 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const writtenPages = this.pageStores.optimistic(() => {
-                    this.executeActionLocally(mutation.action);
-                });
+                const {writtenPages} = this.database.executeAction(mutation.action);
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
                 }
@@ -598,17 +484,20 @@ export class DatabaseClient {
      * changes on page 0. Returns true if any pages were
      * marked.
      */
-    private markWrittenPages(writtenPages: Map<DatabaseTableId, ReadonlySet<number>>): boolean {
+    private markWrittenPages(
+        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
+    ): boolean {
         let anyMarked = false;
+        const buffered = this.database.getBufferedWrites();
         for (const [tableId, tablePages] of writtenPages) {
             const store = this.pageStores.get(tableId);
             if (store === undefined) continue;
             for (const pageIndex of tablePages) {
                 if (pageIndex === 0) {
                     const base = store.readPage(0);
-                    const overlay = store.getOptimisticPage(0);
+                    const overlay = buffered?.pages.get(tableId)?.get(0);
                     if (base !== null && overlay !== undefined) {
-                        const diff = diffPage(base, overlay);
+                        const diff = diffPage(base.data, overlay);
                         if (shouldIgnorePageInvalidation(0, diff)) continue;
                     }
                 }
@@ -629,7 +518,7 @@ export class DatabaseClient {
     }
 
     private invalidateForWrittenPages(
-        writtenPages: Map<DatabaseTableId, ReadonlySet<number>>,
+        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
     ): void {
         if (this.markWrittenPages(writtenPages)) {
             this.scheduleInvalidation();
@@ -650,32 +539,6 @@ export class DatabaseClient {
                 store.writePageIfNewer(pageIndex, version, data);
             }
             store.sync();
-        }
-    }
-
-    /**
-     * Run an action's `run()` function locally with
-     * proper write-level authorization and VFS error
-     * handling.
-     */
-    private executeActionLocally<N extends DatabaseActionName>(
-        actionObject: DatabaseActionObject<N>,
-    ): DatabaseActionOutput<N> {
-        const action = databaseActions[actionObject.name];
-        this.writeLevel = action.writeLevel;
-        try {
-            return action.run(this.db, actionObject.input as any) as DatabaseActionOutput<N>;
-        } catch (error) {
-            const stashed = this.vfs.takeError();
-            if (stashed !== null) {
-                if (stashed instanceof Error) {
-                    stashed.cause = error;
-                }
-                throw stashed;
-            }
-            throw error;
-        } finally {
-            this.writeLevel = null;
         }
     }
 
@@ -701,7 +564,11 @@ export class DatabaseClient {
             mutationId,
             returnResult,
         });
-        this.pageStores.clearOptimisticPages();
+        // Writes from any pending optimistic mutations
+        // still live in the buffer; drop them so the
+        // server pages we're about to apply are visible
+        // before we replay the queue on top.
+        this.database.discardBuffer();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
             const acknowledged = new Map<DatabaseTableId, Array<number>>();
@@ -722,37 +589,27 @@ export class DatabaseClient {
 
     /**
      * Execute a migration locally without server
-     * interaction. Writes land in the optimistic overlay;
-     * pair with {@link commitOptimisticPagesForTests} to
-     * materialize them on disk. Use for test setup only.
+     * interaction. Writes land in the {@link Database}
+     * buffer; pair with {@link commitOptimisticPagesForTests}
+     * to materialize them on disk. Use for test setup only.
      */
     executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
-        this.writeLevel = "schema+data";
-        try {
-            this.pageStores.optimistic(() => {
-                if (typeof migration === "function") {
-                    migration(this.db);
-                } else {
-                    this.db.exec(migration);
-                }
-            });
-        } catch (error) {
-            const stashed = this.vfs.takeError();
-            if (stashed !== null) {
-                if (stashed instanceof Error) {
-                    stashed.cause = error;
-                }
-                throw stashed;
-            }
-            throw error;
-        } finally {
-            this.writeLevel = null;
+        // The Database authorizer is permissive while idle
+        // (writeLevel === null), so calling SQL directly
+        // on the underlying handle works for setup. Writes
+        // route through the VFS and accumulate in the
+        // Database buffer — same as a real action would.
+        const db = this.database.unsafeGetDbForTests();
+        if (typeof migration === "function") {
+            migration(db);
+        } else {
+            db.exec(migration);
         }
     }
 
     /**
-     * Drain the optimistic overlay onto disk so subsequent
+     * Drain the buffered writes onto disk so subsequent
      * realtime/server events don't clear test-setup writes
      * and {@link extractOpfsPages}-style helpers can see
      * them. Test-only counterpart to
@@ -760,12 +617,26 @@ export class DatabaseClient {
      */
     commitOptimisticPagesForTests(): void {
         assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
-        this.pageStores.commitOptimisticPagesForTests();
+        const buffered = this.database.getBufferedWrites();
+        if (buffered === null) {
+            this.database.markCommitted();
+            return;
+        }
+        const version = ++this.nextTestCommitVersion;
+        for (const [tableId, pages] of buffered.pages) {
+            const store = this.pageStores.get(tableId);
+            if (store === undefined) continue;
+            for (const [pageIndex, data] of pages) {
+                store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));
+            }
+            store.sync();
+        }
+        this.database.markCommitted();
     }
 
     /** Exposed for tests only. Do not use in production code. */
-    unsafeGetDbForTests(): Database {
+    unsafeGetDbForTests(): ReturnType<Database["unsafeGetDbForTests"]> {
         assert(import.meta.jest);
-        return this.db;
+        return this.database.unsafeGetDbForTests();
     }
 }
