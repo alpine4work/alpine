@@ -394,6 +394,15 @@ export class Database {
                     return true;
                 }
 
+                // Page is in the gap created by a buffered
+                // truncate that a later write past the truncate
+                // re-extended over. Treat as missing so storage
+                // doesn't return pre-truncate data.
+                if (state.bufferedTruncate !== null && offset >= state.bufferedTruncate) {
+                    data.fill(0);
+                    return false;
+                }
+
                 const page = this.storage.readPage(tableId, pageIndex);
                 if (page === null) {
                     data.fill(0);
@@ -414,14 +423,13 @@ export class Database {
                 );
                 const pageIndex = offset / sqlitePageSize;
                 state.bufferedPages.set(pageIndex, new Uint8Array(data));
-                // A write past a buffered truncate
-                // implicitly extends the file again.
-                if (
-                    state.bufferedTruncate !== null &&
-                    (pageIndex + 1) * sqlitePageSize > state.bufferedTruncate
-                ) {
-                    state.bufferedTruncate = null;
-                }
+                // A write past a buffered truncate is fine —
+                // the consumer drains truncate first, so the
+                // post-truncate file is what this write
+                // extends. The truncate stays buffered so its
+                // shrinking effect (zeroing pages between the
+                // truncate boundary and this write) is
+                // preserved.
                 if (this.currentWriteSet !== null) {
                     this.addToTablePageSet(this.currentWriteSet, tableId, pageIndex);
                 }
