@@ -10,7 +10,6 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
-import type {DatabaseStorage} from "~/shared/databases/database_storage.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {sql} from "~/shared/databases/sql.js";
@@ -35,6 +34,50 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
 let sqlite3Promise: Promise<Sqlite3Static> | undefined;
+
+/**
+ * Read-only page storage backing a {@link Database}.
+ *
+ * The {@link Database} layers an in-memory write buffer
+ * over this interface; writes never touch storage
+ * directly. Callers drain the buffer via
+ * {@link Database.getBufferedWrites} and persist it
+ * however they choose — committing it server-side,
+ * fanning it out to OPFS, etc. — then call
+ * {@link Database.markCommitted} to acknowledge or
+ * {@link Database.discardBuffer} to throw it away.
+ *
+ * Pages are partitioned by {@link DatabaseTableId} so a
+ * single backend can host many independent SQLite
+ * databases. The {@link Database} currently only opens
+ * {@link databaseMainTableId}, but the partitioned shape
+ * is preserved here for the per-table backends server
+ * and client both run.
+ *
+ * All methods are synchronous because the SQLite VFS
+ * calls them directly from `xRead`/`xFileSize`.
+ */
+export interface ReadonlyDatabaseStorage {
+    /**
+     * Read a single page by its zero-based index from
+     * the given table.
+     *
+     * - `null` — no page at that index (read returns
+     *   zero-filled bytes; SQLite uses {@link getFileSize}
+     *   to determine EOF).
+     * - `{data, version}` — the durable page and the
+     *   version it was last written at.
+     *
+     * Implementers may also throw to signal a transient
+     * failure (e.g. a missing local cache entry that
+     * needs server fallback). The error propagates out
+     * of the SQL execution.
+     */
+    readPage(tableId: DatabaseTableId, index: number): {data: Uint8Array; version: number} | null;
+
+    /** Current size in bytes of `tableId`'s file. */
+    getFileSize(tableId: DatabaseTableId): number;
+}
 
 /**
  * The pending in-memory writes buffered by a
@@ -77,23 +120,16 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
 /**
  * SQLite database that buffers writes in memory.
  *
- * Built around a read-only {@link DatabaseStorage}: every
+ * Built around a {@link ReadonlyDatabaseStorage}: every
  * write goes into an in-memory buffer rather than the
  * underlying storage, and the caller decides what to do
- * with it. Drain the buffer via {@link bufferedWrites}
- * and persist it however you like; once the writes are
- * durable, call {@link markCommitted} to clear the
- * buffer. To throw the buffer away instead, call
- * {@link discardBuffer} — that clears the buffer and
- * invalidates SQLite's page cache so future reads fall
- * back to storage.
- *
- * Multi-table model: each {@link DatabaseTableId} given
- * at construction is `ATTACH`ed as a separate SQLite
- * database. The first table id must be
- * {@link databaseMainTableId}. The table id appears as
- * the SQLite filename so the VFS can route reads and
- * writes to the right per-table state.
+ * with it. Drain the buffer via
+ * {@link getBufferedWrites} and persist it however you
+ * like; once the writes are durable, call
+ * {@link markCommitted} to clear the buffer. To throw
+ * the buffer away instead, call {@link discardBuffer} —
+ * that clears the buffer and invalidates SQLite's page
+ * cache so future reads fall back to storage.
  *
  * The class does not own connection lifecycle for the
  * underlying storage — the caller stays responsible for
@@ -107,29 +143,16 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
 export class Database {
     private readonly db: SqliteDatabase;
     private readonly vfs: InstalledVfs;
-    private readonly storage: DatabaseStorage;
+    private readonly storage: ReadonlyDatabaseStorage;
     private readonly tables = new Map<DatabaseTableId, DatabaseTableState>();
     private readonly tempFiles = new Map<string, VfsTempFile>();
     private writeLevel: SqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
 
-    private constructor(
-        sqlite3: Sqlite3Static,
-        storage: DatabaseStorage,
-        tableIds: ReadonlyArray<DatabaseTableId>,
-    ) {
+    private constructor(sqlite3: Sqlite3Static, storage: ReadonlyDatabaseStorage) {
         this.storage = storage;
-
-        assert(tableIds.length > 0, "Database requires at least one tableId");
-        assert(tableIds[0] === databaseMainTableId, "first tableId must be databaseMainTableId");
-        for (const tableId of tableIds) {
-            assert(
-                !this.tables.has(tableId),
-                `duplicate tableId in Database constructor: ${tableId}`,
-            );
-            this.tables.set(tableId, new DatabaseTableState());
-        }
+        this.tables.set(databaseMainTableId, new DatabaseTableState());
 
         const capi = sqlite3.capi;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
@@ -186,15 +209,6 @@ export class Database {
         // makes commits atomic.
         this.db.exec("PRAGMA journal_mode = MEMORY");
 
-        // Attach every additional table as its own
-        // database. Each ATTACH path matches the VFS
-        // open routing above.
-        for (let i = 1; i < tableIds.length; i++) {
-            const tableId = tableIds[i]!;
-            // eslint-disable-next-line cyberworlds/string-quotes -- SQL literal
-            this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${tableId}"`);
-        }
-
         // Capture cache-hit reads via the page access hook
         // so {@link execute} returns a complete read set
         // even when SQLite serves pages from its pager
@@ -203,29 +217,18 @@ export class Database {
             if (flags !== pageAccessFlagRead) return;
             const readSet = this.currentReadSet;
             if (readSet === null) return;
-            // The hook fires only on the main database's
-            // pager; attached databases are tracked via
-            // their own VFS file's read path.
-            this.addToTablePageSet(readSet, databaseMainTableId, pgno - 1);
+            addToTablePageSet(readSet, databaseMainTableId, pgno - 1);
         });
     }
 
-    /**
-     * Open a {@link Database}. Initializes SQLite if
-     * needed and attaches every given table as its own
-     * SQLite database. The first id in `tableIds` must
-     * be {@link databaseMainTableId}.
-     */
-    static async create(opts: {
-        storage: DatabaseStorage;
-        tableIds?: ReadonlyArray<DatabaseTableId>;
-    }): Promise<Database> {
+    /** Open a {@link Database} backed by `storage`. */
+    static async create(storage: ReadonlyDatabaseStorage): Promise<Database> {
         if (sqlite3Promise === undefined) {
             const instantiateWasm = trySqlite3WasmLoader();
             sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
         }
         const sqlite3 = await sqlite3Promise;
-        return new Database(sqlite3, opts.storage, opts.tableIds ?? [databaseMainTableId]);
+        return new Database(sqlite3, storage);
     }
 
     /**
@@ -256,11 +259,12 @@ export class Database {
 
     /**
      * Snapshot of every write buffered since the last
-     * {@link markCommitted} or {@link discardBuffer}. The
+     * {@link markCommitted} or {@link discardBuffer}, or
+     * `null` if nothing is currently buffered. The
      * returned maps reference live state; do not mutate
      * them.
      */
-    bufferedWrites(): DatabaseBufferedWrites {
+    getBufferedWrites(): DatabaseBufferedWrites | null {
         const pages = new Map<DatabaseTableId, ReadonlyMap<number, Uint8Array>>();
         const truncates = new Map<DatabaseTableId, number>();
         for (const [tableId, state] of this.tables) {
@@ -271,17 +275,8 @@ export class Database {
                 truncates.set(tableId, state.bufferedTruncate);
             }
         }
+        if (pages.size === 0 && truncates.size === 0) return null;
         return {pages, truncates};
-    }
-
-    /** Whether anything is currently buffered. */
-    hasBufferedWrites(): boolean {
-        for (const state of this.tables.values()) {
-            if (state.bufferedPages.size > 0 || state.bufferedTruncate !== null) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -294,9 +289,7 @@ export class Database {
      */
     markCommitted(): void {
         for (const state of this.tables.values()) {
-            state.bufferedPages.clear();
-            state.bufferedTruncate = null;
-            state.bufferedMaxPageIndex = -1;
+            state.reset();
         }
     }
 
@@ -318,9 +311,7 @@ export class Database {
      */
     discardBuffer(): void {
         for (const state of this.tables.values()) {
-            state.bufferedPages.clear();
-            state.bufferedTruncate = null;
-            state.bufferedMaxPageIndex = -1;
+            state.reset();
         }
         this.db.exec("PRAGMA shrink_memory");
     }
@@ -391,7 +382,7 @@ export class Database {
                 if (buffered !== undefined) {
                     data.set(buffered.subarray(pageOffset, pageOffset + data.byteLength));
                     if (this.currentReadSet !== null) {
-                        this.addToTablePageSet(this.currentReadSet, tableId, pageIndex);
+                        addToTablePageSet(this.currentReadSet, tableId, pageIndex);
                     }
                     return true;
                 }
@@ -412,7 +403,7 @@ export class Database {
                 }
                 data.set(page.data.subarray(pageOffset, pageOffset + data.byteLength));
                 if (this.currentReadSet !== null) {
-                    this.addToTablePageSet(this.currentReadSet, tableId, pageIndex);
+                    addToTablePageSet(this.currentReadSet, tableId, pageIndex);
                 }
                 return true;
             },
@@ -425,7 +416,7 @@ export class Database {
                 );
                 const pageIndex = offset / sqlitePageSize;
                 state.bufferedPages.set(pageIndex, new Uint8Array(data));
-                if (pageIndex > state.bufferedMaxPageIndex) {
+                if (state.bufferedMaxPageIndex === null || pageIndex > state.bufferedMaxPageIndex) {
                     state.bufferedMaxPageIndex = pageIndex;
                 }
                 // A write past a buffered truncate is fine —
@@ -436,24 +427,24 @@ export class Database {
                 // truncate boundary and this write) is
                 // preserved.
                 if (this.currentWriteSet !== null) {
-                    this.addToTablePageSet(this.currentWriteSet, tableId, pageIndex);
+                    addToTablePageSet(this.currentWriteSet, tableId, pageIndex);
                 }
             },
 
             truncate: size => {
                 state.bufferedTruncate = size;
-                let newMax = -1;
-                for (const pageIndex of [...state.bufferedPages.keys()]) {
+                let newMax: number | null = null;
+                for (const pageIndex of state.bufferedPages.keys()) {
                     if ((pageIndex + 1) * sqlitePageSize > size) {
                         state.bufferedPages.delete(pageIndex);
-                    } else if (pageIndex > newMax) {
+                    } else if (newMax === null || pageIndex > newMax) {
                         newMax = pageIndex;
                     }
                 }
                 state.bufferedMaxPageIndex = newMax;
             },
 
-            // No-op: the buffer is what `bufferedWrites`
+            // No-op: the buffer is what `getBufferedWrites`
             // returns. Persistence is the caller's job.
             sync: () => {},
 
@@ -469,21 +460,10 @@ export class Database {
                 ? state.bufferedTruncate
                 : this.storage.getFileSize(tableId);
         const bufferedExtent =
-            state.bufferedMaxPageIndex >= 0 ? (state.bufferedMaxPageIndex + 1) * sqlitePageSize : 0;
+            state.bufferedMaxPageIndex !== null
+                ? (state.bufferedMaxPageIndex + 1) * sqlitePageSize
+                : 0;
         return baseSize > bufferedExtent ? baseSize : bufferedExtent;
-    }
-
-    private addToTablePageSet(
-        target: Map<DatabaseTableId, Set<number>>,
-        tableId: DatabaseTableId,
-        pageIndex: number,
-    ): void {
-        let set = target.get(tableId);
-        if (set === undefined) {
-            set = new Set();
-            target.set(tableId, set);
-        }
-        set.add(pageIndex);
     }
 }
 
@@ -496,10 +476,29 @@ class DatabaseTableState {
      */
     bufferedTruncate: number | null = null;
     /**
-     * Highest page index in {@link bufferedPages}, or `-1`
-     * if empty. Tracked incrementally so {@link Database}
-     * can compute file size in O(1) instead of scanning
-     * the buffer on every read.
+     * Highest page index in {@link bufferedPages}, or
+     * `null` if empty. Tracked incrementally so
+     * {@link Database} can compute file size in O(1)
+     * instead of scanning the buffer on every read.
      */
-    bufferedMaxPageIndex = -1;
+    bufferedMaxPageIndex: number | null = null;
+
+    reset(): void {
+        this.bufferedPages.clear();
+        this.bufferedTruncate = null;
+        this.bufferedMaxPageIndex = null;
+    }
+}
+
+function addToTablePageSet(
+    target: Map<DatabaseTableId, Set<number>>,
+    tableId: DatabaseTableId,
+    pageIndex: number,
+): void {
+    let set = target.get(tableId);
+    if (set === undefined) {
+        set = new Set();
+        target.set(tableId, set);
+    }
+    set.add(pageIndex);
 }
