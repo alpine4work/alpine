@@ -427,6 +427,86 @@ describe("Database — discardBuffer", () => {
         const after = db1.execute("SELECT id FROM t ORDER BY id", {allowWrites: "none"});
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
     });
+
+    // The two tests below are paired. They share a setup
+    // that primes db1's pager cache with a specific
+    // mid-table page, then mutates that exact page through
+    // a second database on the same storage. The "normal"
+    // case must see the new value after `discardBuffer`;
+    // the `skipClearCacheForTests` case must see the
+    // stale cached value. Together they prove that the
+    // `PRAGMA shrink_memory` inside `discardBuffer` is
+    // load-bearing — without it, in-place interior page
+    // mutations stay invisible behind a stale pager cache.
+    async function setupInteriorPageMutation(): Promise<{
+        db1: Database;
+        storage: InMemoryStorage;
+        targetId: number;
+    }> {
+        const storage = new InMemoryStorage();
+        const {database: db1} = await createDatabase(storage);
+        db1.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)", {
+            allowWrites: "schema+data",
+        });
+        // Insert enough fixed-size rows to spill across
+        // multiple pages, so the target row sits on a
+        // non-schema page.
+        for (let i = 1; i <= 200; i++) {
+            db1.execute(`INSERT INTO t VALUES (${i}, ${i})`, {allowWrites: "data"});
+        }
+        commit(db1, storage);
+
+        // Prime db1's pager cache by reading the row we'll
+        // later mutate from db2.
+        const targetId = 100;
+        const before = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+            allowWrites: "none",
+        });
+        expect(before.rows).toEqual([{v: targetId}]);
+
+        return {db1, storage, targetId};
+    }
+
+    async function applyExternalInPlaceUpdate(
+        storage: InMemoryStorage,
+        targetId: number,
+    ): Promise<void> {
+        const {database: db2} = await createDatabase(storage);
+        // INTEGER → INTEGER same-width update; SQLite
+        // updates the row in place, mutating an existing
+        // interior page rather than appending.
+        db2.execute(`UPDATE t SET v = 999 WHERE id = ${targetId}`, {allowWrites: "data"});
+        commit(db2, storage);
+        db2.close();
+    }
+
+    test("makes interior-page mutations visible (normal mode)", async () => {
+        const {db1, storage, targetId} = await setupInteriorPageMutation();
+
+        await applyExternalInPlaceUpdate(storage, targetId);
+
+        db1.discardBuffer();
+        const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+            allowWrites: "none",
+        });
+        expect(after.rows).toEqual([{v: 999}]);
+    });
+
+    test("with skipClearCacheForTests, serves the stale cached page", async () => {
+        const {db1, storage, targetId} = await setupInteriorPageMutation();
+
+        await applyExternalInPlaceUpdate(storage, targetId);
+
+        db1.discardBuffer({skipClearCacheForTests: true});
+        const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+            allowWrites: "none",
+        });
+        // Stale cached page wins: db1 still serves the
+        // pre-mutation value because shrink_memory was
+        // skipped. This failure mode is exactly what the
+        // normal-mode test above is guarding against.
+        expect(after.rows).toEqual([{v: targetId}]);
+    });
 });
 
 describe("Database — read path edge cases", () => {

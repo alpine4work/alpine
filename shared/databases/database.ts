@@ -302,11 +302,17 @@ export class Database {
      * subsequent reads re-issue `xRead` and pick up the
      * underlying storage.
      */
-    discardBuffer(): void {
+    discardBuffer(options?: {skipClearCacheForTests?: boolean}): void {
         for (const state of this.tables.values()) {
             state.reset();
         }
-        this.db.exec("PRAGMA shrink_memory");
+        // `skipClearCacheForTests` exists so the cache-
+        // invalidation regression test can prove this
+        // pragma is load-bearing — never set it in
+        // production code.
+        if (options?.skipClearCacheForTests !== true) {
+            this.db.exec("PRAGMA shrink_memory");
+        }
     }
 
     close(): void {
