@@ -70,17 +70,10 @@ function makePage(marker: number): Uint8Array {
     return data;
 }
 
-function writeMain(
-    doStorage: DatabaseDurableObjectStorage,
-    tablePages: ReadonlyMap<number, Uint8Array>,
-): number {
-    return doStorage.writePages(new Map([[databaseMainTableId, tablePages]]));
-}
-
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(doStorage, new Map([[0, makePage(0xaa)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const ts = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
@@ -92,8 +85,8 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns updated pages when few are stale", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -119,7 +112,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(doStorage, new Map([[0, makePage(0xaa)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
@@ -138,7 +131,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("mixes updated pages and stale indexes", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(doStorage, new Map([[0, makePage(0xaa)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const conn = createConnection(doStorage);
 
         // Page 0 is stale (mismatched ts), page 5 is
@@ -164,7 +157,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writeMain(doStorage, pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages are stale (client has ts=0 for each)
@@ -191,7 +184,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writeMain(doStorage, pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages stale
@@ -208,8 +201,8 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns stale indexes for tombstoned pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -244,7 +237,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        writeMain(doStorage, pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         const clientVersions = new Map<number, number>();
@@ -288,8 +281,8 @@ function createTrackedConnection(
 describe("per-browser page tracking", () => {
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -328,8 +321,8 @@ describe("per-browser page tracking", () => {
 
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -438,8 +431,8 @@ describe("per-browser page tracking", () => {
 
     test("transformEvent filters pages to only those the client might have", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -490,8 +483,8 @@ describe("per-browser page tracking", () => {
 
     test("transformEvent includes pending pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
@@ -558,8 +551,8 @@ describe("per-browser page tracking", () => {
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],

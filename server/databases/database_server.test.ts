@@ -10,16 +10,16 @@ import {Schema} from "~/shared/schema/schema.js";
 interface InMemoryTable {
     pages: Map<number, {data: Uint8Array | null; version: number}>;
     fileSize: number;
+    lastWriteVersion: number;
 }
 
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
-    private lastWriteVersion = 0;
 
     private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
         let table = this.tables.get(databaseTableId);
         if (table === undefined) {
-            table = {pages: new Map(), fileSize: 0};
+            table = {pages: new Map(), fileSize: 0, lastWriteVersion: 0};
             this.tables.set(databaseTableId, table);
         }
         return table;
@@ -33,17 +33,14 @@ class InMemoryStorage implements DatabaseServerStorage {
         return table?.pages.get(index) ?? null;
     }
 
-    writePages(pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>): number {
-        const version = ++this.lastWriteVersion;
-        for (const [databaseTableId, tablePages] of pages) {
-            if (tablePages.size === 0) continue;
-            const table = this.getTable(databaseTableId);
-            for (const [index, data] of tablePages) {
-                table.pages.set(index, {data: new Uint8Array(data), version});
-                const end = (index + 1) * sqlitePageSize;
-                if (end > table.fileSize) {
-                    table.fileSize = end;
-                }
+    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number {
+        const table = this.getTable(databaseTableId);
+        const version = ++table.lastWriteVersion;
+        for (const [index, data] of pages) {
+            table.pages.set(index, {data: new Uint8Array(data), version});
+            const end = (index + 1) * sqlitePageSize;
+            if (end > table.fileSize) {
+                table.fileSize = end;
             }
         }
         return version;
@@ -57,7 +54,7 @@ class InMemoryStorage implements DatabaseServerStorage {
         const table = this.getTable(databaseTableId);
         table.fileSize = size;
         const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const version = ++this.lastWriteVersion;
+        const version = ++table.lastWriteVersion;
         for (const [index] of table.pages) {
             if (index >= maxPageIndex) {
                 table.pages.set(index, {data: null, version});

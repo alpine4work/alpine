@@ -30,15 +30,12 @@ export interface DatabaseServerStorage {
     ): {data: Uint8Array | null; version: number} | null;
 
     /**
-     * Write a batch of pages across one or more tables.
-     * Called from `xSync` with all pages that were dirtied
-     * since the last sync. Returns the monotonically
-     * increasing version assigned to this write — versions
-     * are shared across all tables in the same backend, so
-     * every row inserted by this call shares the returned
-     * value.
+     * Write a batch of pages to the given table. Called from
+     * `xSync` with all pages that were dirtied since the last
+     * sync. Returns the monotonically increasing version
+     * assigned to this write within that table.
      */
-    writePages(pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>): number;
+    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number;
 
     /** Return the current file size in bytes for the given table. */
     getFileSize(databaseTableId: DatabaseTableId): number;

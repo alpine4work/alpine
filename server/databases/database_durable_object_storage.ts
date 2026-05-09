@@ -22,15 +22,11 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * The `sqlite_id` is purely an internal storage optimization
  * and never leaks across the {@link DatabaseServerStorage}
  * boundary.
- *
- * Versions are a single monotonically-increasing counter
- * shared across every table — useful for ordering writes
- * across databases hosted in the same backend.
  */
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     private readonly sql: SqlStorage;
     private readonly sqliteIds = new Map<DatabaseTableId, number>();
-    private lastWriteVersion: number | null = null;
+    private readonly lastWriteVersions = new Map<DatabaseTableId, number>();
     private readonly fileSizes = new Map<DatabaseTableId, number>();
 
     constructor(sql: SqlStorage) {
@@ -80,23 +76,20 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         };
     }
 
-    writePages(pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>): number {
-        const version = this.nextVersion();
-        for (const [databaseTableId, tablePages] of pages) {
-            if (tablePages.size === 0) continue;
-            const sqliteId = this.getOrCreateSqliteId(databaseTableId);
-            for (const [index, data] of tablePages) {
-                this.sql.exec(
-                    "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
-                    sqliteId,
-                    index,
-                    version,
-                    data.buffer,
-                );
-                const end = (index + 1) * sqlitePageSize;
-                if (end > this.getFileSize(databaseTableId)) {
-                    this.fileSizes.set(databaseTableId, end);
-                }
+    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number {
+        const sqliteId = this.getOrCreateSqliteId(databaseTableId);
+        const version = this.nextVersion(databaseTableId, sqliteId);
+        for (const [index, data] of pages) {
+            this.sql.exec(
+                "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
+                sqliteId,
+                index,
+                version,
+                data.buffer,
+            );
+            const end = (index + 1) * sqlitePageSize;
+            if (end > this.getFileSize(databaseTableId)) {
+                this.fileSizes.set(databaseTableId, end);
             }
         }
         return version;
@@ -139,7 +132,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     truncate(databaseTableId: DatabaseTableId, size: number): void {
         const sqliteId = this.getOrCreateSqliteId(databaseTableId);
         const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const version = this.nextVersion();
+        const version = this.nextVersion(databaseTableId, sqliteId);
         for (const {page_index} of this.sql.exec<{page_index: number}>(
             "SELECT DISTINCT page_index FROM pages WHERE sqlite_id = ? AND page_index >= ?",
             sqliteId,
@@ -155,21 +148,25 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         this.fileSizes.set(databaseTableId, size);
     }
 
-    private nextVersion(): number {
-        const prev = this.getLastWriteVersion();
+    private nextVersion(databaseTableId: DatabaseTableId, sqliteId: number): number {
+        const prev = this.getLastWriteVersion(databaseTableId, sqliteId);
         const version = prev + 1;
-        this.lastWriteVersion = version;
+        this.lastWriteVersions.set(databaseTableId, version);
         return version;
     }
 
-    private getLastWriteVersion(): number {
-        if (this.lastWriteVersion !== null) {
-            return this.lastWriteVersion;
+    private getLastWriteVersion(databaseTableId: DatabaseTableId, sqliteId: number): number {
+        const cached = this.lastWriteVersions.get(databaseTableId);
+        if (cached !== undefined) {
+            return cached;
         }
-        const result = this.sql.exec<{v: number | null}>("SELECT MAX(version) AS v FROM pages");
+        const result = this.sql.exec<{v: number | null}>(
+            "SELECT MAX(version) AS v FROM pages WHERE sqlite_id = ?",
+            sqliteId,
+        );
         const row = result.next();
         const v = row.done || row.value.v === null ? 0 : row.value.v;
-        this.lastWriteVersion = v;
+        this.lastWriteVersions.set(databaseTableId, v);
         return v;
     }
 

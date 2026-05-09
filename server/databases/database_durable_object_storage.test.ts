@@ -11,13 +11,6 @@ beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
 });
 
-function writeMain(
-    doStorage: DatabaseDurableObjectStorage,
-    tablePages: ReadonlyMap<number, Uint8Array>,
-): number {
-    return doStorage.writePages(new Map([[databaseMainTableId, tablePages]]));
-}
-
 describe("DatabaseDurableObjectStorage", () => {
     test("construct, write pages, read them back", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
@@ -26,7 +19,7 @@ describe("DatabaseDurableObjectStorage", () => {
         page[0] = 0xab;
         page[sqlitePageSize - 1] = 0xcd;
 
-        writeMain(doStorage, new Map([[0, page]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, page]]));
 
         const {data: read, version} = doStorage.readPage(databaseMainTableId, 0)!;
 
@@ -47,8 +40,8 @@ describe("DatabaseDurableObjectStorage", () => {
 
         expect(doStorage.getFileSize(databaseMainTableId)).toBe(0);
 
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [2, new Uint8Array(sqlitePageSize)],
@@ -61,8 +54,8 @@ describe("DatabaseDurableObjectStorage", () => {
     test("truncate writes tombstones for pages at or beyond the threshold", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -88,7 +81,7 @@ describe("DatabaseDurableObjectStorage", () => {
     test("readPage returns tombstone after truncate", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        writeMain(doStorage, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
         doStorage.truncate(databaseMainTableId, 0);
 
         const page = doStorage.readPage(databaseMainTableId, 0);
@@ -100,8 +93,8 @@ describe("DatabaseDurableObjectStorage", () => {
     test("getFileSize is correct after truncate", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -117,8 +110,8 @@ describe("DatabaseDurableObjectStorage", () => {
     test("writePages after truncate correctly extends file size", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -128,14 +121,17 @@ describe("DatabaseDurableObjectStorage", () => {
         expect(doStorage.getFileSize(databaseMainTableId)).toBe(1 * sqlitePageSize);
 
         // Write a page beyond the current file size.
-        writeMain(doStorage, new Map([[3, new Uint8Array(sqlitePageSize)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[3, new Uint8Array(sqlitePageSize)]]));
         expect(doStorage.getFileSize(databaseMainTableId)).toBe(4 * sqlitePageSize);
     });
 
     test("writePages returns the version it stamped onto the rows", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        const returned = writeMain(doStorage, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const returned = doStorage.writePages(
+            databaseMainTableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
 
         const {version} = doStorage.readPage(databaseMainTableId, 0)!;
         expect(returned).toBe(version);
@@ -146,7 +142,12 @@ describe("DatabaseDurableObjectStorage", () => {
 
         const versions: Array<number> = [];
         for (let i = 0; i < 50; i++) {
-            versions.push(writeMain(doStorage, new Map([[i, new Uint8Array(sqlitePageSize)]])));
+            versions.push(
+                doStorage.writePages(
+                    databaseMainTableId,
+                    new Map([[i, new Uint8Array(sqlitePageSize)]]),
+                ),
+            );
         }
 
         for (let i = 1; i < versions.length; i++) {
@@ -157,8 +158,8 @@ describe("DatabaseDurableObjectStorage", () => {
     test("truncate version is strictly greater than prior writePages version", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        const writeVersion = writeMain(
-            doStorage,
+        const writeVersion = doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -178,8 +179,8 @@ describe("DatabaseDurableObjectStorage", () => {
         const second = new Uint8Array(sqlitePageSize);
         second[0] = 0x22;
 
-        writeMain(doStorage, new Map([[0, first]]));
-        writeMain(doStorage, new Map([[0, second]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, first]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, second]]));
 
         const {data} = doStorage.readPage(databaseMainTableId, 0)!;
         expect(data![0]).toBe(0x22);
@@ -192,10 +193,16 @@ describe("DatabaseDurableObjectStorage", () => {
         // write must produce a version strictly greater than
         // the previously-persisted one.
         const first = new DatabaseDurableObjectStorage(storage.sql);
-        const seedVersion = writeMain(first, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const seedVersion = first.writePages(
+            databaseMainTableId,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
 
         const reloaded = new DatabaseDurableObjectStorage(storage.sql);
-        const nextVersion = writeMain(reloaded, new Map([[1, new Uint8Array(sqlitePageSize)]]));
+        const nextVersion = reloaded.writePages(
+            databaseMainTableId,
+            new Map([[1, new Uint8Array(sqlitePageSize)]]),
+        );
 
         expect(nextVersion).toBeGreaterThan(seedVersion);
     });
@@ -207,8 +214,8 @@ describe("DatabaseDurableObjectStorage", () => {
         // by writing a tombstone row directly so we can probe
         // the size query without going through truncate (which
         // would tombstone the trailing pages too).
-        writeMain(
-            doStorage,
+        doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, new Uint8Array(sqlitePageSize)],
                 [1, new Uint8Array(sqlitePageSize)],
@@ -251,12 +258,8 @@ describe("DatabaseDurableObjectStorage", () => {
         const pageB = new Uint8Array(sqlitePageSize);
         pageB[0] = 0xb2;
 
-        doStorage.writePages(
-            new Map([
-                [tableA, new Map([[0, pageA]])],
-                [tableB, new Map([[0, pageB]])],
-            ]),
-        );
+        doStorage.writePages(tableA, new Map([[0, pageA]]));
+        doStorage.writePages(tableB, new Map([[0, pageB]]));
 
         expect(doStorage.readPage(tableA, 0)!.data![0]).toBe(0xa1);
         expect(doStorage.readPage(tableB, 0)!.data![0]).toBe(0xb2);
@@ -268,57 +271,29 @@ describe("DatabaseDurableObjectStorage", () => {
         const tableB = generateChronologicalId<DatabaseTableId>();
 
         doStorage.writePages(
+            tableA,
             new Map([
-                [
-                    tableA,
-                    new Map([
-                        [0, new Uint8Array(sqlitePageSize)],
-                        [1, new Uint8Array(sqlitePageSize)],
-                    ]),
-                ],
-                [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
+                [0, new Uint8Array(sqlitePageSize)],
+                [1, new Uint8Array(sqlitePageSize)],
             ]),
         );
+        doStorage.writePages(tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
         expect(doStorage.getFileSize(tableA)).toBe(2 * sqlitePageSize);
         expect(doStorage.getFileSize(tableB)).toBe(1 * sqlitePageSize);
     });
 
-    test("versions are shared across tables", () => {
+    test("versions are tracked per table", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tableA = generateChronologicalId<DatabaseTableId>();
         const tableB = generateChronologicalId<DatabaseTableId>();
 
-        const a1 = doStorage.writePages(
-            new Map([[tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])]]),
-        );
-        const b1 = doStorage.writePages(
-            new Map([[tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])]]),
-        );
-        const a2 = doStorage.writePages(
-            new Map([[tableA, new Map([[1, new Uint8Array(sqlitePageSize)]])]]),
-        );
+        const a1 = doStorage.writePages(tableA, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const a2 = doStorage.writePages(tableA, new Map([[1, new Uint8Array(sqlitePageSize)]]));
+        const b1 = doStorage.writePages(tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
-        // Each call bumps the global counter, so writes
-        // across tables are strictly ordered.
-        expect(b1).toBe(a1 + 1);
-        expect(a2).toBe(b1 + 1);
-    });
-
-    test("multi-table writePages stamps every row with the same version", () => {
-        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
-
-        const version = doStorage.writePages(
-            new Map([
-                [tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])],
-                [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
-            ]),
-        );
-
-        expect(doStorage.readPage(tableA, 0)!.version).toBe(version);
-        expect(doStorage.readPage(tableB, 0)!.version).toBe(version);
+        expect(a2).toBe(a1 + 1);
+        expect(b1).toBe(1);
     });
 
     test("readPage on unknown table returns null without registering an id", () => {
