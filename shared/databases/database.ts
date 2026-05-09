@@ -296,6 +296,7 @@ export class Database {
         for (const state of this.tables.values()) {
             state.bufferedPages.clear();
             state.bufferedTruncate = null;
+            state.bufferedMaxPageIndex = -1;
         }
     }
 
@@ -319,6 +320,7 @@ export class Database {
         for (const state of this.tables.values()) {
             state.bufferedPages.clear();
             state.bufferedTruncate = null;
+            state.bufferedMaxPageIndex = -1;
         }
         this.db.exec("PRAGMA shrink_memory");
     }
@@ -423,6 +425,9 @@ export class Database {
                 );
                 const pageIndex = offset / sqlitePageSize;
                 state.bufferedPages.set(pageIndex, new Uint8Array(data));
+                if (pageIndex > state.bufferedMaxPageIndex) {
+                    state.bufferedMaxPageIndex = pageIndex;
+                }
                 // A write past a buffered truncate is fine —
                 // the consumer drains truncate first, so the
                 // post-truncate file is what this write
@@ -437,11 +442,15 @@ export class Database {
 
             truncate: size => {
                 state.bufferedTruncate = size;
+                let newMax = -1;
                 for (const pageIndex of [...state.bufferedPages.keys()]) {
                     if ((pageIndex + 1) * sqlitePageSize > size) {
                         state.bufferedPages.delete(pageIndex);
+                    } else if (pageIndex > newMax) {
+                        newMax = pageIndex;
                     }
                 }
+                state.bufferedMaxPageIndex = newMax;
             },
 
             // No-op: the buffer is what `bufferedWrites`
@@ -455,15 +464,13 @@ export class Database {
     }
 
     private getFileSizeForTable(tableId: DatabaseTableId, state: DatabaseTableState): number {
-        let size =
+        const baseSize =
             state.bufferedTruncate !== null
                 ? state.bufferedTruncate
                 : this.storage.getFileSize(tableId);
-        for (const pageIndex of state.bufferedPages.keys()) {
-            const end = (pageIndex + 1) * sqlitePageSize;
-            if (end > size) size = end;
-        }
-        return size;
+        const bufferedExtent =
+            state.bufferedMaxPageIndex >= 0 ? (state.bufferedMaxPageIndex + 1) * sqlitePageSize : 0;
+        return baseSize > bufferedExtent ? baseSize : bufferedExtent;
     }
 
     private addToTablePageSet(
@@ -488,4 +495,11 @@ class DatabaseTableState {
      * no truncate is currently buffered.
      */
     bufferedTruncate: number | null = null;
+    /**
+     * Highest page index in {@link bufferedPages}, or `-1`
+     * if empty. Tracked incrementally so {@link Database}
+     * can compute file size in O(1) instead of scanning
+     * the buffer on every read.
+     */
+    bufferedMaxPageIndex = -1;
 }
