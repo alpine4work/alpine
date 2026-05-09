@@ -272,6 +272,33 @@ describe("Database — error handling", () => {
             "nested execute calls are not supported",
         );
     });
+
+    test("re-entrancy guard resets after a thrown execute", async () => {
+        // After the nested-call assertion fires, the
+        // writeLevel/currentReadSet/currentWriteSet fields
+        // must be cleared by the `finally` block — otherwise
+        // every subsequent execute will see a non-null
+        // writeLevel and falsely trip the same assertion.
+        const {database, storage} = await createDatabaseWithSchema(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+        );
+        const innerDb = database.unsafeGetDbForTests();
+        innerDb.createFunction("reenter", () => {
+            database.execute("SELECT 1", {allowWrites: "none"});
+            return 0;
+        });
+
+        expect(() => database.execute("SELECT reenter()", {allowWrites: "none"})).toThrow();
+
+        // Subsequent normal executes work — read and write.
+        const read = database.execute("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
+        expect(read.rows).toEqual([{n: 0}]);
+
+        database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+        commit(database, storage);
+        const after = database.execute("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
+        expect(after.rows).toEqual([{n: 1}]);
+    });
 });
 
 describe("Database — getBufferedWrites", () => {
@@ -325,6 +352,25 @@ describe("Database — getBufferedWrites", () => {
         expect(database.getBufferedWrites()).toBeNull();
     });
 
+    test("returns the same inner page-map reference across calls (live state)", async () => {
+        // The docstring on getBufferedWrites promises the
+        // returned inner maps reference live state. Pin it
+        // down so callers can drain into a wire format
+        // without paying for a copy on every read.
+        const {database} = await createDatabase();
+        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+
+        const first = database.getBufferedWrites();
+        const second = database.getBufferedWrites();
+
+        expect(first).not.toBeNull();
+        expect(second).not.toBeNull();
+        // Outer map is fresh per call (different reference).
+        expect(first).not.toBe(second);
+        // Inner per-table page map IS shared — same reference.
+        expect(first!.pages.get(databaseMainTableId)).toBe(second!.pages.get(databaseMainTableId));
+    });
+
     test("buffer accumulates across multiple execute calls", async () => {
         const {database} = await createDatabase();
 
@@ -353,6 +399,23 @@ describe("Database — markCommitted", () => {
         expect(result.rows).toEqual([{id: 1, val: "hello"}]);
     });
 
+    test("is a no-op on a fresh database (no buffered writes)", async () => {
+        const {database, storage} = await createDatabase();
+        expect(() => database.markCommitted()).not.toThrow();
+        expect(database.getBufferedWrites()).toBeNull();
+        // Storage is untouched.
+        expect(storage.getFileSize(databaseMainTableId)).toBe(0);
+    });
+
+    test("called twice in a row is a no-op the second time", async () => {
+        const {database, storage} = await createDatabase();
+        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        commit(database, storage);
+
+        expect(() => database.markCommitted()).not.toThrow();
+        expect(database.getBufferedWrites()).toBeNull();
+    });
+
     test("writes after commit are buffered fresh, not merged with prior commit", async () => {
         const {database, storage} = await createDatabase();
 
@@ -370,6 +433,20 @@ describe("Database — markCommitted", () => {
 });
 
 describe("Database — discardBuffer", () => {
+    test("is a no-op on a fresh database (no buffered writes)", async () => {
+        const {database} = await createDatabase();
+        expect(() => database.discardBuffer()).not.toThrow();
+        expect(database.getBufferedWrites()).toBeNull();
+    });
+
+    test("called twice in a row is a no-op the second time", async () => {
+        const {database} = await createDatabase();
+        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.discardBuffer();
+        expect(() => database.discardBuffer()).not.toThrow();
+        expect(database.getBufferedWrites()).toBeNull();
+    });
+
     test("rolls back buffered writes — table no longer exists", async () => {
         const {database} = await createDatabase();
 
@@ -428,17 +505,35 @@ describe("Database — discardBuffer", () => {
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
     });
 
-    // The two tests below are paired. They share a setup
-    // that primes db1's pager cache with a specific
-    // mid-table page, then mutates that exact page through
-    // a second database on the same storage. The "normal"
-    // case must see the new value after `discardBuffer`;
-    // the `skipClearCacheForTests` case must see the
-    // stale cached value. Together they prove that the
-    // `PRAGMA shrink_memory` inside `discardBuffer` is
-    // load-bearing — without it, in-place interior page
-    // mutations stay invisible behind a stale pager cache.
-    async function setupInteriorPageMutation(): Promise<{
+    // The two tests below are paired. They reproduce the
+    // production failure mode where SQLite's change-counter
+    // optimization defeats us: client and server both
+    // independently bump the database header's change
+    // counter from N to N+1, so SQLite — comparing its
+    // cached counter against storage's counter — concludes
+    // "nothing changed" and serves the discarded buffered
+    // write from its pager cache.
+    //
+    // Concrete sequence:
+    //   1. db1 (the "client") and db2 (the "server") share
+    //      storage at baseline change counter N.
+    //   2. db1 buffers an UPDATE locally (writes value A).
+    //      SQLite bumps the change counter to N+1 in db1's
+    //      cached page 0.
+    //   3. db2 commits an independent UPDATE (writes value
+    //      B) through storage. Storage's change counter
+    //      becomes N+1 — same as db1's cached counter.
+    //   4. db1.discardBuffer() drops db1's buffered writes
+    //      (rebase: throw away the optimistic local edit).
+    //   5. db1 reads. Storage now holds B; db1's pager
+    //      cache holds A (the buffered, now-discarded
+    //      after-image) and counter N+1 (matching storage).
+    //
+    // Without `PRAGMA shrink_memory`, SQLite trusts its
+    // cache and returns A. With it, the cache is dropped,
+    // xRead is re-issued against storage, and B is
+    // returned — the correct post-rebase state.
+    async function setupCounterCollision(): Promise<{
         db1: Database;
         storage: InMemoryStorage;
         targetId: number;
@@ -448,64 +543,68 @@ describe("Database — discardBuffer", () => {
         db1.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)", {
             allowWrites: "schema+data",
         });
-        // Insert enough fixed-size rows to spill across
-        // multiple pages, so the target row sits on a
-        // non-schema page.
+        // Spread rows across multiple pages so the target
+        // row sits past the schema page.
         for (let i = 1; i <= 200; i++) {
             db1.execute(`INSERT INTO t VALUES (${i}, ${i})`, {allowWrites: "data"});
         }
         commit(db1, storage);
 
-        // Prime db1's pager cache by reading the row we'll
-        // later mutate from db2.
         const targetId = 100;
-        const before = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+
+        // db1 buffers an optimistic local update — value A.
+        // SQLite bumps the cached change counter on page 0.
+        db1.execute(`UPDATE t SET v = -1 WHERE id = ${targetId}`, {allowWrites: "data"});
+
+        // Prime db1's pager cache for the target row by
+        // reading it. SQLite serves the buffered (A) value,
+        // and now caches that page along with page 0.
+        const buffered = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
-        expect(before.rows).toEqual([{v: targetId}]);
+        expect(buffered.rows).toEqual([{v: -1}]);
+
+        // db2 (the "server") opens against the same storage
+        // — it sees the pre-buffered baseline (db1's buffer
+        // never touched storage). db2 commits its own
+        // update, which bumps storage's change counter
+        // from N to N+1, matching db1's cached counter.
+        const {database: db2} = await createDatabase(storage);
+        db2.execute(`UPDATE t SET v = 999 WHERE id = ${targetId}`, {allowWrites: "data"});
+        commit(db2, storage);
+        db2.close();
 
         return {db1, storage, targetId};
     }
 
-    async function applyExternalInPlaceUpdate(
-        storage: InMemoryStorage,
-        targetId: number,
-    ): Promise<void> {
-        const {database: db2} = await createDatabase(storage);
-        // INTEGER → INTEGER same-width update; SQLite
-        // updates the row in place, mutating an existing
-        // interior page rather than appending.
-        db2.execute(`UPDATE t SET v = 999 WHERE id = ${targetId}`, {allowWrites: "data"});
-        commit(db2, storage);
-        db2.close();
-    }
-
-    test("makes interior-page mutations visible (normal mode)", async () => {
-        const {db1, storage, targetId} = await setupInteriorPageMutation();
-
-        await applyExternalInPlaceUpdate(storage, targetId);
+    test("invalidates cache when local + remote both bump the change counter (normal mode)", async () => {
+        const {db1, targetId} = await setupCounterCollision();
 
         db1.discardBuffer();
+
         const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
+        // Server's value wins — discardBuffer dropped both
+        // the local buffer and the stale pager cache.
         expect(after.rows).toEqual([{v: 999}]);
     });
 
-    test("with skipClearCacheForTests, serves the stale cached page", async () => {
-        const {db1, storage, targetId} = await setupInteriorPageMutation();
-
-        await applyExternalInPlaceUpdate(storage, targetId);
+    test("with skipClearCacheForTests, serves the discarded local write past a counter collision", async () => {
+        const {db1, targetId} = await setupCounterCollision();
 
         db1.discardBuffer({skipClearCacheForTests: true});
+
         const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
-        // Stale cached page wins: db1 still serves the
-        // pre-mutation value because shrink_memory was
-        // skipped. This failure mode is exactly what the
+        // The discarded local value wins because SQLite's
+        // cached change counter (N+1) matches storage's
+        // counter (N+1, from the server's commit), so SQLite
+        // sees "no external change" and serves the stale
+        // pager cache. This is exactly the failure mode the
         // normal-mode test above is guarding against.
-        expect(after.rows).toEqual([{v: targetId}]);
+        expect(after.rows).toEqual([{v: -1}]);
     });
 });
 
@@ -585,6 +684,53 @@ describe("Database — read path edge cases", () => {
         expect(() => database.execute("SELECT COUNT(*) FROM t", {allowWrites: "none"})).toThrow(
             "storage failure",
         );
+    });
+
+    test("storage error rethrown by execute carries the SQLite error as `cause`", async () => {
+        // Same harness as above, but asserting the cause-
+        // chaining done in `runTracked`: the stashed VFS
+        // error is rethrown as the outer error, with the
+        // SQLite-side error attached via `.cause`.
+        const {database: setup, storage} = await createDatabase();
+        setup.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
+            allowWrites: "schema+data",
+        });
+        for (let i = 1; i <= 50; i++) {
+            setup.execute(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
+                allowWrites: "data",
+            });
+        }
+        commit(setup, storage);
+        setup.close();
+        openDatabases.pop();
+
+        let failOnRead = false;
+        const proxy: ReadonlyDatabaseStorage = {
+            readPage(tableId, index) {
+                if (failOnRead && index > 0) throw new InternalError("storage failure");
+                return storage.readPage(tableId, index);
+            },
+            getFileSize(tableId) {
+                return storage.getFileSize(tableId);
+            },
+        };
+
+        const database = await Database.create(proxy);
+        openDatabases.push(database);
+        failOnRead = true;
+        database.discardBuffer();
+
+        let caught: unknown;
+        try {
+            database.execute("SELECT COUNT(*) FROM t", {allowWrites: "none"});
+        } catch (error) {
+            caught = error;
+        }
+        expect(caught).toBeInstanceOf(InternalError);
+        expect((caught as Error).message).toContain("storage failure");
+        // SQLite's error is chained as the cause so the
+        // original control-flow path remains diagnosable.
+        expect((caught as Error).cause).toBeDefined();
     });
 });
 
@@ -674,6 +820,38 @@ describe("Database — truncate semantics", () => {
                 expect((pageIndex + 1) * sqlitePageSize).toBeLessThanOrEqual(truncateSize!);
             }
         }
+    });
+
+    test("VACUUM does not surface the truncate in writtenPages", async () => {
+        // `writtenPages` only tracks page writes. Truncates
+        // are surfaced separately, via `getBufferedWrites`.
+        // Pin the contract so callers can rely on it.
+        const {database, storage} = await createDatabaseWithSchema(
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)",
+            ...Array.from(
+                {length: 50},
+                (_, i) => `INSERT INTO t VALUES (${i + 1}, '${"x".repeat(200)}')`,
+            ),
+            "DELETE FROM t",
+        );
+
+        const result = database.execute("VACUUM", {allowWrites: "schema+data"});
+
+        // Truncate did happen — observable via the buffer.
+        const buffered = database.getBufferedWrites();
+        expect(buffered?.truncates.has(databaseMainTableId)).toBe(true);
+
+        // But VACUUM also rewrites pages; those *do* show
+        // up in writtenPages. The contract under test is
+        // narrower: there's no separate "tableId truncated"
+        // entry. writtenPages is page-granular only.
+        const written = result.writtenPages.get(databaseMainTableId);
+        expect(written).toBeDefined();
+        for (const pageIndex of written!) {
+            expect(typeof pageIndex).toBe("number");
+            expect(pageIndex).toBeGreaterThanOrEqual(0);
+        }
+        commit(database, storage);
     });
 });
 
