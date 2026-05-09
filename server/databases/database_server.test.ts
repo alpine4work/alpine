@@ -3,41 +3,61 @@
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {sql} from "~/shared/databases/sql.js";
-import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-class InMemoryStorage implements DatabaseServerStorage {
-    private pages = new Map<number, {data: Uint8Array | null; version: number}>();
-    private _fileSize = 0;
-    private lastWriteVersion = 0;
+interface InMemoryTable {
+    pages: Map<number, {data: Uint8Array | null; version: number}>;
+    fileSize: number;
+    lastWriteVersion: number;
+}
 
-    readPage(index: number): {data: Uint8Array | null; version: number} | null {
-        return this.pages.get(index) ?? null;
+class InMemoryStorage implements DatabaseServerStorage {
+    private tables = new Map<DatabaseTableId, InMemoryTable>();
+
+    private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
+        let table = this.tables.get(databaseTableId);
+        if (table === undefined) {
+            table = {pages: new Map(), fileSize: 0, lastWriteVersion: 0};
+            this.tables.set(databaseTableId, table);
+        }
+        return table;
     }
 
-    writePages(pages: ReadonlyMap<number, Uint8Array>): number {
-        const version = ++this.lastWriteVersion;
+    readPage(
+        databaseTableId: DatabaseTableId,
+        index: number,
+    ): {data: Uint8Array | null; version: number} | null {
+        const table = this.tables.get(databaseTableId);
+        return table?.pages.get(index) ?? null;
+    }
+
+    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number {
+        const table = this.getTable(databaseTableId);
+        const version = ++table.lastWriteVersion;
         for (const [index, data] of pages) {
-            this.pages.set(index, {data: new Uint8Array(data), version});
+            table.pages.set(index, {data: new Uint8Array(data), version});
             const end = (index + 1) * sqlitePageSize;
-            if (end > this._fileSize) {
-                this._fileSize = end;
+            if (end > table.fileSize) {
+                table.fileSize = end;
             }
         }
         return version;
     }
 
-    getFileSize(): number {
-        return this._fileSize;
+    getFileSize(databaseTableId: DatabaseTableId): number {
+        return this.tables.get(databaseTableId)?.fileSize ?? 0;
     }
 
-    truncate(size: number): void {
-        this._fileSize = size;
+    truncate(databaseTableId: DatabaseTableId, size: number): void {
+        const table = this.getTable(databaseTableId);
+        table.fileSize = size;
         const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const version = ++this.lastWriteVersion;
-        for (const [index] of this.pages) {
+        const version = ++table.lastWriteVersion;
+        for (const [index] of table.pages) {
             if (index >= maxPageIndex) {
-                this.pages.set(index, {data: null, version});
+                table.pages.set(index, {data: null, version});
             }
         }
     }
@@ -270,7 +290,7 @@ describe("DatabaseServer", () => {
             db.exec("INSERT INTO items VALUES (1)");
 
             // Storage should have been written to.
-            expect(storage.getFileSize()).toBeGreaterThan(0);
+            expect(storage.getFileSize(databaseMainTableId)).toBeGreaterThan(0);
         });
 
         test("page data from execute matches what storage has", async () => {
@@ -287,7 +307,7 @@ describe("DatabaseServer", () => {
             // Each page in the result should match what storage
             // returns for that page index.
             for (const [pageIndex, pageData] of result.readPages) {
-                expect(pageData).toEqual(storage.readPage(pageIndex));
+                expect(pageData).toEqual(storage.readPage(databaseMainTableId, pageIndex));
             }
         });
     });
@@ -357,8 +377,8 @@ describe("DatabaseServer", () => {
 
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
-            for (let i = 0; i < storage.getFileSize() / sqlitePageSize; i++) {
-                prePages.set(i, new Uint8Array(storage.readPage(i)!.data!));
+            for (let i = 0; i < storage.getFileSize(databaseMainTableId) / sqlitePageSize; i++) {
+                prePages.set(i, new Uint8Array(storage.readPage(databaseMainTableId, i)!.data!));
             }
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
@@ -380,7 +400,9 @@ describe("DatabaseServer", () => {
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
 
             for (const [pageIndex, change] of result.changedPages) {
-                expect(change.after).toEqual(storage.readPage(pageIndex)!.data);
+                expect(change.after).toEqual(
+                    storage.readPage(databaseMainTableId, pageIndex)!.data,
+                );
             }
         });
 

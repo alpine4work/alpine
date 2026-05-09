@@ -97,7 +97,8 @@ export class DatabaseDurableObjectConnection {
                         tableDiffs: {
                             diffs,
                             fileSizeInPages:
-                                this._durableObjectStorage.getFileSize() / sqlitePageSize,
+                                this._durableObjectStorage.getFileSize(databaseMainTableId) /
+                                sqlitePageSize,
                         },
                         mutationId: input.mutationId,
                     });
@@ -129,7 +130,7 @@ export class DatabaseDurableObjectConnection {
                 input.pageVersionsByIndex.get(databaseMainTableId) ?? new Map<number, number>();
 
             for (const [pageIndex, clientVersion] of tableVersions) {
-                const page = this._durableObjectStorage.readPage(pageIndex);
+                const page = this._durableObjectStorage.readPage(databaseMainTableId, pageIndex);
 
                 // Page matches — skip.
                 if (page !== null && page.data !== null && page.version === clientVersion) continue;
@@ -155,7 +156,7 @@ export class DatabaseDurableObjectConnection {
 
             // Always include page 0 so the client has the schema.
             if (!updatedPages.has(0)) {
-                const page0 = this._durableObjectStorage.readPage(0);
+                const page0 = this._durableObjectStorage.readPage(databaseMainTableId, 0);
                 if (page0 !== null && page0.data !== null) {
                     const clientVersion = tableVersions.get(0);
                     if (clientVersion === undefined || clientVersion !== page0.version) {
@@ -180,7 +181,8 @@ export class DatabaseDurableObjectConnection {
                 this._browserPageTracker.addPendingPages(this._browserId, updatedPages.keys());
             }
 
-            const fileSizeInPages = this._durableObjectStorage.getFileSize() / sqlitePageSize;
+            const fileSizeInPages =
+                this._durableObjectStorage.getFileSize(databaseMainTableId) / sqlitePageSize;
             return {
                 tables: new Map([
                     [databaseMainTableId, {updatedPages, stalePageIndexes, fileSizeInPages}],

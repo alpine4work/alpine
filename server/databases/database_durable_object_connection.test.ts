@@ -73,8 +73,8 @@ function makePage(marker: number): Uint8Array {
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const ts = doStorage.readPage(0)!.version;
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        const ts = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
         const result = await ensureCacheIsUpToDate(conn, new Map([[0, ts]]));
@@ -86,12 +86,13 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns updated pages when few are stale", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
         // Page 0 matches, page 1 has stale client version
@@ -111,8 +112,8 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
-        const version0 = doStorage.readPage(0)!.version;
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
         // Page 5 doesn't exist on the server
@@ -130,7 +131,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("mixes updated pages and stale indexes", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(new Map([[0, makePage(0xaa)]]));
+        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const conn = createConnection(doStorage);
 
         // Page 0 is stale (mismatched ts), page 5 is
@@ -156,7 +157,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages are stale (client has ts=0 for each)
@@ -183,7 +184,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages stale
@@ -201,16 +202,17 @@ describe("ensureCacheIsUpToDate", () => {
     test("returns stale indexes for tombstoned pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
-        const version1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
 
         // Truncate page 1 away.
-        doStorage.truncate(1 * sqlitePageSize);
+        doStorage.truncate(databaseMainTableId, 1 * sqlitePageSize);
 
         const conn = createConnection(doStorage);
         const result = await ensureCacheIsUpToDate(
@@ -235,7 +237,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(pages);
+        doStorage.writePages(databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         const clientVersions = new Map<number, number>();
@@ -280,14 +282,15 @@ describe("per-browser page tracking", () => {
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
                 [2, makePage(0xcc)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
-        const version1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -319,12 +322,13 @@ describe("per-browser page tracking", () => {
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -428,14 +432,15 @@ describe("per-browser page tracking", () => {
     test("transformEvent filters pages to only those the client might have", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
                 [2, makePage(0xcc)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
-        const version1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -479,12 +484,13 @@ describe("per-browser page tracking", () => {
     test("transformEvent includes pending pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -546,13 +552,14 @@ describe("per-browser page tracking", () => {
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         doStorage.writePages(
+            databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
                 [1, makePage(0xbb)],
             ]),
         );
-        const version0 = doStorage.readPage(0)!.version;
-        const version1 = doStorage.readPage(1)!.version;
+        const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
 
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();

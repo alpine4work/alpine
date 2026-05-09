@@ -1,3 +1,5 @@
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+
 /**
  * Storage backend for {@link DatabaseServer}. Decouples SQLite's
  * file I/O from the actual persistence mechanism.
@@ -5,13 +7,16 @@
  * All methods are synchronous because the VFS calls them directly
  * from `xRead`/`xSync`.
  *
- * The storage is responsible for tracking file size. Calling
- * `writePages` should update the file size if any of the written
- * pages extend the file.
+ * Pages are partitioned by {@link DatabaseTableId} so a single
+ * backend can host many independent SQLite databases. Storage
+ * is responsible for tracking each table's file size; calling
+ * {@link writePages} should update that table's file size if any
+ * of the written pages extend it.
  */
 export interface DatabaseServerStorage {
     /**
-     * Read a single page by its zero-based index.
+     * Read a single page by its zero-based index from the
+     * given table.
      *
      * - `null` — page never existed (no rows for this index).
      * - `{data: null, version}` — tombstone (page was
@@ -19,18 +24,22 @@ export interface DatabaseServerStorage {
      * - `{data: Uint8Array, version}` — real page with
      *   content.
      */
-    readPage(index: number): {data: Uint8Array | null; version: number} | null;
+    readPage(
+        databaseTableId: DatabaseTableId,
+        index: number,
+    ): {data: Uint8Array | null; version: number} | null;
 
     /**
-     * Write a batch of pages. Called from `xSync` with all
-     * pages that were dirtied since the last sync. Returns the
-     * monotonically increasing version assigned to this write.
+     * Write a batch of pages to the given table. Called from
+     * `xSync` with all pages that were dirtied since the last
+     * sync. Returns the monotonically increasing version
+     * assigned to this write within that table.
      */
-    writePages(pages: ReadonlyMap<number, Uint8Array>): number;
+    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number;
 
-    /** Return the current file size in bytes. */
-    getFileSize(): number;
+    /** Return the current file size in bytes for the given table. */
+    getFileSize(databaseTableId: DatabaseTableId): number;
 
-    /** Truncate the file to the given size in bytes. */
-    truncate(size: number): void;
+    /** Truncate the given table's file to the given size in bytes. */
+    truncate(databaseTableId: DatabaseTableId, size: number): void;
 }

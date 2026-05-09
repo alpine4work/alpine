@@ -21,6 +21,7 @@ import {
     sqliteAuthorizerActionName,
 } from "~/shared/databases/sqlite_authorizer.js";
 import {
+    databaseMainTableId,
     pageAccessFlagRead,
     sqliteOpenPragmas,
     sqlitePageSize,
@@ -199,7 +200,7 @@ export class DatabaseServer {
                 if (!this.action.readPages.has(pageIndex)) {
                     // Page was in SQLite's cache (xRead wasn't
                     // called), so read from storage.
-                    const page = this.storage.readPage(pageIndex);
+                    const page = this.storage.readPage(databaseMainTableId, pageIndex);
                     const data =
                         page !== null && page.data !== null
                             ? page.data
@@ -288,13 +289,13 @@ export class DatabaseServer {
                     return true;
                 }
 
-                const fileSize = this.storage.getFileSize();
+                const fileSize = this.storage.getFileSize(databaseMainTableId);
                 if (offset >= fileSize) {
                     data.fill(0);
                     return false;
                 }
 
-                const page = this.storage.readPage(pageIndex);
+                const page = this.storage.readPage(databaseMainTableId, pageIndex);
                 const pageData =
                     page !== null && page.data !== null
                         ? page.data
@@ -330,7 +331,7 @@ export class DatabaseServer {
                         // earlier in the same transaction.
                         const before =
                             pendingWrites.get(pageIndex) ??
-                            this.storage.readPage(pageIndex)?.data ??
+                            this.storage.readPage(databaseMainTableId, pageIndex)?.data ??
                             new Uint8Array(sqlitePageSize);
                         this.action.changedPages.set(pageIndex, {
                             before: new Uint8Array(before),
@@ -345,12 +346,12 @@ export class DatabaseServer {
             },
 
             truncate: size => {
-                this.storage.truncate(size);
+                this.storage.truncate(databaseMainTableId, size);
             },
 
             sync: () => {
                 if (pendingWrites.size > 0) {
-                    const version = this.storage.writePages(pendingWrites);
+                    const version = this.storage.writePages(databaseMainTableId, pendingWrites);
                     pendingWrites.clear();
                     if (this.action.type === "execute") {
                         this.action.version = version;
@@ -359,7 +360,7 @@ export class DatabaseServer {
             },
 
             fileSize: () => {
-                let size = this.storage.getFileSize();
+                let size = this.storage.getFileSize(databaseMainTableId);
                 for (const [index] of pendingWrites) {
                     const end = (index + 1) * sqlitePageSize;
                     if (end > size) size = end;
