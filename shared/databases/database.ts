@@ -1,6 +1,6 @@
 import type {
-    Database as SqliteDatabase,
     Sqlite3Static,
+    Database as SqliteDatabase,
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
@@ -82,11 +82,11 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
  * underlying storage, and the caller decides what to do
  * with it. Drain the buffer via {@link bufferedWrites}
  * and persist it however you like; once the writes are
- * durable, call {@link markCommitted} with the version
- * storage assigned them. To throw the buffer away
- * instead, call {@link discardBuffer} — that clears the
- * buffer and invalidates SQLite's page cache so future
- * reads fall back to storage.
+ * durable, call {@link markCommitted} to clear the
+ * buffer. To throw the buffer away instead, call
+ * {@link discardBuffer} — that clears the buffer and
+ * invalidates SQLite's page cache so future reads fall
+ * back to storage.
  *
  * Multi-table model: each {@link DatabaseTableId} given
  * at construction is `ATTACH`ed as a separate SQLite
@@ -107,35 +107,22 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
 export class Database {
     private readonly db: SqliteDatabase;
     private readonly vfs: InstalledVfs;
-    private readonly sqlite3: Sqlite3Static;
     private readonly storage: DatabaseStorage;
     private readonly tables = new Map<DatabaseTableId, DatabaseTableState>();
     private readonly tempFiles = new Map<string, VfsTempFile>();
     private writeLevel: SqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
-    /**
-     * Latest version any committed write has been
-     * acknowledged at via {@link markCommitted}. Reads
-     * coming back from storage at an older version are
-     * upgraded to this on return so callers tracking
-     * versions see the post-commit state.
-     */
-    private committedVersion = 0;
 
     private constructor(
         sqlite3: Sqlite3Static,
         storage: DatabaseStorage,
         tableIds: ReadonlyArray<DatabaseTableId>,
     ) {
-        this.sqlite3 = sqlite3;
         this.storage = storage;
 
         assert(tableIds.length > 0, "Database requires at least one tableId");
-        assert(
-            tableIds[0] === databaseMainTableId,
-            "first tableId must be databaseMainTableId",
-        );
+        assert(tableIds[0] === databaseMainTableId, "first tableId must be databaseMainTableId");
         for (const tableId of tableIds) {
             assert(
                 !this.tables.has(tableId),
@@ -156,10 +143,7 @@ export class Database {
                     );
                     const tableId = filename.slice(1) as DatabaseTableId;
                     const state = this.tables.get(tableId);
-                    assert(
-                        state !== undefined,
-                        `MAIN_DB open for unknown table: ${tableId}`,
-                    );
+                    assert(state !== undefined, `MAIN_DB open for unknown table: ${tableId}`);
                     return this.makeVfsFile(tableId, state);
                 }
                 const file = new VfsTempFile();
@@ -207,6 +191,7 @@ export class Database {
         // open routing above.
         for (let i = 1; i < tableIds.length; i++) {
             const tableId = tableIds[i]!;
+            // eslint-disable-next-line cyberworlds/string-quotes -- SQL literal
             this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${tableId}"`);
         }
 
@@ -237,16 +222,10 @@ export class Database {
     }): Promise<Database> {
         if (sqlite3Promise === undefined) {
             const instantiateWasm = trySqlite3WasmLoader();
-            sqlite3Promise = sqlite3InitModule(
-                instantiateWasm ? {instantiateWasm} : undefined,
-            );
+            sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
         }
         const sqlite3 = await sqlite3Promise;
-        return new Database(
-            sqlite3,
-            opts.storage,
-            opts.tableIds ?? [databaseMainTableId],
-        );
+        return new Database(sqlite3, opts.storage, opts.tableIds ?? [databaseMainTableId]);
     }
 
     /**
@@ -255,7 +234,10 @@ export class Database {
      * the authorizer permits.
      */
     execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
-        return this.runTracked(options.allowWrites, db => sql.raw(query).selectAllUnknown(db));
+        const {result, readPages, writtenPages} = this.runTracked(options.allowWrites, db =>
+            sql.raw(query).selectAllUnknown(db),
+        );
+        return {rows: result, readPages, writtenPages};
     }
 
     /**
@@ -304,21 +286,13 @@ export class Database {
 
     /**
      * Acknowledge that the current buffer has been
-     * persisted to storage at `version`. Clears the
-     * buffer; subsequent reads will see the durable
-     * post-commit state via the read-only storage. No
-     * SQLite cache invalidation is needed because the
-     * pager cache already holds the same after-image
-     * the caller just persisted.
-     *
-     * `version` becomes the version reported back on
-     * future read tracking for committed pages — this is
-     * what makes a freshly-committed read look like it
-     * was always durable.
+     * persisted to storage. Clears the buffer; subsequent
+     * reads will see the durable post-commit state via
+     * the read-only storage. No SQLite cache invalidation
+     * is needed because the pager cache already holds the
+     * same after-image the caller just persisted.
      */
-    markCommitted(version: number): void {
-        assert(version >= this.committedVersion, "markCommitted version went backwards");
-        this.committedVersion = version;
+    markCommitted(): void {
         for (const state of this.tables.values()) {
             state.bufferedPages.clear();
             state.bufferedTruncate = null;
@@ -433,10 +407,7 @@ export class Database {
             },
 
             write: (data, offset) => {
-                assert(
-                    offset % sqlitePageSize === 0,
-                    `write offset ${offset} not page-aligned`,
-                );
+                assert(offset % sqlitePageSize === 0, `write offset ${offset} not page-aligned`);
                 assert(
                     data.byteLength === sqlitePageSize,
                     `write amount ${data.byteLength} !== ${sqlitePageSize}`,
@@ -475,10 +446,7 @@ export class Database {
         };
     }
 
-    private getFileSizeForTable(
-        tableId: DatabaseTableId,
-        state: DatabaseTableState,
-    ): number {
+    private getFileSizeForTable(tableId: DatabaseTableId, state: DatabaseTableState): number {
         let size =
             state.bufferedTruncate !== null
                 ? state.bufferedTruncate

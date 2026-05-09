@@ -35,10 +35,7 @@ export interface DatabaseStorage {
      * needs server fallback). The error propagates out
      * of the SQL execution.
      */
-    readPage(
-        tableId: DatabaseTableId,
-        index: number,
-    ): {data: Uint8Array; version: number} | null;
+    readPage(tableId: DatabaseTableId, index: number): {data: Uint8Array; version: number} | null;
 
     /** Current size in bytes of `tableId`'s file. */
     getFileSize(tableId: DatabaseTableId): number;
