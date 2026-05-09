@@ -351,7 +351,9 @@ export class DatabaseServer {
 
             sync: () => {
                 if (pendingWrites.size > 0) {
-                    const version = this.storage.writePages(databaseMainTableId, pendingWrites);
+                    const version = this.storage.writePages(
+                        new Map([[databaseMainTableId, pendingWrites]]),
+                    );
                     pendingWrites.clear();
                     if (this.action.type === "execute") {
                         this.action.version = version;
