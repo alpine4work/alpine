@@ -1,5 +1,5 @@
-import {DatabasePageStores} from "~/client/web/databases/database_page_stores.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
+import {OpfsDatabaseStorage} from "~/client/web/databases/opfs_database_storage.js";
 import {Database} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -60,7 +60,7 @@ export interface DatabaseClientConnection {
  * Client-side SQLite database.
  *
  * Wraps a {@link Database} that reads through a
- * {@link DatabasePageStores} adapter over OPFS-backed
+ * {@link OpfsDatabaseStorage} adapter over OPFS-backed
  * page storage. Optimistic SQL writes accumulate in the
  * underlying {@link Database}'s in-memory buffer and only
  * land on disk once the server confirms them via
@@ -72,11 +72,11 @@ export interface DatabaseClientConnection {
  */
 export class DatabaseClient {
     private readonly database: Database;
-    private readonly pageStores: DatabasePageStores;
+    private readonly pageStores: OpfsDatabaseStorage;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
 
-    private constructor(database: Database, pageStores: DatabasePageStores) {
+    private constructor(database: Database, pageStores: OpfsDatabaseStorage) {
         this.database = database;
         this.pageStores = pageStores;
     }
@@ -90,7 +90,7 @@ export class DatabaseClient {
      * databases under the same SQLite connection.
      */
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
-        const pageStores = new DatabasePageStores(groupDir);
+        const pageStores = new OpfsDatabaseStorage(groupDir);
         await pageStores.create(databaseMainTableId);
         const database = await Database.create(pageStores);
         return new DatabaseClient(database, pageStores);
