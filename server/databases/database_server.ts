@@ -126,7 +126,6 @@ export class DatabaseServer {
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
-        this.db.exec("PRAGMA journal_mode = OFF");
         this.db.exec("PRAGMA quick_check");
         runSqliteMigrations(this.db);
 
@@ -242,12 +241,7 @@ export class DatabaseServer {
             };
         } catch (error) {
             if (writeLevel !== "none") {
-                try {
-                    this.db.exec("ROLLBACK");
-                } catch {
-                    // With journal_mode=OFF, ROLLBACK may not be
-                    // able to undo partial writes.
-                }
+                this.db.exec("ROLLBACK");
             }
             const stashed = this.vfs.takeError();
             if (stashed !== null) {

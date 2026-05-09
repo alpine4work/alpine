@@ -31,8 +31,16 @@ export const sqliteMaxPageCount = 262144;
 
 /**
  * PRAGMAs applied to every Alpine SQLite connection on
- * open, in order. `journal_mode` is excluded because it
- * differs between client and server.
+ * open, in order.
+ *
+ * `journal_mode = MEMORY` keeps the rollback journal in
+ * heap rather than on disk: there's no on-disk database
+ * file backing our VFS, but ROLLBACK still needs the
+ * journal to undo partial writes after an error or to
+ * keep the in-memory write buffer from being polluted by
+ * cache spills mid-statement. External transactionality
+ * (server-side DO transaction, client-side rebase
+ * replay) is what actually makes commits atomic.
  */
 export const sqliteOpenPragmas: ReadonlyArray<string> = [
     `PRAGMA page_size = ${sqlitePageSize}`,
@@ -42,6 +50,7 @@ export const sqliteOpenPragmas: ReadonlyArray<string> = [
     `PRAGMA max_page_count = ${sqliteMaxPageCount}`,
     `PRAGMA cell_size_check = true`,
     `PRAGMA foreign_keys = true`,
+    `PRAGMA journal_mode = MEMORY`,
 ];
 
 /**

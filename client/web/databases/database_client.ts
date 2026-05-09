@@ -167,7 +167,6 @@ export class DatabaseClient {
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
-        this.db.exec("PRAGMA journal_mode = MEMORY");
     }
 
     /**

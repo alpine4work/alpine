@@ -201,13 +201,6 @@ export class Database {
         for (const pragma of sqliteOpenPragmas) {
             this.db.exec(pragma);
         }
-        // Rollback journal lives in memory: with a
-        // read-only storage backing there is no on-disk
-        // journal to write anyway, and external
-        // transactionality (server-side DO transaction,
-        // client-side rebase replay) is what actually
-        // makes commits atomic.
-        this.db.exec("PRAGMA journal_mode = MEMORY");
 
         // Capture cache-hit reads via the page access hook
         // so {@link execute} returns a complete read set
