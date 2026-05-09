@@ -15,6 +15,7 @@ import type {
     DatabasePageIndexes,
     DatabasePageVersionsByIndex,
     DatabasePages,
+    ReadonlyDatabasePageSet,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
     applyPageDiff,
@@ -72,13 +73,13 @@ export interface DatabaseClientConnection {
  */
 export class DatabaseClient {
     private readonly database: Database;
-    private readonly pageStores: OpfsDatabaseStorage;
+    private readonly storage: OpfsDatabaseStorage;
     private optimisticQueue: Array<OptimisticMutation> = [];
     private nextTestCommitVersion = 0;
 
-    private constructor(database: Database, pageStores: OpfsDatabaseStorage) {
+    private constructor(database: Database, storage: OpfsDatabaseStorage) {
         this.database = database;
-        this.pageStores = pageStores;
+        this.storage = storage;
     }
 
     /**
@@ -90,10 +91,10 @@ export class DatabaseClient {
      * databases under the same SQLite connection.
      */
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
-        const pageStores = new OpfsDatabaseStorage(groupDir);
-        await pageStores.create(databaseMainTableId);
-        const database = await Database.create(pageStores);
-        return new DatabaseClient(database, pageStores);
+        const storage = new OpfsDatabaseStorage(groupDir);
+        await storage.create(databaseMainTableId);
+        const database = await Database.create(storage);
+        return new DatabaseClient(database, storage);
     }
 
     /**
@@ -111,8 +112,18 @@ export class DatabaseClient {
      * up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
+        // Called once at startup before any executeAction,
+        // so the buffer must be empty and SQLite's pager
+        // cache holds no user pages — meaning we can write
+        // straight to durable storage without invalidating
+        // the cache.
+        assert(
+            this.database.getBufferedWrites() === null,
+            "ensureCacheIsUpToDate must be called before any executeAction",
+        );
+
         const pageVersionsByIndex = new Map<DatabaseTableId, Map<number, number>>();
-        for (const [tableId, store] of this.pageStores) {
+        for (const [tableId, store] of this.storage) {
             const tableVersions = new Map<number, number>();
             for (const entry of store.pageEntries()) {
                 tableVersions.set(entry.pageIndex, entry.version);
@@ -123,25 +134,21 @@ export class DatabaseClient {
         const {tables} = await conn.ensureCacheIsUpToDate(pageVersionsByIndex);
 
         const acknowledgedPageIndexes = new Map<DatabaseTableId, Array<number>>();
-        let anyChanged = false;
         for (const [tableId, {updatedPages, stalePageIndexes, fileSizeInPages}] of tables) {
-            const store = this.pageStores.get(tableId);
+            const store = this.storage.get(tableId);
             assert(
                 store !== undefined,
                 `ensureCacheIsUpToDate response references unknown table ${tableId}`,
             );
 
             for (const [pageIndex, {version, data}] of updatedPages) {
-                if (store.writePageIfNewer(pageIndex, version, data)) {
-                    anyChanged = true;
-                }
+                store.writePageIfNewer(pageIndex, version, data);
             }
             if (updatedPages.size > 0) {
                 acknowledgedPageIndexes.set(tableId, [...updatedPages.keys()]);
             }
             if (stalePageIndexes.length > 0) {
                 store.deletePages(new Set(stalePageIndexes));
-                anyChanged = true;
             }
             store.setServerFileSizeInPages(fileSizeInPages);
             store.sync();
@@ -149,13 +156,6 @@ export class DatabaseClient {
 
         if (acknowledgedPageIndexes.size > 0) {
             conn.acknowledgePages(acknowledgedPageIndexes);
-        }
-
-        // Storage just changed under SQLite's feet; drop
-        // the pager cache so subsequent reads observe the
-        // fresh durable state.
-        if (anyChanged) {
-            this.database.discardBuffer();
         }
     }
 
@@ -177,7 +177,7 @@ export class DatabaseClient {
         const mutationId = generateId<DatabaseMutationId>();
 
         let output: DatabaseActionOutput<N>;
-        let writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
+        let writtenPages: ReadonlyDatabasePageSet;
         try {
             const result = this.database.executeAction(actionObject);
             output = result.output;
@@ -337,9 +337,7 @@ export class DatabaseClient {
         });
     }
 
-    private async checkInvalidation(
-        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
-    ): Promise<void> {
+    private async checkInvalidation(writtenPages: ReadonlyDatabasePageSet): Promise<void> {
         // Reactive action read-tracking is still
         // single-table; treat each action's `readPages` as
         // referring to main-table pages and check overlap
@@ -406,7 +404,7 @@ export class DatabaseClient {
 
         let anyWritten = false;
         for (const [tableId, tableDiffs] of pageDiffs) {
-            const store = this.pageStores.get(tableId);
+            const store = this.storage.get(tableId);
             if (store === undefined) continue;
             for (const [pageIndex, {version, diff}] of tableDiffs.diffs) {
                 const base = store.readPage(pageIndex);
@@ -432,7 +430,7 @@ export class DatabaseClient {
     private applyServerPages(readPages: DatabasePages): void {
         let anyWritten = false;
         for (const [tableId, tablePages] of readPages) {
-            const store = this.pageStores.get(tableId);
+            const store = this.storage.get(tableId);
             assert(
                 store !== undefined,
                 `executeActionServer response references unknown table ${tableId}`,
@@ -484,13 +482,11 @@ export class DatabaseClient {
      * changes on page 0. Returns true if any pages were
      * marked.
      */
-    private markWrittenPages(
-        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
-    ): boolean {
+    private markWrittenPages(writtenPages: ReadonlyDatabasePageSet): boolean {
         let anyMarked = false;
         const buffered = this.database.getBufferedWrites();
         for (const [tableId, tablePages] of writtenPages) {
-            const store = this.pageStores.get(tableId);
+            const store = this.storage.get(tableId);
             if (store === undefined) continue;
             for (const pageIndex of tablePages) {
                 if (pageIndex === 0) {
@@ -517,9 +513,7 @@ export class DatabaseClient {
         pages.add(pageIndex);
     }
 
-    private invalidateForWrittenPages(
-        writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>,
-    ): void {
+    private invalidateForWrittenPages(writtenPages: ReadonlyDatabasePageSet): void {
         if (this.markWrittenPages(writtenPages)) {
             this.scheduleInvalidation();
         }
@@ -534,7 +528,7 @@ export class DatabaseClient {
      */
     async seedPages(pages: DatabasePages): Promise<void> {
         for (const [tableId, tablePages] of pages) {
-            const store = this.pageStores.get(tableId) ?? (await this.pageStores.create(tableId));
+            const store = this.storage.get(tableId) ?? (await this.storage.create(tableId));
             for (const [pageIndex, {version, data}] of tablePages) {
                 store.writePageIfNewer(pageIndex, version, data);
             }
@@ -624,7 +618,7 @@ export class DatabaseClient {
         }
         const version = ++this.nextTestCommitVersion;
         for (const [tableId, pages] of buffered.pages) {
-            const store = this.pageStores.get(tableId);
+            const store = this.storage.get(tableId);
             if (store === undefined) continue;
             for (const [pageIndex, data] of pages) {
                 store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));

@@ -10,6 +10,7 @@ import {
     type DatabaseActionOutput,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
+import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {sql} from "~/shared/databases/sql.js";
@@ -105,16 +106,16 @@ export interface DatabaseExecuteResult {
      * Pages SQLite read while running this call. Includes
      * cache hits, captured via the page-access hook.
      */
-    readonly readPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
+    readonly readPages: ReadonlyDatabasePageSet;
     /** Pages buffered by writes that ran during this call. */
-    readonly writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
+    readonly writtenPages: ReadonlyDatabasePageSet;
 }
 
 /** Result of a single {@link Database.executeAction} call. */
 export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
     readonly output: DatabaseActionOutput<N>;
-    readonly readPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
-    readonly writtenPages: ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
+    readonly readPages: ReadonlyDatabasePageSet;
+    readonly writtenPages: ReadonlyDatabasePageSet;
 }
 
 /**

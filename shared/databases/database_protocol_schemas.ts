@@ -27,6 +27,14 @@ import {
 // -- Pages --------------------------------------------------------------------
 
 /**
+ * A set of SQLite page indices grouped by
+ * {@link DatabaseTableId}. Used in-memory to track which
+ * pages an action read or wrote across one or more tables;
+ * not part of any wire format.
+ */
+export type ReadonlyDatabasePageSet = ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
+
+/**
  * The pages of a single database table, keyed by SQLite
  * page index. Each value is the page bytes plus the
  * version at which the canonical server observed them.
