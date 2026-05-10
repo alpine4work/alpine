@@ -618,32 +618,17 @@ export class DatabaseClient {
     commitOptimisticPagesForTests(): void {
         assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
         const buffered = this.database.getBufferedWrites();
-        if (buffered === null) {
-            this.database.markCommitted();
-            return;
-        }
-        const version = ++this.nextTestCommitVersion;
-        // Snapshot post-buffer file sizes before
-        // markCommitted clears the buffer; after the clear,
-        // getBufferedFileSizeInPages would only see the
-        // durable storage size.
-        const fileSizes = new Map<DatabaseTableId, number>();
-        for (const tableId of buffered.pages.keys()) {
-            fileSizes.set(tableId, this.database.getBufferedFileSizeInPages(tableId));
-        }
-        for (const [tableId, pages] of buffered.pages) {
-            const store = this.storage.get(tableId);
-            if (store === undefined) continue;
-            for (const [pageIndex, data] of pages) {
-                store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));
+        if (buffered !== null) {
+            const version = ++this.nextTestCommitVersion;
+            for (const [tableId, pages] of buffered.pages) {
+                const store = this.storage.get(tableId);
+                if (store === undefined) continue;
+                for (const [pageIndex, data] of pages) {
+                    store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));
+                }
+                store.setServerFileSizeInPages(buffered.fileSizesInPages.get(tableId)!);
+                store.sync();
             }
-            // Mirror the realtime protocol: pair page writes
-            // with the canonical file size.
-            const fileSizeInPages = fileSizes.get(tableId);
-            if (fileSizeInPages !== undefined) {
-                store.setServerFileSizeInPages(fileSizeInPages);
-            }
-            store.sync();
         }
         this.database.markCommitted();
     }

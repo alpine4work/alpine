@@ -97,6 +97,15 @@ export interface DatabaseBufferedWrites {
      * value is the new file size in bytes.
      */
     readonly truncates: ReadonlyMap<DatabaseTableId, number>;
+    /**
+     * Post-buffer logical file size in pages, keyed by
+     * table. Populated for every table present in
+     * {@link pages} or {@link truncates} so callers can
+     * supply it as the canonical `fileSizeInPages` when
+     * persisting the buffer to durable storage — without
+     * a follow-up call back into {@link Database}.
+     */
+    readonly fileSizesInPages: ReadonlyMap<DatabaseTableId, number>;
 }
 
 /** Result of a single {@link Database.execute} call. */
@@ -261,30 +270,23 @@ export class Database {
     getBufferedWrites(): DatabaseBufferedWrites | null {
         const pages = new Map<DatabaseTableId, ReadonlyMap<number, Uint8Array>>();
         const truncates = new Map<DatabaseTableId, number>();
+        const fileSizesInPages = new Map<DatabaseTableId, number>();
         for (const [tableId, state] of this.tables) {
-            if (state.bufferedPages.size > 0) {
+            const hasPages = state.bufferedPages.size > 0;
+            const hasTruncate = state.bufferedTruncate !== null;
+            if (hasPages) {
                 pages.set(tableId, state.bufferedPages);
             }
-            if (state.bufferedTruncate !== null) {
-                truncates.set(tableId, state.bufferedTruncate);
+            if (hasTruncate) {
+                truncates.set(tableId, state.bufferedTruncate!);
+            }
+            if (hasPages || hasTruncate) {
+                const sizeInBytes = this.getFileSizeForTable(tableId, state);
+                fileSizesInPages.set(tableId, Math.ceil(sizeInBytes / sqlitePageSize));
             }
         }
         if (pages.size === 0 && truncates.size === 0) return null;
-        return {pages, truncates};
-    }
-
-    /**
-     * Logical file size in pages for `tableId`, including
-     * any buffered writes / truncates. Mirrors the size
-     * SQLite sees through the VFS, so callers draining the
-     * buffer can supply it as the canonical
-     * `fileSizeInPages` to durable storage.
-     */
-    getBufferedFileSizeInPages(tableId: DatabaseTableId): number {
-        const state = this.tables.get(tableId);
-        assert(state !== undefined, `getBufferedFileSizeInPages for unknown table: ${tableId}`);
-        const sizeInBytes = this.getFileSizeForTable(tableId, state);
-        return Math.ceil(sizeInBytes / sqlitePageSize);
+        return {pages, truncates, fileSizesInPages};
     }
 
     /**
