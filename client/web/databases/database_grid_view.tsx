@@ -3,6 +3,8 @@ import {type Icon as PhosphorIcon, Plus} from "phosphor-react";
 import {
     type Dispatch,
     type Memo,
+    type Ref,
+    forwardRef,
     startTransition,
     useEffect,
     useMemo,
@@ -30,8 +32,11 @@ import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
+import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
+import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -614,63 +619,123 @@ function DatabaseGridViewHeaderEditor({
             onCommit: config => onUpdateFieldConfig(field.id, config),
         }) ?? [];
 
+    const renameInput = (
+        <DatabaseGridViewHeaderRenameInput
+            inputRef={inputRef}
+            value={draftName}
+            onChange={setDraftName}
+            onEnter={commitRename}
+            onEscape={() => setDraftName(field.name)}
+            paddingBottom={configActions.length > 0 ? "1" : "1.5"}
+        />
+    );
+
+    const trigger = (
+        <Box
+            role="button"
+            tabIndex={0}
+            cursor="pointer"
+            display="flex"
+            alignItems="center"
+            color="grey-80"
+            fontSize="75"
+            fontStyle="truncate-semi-bold"
+            padding="2"
+            textAlign="left"
+            gap="1"
+            style={{userSelect: "none"}}
+        >
+            <Box color="grey-50" display="flex" alignItems="center">
+                <Icon size={14} />
+            </Box>
+            <Box fontStyle="truncate-semi-bold">{field.name}</Box>
+        </Box>
+    );
+
+    if (configActions.length === 0) {
+        return (
+            <OverlayTriggerButton
+                withoutButtonElementRequirement
+                placement="bottom-start"
+                aria-haspopup="dialog"
+                onClose={commitRename}
+                overlay={<DatabaseGridViewHeaderEditorRenameOverlay renameInput={renameInput} />}
+            >
+                {trigger}
+            </OverlayTriggerButton>
+        );
+    }
+
     return (
         <MenuButton
             withoutButtonElementRequirement
             placement="bottom-start"
             actions={configActions}
             onClose={commitRename}
-            extraOverlayTop={
-                <Box paddingX="1.5" paddingTop="1.5" paddingBottom="1">
-                    <input
-                        ref={inputRef}
-                        autoFocus
-                        value={draftName}
-                        maxLength={maxLabelStringLength}
-                        onChange={e => setDraftName(e.currentTarget.value)}
-                        onBlur={commitRename}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                commitRename();
-                            } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setDraftName(field.name);
-                            }
-                            e.stopPropagation();
-                        }}
-                        className={sprinkles({
-                            width: "full",
-                            padding: "1.5",
-                            fontSize: "75",
-                            color: "grey-100",
-                            border: "grey-10",
-                            borderRadius: "1",
-                        })}
-                    />
-                </Box>
-            }
+            extraOverlayTop={renameInput}
         >
-            <Box
-                role="button"
-                tabIndex={0}
-                cursor="pointer"
-                display="flex"
-                alignItems="center"
-                color="grey-80"
-                fontSize="75"
-                fontStyle="truncate-semi-bold"
-                padding="2"
-                textAlign="left"
-                gap="1"
-                style={{userSelect: "none"}}
-            >
-                <Box color="grey-50" display="flex" alignItems="center">
-                    <Icon size={14} />
-                </Box>
-                <Box fontStyle="truncate-semi-bold">{field.name}</Box>
-            </Box>
+            {trigger}
         </MenuButton>
+    );
+}
+
+const DatabaseGridViewHeaderEditorRenameOverlay = forwardRef(
+    function DatabaseGridViewHeaderEditorRenameOverlay(
+        {renameInput}: {renameInput: React.ReactNode},
+        ref: Ref<HTMLDivElement>,
+    ) {
+        return (
+            <Box
+                ref={ref}
+                backgroundColor="grey-0"
+                borderRadius="1.5"
+                boxShadow="elevation-20"
+                style={{minWidth: 200}}
+            >
+                {renameInput}
+            </Box>
+        );
+    },
+);
+
+function DatabaseGridViewHeaderRenameInput({
+    inputRef,
+    value,
+    onChange,
+    onEnter,
+    onEscape,
+    paddingBottom,
+}: {
+    inputRef: Ref<HTMLInputElement>;
+    value: string;
+    onChange: (value: string) => void;
+    onEnter: () => void;
+    onEscape: () => void;
+    paddingBottom: "1" | "1.5";
+}) {
+    const internalRef = useRef<HTMLInputElement>(null);
+    const mergedRef = useMergedRefs(inputRef, internalRef);
+
+    useEffect(() => {
+        const input = internalRef.current;
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, []);
+
+    return (
+        <Box paddingX="1.5" paddingTop="1.5" paddingBottom={paddingBottom}>
+            <TextInputWithoutLabel
+                ref={mergedRef}
+                aria-label="Field name"
+                value={value}
+                maxLength={maxLabelStringLength}
+                onChange={onChange}
+                onEnter={onEnter}
+                onEscape={onEscape}
+            />
+        </Box>
     );
 }
 
