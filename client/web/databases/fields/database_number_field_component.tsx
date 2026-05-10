@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
-import {CaretDown} from "phosphor-react";
+import {CaretDown, Hash} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 
 import {
@@ -169,6 +169,7 @@ export const databaseNumberFieldComponentProvider = defineDatabaseFieldComponent
     databaseNumberFieldProvider,
     {
         label: "Number",
+        Icon: Hash,
         GridViewCellContent: DatabaseNumberGridViewCellContent,
         GridViewCellEditorOverlay: DatabaseNumberGridViewCellEditorOverlay,
         ConfigEditorPopover: DatabaseNumberConfigEditorPopover,

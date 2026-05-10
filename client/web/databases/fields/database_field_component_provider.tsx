@@ -1,3 +1,4 @@
+import type {Icon} from "phosphor-react";
 import type {ComponentType, Ref} from "react";
 import {
     DatabaseCellValue,
@@ -71,6 +72,7 @@ export type DatabaseFieldConfigEditorPopoverProps<Type extends DatabaseFieldType
 export type DatabaseFieldComponentProviderBase = {
     readonly type: DatabaseFieldType;
     readonly label: string;
+    readonly Icon: Icon;
     readonly GridViewCellContent: ComponentType<
         DatabaseGridViewCellContentProps<DatabaseFieldType>
     >;
@@ -93,6 +95,7 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
     provider: DatabaseFieldProvider<Type>,
     options: {
         readonly label: string;
+        readonly Icon: Icon;
         readonly GridViewCellContent: ComponentType<DatabaseGridViewCellContentProps<Type>>;
         readonly GridViewCellEditorOverlay: ComponentType<
             DatabaseGridViewCellEditorOverlayProps<Type>
@@ -105,6 +108,7 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
     return {
         type: provider.type,
         label: options.label,
+        Icon: options.Icon,
         GridViewCellContent: options.GridViewCellContent,
         GridViewCellEditorOverlay: options.GridViewCellEditorOverlay,
         ConfigEditorPopover: options.ConfigEditorPopover,

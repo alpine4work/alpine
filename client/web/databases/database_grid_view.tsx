@@ -1,5 +1,5 @@
 import {useHover} from "@react-aria/interactions";
-import {Plus} from "phosphor-react";
+import {type Icon as PhosphorIcon, Plus} from "phosphor-react";
 import {
     type Dispatch,
     type Memo,
@@ -611,6 +611,7 @@ function DatabaseGridViewHeaderConfigTrigger({
     const provider = getDatabaseFieldComponentProvider(field.config.type);
     const ConfigEditorPopover = provider.ConfigEditorPopover;
     if (ConfigEditorPopover == null) return null;
+    const Icon = provider.Icon;
     return (
         <Overlay
             isVisible={isOpen}
@@ -629,18 +630,19 @@ function DatabaseGridViewHeaderConfigTrigger({
                 tabIndex={0}
                 cursor="pointer"
                 color="grey-50"
-                fontSize="75"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
                 onClick={e => {
                     e.stopPropagation();
                     setIsOpen(o => !o);
                 }}
                 style={{
                     minWidth: "1.25rem",
-                    textAlign: "center",
                     userSelect: "none",
                 }}
             >
-                {provider.label.charAt(0)}
+                <Icon size={14} />
             </Box>
         </Overlay>
     );
@@ -669,6 +671,7 @@ function DatabaseGridViewFieldTypePicker({
                     key={provider.type}
                     type={provider.type}
                     label={provider.label}
+                    Icon={provider.Icon}
                     onSelect={onSelect}
                 />
             ))}
@@ -679,16 +682,21 @@ function DatabaseGridViewFieldTypePicker({
 function DatabaseGridViewFieldTypePickerOption({
     type,
     label,
+    Icon,
     onSelect,
 }: {
     type: DatabaseFieldType;
     label: string;
+    Icon: PhosphorIcon;
     onSelect: (type: DatabaseFieldType) => void;
 }) {
     const {hoverProps, isHovered} = useHover({});
     return (
         <Box
             {...hoverProps}
+            display="flex"
+            alignItems="center"
+            gap="1.5"
             padding="1.5"
             borderRadius="1"
             fontSize="75"
@@ -700,6 +708,7 @@ function DatabaseGridViewFieldTypePickerOption({
                 onSelect(type);
             }}
         >
+            <Icon size={14} />
             {label}
         </Box>
     );

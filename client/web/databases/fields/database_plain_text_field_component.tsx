@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
+import {TextAa} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 
 import {
@@ -101,6 +102,7 @@ export const databasePlainTextFieldComponentProvider = defineDatabaseFieldCompon
     databasePlainTextFieldProvider,
     {
         label: "Text",
+        Icon: TextAa,
         GridViewCellContent: DatabasePlainTextGridViewCellContent,
         GridViewCellEditorOverlay: DatabasePlainTextGridViewCellEditorOverlay,
         ConfigEditorPopover: null,
