@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
+import {CaretDown} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 
 import {
@@ -9,6 +10,9 @@ import {
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {MenuAction} from "~/client/web/design/menu.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 
@@ -108,37 +112,34 @@ function DatabaseNumberGridViewCellEditorOverlay({
     );
 }
 
+const decimalPlacesOptions: ReadonlyArray<{label: string; value: number | null}> = [
+    {label: "Default", value: null},
+    {label: "0", value: 0},
+    {label: "1", value: 1},
+    {label: "2", value: 2},
+    {label: "3", value: 3},
+    {label: "4", value: 4},
+    {label: "5", value: 5},
+    {label: "6", value: 6},
+];
+
 function DatabaseNumberConfigEditorPopover({
     ref,
     config,
     onCommit,
     onClose,
 }: DatabaseFieldConfigEditorPopoverProps<"number">) {
-    const [editValue, setEditValue] = useState(
-        config.decimalPlaces == null ? "" : String(config.decimalPlaces),
-    );
-    const localRef = useRef<HTMLInputElement>(null);
+    const selectedOption =
+        decimalPlacesOptions.find(o => o.value === config.decimalPlaces) ?? decimalPlacesOptions[0];
 
-    useEffect(() => {
-        const input = localRef.current;
-        if (input) {
-            input.focus();
-            input.select();
-        }
-    }, []);
-
-    const commit = () => {
-        const trimmed = editValue.trim();
-        if (trimmed === "") {
-            onCommit({type: "number", decimalPlaces: null});
-        } else {
-            const n = Number(trimmed);
-            if (Number.isInteger(n) && n >= 0) {
-                onCommit({type: "number", decimalPlaces: n});
-            }
-        }
-        onClose();
-    };
+    const actions: ReadonlyArray<MenuAction> = decimalPlacesOptions.map(option => ({
+        label: option.label,
+        isSelected: option.value === config.decimalPlaces,
+        onPress: () => {
+            onCommit({type: "number", decimalPlaces: option.value});
+            onClose();
+        },
+    }));
 
     return (
         <Box
@@ -155,33 +156,11 @@ function DatabaseNumberConfigEditorPopover({
             <Box fontSize="75" color="grey-80">
                 Decimal places
             </Box>
-            <input
-                ref={localRef}
-                type="text"
-                inputMode="numeric"
-                placeholder="Unlimited"
-                value={editValue}
-                onChange={e => setEditValue(e.currentTarget.value)}
-                onBlur={commit}
-                onKeyDown={e => {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        commit();
-                    } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        onClose();
-                    }
-                    e.stopPropagation();
-                }}
-                className={sprinkles({
-                    width: "full",
-                    padding: "1.5",
-                    fontSize: "75",
-                    color: "grey-100",
-                    border: "grey-10",
-                    borderRadius: "1",
-                })}
-            />
+            <MenuButton actions={actions}>
+                <Button variant="outline" fullWidth icon={<CaretDown />} iconPlacement="end">
+                    {selectedOption.label}
+                </Button>
+            </MenuButton>
         </Box>
     );
 }
