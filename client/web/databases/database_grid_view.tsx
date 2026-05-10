@@ -28,6 +28,7 @@ import {
 } from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -278,9 +279,9 @@ export function DatabaseGridView({
                                             fields={gridFields.fields}
                                             hiddenFields={gridFields.hiddenFields}
                                             onStartAddingField={gridFields.startAddingField}
-                                            onStartEditingField={gridFields.startEditingField}
                                             startResizingField={gridFields.startResizingField}
                                             resizingState={gridFields.resizingState}
+                                            onRenameField={gridFields.renameField}
                                             onUpdateFieldVisibility={
                                                 gridFields.updateFieldVisibility
                                             }
@@ -354,9 +355,9 @@ export function DatabaseGridView({
             gridFields.fields,
             gridFields.hiddenFields,
             gridFields.startAddingField,
-            gridFields.startEditingField,
             gridFields.startResizingField,
             gridFields.resizingState,
+            gridFields.renameField,
             gridFields.updateFieldVisibility,
             gridFields.updateFieldConfig,
             tree,
@@ -429,16 +430,15 @@ function DatabaseGridViewHeaderRow({
     fields,
     hiddenFields,
     onStartAddingField,
-    onStartEditingField,
     startResizingField,
     resizingState,
+    onRenameField,
     onUpdateFieldVisibility,
     onUpdateFieldConfig,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     onStartAddingField: () => void;
-    onStartEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -448,6 +448,7 @@ function DatabaseGridViewHeaderRow({
         onCancel: () => void;
     };
     resizingState: {readonly fieldId: DatabaseFieldId} | null;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldVisibility: (
         fieldId: DatabaseFieldId,
         position: OrderKey,
@@ -461,9 +462,9 @@ function DatabaseGridViewHeaderRow({
                 <DatabaseGridViewHeaderCell
                     key={field.id}
                     field={field}
-                    onStartEditingField={onStartEditingField}
                     startResizingField={startResizingField}
                     isResizingThisField={resizingState?.fieldId === field.id}
+                    onRenameField={onRenameField}
                     onUpdateFieldConfig={onUpdateFieldConfig}
                 />
             ))}
@@ -496,13 +497,12 @@ function DatabaseGridViewHeaderRow({
 
 function DatabaseGridViewHeaderCell({
     field,
-    onStartEditingField,
     startResizingField,
     isResizingThisField,
+    onRenameField,
     onUpdateFieldConfig,
 }: {
     field: DatabaseGridViewFieldWithEditing;
-    onStartEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -512,11 +512,11 @@ function DatabaseGridViewHeaderCell({
         onCancel: () => void;
     };
     isResizingThisField: boolean;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
-    const isAdding = field.columnName === "__pending__";
 
     useEffect(() => {
         if (editing != null) {
@@ -529,15 +529,10 @@ function DatabaseGridViewHeaderCell({
     }, [editing != null]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <Box
-            backgroundColor="grey-0"
-            position="relative"
-            style={field.columnStyle}
-            onDoubleClick={() => onStartEditingField(field.id)}
-        >
+        <Box backgroundColor="grey-0" position="relative" style={field.columnStyle}>
             {editing ? (
                 <Overlay
-                    isVisible={isAdding}
+                    isVisible={true}
                     placement="bottom-start"
                     fallbackPlacements={["bottom-end"]}
                     preventOverflow={false}
@@ -572,22 +567,11 @@ function DatabaseGridViewHeaderCell({
                     />
                 </Overlay>
             ) : (
-                <Box
-                    display="flex"
-                    alignItems="center"
-                    color="grey-80"
-                    fontSize="75"
-                    fontStyle="truncate-semi-bold"
-                    padding="2"
-                    textAlign="left"
-                    gap="1"
-                >
-                    <DatabaseGridViewHeaderConfigTrigger
-                        field={field}
-                        onUpdateFieldConfig={onUpdateFieldConfig}
-                    />
-                    <Box fontStyle="truncate-semi-bold">{field.name}</Box>
-                </Box>
+                <DatabaseGridViewHeaderEditor
+                    field={field}
+                    onRenameField={onRenameField}
+                    onUpdateFieldConfig={onUpdateFieldConfig}
+                />
             )}
             <DatabaseGridViewResizeHandle
                 fieldId={field.id}
@@ -598,60 +582,95 @@ function DatabaseGridViewHeaderCell({
     );
 }
 
-// -- Field config editor trigger ---------------------------------------------
+// -- Field header editor (rename + config menu) ------------------------------
 
-function DatabaseGridViewHeaderConfigTrigger({
+function DatabaseGridViewHeaderEditor({
     field,
+    onRenameField,
     onUpdateFieldConfig,
 }: {
     field: DatabaseGridViewFieldWithEditing;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
-    const [isOpen, setIsOpen] = useState(false);
     const provider = getDatabaseFieldComponentProvider(field.config.type);
-    const ConfigEditorPopover = provider.ConfigEditorPopover;
     const Icon = provider.Icon;
-    const iconBox = (
-        <Box
-            tabIndex={ConfigEditorPopover == null ? undefined : 0}
-            cursor={ConfigEditorPopover == null ? undefined : "pointer"}
-            color="grey-50"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            onClick={
-                ConfigEditorPopover == null
-                    ? undefined
-                    : e => {
-                          e.stopPropagation();
-                          setIsOpen(o => !o);
-                      }
-            }
-            style={{
-                minWidth: "1.25rem",
-                userSelect: "none",
-            }}
-        >
-            <Icon size={14} />
-        </Box>
-    );
-    if (ConfigEditorPopover == null) return iconBox;
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [draftName, setDraftName] = useState(field.name);
+
+    useEffect(() => {
+        setDraftName(field.name);
+    }, [field.name]);
+
+    const commitRename = useEvent(() => {
+        const trimmed = (inputRef.current?.value ?? draftName).trim();
+        if (trimmed === "" || trimmed === field.name) return;
+        onRenameField(field.id, trimmed);
+    });
+
+    const configActions =
+        provider.getConfigMenuActions?.({
+            config: field.config,
+            onCommit: config => onUpdateFieldConfig(field.id, config),
+        }) ?? [];
+
     return (
-        <Overlay
-            isVisible={isOpen}
+        <MenuButton
+            withoutButtonElementRequirement
             placement="bottom-start"
-            fallbackPlacements={["bottom-end"]}
-            preventOverflow={false}
-            overlay={
-                <ConfigEditorPopover
-                    config={field.config}
-                    onCommit={config => onUpdateFieldConfig(field.id, config)}
-                    onClose={() => setIsOpen(false)}
-                />
+            actions={configActions}
+            onClose={commitRename}
+            extraOverlayTop={
+                <Box paddingX="1.5" paddingTop="1.5" paddingBottom="1">
+                    <input
+                        ref={inputRef}
+                        autoFocus
+                        value={draftName}
+                        maxLength={maxLabelStringLength}
+                        onChange={e => setDraftName(e.currentTarget.value)}
+                        onBlur={commitRename}
+                        onKeyDown={e => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitRename();
+                            } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setDraftName(field.name);
+                            }
+                            e.stopPropagation();
+                        }}
+                        className={sprinkles({
+                            width: "full",
+                            padding: "1.5",
+                            fontSize: "75",
+                            color: "grey-100",
+                            border: "grey-10",
+                            borderRadius: "1",
+                        })}
+                    />
+                </Box>
             }
         >
-            {iconBox}
-        </Overlay>
+            <Box
+                role="button"
+                tabIndex={0}
+                cursor="pointer"
+                display="flex"
+                alignItems="center"
+                color="grey-80"
+                fontSize="75"
+                fontStyle="truncate-semi-bold"
+                padding="2"
+                textAlign="left"
+                gap="1"
+                style={{userSelect: "none"}}
+            >
+                <Box color="grey-50" display="flex" alignItems="center">
+                    <Icon size={14} />
+                </Box>
+                <Box fontStyle="truncate-semi-bold">{field.name}</Box>
+            </Box>
+        </MenuButton>
     );
 }
 

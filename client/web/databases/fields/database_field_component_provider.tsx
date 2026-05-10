@@ -1,5 +1,7 @@
 import type {Icon} from "phosphor-react";
 import type {ComponentType, Ref} from "react";
+
+import type {MenuActions} from "~/client/web/design/menu.js";
 import {
     DatabaseCellValue,
     DatabaseFieldConfig,
@@ -46,15 +48,13 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
 };
 
 /**
- * Props passed by the grid view header to a field type's
- * config editor popover. Rendered when the user clicks
- * the per-type indicator in the column header.
+ * Args passed by the grid view header to a field type's
+ * config menu action builder. The returned actions are
+ * appended to the field's editor menu.
  */
-export type DatabaseFieldConfigEditorPopoverProps<Type extends DatabaseFieldType> = {
-    ref?: Ref<HTMLElement>;
+export type DatabaseFieldConfigMenuActionsArgs<Type extends DatabaseFieldType> = {
     config: DatabaseFieldConfig<Type>;
     onCommit: (config: DatabaseFieldConfig<Type>) => void;
-    onClose: () => void;
 };
 
 // -- Base type ----------------------------------------------------------------
@@ -79,9 +79,9 @@ export type DatabaseFieldComponentProviderBase = {
     readonly GridViewCellEditorOverlay: ComponentType<
         DatabaseGridViewCellEditorOverlayProps<DatabaseFieldType>
     > | null;
-    readonly ConfigEditorPopover: ComponentType<
-        DatabaseFieldConfigEditorPopoverProps<DatabaseFieldType>
-    > | null;
+    readonly getConfigMenuActions:
+        | ((args: DatabaseFieldConfigMenuActionsArgs<DatabaseFieldType>) => MenuActions)
+        | null;
 };
 
 // -- Factory ------------------------------------------------------------------
@@ -100,9 +100,9 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
         readonly GridViewCellEditorOverlay: ComponentType<
             DatabaseGridViewCellEditorOverlayProps<Type>
         > | null;
-        readonly ConfigEditorPopover: ComponentType<
-            DatabaseFieldConfigEditorPopoverProps<Type>
-        > | null;
+        readonly getConfigMenuActions:
+            | ((args: DatabaseFieldConfigMenuActionsArgs<Type>) => MenuActions)
+            | null;
     },
 ) {
     return {
@@ -111,6 +111,6 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
         Icon: options.Icon,
         GridViewCellContent: options.GridViewCellContent,
         GridViewCellEditorOverlay: options.GridViewCellEditorOverlay,
-        ConfigEditorPopover: options.ConfigEditorPopover,
+        getConfigMenuActions: options.getConfigMenuActions,
     };
 }

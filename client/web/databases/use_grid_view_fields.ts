@@ -54,15 +54,12 @@ type ResizingState = {
     readonly pointerId: number;
 } | null;
 
-type EditingState =
-    | {
-          readonly type: "adding";
-          readonly id: DatabaseFieldId;
-          readonly value: string;
-          readonly fieldType: DatabaseFieldType;
-      }
-    | {readonly type: "renaming"; readonly fieldId: DatabaseFieldId; readonly value: string}
-    | null;
+type EditingState = {
+    readonly type: "adding";
+    readonly id: DatabaseFieldId;
+    readonly value: string;
+    readonly fieldType: DatabaseFieldType;
+} | null;
 
 /**
  * Manages the field array for a grid view, including
@@ -86,7 +83,6 @@ export function useGridViewFields({
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
     contentMinWidth: number;
     startAddingField: () => void;
-    startEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -96,6 +92,7 @@ export function useGridViewFields({
         onCancel: () => void;
     };
     resizingState: ResizingState;
+    renameField: (fieldId: DatabaseFieldId, name: string) => void;
     updateFieldVisibility: (
         fieldId: DatabaseFieldId,
         position: OrderKey,
@@ -157,44 +154,31 @@ export function useGridViewFields({
             setEditingState(null);
             return;
         }
+        const addingId = editingState.id;
+        const addingFieldType = editingState.fieldType;
         setEditingState(null);
-        switch (editingState.type) {
-            case "renaming": {
-                const fieldId = editingState.fieldId;
-                startTransition(async () => {
-                    applyOptimisticField({type: "rename", fieldId, name: trimmed});
-                    await conn.executeAction("renameField", {fieldId, name: trimmed});
-                });
-                break;
-            }
-            case "adding": {
-                const addingId = editingState.id;
-                const addingFieldType = editingState.fieldType;
-                const lastVisible = visibleFields[visibleFields.length - 1];
-                const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
-                startTransition(async () => {
-                    applyOptimisticField({
-                        type: "create",
-                        field: {
-                            id: addingId,
-                            name: trimmed,
-                            config: getDatabaseFieldProvider(addingFieldType).getDefaultConfig(),
-                            position: addPosition,
-                            width: databaseViewDefaultColumnWidth,
-                            hidden: false,
-                        },
-                    });
-                    await conn.executeAction("createField", {
-                        fieldId: addingId,
-                        tableId,
-                        viewId,
-                        name: trimmed,
-                        type: addingFieldType,
-                    });
-                });
-                break;
-            }
-        }
+        const lastVisible = visibleFields[visibleFields.length - 1];
+        const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
+        startTransition(async () => {
+            applyOptimisticField({
+                type: "create",
+                field: {
+                    id: addingId,
+                    name: trimmed,
+                    config: getDatabaseFieldProvider(addingFieldType).getDefaultConfig(),
+                    position: addPosition,
+                    width: databaseViewDefaultColumnWidth,
+                    hidden: false,
+                },
+            });
+            await conn.executeAction("createField", {
+                fieldId: addingId,
+                tableId,
+                viewId,
+                name: trimmed,
+                type: addingFieldType,
+            });
+        });
     });
 
     const updateEditingName = useEvent((value: string) => {
@@ -281,38 +265,27 @@ export function useGridViewFields({
 
     const outputFields: ReadonlyArray<DatabaseGridViewFieldWithEditing> = useMemo(() => {
         if (editingState == null) return resizedFields;
-
-        switch (editingState.type) {
-            case "renaming": {
-                const fieldId = editingState.fieldId;
-                return resizedFields.map(field =>
-                    field.id === fieldId ? {...field, name: editingState.value, editing} : field,
-                );
-            }
-            case "adding": {
-                const widthRem = `${databaseViewDefaultColumnWidth / remPxBySpacingScale.small}rem`;
-                const lastField = resizedFields[resizedFields.length - 1];
-                return [
-                    ...resizedFields,
-                    {
-                        id: editingState.id,
-                        name: editingState.value,
-                        columnName: "__pending__",
-                        config: getDatabaseFieldProvider(editingState.fieldType).getDefaultConfig(),
-                        position: generateOrderKeyBetween(lastField?.position ?? null, null),
-                        width: databaseViewDefaultColumnWidth,
-                        hidden: false,
-                        columnStyle: {
-                            width: widthRem,
-                            minWidth: widthRem,
-                            maxWidth: widthRem,
-                            marginRight: -1,
-                        },
-                        editing,
-                    },
-                ];
-            }
-        }
+        const widthRem = `${databaseViewDefaultColumnWidth / remPxBySpacingScale.small}rem`;
+        const lastField = resizedFields[resizedFields.length - 1];
+        return [
+            ...resizedFields,
+            {
+                id: editingState.id,
+                name: editingState.value,
+                columnName: "__pending__",
+                config: getDatabaseFieldProvider(editingState.fieldType).getDefaultConfig(),
+                position: generateOrderKeyBetween(lastField?.position ?? null, null),
+                width: databaseViewDefaultColumnWidth,
+                hidden: false,
+                columnStyle: {
+                    width: widthRem,
+                    minWidth: widthRem,
+                    maxWidth: widthRem,
+                    marginRight: -1,
+                },
+                editing,
+            },
+        ];
     }, [resizedFields, editingState, editing]);
 
     const fieldIndexById = useMemo(() => {
@@ -373,10 +346,13 @@ export function useGridViewFields({
         };
     });
 
-    const startEditingField = useEvent((fieldId: DatabaseFieldId) => {
-        const field = visibleFields.find(f => f.id === fieldId);
-        if (field == null) return;
-        setEditingState({type: "renaming", fieldId, value: field.name});
+    const renameField = useEvent((fieldId: DatabaseFieldId, name: string) => {
+        const trimmed = name.trim();
+        if (trimmed === "") return;
+        startTransition(async () => {
+            applyOptimisticField({type: "rename", fieldId, name: trimmed});
+            await conn.executeAction("renameField", {fieldId, name: trimmed});
+        });
     });
 
     const updateFieldVisibility = useEvent(
@@ -424,9 +400,9 @@ export function useGridViewFields({
         fieldIndexById,
         contentMinWidth,
         startAddingField,
-        startEditingField,
         startResizingField,
         resizingState,
+        renameField,
         updateFieldVisibility,
         updateFieldConfig,
     };

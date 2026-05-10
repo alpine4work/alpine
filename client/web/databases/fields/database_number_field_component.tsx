@@ -1,18 +1,14 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
-import {CaretDown, Hash} from "phosphor-react";
+import {Hash} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 
 import {
-    type DatabaseFieldConfigEditorPopoverProps,
     type DatabaseGridViewCellContentProps,
     type DatabaseGridViewCellEditorOverlayProps,
     defineDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
-import {Button} from "~/client/web/design/button.js";
-import {MenuAction} from "~/client/web/design/menu.js";
-import {MenuButton} from "~/client/web/design/menu_button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 
@@ -123,48 +119,6 @@ const decimalPlacesOptions: ReadonlyArray<{label: string; value: number | null}>
     {label: "6", value: 6},
 ];
 
-function DatabaseNumberConfigEditorPopover({
-    ref,
-    config,
-    onCommit,
-    onClose,
-}: DatabaseFieldConfigEditorPopoverProps<"number">) {
-    const selectedOption =
-        decimalPlacesOptions.find(o => o.value === config.decimalPlaces) ?? decimalPlacesOptions[0];
-
-    const actions: ReadonlyArray<MenuAction> = decimalPlacesOptions.map(option => ({
-        label: option.label,
-        isSelected: option.value === config.decimalPlaces,
-        onPress: () => {
-            onCommit({type: "number", decimalPlaces: option.value});
-            onClose();
-        },
-    }));
-
-    return (
-        <Box
-            ref={ref as React.Ref<HTMLDivElement>}
-            backgroundColor="grey-0"
-            borderRadius="1.5"
-            boxShadow="elevation-20"
-            padding="2"
-            display="flex"
-            flexDirection="column"
-            gap="1.5"
-            style={{minWidth: 180}}
-        >
-            <Box fontSize="75" color="grey-80">
-                Decimal places
-            </Box>
-            <MenuButton actions={actions}>
-                <Button variant="outline" fullWidth icon={<CaretDown />} iconPlacement="end">
-                    {selectedOption.label}
-                </Button>
-            </MenuButton>
-        </Box>
-    );
-}
-
 export const databaseNumberFieldComponentProvider = defineDatabaseFieldComponentProvider(
     databaseNumberFieldProvider,
     {
@@ -172,6 +126,19 @@ export const databaseNumberFieldComponentProvider = defineDatabaseFieldComponent
         Icon: Hash,
         GridViewCellContent: DatabaseNumberGridViewCellContent,
         GridViewCellEditorOverlay: DatabaseNumberGridViewCellEditorOverlay,
-        ConfigEditorPopover: DatabaseNumberConfigEditorPopover,
+        getConfigMenuActions: ({config, onCommit}) => [
+            {
+                hasChildren: true,
+                key: "decimal-places",
+                label: "Decimal places",
+                actions: decimalPlacesOptions.map(option => ({
+                    label: option.label,
+                    isSelected: option.value === config.decimalPlaces,
+                    onPress: () => {
+                        onCommit({type: "number", decimalPlaces: option.value});
+                    },
+                })),
+            },
+        ],
     },
 );

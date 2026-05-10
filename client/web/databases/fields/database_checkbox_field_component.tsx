@@ -49,6 +49,6 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
             );
         },
         GridViewCellEditorOverlay: null,
-        ConfigEditorPopover: null,
+        getConfigMenuActions: null,
     },
 );

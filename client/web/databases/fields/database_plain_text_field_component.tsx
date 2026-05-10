@@ -105,6 +105,6 @@ export const databasePlainTextFieldComponentProvider = defineDatabaseFieldCompon
         Icon: TextAa,
         GridViewCellContent: DatabasePlainTextGridViewCellContent,
         GridViewCellEditorOverlay: DatabasePlainTextGridViewCellEditorOverlay,
-        ConfigEditorPopover: null,
+        getConfigMenuActions: null,
     },
 );
