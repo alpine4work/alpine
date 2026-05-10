@@ -110,7 +110,7 @@ async function createDatabaseWithSchema(
 ): Promise<{database: Database; storage: InMemoryStorage}> {
     const {database, storage} = await createDatabase();
     for (const stmt of statements) {
-        database.execute(stmt, {allowWrites: "schema+data"});
+        database.executeSql(stmt, {allowWrites: "schema+data"});
     }
     commit(database, storage);
     return {database, storage};
@@ -124,7 +124,7 @@ describe("Database — execute", () => {
     test("SELECT 1 + 1 returns the computed value", async () => {
         const {database} = await createDatabase();
 
-        const result = database.execute("SELECT 1 + 1 AS result", {allowWrites: "none"});
+        const result = database.executeSql("SELECT 1 + 1 AS result", {allowWrites: "none"});
 
         expect(result.rows).toEqual([{result: 2}]);
     });
@@ -135,7 +135,7 @@ describe("Database — execute", () => {
             "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
         );
 
-        const result = database.execute("SELECT id, name FROM items ORDER BY id", {
+        const result = database.executeSql("SELECT id, name FROM items ORDER BY id", {
             allowWrites: "none",
         });
 
@@ -150,7 +150,7 @@ describe("Database — execute", () => {
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
 
-        const result = database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+        const result = database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "data"});
 
         expect(result.rows).toEqual([]);
     });
@@ -160,9 +160,12 @@ describe("Database — execute", () => {
             "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
         );
 
-        const result = database.execute("INSERT INTO items VALUES (1, 'hi') RETURNING id, name", {
-            allowWrites: "data",
-        });
+        const result = database.executeSql(
+            "INSERT INTO items VALUES (1, 'hi') RETURNING id, name",
+            {
+                allowWrites: "data",
+            },
+        );
 
         expect(result.rows).toEqual([{id: 1, name: "hi"}]);
     });
@@ -173,7 +176,7 @@ describe("Database — authorizer", () => {
         const {database} = await createDatabase();
 
         expect(() =>
-            database.execute("CREATE TABLE t (id INTEGER)", {allowWrites: "data"}),
+            database.executeSql("CREATE TABLE t (id INTEGER)", {allowWrites: "data"}),
         ).toThrow();
     });
 
@@ -183,7 +186,7 @@ describe("Database — authorizer", () => {
         );
 
         expect(() =>
-            database.execute("INSERT INTO items VALUES (1)", {allowWrites: "none"}),
+            database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "none"}),
         ).toThrow();
     });
 
@@ -194,7 +197,7 @@ describe("Database — authorizer", () => {
         );
 
         for (const level of ["none", "data", "schema+data"] as const) {
-            const result = database.execute("SELECT id FROM items", {allowWrites: level});
+            const result = database.executeSql("SELECT id FROM items", {allowWrites: level});
             expect(result.rows).toEqual([{id: 1}]);
         }
     });
@@ -204,14 +207,14 @@ describe("Database — error handling", () => {
     test("invalid SQL throws", async () => {
         const {database} = await createDatabase();
 
-        expect(() => database.execute("NOT VALID SQL", {allowWrites: "none"})).toThrow();
+        expect(() => database.executeSql("NOT VALID SQL", {allowWrites: "none"})).toThrow();
     });
 
     test("reference to non-existent table throws", async () => {
         const {database} = await createDatabase();
 
         expect(() =>
-            database.execute("SELECT * FROM nonexistent", {allowWrites: "none"}),
+            database.executeSql("SELECT * FROM nonexistent", {allowWrites: "none"}),
         ).toThrow();
     });
 
@@ -222,7 +225,7 @@ describe("Database — error handling", () => {
         );
 
         expect(() =>
-            database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
+            database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
         ).toThrow();
     });
 
@@ -234,22 +237,22 @@ describe("Database — error handling", () => {
 
         // Hit several failure modes in succession.
         expect(() =>
-            database.execute("CREATE TABLE x (id INTEGER)", {allowWrites: "data"}),
+            database.executeSql("CREATE TABLE x (id INTEGER)", {allowWrites: "data"}),
         ).toThrow();
-        expect(() => database.execute("SELECT * FROM nope", {allowWrites: "none"})).toThrow();
+        expect(() => database.executeSql("SELECT * FROM nope", {allowWrites: "none"})).toThrow();
         expect(() =>
-            database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
+            database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
         ).toThrow();
 
         // Subsequent reads and writes still work.
-        const before = database.execute("SELECT id FROM items ORDER BY id", {
+        const before = database.executeSql("SELECT id FROM items ORDER BY id", {
             allowWrites: "none",
         });
         expect(before.rows).toEqual([{id: 1}]);
 
-        database.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO items VALUES (2)", {allowWrites: "data"});
         commit(database, storage);
-        const after = database.execute("SELECT id FROM items ORDER BY id", {
+        const after = database.executeSql("SELECT id FROM items ORDER BY id", {
             allowWrites: "none",
         });
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
@@ -259,16 +262,16 @@ describe("Database — error handling", () => {
         const {database} = await createDatabaseWithSchema(
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
-        const innerDb = database.unsafeGetDb();
+        const innerDb = database.unsafeGetDbForTests();
 
         // Trigger a re-entrant execute by registering a
         // SQLite function that calls execute() again.
         innerDb.createFunction("reenter", () => {
-            database.execute("SELECT 1", {allowWrites: "none"});
+            database.executeSql("SELECT 1", {allowWrites: "none"});
             return 0;
         });
 
-        expect(() => database.execute("SELECT reenter()", {allowWrites: "none"})).toThrow(
+        expect(() => database.executeSql("SELECT reenter()", {allowWrites: "none"})).toThrow(
             "nested execute calls are not supported",
         );
     });
@@ -282,21 +285,21 @@ describe("Database — error handling", () => {
         const {database, storage} = await createDatabaseWithSchema(
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
-        const innerDb = database.unsafeGetDb();
+        const innerDb = database.unsafeGetDbForTests();
         innerDb.createFunction("reenter", () => {
-            database.execute("SELECT 1", {allowWrites: "none"});
+            database.executeSql("SELECT 1", {allowWrites: "none"});
             return 0;
         });
 
-        expect(() => database.execute("SELECT reenter()", {allowWrites: "none"})).toThrow();
+        expect(() => database.executeSql("SELECT reenter()", {allowWrites: "none"})).toThrow();
 
         // Subsequent normal executes work — read and write.
-        const read = database.execute("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
+        const read = database.executeSql("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
         expect(read.rows).toEqual([{n: 0}]);
 
-        database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "data"});
         commit(database, storage);
-        const after = database.execute("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
+        const after = database.executeSql("SELECT COUNT(*) AS n FROM items", {allowWrites: "none"});
         expect(after.rows).toEqual([{n: 1}]);
     });
 });
@@ -306,15 +309,17 @@ describe("Database — getBufferedWrites", () => {
         const {database} = await createDatabase();
 
         // A pure read shouldn't buffer anything.
-        database.execute("SELECT 1", {allowWrites: "none"});
+        database.executeSql("SELECT 1", {allowWrites: "none"});
         expect(database.getBufferedWrites()).toBeNull();
     });
 
     test("contains pages after a DDL+DML write", async () => {
         const {database} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
-        database.execute("INSERT INTO t VALUES (1)", {allowWrites: "data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
+        database.executeSql("INSERT INTO t VALUES (1)", {allowWrites: "data"});
 
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -326,7 +331,9 @@ describe("Database — getBufferedWrites", () => {
     test("each buffered page is exactly sqlitePageSize bytes", async () => {
         const {database} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
 
         const pages = database.getBufferedWrites()!.pages.get(databaseMainTableId)!;
         for (const [, data] of pages) {
@@ -337,7 +344,9 @@ describe("Database — getBufferedWrites", () => {
     test("returns null after markCommitted clears the buffer", async () => {
         const {database, storage} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         commit(database, storage);
 
         expect(database.getBufferedWrites()).toBeNull();
@@ -346,7 +355,9 @@ describe("Database — getBufferedWrites", () => {
     test("returns null after discardBuffer clears the buffer", async () => {
         const {database} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         database.discardBuffer();
 
         expect(database.getBufferedWrites()).toBeNull();
@@ -358,7 +369,9 @@ describe("Database — getBufferedWrites", () => {
         // down so callers can drain into a wire format
         // without paying for a copy on every read.
         const {database} = await createDatabase();
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
 
         const first = database.getBufferedWrites();
         const second = database.getBufferedWrites();
@@ -374,11 +387,13 @@ describe("Database — getBufferedWrites", () => {
     test("buffer accumulates across multiple execute calls", async () => {
         const {database} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         const afterCreate = database.getBufferedWrites()!.pages.get(databaseMainTableId)!.size;
 
-        database.execute("INSERT INTO t VALUES (1)", {allowWrites: "data"});
-        database.execute("INSERT INTO t VALUES (2)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (1)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (2)", {allowWrites: "data"});
         const afterInserts = database.getBufferedWrites()!.pages.get(databaseMainTableId)!.size;
 
         expect(afterInserts).toBeGreaterThanOrEqual(afterCreate);
@@ -389,13 +404,13 @@ describe("Database — markCommitted", () => {
     test("durable storage state is visible to subsequent reads", async () => {
         const {database, storage} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)", {
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)", {
             allowWrites: "schema+data",
         });
-        database.execute("INSERT INTO t VALUES (1, 'hello')", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (1, 'hello')", {allowWrites: "data"});
         commit(database, storage);
 
-        const result = database.execute("SELECT id, val FROM t", {allowWrites: "none"});
+        const result = database.executeSql("SELECT id, val FROM t", {allowWrites: "none"});
         expect(result.rows).toEqual([{id: 1, val: "hello"}]);
     });
 
@@ -409,7 +424,9 @@ describe("Database — markCommitted", () => {
 
     test("called twice in a row is a no-op the second time", async () => {
         const {database, storage} = await createDatabase();
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         commit(database, storage);
 
         expect(() => database.markCommitted()).not.toThrow();
@@ -419,10 +436,12 @@ describe("Database — markCommitted", () => {
     test("writes after commit are buffered fresh, not merged with prior commit", async () => {
         const {database, storage} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         commit(database, storage);
 
-        database.execute("INSERT INTO t VALUES (1)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (1)", {allowWrites: "data"});
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
         // Buffer reflects only the post-commit insert; the
@@ -441,7 +460,9 @@ describe("Database — discardBuffer", () => {
 
     test("called twice in a row is a no-op the second time", async () => {
         const {database} = await createDatabase();
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         database.discardBuffer();
         expect(() => database.discardBuffer()).not.toThrow();
         expect(database.getBufferedWrites()).toBeNull();
@@ -450,10 +471,12 @@ describe("Database — discardBuffer", () => {
     test("rolls back buffered writes — table no longer exists", async () => {
         const {database} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         database.discardBuffer();
 
-        expect(() => database.execute("SELECT * FROM t", {allowWrites: "none"})).toThrow();
+        expect(() => database.executeSql("SELECT * FROM t", {allowWrites: "none"})).toThrow();
     });
 
     test("rolls back uncommitted DML — original row count restored", async () => {
@@ -462,11 +485,11 @@ describe("Database — discardBuffer", () => {
             "INSERT INTO t VALUES (1)",
         );
 
-        database.execute("INSERT INTO t VALUES (2)", {allowWrites: "data"});
-        database.execute("INSERT INTO t VALUES (3)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (2)", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (3)", {allowWrites: "data"});
         database.discardBuffer();
 
-        const result = database.execute("SELECT COUNT(*) AS n FROM t", {
+        const result = database.executeSql("SELECT COUNT(*) AS n FROM t", {
             allowWrites: "none",
         });
         expect(result.rows).toEqual([{n: 1}]);
@@ -487,13 +510,13 @@ describe("Database — discardBuffer", () => {
         );
 
         // Prime the pager cache by reading.
-        const before = db1.execute("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
+        const before = db1.executeSql("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
         expect(before.rows).toEqual([{n: 1}]);
 
         // External mutation: open a second database on the
         // same storage and write through it.
         const {database: db2} = await createDatabase(storage);
-        db2.execute("INSERT INTO t VALUES (2)", {allowWrites: "data"});
+        db2.executeSql("INSERT INTO t VALUES (2)", {allowWrites: "data"});
         commit(db2, storage);
         db2.close();
 
@@ -501,7 +524,7 @@ describe("Database — discardBuffer", () => {
         // serve the old page. After discard, the next read
         // re-issues xRead and sees the new state.
         db1.discardBuffer();
-        const after = db1.execute("SELECT id FROM t ORDER BY id", {allowWrites: "none"});
+        const after = db1.executeSql("SELECT id FROM t ORDER BY id", {allowWrites: "none"});
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
     });
 
@@ -540,13 +563,13 @@ describe("Database — discardBuffer", () => {
     }> {
         const storage = new InMemoryStorage();
         const {database: db1} = await createDatabase(storage);
-        db1.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)", {
+        db1.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)", {
             allowWrites: "schema+data",
         });
         // Spread rows across multiple pages so the target
         // row sits past the schema page.
         for (let i = 1; i <= 200; i++) {
-            db1.execute(`INSERT INTO t VALUES (${i}, ${i})`, {allowWrites: "data"});
+            db1.executeSql(`INSERT INTO t VALUES (${i}, ${i})`, {allowWrites: "data"});
         }
         commit(db1, storage);
 
@@ -554,12 +577,12 @@ describe("Database — discardBuffer", () => {
 
         // db1 buffers an optimistic local update — value A.
         // SQLite bumps the cached change counter on page 0.
-        db1.execute(`UPDATE t SET v = -1 WHERE id = ${targetId}`, {allowWrites: "data"});
+        db1.executeSql(`UPDATE t SET v = -1 WHERE id = ${targetId}`, {allowWrites: "data"});
 
         // Prime db1's pager cache for the target row by
         // reading it. SQLite serves the buffered (A) value,
         // and now caches that page along with page 0.
-        const buffered = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+        const buffered = db1.executeSql(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
         expect(buffered.rows).toEqual([{v: -1}]);
@@ -570,7 +593,7 @@ describe("Database — discardBuffer", () => {
         // update, which bumps storage's change counter
         // from N to N+1, matching db1's cached counter.
         const {database: db2} = await createDatabase(storage);
-        db2.execute(`UPDATE t SET v = 999 WHERE id = ${targetId}`, {allowWrites: "data"});
+        db2.executeSql(`UPDATE t SET v = 999 WHERE id = ${targetId}`, {allowWrites: "data"});
         commit(db2, storage);
         db2.close();
 
@@ -582,7 +605,7 @@ describe("Database — discardBuffer", () => {
 
         db1.discardBuffer();
 
-        const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+        const after = db1.executeSql(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
         // Server's value wins — discardBuffer dropped both
@@ -595,7 +618,7 @@ describe("Database — discardBuffer", () => {
 
         db1.discardBuffer({skipClearCacheForTests: true});
 
-        const after = db1.execute(`SELECT v FROM t WHERE id = ${targetId}`, {
+        const after = db1.executeSql(`SELECT v FROM t WHERE id = ${targetId}`, {
             allowWrites: "none",
         });
         // The discarded local value wins because SQLite's
@@ -615,7 +638,7 @@ describe("Database — read path edge cases", () => {
         // verify by simply opening and selecting from sqlite_schema.
         const {database} = await createDatabase();
 
-        const result = database.execute("SELECT name FROM sqlite_schema", {allowWrites: "none"});
+        const result = database.executeSql("SELECT name FROM sqlite_schema", {allowWrites: "none"});
         expect(result.rows).toEqual([]);
     });
 
@@ -626,15 +649,15 @@ describe("Database — read path edge cases", () => {
         );
 
         // Mutate without committing — storage still says 'before'.
-        database.execute("UPDATE t SET val = 'after' WHERE id = 1", {allowWrites: "data"});
+        database.executeSql("UPDATE t SET val = 'after' WHERE id = 1", {allowWrites: "data"});
 
         // Read should see the buffered (new) value.
-        const buffered = database.execute("SELECT val FROM t", {allowWrites: "none"});
+        const buffered = database.executeSql("SELECT val FROM t", {allowWrites: "none"});
         expect(buffered.rows).toEqual([{val: "after"}]);
 
         // Discard the buffer — read should see the storage value.
         database.discardBuffer();
-        const fromStorage = database.execute("SELECT val FROM t", {allowWrites: "none"});
+        const fromStorage = database.executeSql("SELECT val FROM t", {allowWrites: "none"});
         expect(fromStorage.rows).toEqual([{val: "before"}]);
 
         // And storage was indeed never mutated.
@@ -646,11 +669,11 @@ describe("Database — read path edge cases", () => {
         // schema page (page 0) is readable but later pages
         // can be made to throw.
         const {database: setup, storage} = await createDatabase();
-        setup.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
+        setup.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
             allowWrites: "schema+data",
         });
         for (let i = 1; i <= 50; i++) {
-            setup.execute(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
+            setup.executeSql(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
                 allowWrites: "data",
             });
         }
@@ -681,7 +704,7 @@ describe("Database — read path edge cases", () => {
         // re-issues xRead.
         database.discardBuffer();
 
-        expect(() => database.execute("SELECT COUNT(*) FROM t", {allowWrites: "none"})).toThrow(
+        expect(() => database.executeSql("SELECT COUNT(*) FROM t", {allowWrites: "none"})).toThrow(
             "storage failure",
         );
     });
@@ -692,11 +715,11 @@ describe("Database — read path edge cases", () => {
         // error is rethrown as the outer error, with the
         // SQLite-side error attached via `.cause`.
         const {database: setup, storage} = await createDatabase();
-        setup.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
+        setup.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
             allowWrites: "schema+data",
         });
         for (let i = 1; i <= 50; i++) {
-            setup.execute(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
+            setup.executeSql(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
                 allowWrites: "data",
             });
         }
@@ -722,7 +745,7 @@ describe("Database — read path edge cases", () => {
 
         let caught: unknown;
         try {
-            database.execute("SELECT COUNT(*) FROM t", {allowWrites: "none"});
+            database.executeSql("SELECT COUNT(*) FROM t", {allowWrites: "none"});
         } catch (error) {
             caught = error;
         }
@@ -749,7 +772,7 @@ describe("Database — truncate semantics", () => {
 
         const sizeBefore = storage.getFileSize(databaseMainTableId);
 
-        database.execute("VACUUM", {allowWrites: "schema+data"});
+        database.executeSql("VACUUM", {allowWrites: "schema+data"});
 
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -764,32 +787,32 @@ describe("Database — truncate semantics", () => {
     test("after a truncate that shrinks the file, queries still see surviving rows", async () => {
         const {database, storage} = await createDatabase();
 
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
             allowWrites: "schema+data",
         });
         for (let i = 1; i <= 50; i++) {
-            database.execute(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
+            database.executeSql(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
                 allowWrites: "data",
             });
         }
         commit(database, storage);
 
-        database.execute("DELETE FROM t WHERE id > 5", {allowWrites: "data"});
-        database.execute("VACUUM", {allowWrites: "schema+data"});
+        database.executeSql("DELETE FROM t WHERE id > 5", {allowWrites: "data"});
+        database.executeSql("VACUUM", {allowWrites: "schema+data"});
         commit(database, storage);
 
-        const result = database.execute("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
+        const result = database.executeSql("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
         expect(result.rows).toEqual([{n: 5}]);
     });
 
     test("buffered pages past a buffered truncate are dropped", async () => {
         // Build up a wide file in storage.
         const {database, storage} = await createDatabase();
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY, padding TEXT)", {
             allowWrites: "schema+data",
         });
         for (let i = 1; i <= 20; i++) {
-            database.execute(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
+            database.executeSql(`INSERT INTO t VALUES (${i}, '${"x".repeat(200)}')`, {
                 allowWrites: "data",
             });
         }
@@ -801,10 +824,10 @@ describe("Database — truncate semantics", () => {
         // Now: write a page late in the file (still buffered),
         // then VACUUM (which buffers a truncate that should
         // drop the late buffered write).
-        database.execute("INSERT INTO t VALUES (1000, 'tail')", {allowWrites: "data"});
+        database.executeSql("INSERT INTO t VALUES (1000, 'tail')", {allowWrites: "data"});
         // The tail insert buffers some pages near the end.
-        database.execute("DELETE FROM t WHERE id != 1000", {allowWrites: "data"});
-        database.execute("VACUUM", {allowWrites: "schema+data"});
+        database.executeSql("DELETE FROM t WHERE id != 1000", {allowWrites: "data"});
+        database.executeSql("VACUUM", {allowWrites: "schema+data"});
 
         const buffered = database.getBufferedWrites();
         expect(buffered).not.toBeNull();
@@ -835,7 +858,7 @@ describe("Database — truncate semantics", () => {
             "DELETE FROM t",
         );
 
-        const result = database.execute("VACUUM", {allowWrites: "schema+data"});
+        const result = database.executeSql("VACUUM", {allowWrites: "schema+data"});
 
         // Truncate did happen — observable via the buffer.
         const buffered = database.getBufferedWrites();
@@ -862,7 +885,7 @@ describe("Database — page tracking", () => {
             "INSERT INTO items VALUES (1)",
         );
 
-        const result = database.execute("SELECT * FROM items", {allowWrites: "none"});
+        const result = database.executeSql("SELECT * FROM items", {allowWrites: "none"});
         const pages = result.readPages.get(databaseMainTableId);
         expect(pages).toBeDefined();
         expect(pages!.has(0)).toBe(true);
@@ -874,7 +897,7 @@ describe("Database — page tracking", () => {
             "INSERT INTO items VALUES (1)",
         );
 
-        const result = database.execute("SELECT * FROM items", {allowWrites: "none"});
+        const result = database.executeSql("SELECT * FROM items", {allowWrites: "none"});
         expect(result.writtenPages.size).toBe(0);
     });
 
@@ -883,7 +906,7 @@ describe("Database — page tracking", () => {
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
 
-        const result = database.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+        const result = database.executeSql("INSERT INTO items VALUES (1)", {allowWrites: "data"});
         const pages = result.writtenPages.get(databaseMainTableId);
         expect(pages).toBeDefined();
         expect(pages!.size).toBeGreaterThan(0);
@@ -895,8 +918,8 @@ describe("Database — page tracking", () => {
             "INSERT INTO items VALUES (1), (2), (3)",
         );
 
-        const r1 = database.execute("SELECT * FROM items", {allowWrites: "none"});
-        const r2 = database.execute("SELECT * FROM items", {allowWrites: "none"});
+        const r1 = database.executeSql("SELECT * FROM items", {allowWrites: "none"});
+        const r2 = database.executeSql("SELECT * FROM items", {allowWrites: "none"});
 
         const p1 = [...(r1.readPages.get(databaseMainTableId) ?? [])].sort();
         const p2 = [...(r2.readPages.get(databaseMainTableId) ?? [])].sort();
@@ -910,12 +933,12 @@ describe("Database — page tracking", () => {
         );
 
         // Prime the cache.
-        database.execute("SELECT * FROM items", {allowWrites: "none"});
+        database.executeSql("SELECT * FROM items", {allowWrites: "none"});
 
         // Second read likely serves from the pager cache —
         // xRead may not fire — but the page-access hook
         // must still record the page in readPages.
-        const result = database.execute("SELECT * FROM items", {allowWrites: "none"});
+        const result = database.executeSql("SELECT * FROM items", {allowWrites: "none"});
         const pages = result.readPages.get(databaseMainTableId);
         expect(pages).toBeDefined();
         expect(pages!.size).toBeGreaterThan(0);
@@ -928,8 +951,8 @@ describe("Database — page tracking", () => {
         );
         commit(database, storage);
 
-        const first = database.execute("INSERT INTO a VALUES (1)", {allowWrites: "data"});
-        const second = database.execute("SELECT * FROM b", {allowWrites: "none"});
+        const first = database.executeSql("INSERT INTO a VALUES (1)", {allowWrites: "data"});
+        const second = database.executeSql("SELECT * FROM b", {allowWrites: "none"});
 
         // The second call should not include any writes.
         expect(second.writtenPages.size).toBe(0);
@@ -1010,8 +1033,8 @@ describe("Database — independence between instances", () => {
             "INSERT INTO t VALUES (1, 'two')",
         );
 
-        const r1 = db1.execute("SELECT v FROM t", {allowWrites: "none"});
-        const r2 = db2.execute("SELECT v FROM t", {allowWrites: "none"});
+        const r1 = db1.executeSql("SELECT v FROM t", {allowWrites: "none"});
+        const r2 = db2.executeSql("SELECT v FROM t", {allowWrites: "none"});
         expect(r1.rows).toEqual([{v: "one"}]);
         expect(r2.rows).toEqual([{v: "two"}]);
     });
@@ -1021,15 +1044,15 @@ describe("Database — independence between instances", () => {
         // write but doesn't commit; db2 should not see it.
         const storage = new InMemoryStorage();
         const {database: db1} = await createDatabase(storage);
-        db1.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        db1.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
         commit(db1, storage);
 
         const {database: db2} = await createDatabase(storage);
 
-        db1.execute("INSERT INTO t VALUES (1)", {allowWrites: "data"});
+        db1.executeSql("INSERT INTO t VALUES (1)", {allowWrites: "data"});
         // db1's insert is only in its in-memory buffer.
 
-        const result = db2.execute("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
+        const result = db2.executeSql("SELECT COUNT(*) AS n FROM t", {allowWrites: "none"});
         expect(result.rows).toEqual([{n: 0}]);
     });
 });
@@ -1037,7 +1060,9 @@ describe("Database — independence between instances", () => {
 describe("Database — close", () => {
     test("close after writes does not throw", async () => {
         const {database} = await createDatabase();
-        database.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", {allowWrites: "schema+data"});
+        database.executeSql("CREATE TABLE t (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
         expect(() => database.close()).not.toThrow();
     });
 });

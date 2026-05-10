@@ -87,6 +87,10 @@ async function createServerWithSchema(...statements: Array<string>): Promise<Dat
     for (const stmt of statements) {
         db.exec(stmt);
     }
+    // Drain test-setup writes to durable storage so a
+    // later failed execute (which discards the buffer)
+    // doesn't roll the schema out from under the test.
+    server.commitBufferForTests();
     return server;
 }
 
@@ -288,6 +292,7 @@ describe("DatabaseServer", () => {
 
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
+            server.commitBufferForTests();
 
             // Storage should have been written to.
             expect(storage.getFileSize(databaseMainTableId)).toBeGreaterThan(0);
@@ -301,6 +306,7 @@ describe("DatabaseServer", () => {
 
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
+            server.commitBufferForTests();
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
 
@@ -374,6 +380,7 @@ describe("DatabaseServer", () => {
             const db = server.unsafeGetDbForTests();
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
+            server.commitBufferForTests();
 
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
@@ -396,6 +403,7 @@ describe("DatabaseServer", () => {
             const db = server.unsafeGetDbForTests();
             db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
             db.exec("INSERT INTO items VALUES (1)");
+            server.commitBufferForTests();
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
 

@@ -600,7 +600,7 @@ export class DatabaseClient {
         // on the underlying handle works for setup. Writes
         // route through the VFS and accumulate in the
         // Database buffer — same as a real action would.
-        const db = this.database.unsafeGetDb();
+        const db = this.database.unsafeGetDbForTests();
         if (typeof migration === "function") {
             migration(db);
         } else {
@@ -634,8 +634,8 @@ export class DatabaseClient {
     }
 
     /** Exposed for tests only. Do not use in production code. */
-    unsafeGetDbForTests(): ReturnType<Database["unsafeGetDb"]> {
+    unsafeGetDbForTests(): ReturnType<Database["unsafeGetDbForTests"]> {
         assert(import.meta.jest);
-        return this.database.unsafeGetDb();
+        return this.database.unsafeGetDbForTests();
     }
 }

@@ -235,13 +235,31 @@ export class Database {
     }
 
     /**
+     * Run an arbitrary callback against the underlying
+     * SQLite handle with read/write tracking and authorizer
+     * enforcement. The callback is the lowest-level entry
+     * point; {@link executeSql} and {@link executeAction}
+     * are thin wrappers.
+     *
+     * `allowWrites` controls which classes of statement
+     * the authorizer permits while `fn` runs.
+     */
+    execute<T>(
+        fn: (db: SqliteDatabase) => T,
+        options: {allowWrites: SqliteWriteLevel},
+    ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
+        return this.runTracked(options.allowWrites, fn);
+    }
+
+    /**
      * Run an arbitrary SQL string against the database.
      * `allowWrites` controls which classes of statement
      * the authorizer permits.
      */
-    execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
-        const {result, readPages, writtenPages} = this.runTracked(options.allowWrites, db =>
-            sql.raw(query).selectAllUnknown(db),
+    executeSql(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
+        const {result, readPages, writtenPages} = this.execute(
+            db => sql.raw(query).selectAllUnknown(db),
+            options,
         );
         return {rows: result, readPages, writtenPages};
     }
@@ -254,8 +272,9 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
-        const {result, readPages, writtenPages} = this.runTracked(action.writeLevel, db =>
-            action.run(db, actionObject.input as never),
+        const {result, readPages, writtenPages} = this.execute(
+            db => action.run(db, actionObject.input as never),
+            {allowWrites: action.writeLevel},
         );
         return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
     }
@@ -359,17 +378,9 @@ export class Database {
         this.db.close();
     }
 
-    /**
-     * Escape hatch returning the raw SQLite handle.
-     * Writes go through the VFS into the in-memory buffer
-     * exactly as if they had been issued via
-     * {@link execute} — the caller is responsible for
-     * draining {@link getBufferedWrites} and acknowledging
-     * via {@link markCommitted} (or dropping via
-     * {@link discardBuffer}). Used by `DatabaseServer` for
-     * bootstrap (migrations, seed) and by tests.
-     */
-    unsafeGetDb(): SqliteDatabase {
+    /** Test-only: raw SQLite handle. */
+    unsafeGetDbForTests(): SqliteDatabase {
+        assert(import.meta.jest);
         return this.db;
     }
 

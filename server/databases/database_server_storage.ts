@@ -1,3 +1,4 @@
+import type {ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -42,4 +43,31 @@ export interface DatabaseServerStorage {
 
     /** Truncate the given table's file to the given size in bytes. */
     truncate(databaseTableId: DatabaseTableId, size: number): void;
+}
+
+/**
+ * Adapts a {@link DatabaseServerStorage} to the read-only
+ * surface that {@link Database} reads through. Tombstones
+ * (`{data: null, version}`) are surfaced as missing pages
+ * (`null`) — the underlying file shrinks via
+ * {@link DatabaseServerStorage.getFileSize}, so the read
+ * path treats a tombstoned page the same as one that never
+ * existed.
+ */
+export class DatabaseServerStorageAdapter implements ReadonlyDatabaseStorage {
+    private readonly storage: DatabaseServerStorage;
+
+    constructor(storage: DatabaseServerStorage) {
+        this.storage = storage;
+    }
+
+    readPage(tableId: DatabaseTableId, index: number): {data: Uint8Array; version: number} | null {
+        const page = this.storage.readPage(tableId, index);
+        if (page === null || page.data === null) return null;
+        return {data: page.data, version: page.version};
+    }
+
+    getFileSize(tableId: DatabaseTableId): number {
+        return this.storage.getFileSize(tableId);
+    }
 }
