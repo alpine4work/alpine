@@ -359,9 +359,17 @@ export class Database {
         this.db.close();
     }
 
-    /** Test-only: raw SQLite handle. */
-    unsafeGetDbForTests(): SqliteDatabase {
-        assert(import.meta.jest);
+    /**
+     * Escape hatch returning the raw SQLite handle.
+     * Writes go through the VFS into the in-memory buffer
+     * exactly as if they had been issued via
+     * {@link execute} — the caller is responsible for
+     * draining {@link getBufferedWrites} and acknowledging
+     * via {@link markCommitted} (or dropping via
+     * {@link discardBuffer}). Used by `DatabaseServer` for
+     * bootstrap (migrations, seed) and by tests.
+     */
+    unsafeGetDb(): SqliteDatabase {
         return this.db;
     }
 

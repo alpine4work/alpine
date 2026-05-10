@@ -259,7 +259,7 @@ describe("Database — error handling", () => {
         const {database} = await createDatabaseWithSchema(
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
-        const innerDb = database.unsafeGetDbForTests();
+        const innerDb = database.unsafeGetDb();
 
         // Trigger a re-entrant execute by registering a
         // SQLite function that calls execute() again.
@@ -282,7 +282,7 @@ describe("Database — error handling", () => {
         const {database, storage} = await createDatabaseWithSchema(
             "CREATE TABLE items (id INTEGER PRIMARY KEY)",
         );
-        const innerDb = database.unsafeGetDbForTests();
+        const innerDb = database.unsafeGetDb();
         innerDb.createFunction("reenter", () => {
             database.execute("SELECT 1", {allowWrites: "none"});
             return 0;
