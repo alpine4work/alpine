@@ -8,18 +8,18 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 interface InMemoryTable {
-    pages: Map<number, {data: Uint8Array | null; version: number}>;
+    pages: Map<number, {data: Uint8Array; version: number}>;
     fileSize: number;
-    lastWriteVersion: number;
 }
 
 class InMemoryStorage implements DatabaseServerStorage {
     private tables = new Map<DatabaseTableId, InMemoryTable>();
+    private lastWriteVersion = 0;
 
     private getTable(databaseTableId: DatabaseTableId): InMemoryTable {
         let table = this.tables.get(databaseTableId);
         if (table === undefined) {
-            table = {pages: new Map(), fileSize: 0, lastWriteVersion: 0};
+            table = {pages: new Map(), fileSize: 0};
             this.tables.set(databaseTableId, table);
         }
         return table;
@@ -28,19 +28,34 @@ class InMemoryStorage implements DatabaseServerStorage {
     readPage(
         databaseTableId: DatabaseTableId,
         index: number,
-    ): {data: Uint8Array | null; version: number} | null {
+    ): {data: Uint8Array; version: number} | null {
         const table = this.tables.get(databaseTableId);
         return table?.pages.get(index) ?? null;
     }
 
-    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number {
-        const table = this.getTable(databaseTableId);
-        const version = ++table.lastWriteVersion;
-        for (const [index, data] of pages) {
-            table.pages.set(index, {data: new Uint8Array(data), version});
-            const end = (index + 1) * sqlitePageSize;
-            if (end > table.fileSize) {
-                table.fileSize = end;
+    writePages(
+        pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
+        truncates: ReadonlyMap<DatabaseTableId, number>,
+    ): number {
+        const version = ++this.lastWriteVersion;
+        for (const [databaseTableId, size] of truncates) {
+            const table = this.getTable(databaseTableId);
+            table.fileSize = size;
+            const maxPageIndex = Math.floor(size / sqlitePageSize);
+            for (const [index] of table.pages) {
+                if (index >= maxPageIndex) {
+                    table.pages.delete(index);
+                }
+            }
+        }
+        for (const [databaseTableId, tablePages] of pages) {
+            const table = this.getTable(databaseTableId);
+            for (const [index, data] of tablePages) {
+                table.pages.set(index, {data: new Uint8Array(data), version});
+                const end = (index + 1) * sqlitePageSize;
+                if (end > table.fileSize) {
+                    table.fileSize = end;
+                }
             }
         }
         return version;
@@ -48,18 +63,6 @@ class InMemoryStorage implements DatabaseServerStorage {
 
     getFileSize(databaseTableId: DatabaseTableId): number {
         return this.tables.get(databaseTableId)?.fileSize ?? 0;
-    }
-
-    truncate(databaseTableId: DatabaseTableId, size: number): void {
-        const table = this.getTable(databaseTableId);
-        table.fileSize = size;
-        const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const version = ++table.lastWriteVersion;
-        for (const [index] of table.pages) {
-            if (index >= maxPageIndex) {
-                table.pages.set(index, {data: null, version});
-            }
-        }
     }
 }
 
@@ -123,7 +126,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
 
-            expect(result.readPages.size).toBeGreaterThan(0);
+            expect(result.readPages.get(databaseMainTableId)?.size ?? 0).toBeGreaterThan(0);
         });
 
         test("all page values are 4096 bytes", async () => {
@@ -135,7 +138,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
 
-            for (const [, pageData] of result.readPages) {
+            for (const [, pageData] of result.readPages.get(databaseMainTableId)!) {
                 expect(pageData.data.byteLength).toBe(sqlitePageSize);
             }
         });
@@ -150,7 +153,7 @@ describe("DatabaseServer", () => {
 
             // At least one page should be non-zero.
             let hasNonZeroPage = false;
-            for (const [, pageData] of result.readPages) {
+            for (const [, pageData] of result.readPages.get(databaseMainTableId)!) {
                 if (pageData.data.some(b => b !== 0)) {
                     hasNonZeroPage = true;
                     break;
@@ -189,7 +192,7 @@ describe("DatabaseServer", () => {
 
             for (const {name, rootpage} of schema) {
                 const result = server.execute(`SELECT * FROM "${name}"`, {allowWrites: "none"});
-                const pageIndices = [...result.readPages.keys()];
+                const pageIndices = [...result.readPages.get(databaseMainTableId)!.keys()];
 
                 // Page 0 (the schema page) is always accessed.
                 expect(pageIndices).toContain(0);
@@ -208,10 +211,12 @@ describe("DatabaseServer", () => {
             const result1 = server.execute("SELECT * FROM items", {allowWrites: "none"});
             const result2 = server.execute("SELECT * FROM items", {allowWrites: "none"});
 
-            expect(result1.readPages.size).toBe(result2.readPages.size);
-            for (const [pageIndex, pageData] of result1.readPages) {
-                expect(result2.readPages.has(pageIndex)).toBe(true);
-                expect(pageData).toEqual(result2.readPages.get(pageIndex));
+            const t1 = result1.readPages.get(databaseMainTableId)!;
+            const t2 = result2.readPages.get(databaseMainTableId)!;
+            expect(t1.size).toBe(t2.size);
+            for (const [pageIndex, pageData] of t1) {
+                expect(t2.has(pageIndex)).toBe(true);
+                expect(pageData).toEqual(t2.get(pageIndex));
             }
         });
     });
@@ -312,7 +317,7 @@ describe("DatabaseServer", () => {
 
             // Each page in the result should match what storage
             // returns for that page index.
-            for (const [pageIndex, pageData] of result.readPages) {
+            for (const [pageIndex, pageData] of result.readPages.get(databaseMainTableId)!) {
                 expect(pageData).toEqual(storage.readPage(databaseMainTableId, pageIndex));
             }
         });
@@ -329,7 +334,9 @@ describe("DatabaseServer", () => {
             });
 
             expect(result.rows).toEqual([]);
-            expect(result.changedPages.size).toBeGreaterThan(0);
+            expect(result.changedPages.get(databaseMainTableId)?.pages.size ?? 0).toBeGreaterThan(
+                0,
+            );
         });
 
         test("INSERT with RETURNING returns rows", async () => {
@@ -354,7 +361,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
 
-            for (const [, change] of result.changedPages) {
+            for (const [, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.before).toBeInstanceOf(Uint8Array);
                 expect(change.after).toBeInstanceOf(Uint8Array);
             }
@@ -367,7 +374,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
 
-            for (const [, change] of result.changedPages) {
+            for (const [, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.before.byteLength).toBe(sqlitePageSize);
                 expect(change.after.byteLength).toBe(sqlitePageSize);
             }
@@ -385,12 +392,12 @@ describe("DatabaseServer", () => {
             // Snapshot storage state before the mutation.
             const prePages = new Map<number, Uint8Array>();
             for (let i = 0; i < storage.getFileSize(databaseMainTableId) / sqlitePageSize; i++) {
-                prePages.set(i, new Uint8Array(storage.readPage(databaseMainTableId, i)!.data!));
+                prePages.set(i, new Uint8Array(storage.readPage(databaseMainTableId, i)!.data));
             }
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
 
-            for (const [pageIndex, change] of result.changedPages) {
+            for (const [pageIndex, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 const prePage = prePages.get(pageIndex) ?? new Uint8Array(sqlitePageSize);
                 expect(change.before).toEqual(prePage);
             }
@@ -407,7 +414,7 @@ describe("DatabaseServer", () => {
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
 
-            for (const [pageIndex, change] of result.changedPages) {
+            for (const [pageIndex, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.after).toEqual(
                     storage.readPage(databaseMainTableId, pageIndex)!.data,
                 );
@@ -423,13 +430,24 @@ describe("DatabaseServer", () => {
 
             // At least one page should have different before/after.
             let hasDiff = false;
-            for (const [, change] of result.changedPages) {
+            for (const [, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 if (!change.before.every((b, i) => b === change.after[i])) {
                     hasDiff = true;
                     break;
                 }
             }
             expect(hasDiff).toBe(true);
+        });
+
+        test("changedPages reports per-table fileSizeInPages after the drain", async () => {
+            const server = await createServerWithSchema(
+                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
+            );
+
+            const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+            const entry = result.changedPages.get(databaseMainTableId);
+            expect(entry).toBeDefined();
+            expect(entry!.fileSizeInPages).toBeGreaterThan(0);
         });
     });
 

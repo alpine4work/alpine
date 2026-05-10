@@ -1,8 +1,5 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {
-    type DatabaseServerStorage,
-    DatabaseServerStorageAdapter,
-} from "~/server/databases/database_server_storage.js";
+import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {Database} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -13,9 +10,10 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
-import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export interface DatabaseServerPageChange {
@@ -23,10 +21,30 @@ export interface DatabaseServerPageChange {
     after: Uint8Array;
 }
 
+/**
+ * Per-table changed-page report. `pages` carries the
+ * before/after images for each page touched in the batch;
+ * `fileSizeInPages` is the post-drain canonical SQLite file
+ * size for this table — sent alongside the diffs so clients
+ * can extend or truncate their cache atomically with the
+ * page writes.
+ */
+export interface DatabaseServerTableChangedPages {
+    pages: Map<number, DatabaseServerPageChange>;
+    fileSizeInPages: number;
+}
+
+export type DatabaseServerReadPages = Map<
+    DatabaseTableId,
+    Map<number, {data: Uint8Array; version: number}>
+>;
+
+export type DatabaseServerChangedPages = Map<DatabaseTableId, DatabaseServerTableChangedPages>;
+
 export interface DatabaseServerResult {
     rows: Array<Record<string, unknown>>;
-    readPages: Map<number, {data: Uint8Array; version: number}>;
-    changedPages: Map<number, DatabaseServerPageChange>;
+    readPages: DatabaseServerReadPages;
+    changedPages: DatabaseServerChangedPages;
 }
 
 /**
@@ -40,8 +58,8 @@ export interface DatabaseServerResult {
  * call captures pre-mutation page snapshots, drains the
  * buffer to {@link DatabaseServerStorage}, and surfaces
  * `readPages` (with full page data + version) and
- * `changedPages` (before/after) for the realtime layer to
- * broadcast.
+ * `changedPages` (before/after, partitioned by table) for
+ * the realtime layer to broadcast.
  */
 export class DatabaseServer {
     private readonly database: Database;
@@ -53,26 +71,25 @@ export class DatabaseServer {
     }
 
     static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        const adapter = new DatabaseServerStorageAdapter(storage);
-        const database = await Database.create(adapter);
+        const database = await Database.create(storage);
         const server = new DatabaseServer(database, storage);
         server._bootstrap();
         return server;
     }
 
     execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
-        const {result, ...res} = this._runAndPersist(options.allowWrites, db =>
+        const {result, readPages, changedPages} = this._runAndPersist(options.allowWrites, db =>
             sql.raw(query).selectAllUnknown(db),
         );
-        return {rows: result, readPages: res.readPages, changedPages: res.changedPages};
+        return {rows: result, readPages, changedPages};
     }
 
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {
         result: DatabaseActionOutput<N>;
-        readPages: Map<number, {data: Uint8Array; version: number}>;
-        changedPages: Map<number, DatabaseServerPageChange>;
+        readPages: DatabaseServerReadPages;
+        changedPages: DatabaseServerChangedPages;
     } {
         const action = databaseActions[actionObject.name];
         const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, db =>
@@ -140,16 +157,15 @@ export class DatabaseServer {
         fn: (db: SqliteDatabase) => T,
     ): {
         result: T;
-        readPages: Map<number, {data: Uint8Array; version: number}>;
-        changedPages: Map<number, DatabaseServerPageChange>;
+        readPages: DatabaseServerReadPages;
+        changedPages: DatabaseServerChangedPages;
     } {
         let inner: {
             result: T;
             readPages: ReadonlyDatabasePageSet;
-            writtenPages: ReadonlyDatabasePageSet;
         };
         try {
-            inner = this.database.execute(
+            const tracked = this.database.execute(
                 db => {
                     const result = fn(db);
                     // Run optimize inside the same tracked
@@ -164,6 +180,7 @@ export class DatabaseServer {
                 },
                 {allowWrites: writeLevel},
             );
+            inner = {result: tracked.result, readPages: tracked.readPages};
         } catch (error) {
             // Drop any partial buffered writes so storage
             // and SQLite's pager cache stay in sync.
@@ -178,68 +195,88 @@ export class DatabaseServer {
         readPagesSet: ReadonlyDatabasePageSet,
     ): {
         result: T;
-        readPages: Map<number, {data: Uint8Array; version: number}>;
-        changedPages: Map<number, DatabaseServerPageChange>;
+        readPages: DatabaseServerReadPages;
+        changedPages: DatabaseServerChangedPages;
     } {
-        const tableId = databaseMainTableId;
         const buffered = this.database.getBufferedWrites();
 
         // Capture the pre-mutation `before` image for every
         // buffered page from storage *before* draining.
-        const changedPages = new Map<number, DatabaseServerPageChange>();
-        const tablePages = buffered?.pages.get(tableId);
-        if (tablePages !== undefined) {
-            for (const [pageIndex, after] of tablePages) {
-                const stored = this.storage.readPage(tableId, pageIndex);
-                const before =
-                    stored !== null && stored.data !== null
-                        ? stored.data
-                        : new Uint8Array(sqlitePageSize);
-                changedPages.set(pageIndex, {
-                    before: new Uint8Array(before),
-                    after: new Uint8Array(after),
-                });
+        // Touched tables = every table with a buffered page
+        // write, plus every table with a buffered truncate
+        // (which can change file size without buffered pages).
+        const changedPages: DatabaseServerChangedPages = new Map();
+        if (buffered !== null) {
+            for (const [tableId, tablePages] of buffered.pages) {
+                const pages = new Map<number, DatabaseServerPageChange>();
+                for (const [pageIndex, after] of tablePages) {
+                    const stored = this.storage.readPage(tableId, pageIndex);
+                    const before = stored !== null ? stored.data : new Uint8Array(sqlitePageSize);
+                    pages.set(pageIndex, {
+                        before: new Uint8Array(before),
+                        after: new Uint8Array(after),
+                    });
+                }
+                // fileSizeInPages is filled in below, after
+                // the drain — at that point the storage
+                // size reflects this batch's truncate +
+                // writes.
+                changedPages.set(tableId, {pages, fileSizeInPages: 0});
             }
         }
 
         const postWriteVersion = this._persistBuffer();
 
+        // Patch in post-drain file sizes per touched table.
+        for (const [tableId, entry] of changedPages) {
+            entry.fileSizeInPages = this.storage.getFileSize(tableId) / sqlitePageSize;
+        }
+
         // Build the readPages map with full page data +
-        // version. For pages that were just written, use
-        // the after-image plus the freshly-assigned write
-        // version; for the rest, fetch from storage.
-        const readPages = new Map<number, {data: Uint8Array; version: number}>();
-        const readIndexes = readPagesSet.get(tableId) ?? new Set<number>();
-        for (const pageIndex of readIndexes) {
-            const change = changedPages.get(pageIndex);
-            if (change !== undefined) {
-                readPages.set(pageIndex, {
-                    data: new Uint8Array(change.after),
-                    version: postWriteVersion,
-                });
-            } else {
-                const page = this.storage.readPage(tableId, pageIndex);
-                const data =
-                    page !== null && page.data !== null
-                        ? page.data
-                        : new Uint8Array(sqlitePageSize);
-                readPages.set(pageIndex, {
-                    data: new Uint8Array(data),
-                    version: page?.version ?? 0,
-                });
+        // version per table. For pages that were just
+        // written, use the after-image plus the freshly-
+        // assigned write version; for the rest, fetch from
+        // storage.
+        const readPages: DatabaseServerReadPages = new Map();
+        for (const [tableId, indexes] of readPagesSet) {
+            const tableMap = new Map<number, {data: Uint8Array; version: number}>();
+            const tableChanges = changedPages.get(tableId)?.pages;
+            for (const pageIndex of indexes) {
+                const change = tableChanges?.get(pageIndex);
+                if (change !== undefined) {
+                    tableMap.set(pageIndex, {
+                        data: new Uint8Array(change.after),
+                        version: postWriteVersion,
+                    });
+                } else {
+                    const page = this.storage.readPage(tableId, pageIndex);
+                    const data = page !== null ? page.data : new Uint8Array(sqlitePageSize);
+                    tableMap.set(pageIndex, {
+                        data: new Uint8Array(data),
+                        version: page?.version ?? 0,
+                    });
+                }
             }
+            readPages.set(tableId, tableMap);
         }
 
         // The realtime layer pulls the version for each
         // changed page out of `readPages`, so make sure
         // every changed page is represented there even if
         // SQLite never read it back during execution.
-        for (const [pageIndex, change] of changedPages) {
-            if (!readPages.has(pageIndex)) {
-                readPages.set(pageIndex, {
-                    data: new Uint8Array(change.after),
-                    version: postWriteVersion,
-                });
+        for (const [tableId, entry] of changedPages) {
+            let tableMap = readPages.get(tableId);
+            if (tableMap === undefined) {
+                tableMap = new Map();
+                readPages.set(tableId, tableMap);
+            }
+            for (const [pageIndex, change] of entry.pages) {
+                if (!tableMap.has(pageIndex)) {
+                    tableMap.set(pageIndex, {
+                        data: new Uint8Array(change.after),
+                        version: postWriteVersion,
+                    });
+                }
             }
         }
 
@@ -249,22 +286,12 @@ export class DatabaseServer {
     /**
      * Drain the buffer's truncates and page writes into
      * durable storage and clear it. Returns the version
-     * stamped on the page writes (0 if no pages were
-     * written).
+     * stamped on the batch (0 if the buffer was empty).
      */
     private _persistBuffer(): number {
         const buffered = this.database.getBufferedWrites();
         if (buffered === null) return 0;
-        const tableId = databaseMainTableId;
-        const truncate = buffered.truncates.get(tableId);
-        if (truncate !== undefined) {
-            this.storage.truncate(tableId, truncate);
-        }
-        let version = 0;
-        const tablePages = buffered.pages.get(tableId);
-        if (tablePages !== undefined && tablePages.size > 0) {
-            version = this.storage.writePages(tableId, tablePages);
-        }
+        const version = this.storage.writePages(buffered.pages, buffered.truncates);
         this.database.markCommitted();
         return version;
     }

@@ -7,7 +7,10 @@ import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import type {DatabaseTablePageDiffs} from "~/shared/databases/database_protocol_schemas.js";
+import type {
+    DatabasePageDiffs,
+    DatabaseTablePageDiffs,
+} from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
     DatabaseRealtimeProtocol,
@@ -22,12 +25,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
     DatabaseMutationId,
+    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 
 export type DatabaseRealtimeEventStub = {
     type: "PagesChanged";
-    tableDiffs: DatabaseTablePageDiffs;
+    pageDiffs: DatabasePageDiffs;
     mutationId: DatabaseMutationId;
 };
 
@@ -82,34 +86,38 @@ export class DatabaseDurableObjectConnection {
             return this._storage.transactionSync(() => {
                 const result = this._server.executeAction(input.action);
 
-                if (result.changedPages.size > 0) {
-                    const diffs = new Map(
-                        [...result.changedPages].map(([pageIndex, {before, after}]) => [
-                            pageIndex,
-                            {
-                                version: result.readPages.get(pageIndex)!.version,
-                                diff: diffPage(before, after),
-                            },
-                        ]),
-                    );
+                const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
+                for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
+                    if (pages.size === 0) continue;
+                    const tableReadPages = result.readPages.get(tableId);
+                    const diffs = new Map<number, {version: number; diff: PageDiff}>();
+                    for (const [pageIndex, {before, after}] of pages) {
+                        diffs.set(pageIndex, {
+                            version: tableReadPages!.get(pageIndex)!.version,
+                            diff: diffPage(before, after),
+                        });
+                    }
+                    pageDiffs.set(tableId, {diffs, fileSizeInPages});
+                }
+                if (pageDiffs.size > 0) {
                     this._sendEventToAll(this._processContext, {
                         type: "PagesChanged",
-                        tableDiffs: {
-                            diffs,
-                            fileSizeInPages:
-                                this._durableObjectStorage.getFileSize(databaseMainTableId) /
-                                sqlitePageSize,
-                        },
+                        pageDiffs,
                         mutationId: input.mutationId,
                     });
                 }
 
-                const readPages = input.returnPages
-                    ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
+                // Browser-page tracking is still single-table —
+                // filter and surface only the main table's
+                // reads through it. Other tables (when added)
+                // will need to be plumbed in here.
+                const mainReadPages = result.readPages.get(databaseMainTableId) ?? new Map();
+                const filteredMain = input.returnPages
+                    ? this._browserPageTracker.filterReadPages(this._browserId, mainReadPages)
                     : null;
 
-                if (readPages !== null && readPages.size > 0) {
-                    this._browserPageTracker.addPendingPages(this._browserId, readPages.keys());
+                if (filteredMain !== null && filteredMain.size > 0) {
+                    this._browserPageTracker.addPendingPages(this._browserId, filteredMain.keys());
                 }
 
                 return {
@@ -117,7 +125,9 @@ export class DatabaseDurableObjectConnection {
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
                     readPages:
-                        readPages === null ? null : new Map([[databaseMainTableId, readPages]]),
+                        filteredMain === null
+                            ? null
+                            : new Map([[databaseMainTableId, filteredMain]]),
                 };
             });
         },
@@ -133,10 +143,10 @@ export class DatabaseDurableObjectConnection {
                 const page = this._durableObjectStorage.readPage(databaseMainTableId, pageIndex);
 
                 // Page matches — skip.
-                if (page !== null && page.data !== null && page.version === clientVersion) continue;
+                if (page !== null && page.version === clientVersion) continue;
 
-                // Over limit, or page is gone (null/tombstone) — stale index.
-                if (overLimit || page === null || page.data === null) {
+                // Over limit, or page is gone — stale index.
+                if (overLimit || page === null) {
                     stalePageIndexes.push(pageIndex);
                     continue;
                 }
@@ -157,7 +167,7 @@ export class DatabaseDurableObjectConnection {
             // Always include page 0 so the client has the schema.
             if (!updatedPages.has(0)) {
                 const page0 = this._durableObjectStorage.readPage(databaseMainTableId, 0);
-                if (page0 !== null && page0.data !== null) {
+                if (page0 !== null) {
                     const clientVersion = tableVersions.get(0);
                     if (clientVersion === undefined || clientVersion !== page0.version) {
                         updatedPages.set(0, {version: page0.version, data: page0.data});
@@ -211,23 +221,29 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                const filteredDiffs = new Map<number, {version: number; diff: PageDiff}>();
-                for (const [pageIndex, value] of eventStub.tableDiffs.diffs) {
-                    if (this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)) {
-                        filteredDiffs.set(pageIndex, value);
+                // Per-browser filter: only forward diffs for
+                // pages this browser might have cached.
+                // Browser-page tracking is still single-table,
+                // so consult it only for the main table.
+                const filtered = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
+                for (const [tableId, {diffs, fileSizeInPages}] of eventStub.pageDiffs) {
+                    const tableFiltered = new Map<number, {version: number; diff: PageDiff}>();
+                    for (const [pageIndex, value] of diffs) {
+                        if (
+                            tableId !== databaseMainTableId ||
+                            this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)
+                        ) {
+                            tableFiltered.set(pageIndex, value);
+                        }
                     }
+                    filtered.set(tableId, {
+                        diffs: tableFiltered,
+                        fileSizeInPages,
+                    });
                 }
                 return {
                     type: "PagesChanged",
-                    pageDiffs: new Map([
-                        [
-                            databaseMainTableId,
-                            {
-                                diffs: filteredDiffs,
-                                fileSizeInPages: eventStub.tableDiffs.fileSizeInPages,
-                            },
-                        ],
-                    ]),
+                    pageDiffs: filtered,
                     mutationId: eventStub.mutationId,
                 };
             }

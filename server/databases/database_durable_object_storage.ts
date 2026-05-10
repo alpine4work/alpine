@@ -8,8 +8,8 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  * Cloudflare Durable Object's {@link SqlStorage}.
  *
  * Pages are partitioned by {@link DatabaseTableId} so one
- * Durable Object can host many SQLite databases. Storage uses
- * two tables:
+ * Durable Object can host many SQLite databases. Storage
+ * uses two tables:
  *
  * - `database_table_ids(sqlite_id, database_table_id)` —
  *   maps each external string id to a small integer
@@ -17,17 +17,24 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
  *   `pages`. This keeps long ids out of the hot row.
  * - `pages(sqlite_id, page_index, version, data)` —
  *   versioned page rows keyed by
- *   `(sqlite_id, page_index, version)`.
+ *   `(sqlite_id, page_index, version)`. A `NULL` `data`
+ *   marks a tombstone (left behind by truncates) which is
+ *   surfaced as a missing page at the
+ *   {@link DatabaseServerStorage} boundary.
  *
- * The `sqlite_id` is purely an internal storage optimization
- * and never leaks across the {@link DatabaseServerStorage}
- * boundary.
+ * The `sqlite_id` is purely an internal storage
+ * optimization and never leaks across the
+ * {@link DatabaseServerStorage} boundary.
+ *
+ * Versions are global across tables: a single counter is
+ * bumped once per {@link writePages} call, and every row
+ * inserted by that call is stamped with the new value.
  */
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     private readonly sql: SqlStorage;
     private readonly sqliteIds = new Map<DatabaseTableId, number>();
-    private readonly lastWriteVersions = new Map<DatabaseTableId, number>();
     private readonly fileSizes = new Map<DatabaseTableId, number>();
+    private lastWriteVersion: number | undefined;
 
     constructor(sql: SqlStorage) {
         this.sql = sql;
@@ -51,7 +58,7 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     readPage(
         databaseTableId: DatabaseTableId,
         index: number,
-    ): {data: Uint8Array | null; version: number} | null {
+    ): {data: Uint8Array; version: number} | null {
         const sqliteId = this.lookupSqliteId(databaseTableId);
         if (sqliteId === undefined) {
             return null;
@@ -70,28 +77,64 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         }
 
         assert(result.next().done);
+        // Tombstones (data IS NULL) surface as missing pages —
+        // the underlying file size already shrank past them via
+        // {@link truncate}, so no caller needs to distinguish.
+        if (row.value.data === null) {
+            return null;
+        }
         return {
-            data: row.value.data !== null ? new Uint8Array(row.value.data) : null,
+            data: new Uint8Array(row.value.data),
             version: row.value.version,
         };
     }
 
-    writePages(databaseTableId: DatabaseTableId, pages: ReadonlyMap<number, Uint8Array>): number {
-        const sqliteId = this.getOrCreateSqliteId(databaseTableId);
-        const version = this.nextVersion(databaseTableId, sqliteId);
-        for (const [index, data] of pages) {
-            this.sql.exec(
-                "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
+    writePages(
+        pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
+        truncates: ReadonlyMap<DatabaseTableId, number>,
+    ): number {
+        const version = this.nextVersion();
+
+        // Truncates first: tombstone every page at or past
+        // each table's new boundary. A subsequent write to a
+        // page in this batch that falls past the boundary
+        // re-extends the file naturally — the boundary write
+        // just becomes the latest row at the same version.
+        for (const [databaseTableId, size] of truncates) {
+            const sqliteId = this.getOrCreateSqliteId(databaseTableId);
+            const maxPageIndex = Math.floor(size / sqlitePageSize);
+            for (const {page_index} of this.sql.exec<{page_index: number}>(
+                "SELECT DISTINCT page_index FROM pages WHERE sqlite_id = ? AND page_index >= ?",
                 sqliteId,
-                index,
-                version,
-                data.buffer,
-            );
-            const end = (index + 1) * sqlitePageSize;
-            if (end > this.getFileSize(databaseTableId)) {
-                this.fileSizes.set(databaseTableId, end);
+                maxPageIndex,
+            )) {
+                this.sql.exec(
+                    "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
+                    sqliteId,
+                    page_index,
+                    version,
+                );
+            }
+            this.fileSizes.set(databaseTableId, size);
+        }
+
+        for (const [databaseTableId, tablePages] of pages) {
+            const sqliteId = this.getOrCreateSqliteId(databaseTableId);
+            for (const [index, data] of tablePages) {
+                this.sql.exec(
+                    "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, ?)",
+                    sqliteId,
+                    index,
+                    version,
+                    data.buffer,
+                );
+                const end = (index + 1) * sqlitePageSize;
+                if (end > this.getFileSize(databaseTableId)) {
+                    this.fileSizes.set(databaseTableId, end);
+                }
             }
         }
+
         return version;
     }
 
@@ -129,45 +172,17 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         return size;
     }
 
-    truncate(databaseTableId: DatabaseTableId, size: number): void {
-        const sqliteId = this.getOrCreateSqliteId(databaseTableId);
-        const maxPageIndex = Math.floor(size / sqlitePageSize);
-        const version = this.nextVersion(databaseTableId, sqliteId);
-        for (const {page_index} of this.sql.exec<{page_index: number}>(
-            "SELECT DISTINCT page_index FROM pages WHERE sqlite_id = ? AND page_index >= ?",
-            sqliteId,
-            maxPageIndex,
-        )) {
-            this.sql.exec(
-                "INSERT INTO pages (sqlite_id, page_index, version, data) VALUES (?, ?, ?, NULL)",
-                sqliteId,
-                page_index,
-                version,
-            );
+    private nextVersion(): number {
+        if (this.lastWriteVersion === undefined) {
+            // Cold load: recover MAX(version) across every
+            // table so the next stamp is strictly greater
+            // than anything already persisted.
+            const result = this.sql.exec<{v: number | null}>("SELECT MAX(version) AS v FROM pages");
+            const row = result.next();
+            this.lastWriteVersion = row.done || row.value.v === null ? 0 : row.value.v;
         }
-        this.fileSizes.set(databaseTableId, size);
-    }
-
-    private nextVersion(databaseTableId: DatabaseTableId, sqliteId: number): number {
-        const prev = this.getLastWriteVersion(databaseTableId, sqliteId);
-        const version = prev + 1;
-        this.lastWriteVersions.set(databaseTableId, version);
-        return version;
-    }
-
-    private getLastWriteVersion(databaseTableId: DatabaseTableId, sqliteId: number): number {
-        const cached = this.lastWriteVersions.get(databaseTableId);
-        if (cached !== undefined) {
-            return cached;
-        }
-        const result = this.sql.exec<{v: number | null}>(
-            "SELECT MAX(version) AS v FROM pages WHERE sqlite_id = ?",
-            sqliteId,
-        );
-        const row = result.next();
-        const v = row.done || row.value.v === null ? 0 : row.value.v;
-        this.lastWriteVersions.set(databaseTableId, v);
-        return v;
+        this.lastWriteVersion++;
+        return this.lastWriteVersion;
     }
 
     /**

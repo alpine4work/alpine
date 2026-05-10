@@ -19,7 +19,6 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
-import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {BrowserId} from "~/shared/id/types/id_types.js";
@@ -145,7 +144,7 @@ class DatabaseGroupDurableObject {
             JSON.stringify(
                 DatabaseActionFetchResponseSchema.serialize({
                     result: {name: actionObject.name, output: result} as any,
-                    readPages: new Map([[databaseMainTableId, readPages]]),
+                    readPages,
                 }),
             ),
             {

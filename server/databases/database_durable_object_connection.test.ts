@@ -13,6 +13,7 @@ import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
     DatabaseMutationId,
+    DatabaseTableId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 
@@ -21,6 +22,24 @@ let storage: any;
 beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
 });
+
+const noTruncates: ReadonlyMap<DatabaseTableId, number> = new Map();
+
+function writePagesFor(
+    doStorage: DatabaseDurableObjectStorage,
+    tableId: DatabaseTableId,
+    pages: ReadonlyMap<number, Uint8Array>,
+): number {
+    return doStorage.writePages(new Map([[tableId, pages]]), noTruncates);
+}
+
+function truncateFor(
+    doStorage: DatabaseDurableObjectStorage,
+    tableId: DatabaseTableId,
+    size: number,
+): number {
+    return doStorage.writePages(new Map(), new Map([[tableId, size]]));
+}
 
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
@@ -73,7 +92,7 @@ function makePage(marker: number): Uint8Array {
 describe("ensureCacheIsUpToDate", () => {
     test("returns empty when all pages are up to date", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const ts = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
@@ -85,7 +104,8 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns updated pages when few are stale", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -112,7 +132,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns stale indexes for pages not on server", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const version0 = doStorage.readPage(databaseMainTableId, 0)!.version;
         const conn = createConnection(doStorage);
 
@@ -131,7 +151,7 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("mixes updated pages and stale indexes", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const conn = createConnection(doStorage);
 
         // Page 0 is stale (mismatched ts), page 5 is
@@ -157,7 +177,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < cacheUpdateStalePageLimit; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(databaseMainTableId, pages);
+        writePagesFor(doStorage, databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages are stale (client has ts=0 for each)
@@ -184,7 +204,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(databaseMainTableId, pages);
+        writePagesFor(doStorage, databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         // All pages stale
@@ -201,7 +221,8 @@ describe("ensureCacheIsUpToDate", () => {
 
     test("returns stale indexes for tombstoned pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -212,7 +233,7 @@ describe("ensureCacheIsUpToDate", () => {
         const version1 = doStorage.readPage(databaseMainTableId, 1)!.version;
 
         // Truncate page 1 away.
-        doStorage.truncate(databaseMainTableId, 1 * sqlitePageSize);
+        truncateFor(doStorage, databaseMainTableId, 1 * sqlitePageSize);
 
         const conn = createConnection(doStorage);
         const result = await ensureCacheIsUpToDate(
@@ -237,7 +258,7 @@ describe("ensureCacheIsUpToDate", () => {
         for (let i = 0; i < count; i++) {
             pages.set(i, makePage(i & 0xff));
         }
-        doStorage.writePages(databaseMainTableId, pages);
+        writePagesFor(doStorage, databaseMainTableId, pages);
         const conn = createConnection(doStorage);
 
         const clientVersions = new Map<number, number>();
@@ -281,7 +302,8 @@ function createTrackedConnection(
 describe("per-browser page tracking", () => {
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -321,7 +343,8 @@ describe("per-browser page tracking", () => {
 
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -431,7 +454,8 @@ describe("per-browser page tracking", () => {
 
     test("transformEvent filters pages to only those the client might have", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -459,14 +483,19 @@ describe("per-browser page tracking", () => {
         // Simulate a realtime event touching pages 0, 1, 3
         const eventStub = {
             type: "PagesChanged" as const,
-            tableDiffs: {
-                diffs: new Map([
-                    [0, {version: 1, diff: []}],
-                    [1, {version: 1, diff: []}],
-                    [3, {version: 1, diff: []}],
-                ]),
-                fileSizeInPages: 4,
-            },
+            pageDiffs: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [0, {version: 1, diff: []}],
+                            [1, {version: 1, diff: []}],
+                            [3, {version: 1, diff: []}],
+                        ]),
+                        fileSizeInPages: 4,
+                    },
+                ],
+            ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
         const event = await conn.transformEvent(null as any, eventStub);
@@ -483,7 +512,8 @@ describe("per-browser page tracking", () => {
 
     test("transformEvent includes pending pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
@@ -507,13 +537,18 @@ describe("per-browser page tracking", () => {
 
         const eventStub = {
             type: "PagesChanged" as const,
-            tableDiffs: {
-                diffs: new Map([
-                    [0, {version: 1, diff: []}],
-                    [1, {version: 1, diff: []}],
-                ]),
-                fileSizeInPages: 2,
-            },
+            pageDiffs: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [0, {version: 1, diff: []}],
+                            [1, {version: 1, diff: []}],
+                        ]),
+                        fileSizeInPages: 2,
+                    },
+                ],
+            ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
         const event = await conn.transformEvent(null as any, eventStub);
@@ -533,13 +568,18 @@ describe("per-browser page tracking", () => {
         // No ensureCacheIsUpToDate — tracker has no pages
         const eventStub = {
             type: "PagesChanged" as const,
-            tableDiffs: {
-                diffs: new Map([
-                    [0, {version: 1, diff: []}],
-                    [1, {version: 1, diff: []}],
-                ]),
-                fileSizeInPages: 2,
-            },
+            pageDiffs: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        diffs: new Map([
+                            [0, {version: 1, diff: []}],
+                            [1, {version: 1, diff: []}],
+                        ]),
+                        fileSizeInPages: 2,
+                    },
+                ],
+            ]),
             mutationId: generateId<DatabaseMutationId>(),
         };
         const event = await conn.transformEvent(null as any, eventStub);
@@ -551,7 +591,8 @@ describe("per-browser page tracking", () => {
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
-        doStorage.writePages(
+        writePagesFor(
+            doStorage,
             databaseMainTableId,
             new Map([
                 [0, makePage(0xaa)],
