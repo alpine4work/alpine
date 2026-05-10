@@ -117,10 +117,7 @@ export class DatabaseClient {
         // cache holds no user pages — meaning we can write
         // straight to durable storage without invalidating
         // the cache.
-        assert(
-            this.database.getBufferedWrites() === null,
-            "ensureCacheIsUpToDate must be called before any executeAction",
-        );
+        this.database.assertBufferIsEmpty("ensureCacheIsUpToDate");
 
         const pageVersionsByIndex = new Map<DatabaseTableId, Map<number, number>>();
         for (const [tableId, store] of this.storage) {
@@ -401,6 +398,7 @@ export class DatabaseClient {
         // the pages we're about to write to durable
         // storage are observed on the next read.
         this.database.discardBuffer();
+        this.database.assertBufferIsEmpty("writePageDiffsFromRealtime");
 
         let anyWritten = false;
         for (const [tableId, tableDiffs] of pageDiffs) {
@@ -428,6 +426,11 @@ export class DatabaseClient {
     }
 
     private applyServerPages(readPages: DatabasePages): void {
+        // Caller is expected to have cleared the buffer
+        // (executeActionViaServer calls discardBuffer
+        // before us) so storage mutations don't conflict
+        // with stale buffered writes.
+        this.database.assertBufferIsEmpty("applyServerPages");
         let anyWritten = false;
         for (const [tableId, tablePages] of readPages) {
             const store = this.storage.get(tableId);
@@ -527,6 +530,9 @@ export class DatabaseClient {
      * reactive actions exist yet.
      */
     async seedPages(pages: DatabasePages): Promise<void> {
+        // seedPages runs at startup before ensureCacheIsUpToDate
+        // and any executeAction, so the buffer must be empty.
+        this.database.assertBufferIsEmpty("seedPages");
         for (const [tableId, tablePages] of pages) {
             const store = this.storage.get(tableId) ?? (await this.storage.create(tableId));
             for (const [pageIndex, {version, data}] of tablePages) {
@@ -617,11 +623,25 @@ export class DatabaseClient {
             return;
         }
         const version = ++this.nextTestCommitVersion;
+        // Snapshot post-buffer file sizes before
+        // markCommitted clears the buffer; after the clear,
+        // getBufferedFileSizeInPages would only see the
+        // durable storage size.
+        const fileSizes = new Map<DatabaseTableId, number>();
+        for (const tableId of buffered.pages.keys()) {
+            fileSizes.set(tableId, this.database.getBufferedFileSizeInPages(tableId));
+        }
         for (const [tableId, pages] of buffered.pages) {
             const store = this.storage.get(tableId);
             if (store === undefined) continue;
             for (const [pageIndex, data] of pages) {
                 store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));
+            }
+            // Mirror the realtime protocol: pair page writes
+            // with the canonical file size.
+            const fileSizeInPages = fileSizes.get(tableId);
+            if (fileSizeInPages !== undefined) {
+                store.setServerFileSizeInPages(fileSizeInPages);
             }
             store.sync();
         }

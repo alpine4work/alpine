@@ -162,10 +162,10 @@ describe("execute — mutations", () => {
             server.commitOptimisticPagesForTests();
         }
 
-        const allPages = await extractOpfsPages(serverDir);
+        const {fileSizeInPages, pages: allPages} = await extractOpfsPages(serverDir);
 
         const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
+        await prepopulateOpfsPages(localDir, fileSizeInPages, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
@@ -406,13 +406,13 @@ describe("server fallback", () => {
             server.commitOptimisticPagesForTests();
         }
 
-        const allPages = await extractOpfsPages(serverDir);
+        const {fileSizeInPages, pages: allPages} = await extractOpfsPages(serverDir);
 
         // Pre-populate a local directory with all pages
         // EXCEPT the last one, then open it. SQLite sees
         // the existing DB but one page is absent.
         const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
+        await prepopulateOpfsPages(localDir, fileSizeInPages, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         let serverCalled = false;
@@ -443,11 +443,11 @@ describe("server fallback", () => {
             server.commitOptimisticPagesForTests();
         }
 
-        const allPages = await extractOpfsPages(serverDir);
+        const {fileSizeInPages, pages: allPages} = await extractOpfsPages(serverDir);
 
         // Pre-populate with all but last page
         const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
+        await prepopulateOpfsPages(localDir, fileSizeInPages, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         // First query: server fallback writes missing pages
@@ -590,11 +590,11 @@ describe("executeActionWithTracking", () => {
             server.executeLocallyForTests(`INSERT INTO t (data) VALUES ('${"x".repeat(200)}')`);
             server.commitOptimisticPagesForTests();
         }
-        const allPages = await extractOpfsPages(serverDir);
+        const {fileSizeInPages, pages: allPages} = await extractOpfsPages(serverDir);
 
         // Pre-populate with all but last page
         const localDir = createInMemoryOpfsDirectoryHandle();
-        await prepopulateOpfsPages(localDir, allPages.slice(0, -1));
+        await prepopulateOpfsPages(localDir, fileSizeInPages, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
 
         const serverConn = makeDatabaseClientConnection({
@@ -700,7 +700,7 @@ describe("registerReactiveAction", () => {
         // Write as realtime with newer versions to
         // trigger invalidation. Empty diffs since OPFS
         // already has the current content.
-        const pages = await extractOpfsPages(dir);
+        const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
@@ -749,12 +749,12 @@ describe("registerReactiveAction", () => {
         );
 
         // Record pages before t2 mutation
-        const pagesBefore = await extractOpfsPages(dir);
+        const {pages: pagesBefore} = await extractOpfsPages(dir);
 
         // Mutate t2 only
         await execute(client, testConn, "INSERT INTO t2 (id) VALUES (3)");
 
-        const pagesAfter = await extractOpfsPages(dir);
+        const {pages: pagesAfter} = await extractOpfsPages(dir);
         const changedPageDiffs = new Map(
             pagesAfter
                 .filter(after => {
@@ -807,7 +807,7 @@ describe("registerReactiveAction", () => {
 
         // Trigger invalidation via realtime page writes.
         // readPages is null so any page write overlaps.
-        const pages = await extractOpfsPages(dir);
+        const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
@@ -844,7 +844,7 @@ describe("registerReactiveAction", () => {
         client.unregisterReactiveAction("q1");
 
         // Write pages — should not trigger notification
-        const pages = await extractOpfsPages(dir);
+        const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );

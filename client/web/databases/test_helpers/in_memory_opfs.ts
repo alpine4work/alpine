@@ -90,31 +90,34 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
 
 /**
  * Reads the main table's `pages.bin` + `index.json`
- * files from a group dir into a flat array. Mirrors the
- * on-disk layout that {@link OpfsPageStore} writes
- * inside `groupDir/{mainTableId}/`.
+ * files from a group dir. Mirrors the on-disk layout
+ * that {@link OpfsPageStore} writes inside
+ * `groupDir/{mainTableId}/`.
  */
-export async function extractOpfsPages(
-    groupDir: OpfsDirectoryHandle,
-): Promise<Array<{pageIndex: number; version: number; data: Uint8Array}>> {
+export async function extractOpfsPages(groupDir: OpfsDirectoryHandle): Promise<{
+    fileSizeInPages: number;
+    pages: Array<{pageIndex: number; version: number; data: Uint8Array}>;
+}> {
     const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId);
     const pagesHandle = await (await tableDir.getFileHandle("pages.bin")).createSyncAccessHandle();
     const indexHandle = await (await tableDir.getFileHandle("index.json")).createSyncAccessHandle();
 
     const indexSize = indexHandle.getSize();
-    if (indexSize === 0) return [];
+    if (indexSize === 0) return {fileSizeInPages: 0, pages: []};
 
     const raw = new Uint8Array(indexSize);
     indexHandle.read(raw, {at: 0});
-    const entries = JSON.parse(new TextDecoder().decode(raw)) as Array<
-        [number, {slot: number; version: number}]
-    >;
+    const parsed = JSON.parse(new TextDecoder().decode(raw)) as {
+        fileSizeInPages: number;
+        pages: Array<[number, {slot: number; version: number}]>;
+    };
 
-    return entries.map(([pageIndex, {slot, version}]) => {
+    const pages = parsed.pages.map(([pageIndex, {slot, version}]) => {
         const data = new Uint8Array(sqlitePageSize);
         pagesHandle.read(data, {at: slot * sqlitePageSize});
         return {pageIndex, version, data};
     });
+    return {fileSizeInPages: parsed.fileSizeInPages, pages};
 }
 
 /**
@@ -124,6 +127,7 @@ export async function extractOpfsPages(
  */
 export async function prepopulateOpfsPages(
     groupDir: OpfsDirectoryHandle,
+    fileSizeInPages: number,
     pages: ReadonlyArray<{pageIndex: number; version: number; data: Uint8Array}>,
 ): Promise<void> {
     const tableDir = await groupDir.getDirectoryHandle(databaseMainTableId, {create: true});
@@ -138,7 +142,9 @@ export async function prepopulateOpfsPages(
     }
     pagesHandle.flush();
 
-    const json = new TextEncoder().encode(JSON.stringify(indexEntries, null, 2));
+    const json = new TextEncoder().encode(
+        JSON.stringify({fileSizeInPages, pages: indexEntries}, null, 2),
+    );
     indexHandle.write(json, {at: 0});
     indexHandle.flush();
 }

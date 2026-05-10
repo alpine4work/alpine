@@ -274,6 +274,41 @@ export class Database {
     }
 
     /**
+     * Logical file size in pages for `tableId`, including
+     * any buffered writes / truncates. Mirrors the size
+     * SQLite sees through the VFS, so callers draining the
+     * buffer can supply it as the canonical
+     * `fileSizeInPages` to durable storage.
+     */
+    getBufferedFileSizeInPages(tableId: DatabaseTableId): number {
+        const state = this.tables.get(tableId);
+        assert(state !== undefined, `getBufferedFileSizeInPages for unknown table: ${tableId}`);
+        const sizeInBytes = this.getFileSizeForTable(tableId, state);
+        return Math.ceil(sizeInBytes / sqlitePageSize);
+    }
+
+    /**
+     * Throw if any writes are currently buffered. Callers
+     * that mutate the underlying storage out from under
+     * the database (e.g. applying server-pushed pages)
+     * must clear the buffer first via
+     * {@link markCommitted} or {@link discardBuffer};
+     * otherwise the next read will serve a stale mix of
+     * SQLite's pager cache, the buffer, and the just-
+     * mutated storage.
+     */
+    assertBufferIsEmpty(reason: string): void {
+        for (const state of this.tables.values()) {
+            assert(
+                state.bufferedPages.size === 0 &&
+                    state.bufferedTruncate === null &&
+                    state.bufferedMaxPageIndex === null,
+                `${reason} requires an empty buffer`,
+            );
+        }
+    }
+
+    /**
      * Acknowledge that the current buffer has been
      * persisted to storage. Clears the buffer; subsequent
      * reads will see the durable post-commit state via

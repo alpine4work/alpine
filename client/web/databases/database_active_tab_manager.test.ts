@@ -66,7 +66,8 @@ async function extractPages(
 ): Promise<Array<{pageIndex: number; version: number; data: Uint8Array}>> {
     const dbsDir = await dir.getDirectoryHandle("databases");
     const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId);
-    return extractOpfsPages(groupDir);
+    const {pages} = await extractOpfsPages(groupDir);
+    return pages;
 }
 
 // ---------------------------------------------------------------------------
