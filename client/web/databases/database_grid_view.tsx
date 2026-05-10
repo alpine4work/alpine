@@ -610,8 +610,32 @@ function DatabaseGridViewHeaderConfigTrigger({
     const [isOpen, setIsOpen] = useState(false);
     const provider = getDatabaseFieldComponentProvider(field.config.type);
     const ConfigEditorPopover = provider.ConfigEditorPopover;
-    if (ConfigEditorPopover == null) return null;
     const Icon = provider.Icon;
+    const iconBox = (
+        <Box
+            tabIndex={ConfigEditorPopover == null ? undefined : 0}
+            cursor={ConfigEditorPopover == null ? undefined : "pointer"}
+            color="grey-50"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            onClick={
+                ConfigEditorPopover == null
+                    ? undefined
+                    : e => {
+                          e.stopPropagation();
+                          setIsOpen(o => !o);
+                      }
+            }
+            style={{
+                minWidth: "1.25rem",
+                userSelect: "none",
+            }}
+        >
+            <Icon size={14} />
+        </Box>
+    );
+    if (ConfigEditorPopover == null) return iconBox;
     return (
         <Overlay
             isVisible={isOpen}
@@ -626,24 +650,7 @@ function DatabaseGridViewHeaderConfigTrigger({
                 />
             }
         >
-            <Box
-                tabIndex={0}
-                cursor="pointer"
-                color="grey-50"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                onClick={e => {
-                    e.stopPropagation();
-                    setIsOpen(o => !o);
-                }}
-                style={{
-                    minWidth: "1.25rem",
-                    userSelect: "none",
-                }}
-            >
-                <Icon size={14} />
-            </Box>
+            {iconBox}
         </Overlay>
     );
 }
