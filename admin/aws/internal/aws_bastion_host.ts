@@ -1,8 +1,7 @@
-import {RemovalPolicy, Size} from "aws-cdk-lib";
 import {
+    BlockDeviceVolume,
     CfnEIP,
     CfnEIPAssociation,
-    CfnVolumeAttachment,
     EbsDeviceVolumeType,
     Instance,
     InstanceClass,
@@ -11,7 +10,6 @@ import {
     MachineImage,
     SecurityGroup,
     SubnetType,
-    Volume,
 } from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Construct} from "constructs";
@@ -59,6 +57,12 @@ export class AwsBastionHost extends Construct {
             securityGroup: bastionHostSecurityGroup,
             role: bastionHostRole,
             instanceName: "cyberworlds-bastion-host",
+            blockDevices: [
+                {
+                    deviceName: "/dev/sdf",
+                    volume: BlockDeviceVolume.ebs(20, {volumeType: EbsDeviceVolumeType.GP3}),
+                },
+            ],
         });
 
         const elasticIp = new CfnEIP(this, "ElasticIp", {
@@ -69,19 +73,6 @@ export class AwsBastionHost extends Construct {
         new CfnEIPAssociation(this, "ElasticIpAssociation", {
             allocationId: elasticIp.attrAllocationId,
             instanceId: instance.instanceId,
-        });
-
-        const dataVolume = new Volume(this, "DataVolume", {
-            availabilityZone: instance.instanceAvailabilityZone,
-            size: Size.gibibytes(20),
-            volumeType: EbsDeviceVolumeType.GP3,
-            removalPolicy: RemovalPolicy.DESTROY,
-        });
-
-        new CfnVolumeAttachment(this, "DataVolumeAttachment", {
-            instanceId: instance.instanceId,
-            volumeId: dataVolume.volumeId,
-            device: "/dev/sdf",
         });
 
         this._instance = instance;

@@ -284,6 +284,11 @@ Resources:
                 Fn::Select:
                     - 0
                     - Fn::GetAZs: ""
+            BlockDeviceMappings:
+                - DeviceName: /dev/sdf
+                  Ebs:
+                      VolumeSize: 20
+                      VolumeType: gp3
             IamInstanceProfile:
                 Ref: BastionHostInstanceInstanceProfileB1DB546D
             ImageId:
@@ -325,30 +330,6 @@ Resources:
                 Ref: BastionHostInstance82B9AD9B
         Metadata:
             aws:cdk:path: CyberworldsStack/BastionHost/ElasticIpAssociation
-    BastionHostDataVolumeEB43BB59:
-        Type: AWS::EC2::Volume
-        Properties:
-            AvailabilityZone:
-                Fn::GetAtt:
-                    - BastionHostInstance82B9AD9B
-                    - AvailabilityZone
-            MultiAttachEnabled: false
-            Size: 20
-            VolumeType: gp3
-        UpdateReplacePolicy: Delete
-        DeletionPolicy: Delete
-        Metadata:
-            aws:cdk:path: CyberworldsStack/BastionHost/DataVolume/Resource
-    BastionHostDataVolumeAttachmentC28F03A9:
-        Type: AWS::EC2::VolumeAttachment
-        Properties:
-            Device: /dev/sdf
-            InstanceId:
-                Ref: BastionHostInstance82B9AD9B
-            VolumeId:
-                Ref: BastionHostDataVolumeEB43BB59
-        Metadata:
-            aws:cdk:path: CyberworldsStack/BastionHost/DataVolumeAttachment
     EcsClusterFB9B21B5:
         Type: AWS::ECS::Cluster
         Metadata:
