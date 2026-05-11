@@ -65,7 +65,7 @@ class ScreenshotRunner {
 
     #page: Page | null = null;
     #screenshotNames = new Set<string>();
-    #lastScreenshotOrderKey: OrderKey | null = null;
+    #lastScreenshotOrderKey: OrderKey | null | undefined = undefined;
     #screenshotFileNames = new Set<string>();
     #hasCreatedDemoSpace = false;
 
@@ -150,6 +150,10 @@ class ScreenshotRunner {
         return this.#requirePage().getByTitle(...args);
     }
 
+    evaluate(script: string) {
+        return this.#requirePage().evaluate(script);
+    }
+
     #requirePage(): Page {
         return assertExists(
             this.#page,
@@ -215,25 +219,47 @@ class ScreenshotRunner {
         // eslint-disable-next-line cyberworlds/string-quotes
         await page.waitForFunction("typeof dev !== 'undefined' && dev.ready");
 
+        // Don't show any hints in screenshot tests.
+        await page.evaluate("dev.hints && dev.hints.toggleSuppression()");
+
         // If there's a peek path, make sure we wait until the peek has rendered before
         // continuing. Since the peek may take a second or two to load.
         if (peekPath) await page.getByTestId("PeekStackOverlay").waitFor();
     }
 
-    async screenshot(orderKey: string, name: string): Promise<void> {
+    async screenshot(orderKey: string | null, name: string): Promise<void> {
         // Names must be alphanumeric words separated by hyphens. We only allow one hyphen
         // at a time to separate words. The name can't start or end with a hyphen.
         assert(/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name));
 
-        assert(isOrderKey(orderKey));
+        // Either all `screenshot()` calls in the test have `null` `orderKey`s or
+        // `orderKey`s are monotonically increasing every `screenshot()` call.
+        //
+        // We recommend passing in `orderKey`s as it helps you clearly define the order in
+        // which screenshots appear in our screenshot gallery.
+        if (orderKey === null) {
+            if (this.#lastScreenshotOrderKey !== undefined) {
+                assert(
+                    this.#lastScreenshotOrderKey === null,
+                    "`screenshot()` `orderKey` may only be `null` if all `screenshot()` order keys are `null`",
+                );
+            }
+            this.#lastScreenshotOrderKey = null;
+        } else {
+            assert(isOrderKey(orderKey));
 
-        // Screenshot order keys must be unique and in ascending order every call. The
-        // order of screenshots taken in the screenshot test file should be the same order
-        // as the files on disk.
-        if (this.#lastScreenshotOrderKey !== null) {
-            assert(orderKey > this.#lastScreenshotOrderKey);
+            // Screenshot order keys must be unique and in ascending order every call. The
+            // order of screenshots taken in the screenshot test file should be the same order
+            // as the files on disk.
+            if (this.#lastScreenshotOrderKey !== undefined) {
+                assert(
+                    this.#lastScreenshotOrderKey !== null,
+                    "Last `screenshot()` `orderKey` was `null` so all `screenshot()` order keys must be `null`",
+                );
+                assert(orderKey > this.#lastScreenshotOrderKey);
+            }
+            this.#lastScreenshotOrderKey = orderKey;
         }
-        this.#lastScreenshotOrderKey = orderKey;
 
         if (this.#screenshotNames.has(name)) {
             throw new InvalidArgumentError(
@@ -255,9 +281,12 @@ class ScreenshotRunner {
         for (const colorScheme of ["light", "dark"]) {
             // MacOS file systems are case insensitive so encode our order key in binary then
             // print it back in hexadecimal.
-            const orderKeyHex = Array.from(encodeOrderKey(orderKey))
-                .map(byte => byte.toString(16).padStart(2, "0"))
-                .join("");
+            const orderKeyHex =
+                orderKey !== null
+                    ? Array.from(encodeOrderKey(orderKey))
+                          .map(byte => byte.toString(16).padStart(2, "0"))
+                          .join("")
+                    : null;
 
             // Most file names in `cyberworlds` use `snake_case`. However, for screenshots we
             // use `kebab-case`. The reason is [on the ASCII table the hyphen character (`-`)
@@ -283,7 +312,10 @@ class ScreenshotRunner {
             // the `OrderKey`s followed by a hyphen give us the correct sort.
             //
             // [1]: https://en.wikipedia.org/wiki/ASCII#Character_set
-            const fileName = `${this.testName}-${colorScheme}-${orderKeyHex}-${name}.png`;
+            const fileName =
+                orderKeyHex !== null
+                    ? `${this.testName}-${colorScheme}-${orderKeyHex}-${name}.png`
+                    : `${this.testName}-${colorScheme}-${name}.png`;
 
             this.#screenshotFileNames.add(fileName);
 
@@ -431,6 +463,7 @@ export type ScreenshotTestRunner = Pick<
     | "getByPlaceholder"
     | "getByAltText"
     | "getByTitle"
+    | "evaluate"
     | "goto"
     | "screenshot"
 >;
@@ -828,10 +861,8 @@ async function compareScreenshot({
 
     if (result.equal) return;
 
-    const fileName = basename(expectedPath);
-
     if (result.diffImage) {
-        await result.diffImage.save(joinPath(diffDirectoryPath, fileName));
+        await result.diffImage.save(joinPath(diffDirectoryPath, basename(expectedPath)));
     }
 
     throw new InternalError(

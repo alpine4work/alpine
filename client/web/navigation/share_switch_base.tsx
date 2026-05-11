@@ -1,11 +1,9 @@
 import {Globe, Lock} from "phosphor-react";
-import {useEffect, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {elevation} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -23,19 +21,12 @@ export function ShareSwitchBase({
     isInert?: boolean;
     onPress?: () => void;
 }) {
-    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const {pressProps, isPressed} = usePress({
         isDisabled: isInert,
         onPress,
     });
-
-    // Disable CSS transitions when `spacingScale` changes so we don't animate a width
-    // change after the browser size changes.
-    const [previousSpacingScale, setPreviousSpacingScale] = useState(spacingScale);
-    useEffect(() => setPreviousSpacingScale(spacingScale), [spacingScale]);
-    const disableTransitions = spacingScale !== previousSpacingScale;
 
     return (
         <Tooltip
@@ -79,9 +70,7 @@ export function ShareSwitchBase({
                         // the knob is 4px smaller than the well giving us our border.
                         height: `calc(${spacing["6"]} + 2px)`,
                         margin: -1,
-                        transition: !disableTransitions
-                            ? "background-color 150ms linear"
-                            : undefined,
+                        transition: "background-color 150ms linear",
                     }}
                 >
                     <Box
@@ -94,7 +83,7 @@ export function ShareSwitchBase({
                                 icon !== "Lock"
                                     ? `translateX(calc(${spacing["6"]} - 2px))`
                                     : undefined,
-                            transition: !disableTransitions ? "transform 150ms linear" : undefined,
+                            transition: "transform 150ms linear",
                         }}
                     >
                         <Box
@@ -114,9 +103,7 @@ export function ShareSwitchBase({
                                     isPressed && icon !== "Lock"
                                         ? `translateX(-${spacing["1"]})`
                                         : undefined,
-                                transition: !disableTransitions
-                                    ? "width 50ms linear, transform 50ms linear"
-                                    : undefined,
+                                transition: "width 50ms linear, transform 50ms linear",
                             }}
                         >
                             <Box
@@ -145,9 +132,7 @@ export function ShareSwitchBase({
                                 backgroundColor="grey-0-const"
                                 opacity={icon !== "Lock" ? "100" : "0"}
                                 style={{
-                                    transition: !disableTransitions
-                                        ? "opacity 100ms linear"
-                                        : undefined,
+                                    transition: "opacity 100ms linear",
                                 }}
                             >
                                 <BuildingsIcon
@@ -167,9 +152,7 @@ export function ShareSwitchBase({
                                 backgroundColor="grey-0-const"
                                 opacity={icon !== "Lock" && icon !== "Buildings" ? "100" : "0"}
                                 style={{
-                                    transition: !disableTransitions
-                                        ? "opacity 100ms linear"
-                                        : undefined,
+                                    transition: "opacity 100ms linear",
                                 }}
                             >
                                 <Globe

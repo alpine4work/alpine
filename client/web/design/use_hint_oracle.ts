@@ -1,7 +1,12 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
-import {createGlobalContext, useGlobalContext} from "~/client/web/helpers/global_context.js";
+import {
+    createGlobalContext,
+    getGlobalContext,
+    useGlobalContext,
+} from "~/client/web/helpers/global_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -34,9 +39,11 @@ class HintOracle {
     private readonly _stateStore = new ValueStore<{
         readonly activeHintSymbol: symbol | null;
         readonly hintKindBySymbol: ReadonlyMap<symbol, HintKind>;
+        readonly suppressHintsForDev: boolean;
     }>({
         activeHintSymbol: null,
         hintKindBySymbol: emptyMap,
+        suppressHintsForDev: false,
     });
 
     private _isDecisionScheduled = false;
@@ -89,6 +96,7 @@ class HintOracle {
 
             this._stateStore.set(oldState => {
                 if (oldState.activeHintSymbol !== null) return oldState;
+                if (oldState.suppressHintsForDev) return oldState;
 
                 return {
                     ...oldState,
@@ -96,6 +104,18 @@ class HintOracle {
                 };
             });
         }, 1000);
+    }
+
+    public toggleSuppressionForDev() {
+        this._stateStore.set(oldState => ({
+            ...oldState,
+            suppressHintsForDev: !oldState.suppressHintsForDev,
+            activeHintSymbol: null,
+        }));
+
+        // If we toggled hint suppression off then we want to set a new active hint. So
+        // schedule a decision for later.
+        this._scheduleDecision();
     }
 }
 
@@ -112,6 +132,16 @@ function decideActiveSymbol(hintKindBySymbol: ReadonlyMap<symbol, HintKind>): sy
     }
 
     return active?.symbol ?? null;
+}
+
+/**
+ * Allows turning off all hints. Perhaps in screenshot tests or integration tests
+ * or demo recordings.
+ */
+export function toggleHintSuppressionForDev() {
+    assert(process.env.NODE_ENV !== "production");
+    const hintOracle = getGlobalContext(HintOracleContext);
+    hintOracle.toggleSuppressionForDev();
 }
 
 const HintOracleContext = createGlobalContext(() => new HintOracle());

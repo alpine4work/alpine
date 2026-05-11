@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import {useEffect, useState} from "react";
+import {flushSync} from "react-dom";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -83,13 +84,43 @@ export function setColorScheme(colorScheme: ColorScheme | "system") {
         colorSchemeOverride ?? resolveColorSchemeWithoutListening(colorScheme);
 
     if (resolvedColorScheme !== document.documentElement.getAttribute("data-color")) {
-        document.documentElement.setAttribute("data-color", resolvedColorScheme);
-
-        colorSchemeEventEmitter.emit({
-            colorScheme: resolvedColorScheme,
+        actuallySetDocumentElementColorSchemeAttribute({
+            resolvedColorScheme,
             isSystemPreference: colorScheme === "system",
         });
     }
+}
+
+function actuallySetDocumentElementColorSchemeAttribute({
+    resolvedColorScheme,
+    isSystemPreference,
+}: {
+    resolvedColorScheme: ColorScheme;
+    isSystemPreference: boolean;
+}) {
+    // Disable all CSS transitions when we change the color scheme. So anything with
+    // `transition: background-color` (notably `<SwitchIcon>` and `<ShareSwitchBase>`)
+    // change their color instantly instead of animating when the color scheme changes.
+    const styleElement = document.createElement("style");
+    styleElement.textContent = "*, *::before, *::after { transition: none !important }";
+    document.head.appendChild(styleElement);
+
+    document.documentElement.setAttribute("data-color", resolvedColorScheme);
+
+    flushSync(() => {
+        colorSchemeEventEmitter.emit({
+            colorScheme: resolvedColorScheme,
+            isSystemPreference,
+        });
+    });
+
+    // Wait for the browser to paint a frame before removing our CSS transition
+    // override.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            styleElement.remove();
+        });
+    });
 }
 
 let colorSchemeOverride: ColorScheme | null = null;
@@ -108,10 +139,8 @@ export function overrideColorScheme(newColorSchemeOverride: ColorScheme | null) 
 
     if (colorSchemeOverride !== null) {
         if (colorSchemeOverride !== document.documentElement.getAttribute("data-color")) {
-            document.documentElement.setAttribute("data-color", colorSchemeOverride);
-
-            colorSchemeEventEmitter.emit({
-                colorScheme: colorSchemeOverride,
+            actuallySetDocumentElementColorSchemeAttribute({
+                resolvedColorScheme: colorSchemeOverride,
                 isSystemPreference: actuallyGetUnresolvedColorSchemeWithoutListening() === "system",
             });
         }
@@ -120,10 +149,8 @@ export function overrideColorScheme(newColorSchemeOverride: ColorScheme | null) 
         const resolvedColorScheme = resolveColorSchemeWithoutListening(colorScheme);
 
         if (resolvedColorScheme !== document.documentElement.getAttribute("data-color")) {
-            document.documentElement.setAttribute("data-color", resolvedColorScheme);
-
-            colorSchemeEventEmitter.emit({
-                colorScheme: resolvedColorScheme,
+            actuallySetDocumentElementColorSchemeAttribute({
+                resolvedColorScheme,
                 isSystemPreference: colorScheme === "system",
             });
         }
@@ -216,10 +243,8 @@ export function ColorSchemeManager() {
                 colorSchemeOverride ?? resolveColorSchemeWithoutListening(colorScheme);
 
             if (resolvedColorScheme !== document.documentElement.getAttribute("data-color")) {
-                document.documentElement.setAttribute("data-color", resolvedColorScheme);
-
-                colorSchemeEventEmitter.emit({
-                    colorScheme: resolvedColorScheme,
+                actuallySetDocumentElementColorSchemeAttribute({
+                    resolvedColorScheme,
                     isSystemPreference: colorScheme === "system",
                 });
             }

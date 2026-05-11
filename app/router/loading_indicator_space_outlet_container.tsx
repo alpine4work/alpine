@@ -3,7 +3,9 @@ import {ReactElement, useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {Box} from "~/client/web/design/box.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {RouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
@@ -13,6 +15,7 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 const shouldDebugRouteShimmer: CommitBlocker | null = null;
 
@@ -20,6 +23,8 @@ const shouldDebugRouteShimmer: CommitBlocker | null = null;
 if (process.env.NODE_ENV !== "development") {
     assert(!shouldDebugRouteShimmer);
 }
+
+let debugRouteShimmerStateStore: ValueStore<"Overlay" | "Full" | null> | undefined;
 
 export function LoadingIndicatorSpaceOutletContainer({
     routeId,
@@ -54,9 +59,47 @@ export function LoadingIndicatorSpaceOutletContainer({
 
     const promiseState = usePromise(promise);
 
-    // TODO(calebmer): Instead of showing a fullscreen loading spinner, I'd prefer
-    // rendering a shimmer for each route. That's a much better user experience.
-    if (promiseState.isPending) {
+    // Debug state is backed by a store shared globally across all
+    // `<LoadingIndicatorSpaceOutletContainer>` on the page so if we call
+    // `dev.shimmer.debugWithOverlay()` it shows the shimmer overlay both for non-peek
+    // and peeks.
+    const debugState = useStore(
+        process.env.NODE_ENV !== "production" && typeof window !== "undefined"
+            ? (debugRouteShimmerStateStore ??= new ValueStore<"Overlay" | "Full" | null>(null))
+            : null,
+    );
+
+    useDevConsoleTool("shimmer", () => ({
+        debugWithOverlay: () => {
+            assert(process.env.NODE_ENV !== "production");
+            assert(typeof window !== "undefined");
+
+            debugRouteShimmerStateStore ??= new ValueStore<"Overlay" | "Full" | null>(null);
+
+            debugRouteShimmerStateStore.set(previousDebugState => {
+                if (previousDebugState !== null) return previousDebugState;
+                return "Overlay";
+            });
+        },
+        debug: () => {
+            assert(process.env.NODE_ENV !== "production");
+            assert(typeof window !== "undefined");
+
+            debugRouteShimmerStateStore ??= new ValueStore<"Overlay" | "Full" | null>(null);
+
+            // Once you transition to a full debugging state, we don't currently let you
+            // transition back. Since once `loaderData` has been used it might not be able to
+            // be used again (like for tasks which add data to a store on load and then release
+            // the data on unmount).
+            debugRouteShimmerStateStore.set(previousDebugState => {
+                if (previousDebugState !== null && previousDebugState !== "Overlay")
+                    return previousDebugState;
+                return "Full";
+            });
+        },
+    }));
+
+    if (promiseState.isPending || debugState === "Full") {
         return (
             <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
                 <RouteShimmer
@@ -68,7 +111,7 @@ export function LoadingIndicatorSpaceOutletContainer({
         );
     }
 
-    if (shouldDebugRouteShimmer) {
+    if (shouldDebugRouteShimmer || debugState === "Overlay") {
         return (
             <>
                 <LoadingIndicatorDebugOverlay

@@ -1,3 +1,4 @@
+import {expect} from "@playwright/test";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {seedScreenshotTestBots} from "~/app/screenshot_tests/helpers/seed_screenshot_test_bots.js";
@@ -17,6 +18,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.screenshot("a0", "profile");
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/settings/notifications`);
+    await expect(
+        runner.getByRole("switch", {name: "Receive web push notifications"}),
+    ).not.toBeChecked();
     await runner.screenshot("a1", "notifications");
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/settings/general`);

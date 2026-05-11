@@ -13,6 +13,7 @@ ts_project(
     data = ["//admin/scenarios:fixtures"],
     deps = [
         "//:node_modules/@internationalized/date",
+        "//:node_modules/@playwright/test",
         "//:node_modules/@types/mustache",
         "//:node_modules/cookie",
         "//:node_modules/fast-glob",
@@ -44,6 +45,7 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+        "//shared/remix",
         "//shared/tracer",
     ],
 )

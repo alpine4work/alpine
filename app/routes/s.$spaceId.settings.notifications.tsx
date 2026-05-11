@@ -209,57 +209,49 @@ function PushNotificationsSection({
 
     const handleToggle = async (shouldSubscribe: boolean) => {
         if (shouldSubscribe) {
-            try {
-                await getOrPromptForBrowserPushNotificationPermission();
+            await getOrPromptForBrowserPushNotificationPermission();
 
-                // NOTE (rmtobin 12/18/2025): We shouldn't need to re-query permissions and
-                // manually update state since we're already using `useSyncExternalStore`, but for
-                // some reason Safari does not update the old PermissionStatus object with the new
-                // state value when it changes (even though it does fire a change event for it!).
-                // So we have to re-query to get a new PermissionStatus instance with the correct
-                // state value.
-                const newPermissionStatus = await navigator.permissions.query({
-                    name: "notifications",
-                });
-                setPermissionStatus(newPermissionStatus);
+            // NOTE (rmtobin 12/18/2025): We shouldn't need to re-query permissions and
+            // manually update state since we're already using `useSyncExternalStore`, but for
+            // some reason Safari does not update the old PermissionStatus object with the new
+            // state value when it changes (even though it does fire a change event for it!).
+            // So we have to re-query to get a new PermissionStatus instance with the correct
+            // state value.
+            const newPermissionStatus = await navigator.permissions.query({
+                name: "notifications",
+            });
+            setPermissionStatus(newPermissionStatus);
 
-                if (newPermissionStatus.state !== "granted") {
-                    setIsSubscribed(false);
-                    return;
-                }
-
-                const subscription = await subscribeToPushNotificationsInBrowser(browserId);
-
-                if (!subscription) {
-                    throw new FailedPreconditionError(
-                        "Couldn\u2019t subscribe to push notifications in browser",
-                    );
-                }
-                await registerAccountWebPushSubscriptionAndOptInToSpace(context, {
-                    browserId,
-                    subscription,
-                    spaceId: space.id,
-                });
-                setIsSubscribed(true);
-            } catch (error) {
-                throw error;
-            }
-        } else {
-            try {
-                await optOutOfWebPushForSpace(context, {
-                    browserId,
-                    spaceId: space.id,
-                });
+            if (newPermissionStatus.state !== "granted") {
                 setIsSubscribed(false);
-            } catch (error) {
-                throw error;
+                return;
             }
+
+            const subscription = await subscribeToPushNotificationsInBrowser(browserId);
+
+            if (!subscription) {
+                throw new FailedPreconditionError(
+                    "Couldn\u2019t subscribe to push notifications in browser",
+                );
+            }
+            await registerAccountWebPushSubscriptionAndOptInToSpace(context, {
+                browserId,
+                subscription,
+                spaceId: space.id,
+            });
+            setIsSubscribed(true);
+        } else {
+            await optOutOfWebPushForSpace(context, {
+                browserId,
+                spaceId: space.id,
+            });
+            setIsSubscribed(false);
         }
     };
 
     const getDisabledMessage = () => {
-        if (!isPushSupported) return "(notifications not supported in browser)";
-        if (permissionState === "denied") return "(notifications disabled in browser)";
+        if (!isPushSupported) return " (notifications not supported in browser)";
+        if (permissionState === "denied") return " (notifications disabled in browser)";
         return null;
     };
 
@@ -286,7 +278,7 @@ function PushNotificationsSection({
                     onChange={handleToggle}
                     isDisabled={!isPushSupported || permissionState === "denied"}
                 >
-                    Receive web push notifications {getDisabledMessage()}
+                    Receive web push notifications{getDisabledMessage()}
                 </Switch>
             </Box>
         </Box>

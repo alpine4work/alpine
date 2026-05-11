@@ -9,7 +9,7 @@ import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -19,11 +19,18 @@ const scenarioFixturesRoot = joinPath(runfilesPath, "cyberworlds/admin/scenarios
 export async function uploadScreenshotTestFixtureFile(
     tokenAgent: TokenAgent,
     session: TestSpaceSession,
-    path: string,
+    path: string | {contentType: FileContentType; content: Uint8Array<ArrayBuffer>},
     attachmentTarget: FileAttachmentTarget | null = null,
 ) {
-    const contentType = assertExists(getPathFileContentTypeIfExists(path));
-    const file = await fs.readFile(joinPath(scenarioFixturesRoot, path));
+    const contentType =
+        typeof path === "string"
+            ? assertExists(getPathFileContentTypeIfExists(path))
+            : path.contentType;
+
+    const content: ArrayBufferView<ArrayBuffer> =
+        typeof path === "string"
+            ? new Uint8Array(await fs.readFile(joinPath(scenarioFixturesRoot, path)))
+            : path.content;
 
     const url = new URL(
         `/api/files/${session.space.id}/upload`,
@@ -42,7 +49,7 @@ export async function uploadScreenshotTestFixtureFile(
             method: "POST",
             headers: {
                 "content-type": contentType,
-                "content-length": String(file.length),
+                "content-length": String(content.byteLength),
                 cookie: stringifyCookie({
                     session: await tokenAgent.privateSide.dangerouslySignShortLivedToken(
                         "EdgeService",
@@ -50,7 +57,7 @@ export async function uploadScreenshotTestFixtureFile(
                     ),
                 }),
             },
-            body: new Uint8Array(file),
+            body: content,
         },
         async response => UploadFileResponseSchema.deserialize(await response.json()),
     );

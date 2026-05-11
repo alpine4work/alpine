@@ -105,6 +105,9 @@ export function Switch({
         <FocusRing insetY={touchSlop.slop}>
             <Box
                 {...pressProps}
+                role="switch"
+                aria-checked={pendingState?.isSelected ?? isSelected}
+                aria-readonly={isDisabled ? true : undefined}
                 tabIndex={isDisabled ? -1 : 0}
                 color={isDisabled ? "grey-30" : color}
                 fontSize={fontSize}

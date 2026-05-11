@@ -131,6 +131,14 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
         );
 
         const actualListener = () => {
+            // Disable all CSS transitions when we change the spacing scale. So anything with
+            // `transition: width` or `transition: transform` (notably `<SwitchIcon>` and
+            // `<ShareSwitchBase>`) change their size instantly instead of animating when the
+            // spacing scale changes.
+            const styleElement = document.createElement("style");
+            styleElement.textContent = "*, *::before, *::after { transition: none !important }";
+            document.head.appendChild(styleElement);
+
             flushSync(() => {
                 for (const listener of listeners) {
                     try {
@@ -139,6 +147,14 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
                         scheduleUncaughtError(error);
                     }
                 }
+            });
+
+            // Wait for the browser to paint a frame before removing our CSS transition
+            // override.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    styleElement.remove();
+                });
             });
         };
 

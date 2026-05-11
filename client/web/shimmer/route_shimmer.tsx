@@ -144,6 +144,7 @@ import {
     taskDetailViewTitleFontSize,
     taskDetailViewTitleLineHeight,
     taskGridViewColumnHeaderHeight,
+    taskGridViewPaddingBottomWithoutNext,
     taskQueryViewCustomizationMobileLayoutMarginTop,
     taskQueryViewCustomizationMobileSectionGap,
     taskQueryViewCustomizationMobileSectionHeaderFontSize,
@@ -212,8 +213,8 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
     "routes/s.$spaceId.create.more": {component: CreateRouteShimmer},
-    // This route is only used in tests, so we don't bother with a shimmer.
-    "routes/s.$spaceId.dev.empty": false,
+    // Empty route...empty shimmer.
+    "routes/s.$spaceId.dev.empty": {component: () => null},
     "routes/s.$spaceId.dev.feed": {component: FeedRouteShimmer},
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
@@ -230,7 +231,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
     "routes/s.$spaceId.more.settings": {
-        component: () => <MobileSettingsRowsShimmer titleWidth="28" sectionCounts={[2, 2]} />,
+        component: () => <MobileSettingsRowsShimmer titleWidth="28" sectionCounts={[2, 4]} />,
     },
     "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
     "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {
@@ -487,19 +488,9 @@ export function FeedRouteShimmer() {
                                     fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
                                     lineHeight: spacing[searchEntityHeaderLineHeight],
                                 }}
-                                width="16"
+                                width="12"
                             />
                         </Box>
-                        <SearchEntityShimmer
-                            paddingX={searchEntityViewDefaultPaddingX}
-                            marginX="0"
-                            titleWidth="96"
-                        />
-                        <SearchEntityShimmer
-                            paddingX={searchEntityViewDefaultPaddingX}
-                            marginX="0"
-                            titleWidth="64"
-                        />
                         <SearchEntityShimmer
                             paddingX={searchEntityViewDefaultPaddingX}
                             marginX="0"
@@ -508,12 +499,32 @@ export function FeedRouteShimmer() {
                         <SearchEntityShimmer
                             paddingX={searchEntityViewDefaultPaddingX}
                             marginX="0"
-                            titleWidth="96"
+                            titleWidth="24"
                         />
                         <SearchEntityShimmer
                             paddingX={searchEntityViewDefaultPaddingX}
                             marginX="0"
-                            titleWidth="64"
+                            titleWidth="24"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="24"
+                        />
+                        <Box paddingX={searchEntityViewDefaultPaddingX}>
+                            <Spacer space={searchEntityHeaderPaddingTop} />
+                            <TextShimmer
+                                fontSize={{
+                                    fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
+                                    lineHeight: spacing[searchEntityHeaderLineHeight],
+                                }}
+                                width="16"
+                            />
+                        </Box>
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="48"
                         />
                         <SearchEntityShimmer
                             paddingX={searchEntityViewDefaultPaddingX}
@@ -523,17 +534,7 @@ export function FeedRouteShimmer() {
                         <SearchEntityShimmer
                             paddingX={searchEntityViewDefaultPaddingX}
                             marginX="0"
-                            titleWidth="48"
-                        />
-                        <SearchEntityShimmer
-                            paddingX={searchEntityViewDefaultPaddingX}
-                            marginX="0"
-                            titleWidth="96"
-                        />
-                        <SearchEntityShimmer
-                            paddingX={searchEntityViewDefaultPaddingX}
-                            marginX="0"
-                            titleWidth="64"
+                            titleWidth="32"
                         />
                     </Box>
                 )}
@@ -743,10 +744,10 @@ function ChannelRouteShimmer() {
                                 zIndex="0"
                                 display="flex"
                             >
-                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="40" isFirst />
-                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" isFirst />
                                 <ChannelRouteContributorsAccountAvatarShimmer zIndex="20" />
-                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="40" />
                             </Box>
                             <Box marginBottom="-1.5">
                                 <TextShimmer fontSize="75" width="10" />
@@ -1131,11 +1132,8 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
-                <Box
-                    position="relative"
-                    height={navigationBarHeight}
-                    style={{boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`}}
-                >
+                <Box position="relative" height={navigationBarHeight}>
+                    <ChatTopBarBorderShimmer />
                     {platform === "mobile" && (
                         <Box
                             position="absolute"
@@ -1190,7 +1188,8 @@ function NewChatRouteShimmer() {
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box flexShrink="0" paddingTop="safe-area-inset">
+            <Box flexShrink="0" position="relative" zIndex="10" paddingTop="safe-area-inset">
+                <ChatTopBarBorderShimmer />
                 {platform === "mobile" && (
                     <Box
                         height={navigationBarHeight}
@@ -1220,6 +1219,27 @@ function NewChatRouteShimmer() {
             </Box>
             <MessagingViewShimmer withTopAlignedMessages={false} messages="few" />
         </Box>
+    );
+}
+
+function ChatTopBarBorderShimmer() {
+    return (
+        <Box
+            pointerEvents="none"
+            position="absolute"
+            height="border"
+            backgroundColor="grey-5-translucent"
+            style={{
+                bottom: -1,
+                left: `max(-${spacing["3"]}, (100% - ${
+                    spacing[contentStyles.contentMaxWidth]
+                }) / 2 - ${spacing["3"]})`,
+                right: `max(-${spacing["3"]}, (100% - ${
+                    spacing[contentStyles.contentMaxWidth]
+                }) / 2 - ${spacing["3"]})`,
+                maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,
+            }}
+        />
     );
 }
 
@@ -1600,9 +1620,10 @@ function DocumentCommentThreadRouteShimmer() {
                             border="grey-10"
                         />
                     </Box>
+                    <Box height="5" />
                     <Box height={messageViewMarginY} />
-                    <Box style={{height: fontSizes["50"].lineHeight}} />
-                    <Box height={messageViewMarginY} />
+                    <Box height={messageViewTimestampDividerHeight} />
+                    <Box height={messageViewTimestampDividerMarginY} />
                     <MessageShimmer width="32" heightLines={1} />
                     <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                     <MessageShimmer
@@ -1750,15 +1771,10 @@ function InboxRouteShimmer() {
         return (
             <Box width="full" height="full" display="flex" flexDirection="column">
                 <Box flexGrow="1" display="flex" flexDirection="row">
-                    <Box
-                        flexShrink="0"
-                        width="96"
-                        borderRight="grey-5"
-                        borderLeft="grey-5"
-                        paddingY="1"
-                    >
-                        <Box flexShrink="0" height="12" />
-                        <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
+                    <Box flexShrink="0" width="96" borderRight="grey-5" borderLeft="grey-5">
+                        <Box flexShrink="0" height={inboxBannerHeight} />
+                        <Spacer space="1" />
+                        <InboxEntryShimmer withBorderTop titleRagRight="0" subtitleRagRight="8" />
                         <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
                         <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
                         <InboxEntryShimmer titleRagRight="0" subtitleRagRight="2" />
@@ -2040,7 +2056,7 @@ function ReactionsRouteShimmer() {
                     {platform === "mobile" ? <MobileBackButton /> : <Box />}
                     <TextShimmer
                         fontSize={platform === "mobile" ? "100" : "400"}
-                        width={platform === "mobile" ? "10" : "12"}
+                        width={platform === "mobile" ? "28" : "32"}
                     />
                     {platform === "mobile" ? <MobileBackButtonSpacer /> : <Box />}
                 </Box>
@@ -2184,11 +2200,22 @@ function SearchRouteShimmer() {
             </Box>
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
+            <Box paddingX={screenPaddingX} pointerEvents="auto">
+                <Box height={searchEntityHeaderPaddingTop} />
+                <TextShimmer
+                    fontSize={{
+                        fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
+                        lineHeight: spacing[searchEntityHeaderLineHeight],
+                    }}
+                    width="16"
+                />
+            </Box>
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="48" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
+            <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
         </Box>
     );
 }
@@ -2402,6 +2429,46 @@ function TaskGridRouteShimmer({
                     <TaskRowShimmer width="96" ragRight="8" />
                 </>
             )}
+            <TaskGridRouteTrailingRowLinesShimmer />
+        </Box>
+    );
+}
+
+const taskGridRouteTrailingRowLinesBackgroundImage = `repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(${spacing[taskRowViewMinHeight]} - 1px),
+    ${colorSchemeVars["grey-5"]} calc(${spacing[taskRowViewMinHeight]} - 1px),
+    ${colorSchemeVars["grey-5"]} ${spacing[taskRowViewMinHeight]}
+)`;
+
+function TaskGridRouteTrailingRowLinesShimmer() {
+    const platform = usePlatform();
+
+    return (
+        <Box
+            position="relative"
+            width="full"
+            marginX="center"
+            height={taskGridViewPaddingBottomWithoutNext}
+            style={{
+                height:
+                    platform === "mobile"
+                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[taskGridViewPaddingBottomWithoutNext]})`
+                        : undefined,
+                contain: "layout",
+            }}
+        >
+            <Box
+                position="absolute"
+                left={screenPaddingX}
+                right={screenPaddingX}
+                style={{
+                    top: 1,
+                    height: "100vh",
+                    backgroundImage: taskGridRouteTrailingRowLinesBackgroundImage,
+                }}
+            />
         </Box>
     );
 }

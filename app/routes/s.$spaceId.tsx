@@ -27,6 +27,7 @@ import {Box} from "~/client/web/design/box.js";
 import {ContextMenuContextProvider} from "~/client/web/design/context_menu.js";
 import {RootOverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/web/design/subscribe_to_mobile_keyboard_frame_change.js";
+import {toggleHintSuppressionForDev} from "~/client/web/design/use_hint_oracle.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/web/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
@@ -574,6 +575,10 @@ export default function SpaceLayoutRoute() {
 
     useDevConsoleTool("files", () => ({
         waitForImagePreviewContentsToLoad: waitForContentFileImagePreviewContentsToLoad,
+    }));
+
+    useDevConsoleTool("hints", () => ({
+        toggleSuppression: toggleHintSuppressionForDev,
     }));
 
     // In native mobile iOS apps, save any iOS device tokens to the server. We'll use

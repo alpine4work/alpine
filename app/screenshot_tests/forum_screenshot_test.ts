@@ -3,6 +3,7 @@ import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screensho
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {uploadScreenshotTestFixtureFile} from "~/app/screenshot_tests/helpers/upload_screenshot_test_fixture_file.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
@@ -13,6 +14,18 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     const {services} = runner;
     const {space, accounts} = await runner.createDemoSpace(context);
     const tokenAgent = services.getAppServiceTokenAgent();
+
+    // Create a channel whose only purpose is to reliably put a subtle notification in
+    // Cass Cade's inbox so the inbox button definitely renders with a subtle
+    // notification badge. (Instead of relying on our setup code below to consistently
+    // create at least one subtle notification.)
+    {
+        const notificationChannel = await TestChannel.create(accounts.roseCompas);
+        await notificationChannel.subscribe(accounts.cassCade);
+        await notificationChannel.createPost(accounts.roseCompas);
+        await ProcessContextModule.waitForTestTasks();
+        await services.waitForSqsProcessJobs();
+    }
 
     const channel = await TestChannel.create(accounts.mattRHorn, {
         name: "Craft",
