@@ -128,14 +128,10 @@ export function renderContentToHtmlStoreForTest(
             placeholder,
         });
 
-        /* eslint-disable cyberworlds/string-quotes */
-
         return `<div class="${classNames(
             contentStyles.docClassName,
             routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
         )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
-
-        /* eslint-enable cyberworlds/string-quotes */
     });
 }
 

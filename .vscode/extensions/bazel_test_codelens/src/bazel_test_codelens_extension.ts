@@ -101,7 +101,6 @@ function getTestCommandWithFilterIfPossible(bazelTarget: string, testName: strin
 
     const escapedTestName = escapeForDoubleQuotedBashString(escapeNonAsciiCharacters(testName));
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     return `bazel run ${bazelTarget} -- -t="${escapedTestName}"`; // these quotes are important for the shell
 }
 

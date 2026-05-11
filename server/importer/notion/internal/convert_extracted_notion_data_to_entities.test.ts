@@ -3426,7 +3426,7 @@ Here are some details.`,
             ]);
             const doc = new ExportedNotionDocument(
                 "Project Overview",
-                `Here is the project task list:\n\n${database.toCsvReference()}\n\nAnd here’s some more content.`,
+                `Here is the project task list:\n\n${database.toCsvReference()}\n\nAnd here\u2019s some more content.`,
             );
 
             // Export both items separately - the database is not a child of the doc
@@ -3523,7 +3523,7 @@ Here are some details.`,
             ]);
             const doc = new ExportedNotionDocument(
                 "Project Overview",
-                `Here is the project task list:\n\n${database.toReference()}\n\nAnd here’s some more content.`,
+                `Here is the project task list:\n\n${database.toReference()}\n\nAnd here\u2019s some more content.`,
                 [database],
             );
 
@@ -3836,8 +3836,8 @@ Sprint completed successfully.`,
 
             // Create a parent document that has the database as a child The database items
             // (Alice, Bob) become children of the database
-            const aliceDoc = new ExportedNotionDocument("Alice", "Alice’s profile");
-            const bobDoc = new ExportedNotionDocument("Bob", "Bob’s profile");
+            const aliceDoc = new ExportedNotionDocument("Alice", "Alice\u2019s profile");
+            const bobDoc = new ExportedNotionDocument("Bob", "Bob\u2019s profile");
             const parentDoc = new ExportedNotionDocument("Team", "Team info", [database]);
 
             // Set the database items to be children of the database by using setParent Since

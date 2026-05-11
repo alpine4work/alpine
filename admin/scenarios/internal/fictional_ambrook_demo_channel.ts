@@ -60,7 +60,7 @@ export async function createFictionalAmbrookDemoChannel(
                 collections: [collection],
             }),
             TestTask.create(cliffWeathers, {
-                title: "“Grants your operation might be missing” blog post",
+                title: "\u201CGrants your operation might be missing\u201D blog post",
                 collections: [collection],
             }),
         ]);
@@ -193,9 +193,9 @@ for the current plan.
         const post = await channel.createPost(
             mattRHorn,
             markdown`
-Our first foray into podcast advertising is going great! We’re seeing a lot more sign ups than we
-expected coming from the campaign’s vanity URLs. What are some of the podcasts y’all listen to that
-you think we should buy ad spots on next month?
+Our first foray into podcast advertising is going great! We\u2019re seeing a lot more sign ups than
+we expected coming from the campaign\u2019s vanity URLs. What are some of the podcasts y\u2019all
+listen to that you think we should buy ad spots on next month?
             `,
             {
                 overrideCreatedTime: baseTime.add({hours: 1, minutes: 21}).toDate(timeZone),

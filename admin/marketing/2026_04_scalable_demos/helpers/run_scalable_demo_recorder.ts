@@ -20,7 +20,7 @@ import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 const debug = createDebug(import.meta.url);
 
 /**
- * A single collaborator\u2019s contribution to a recording.
+ * A single collaborator's contribution to a recording.
  *
  * The recorder creates a dedicated signed-in browser window for this session up
  * front (before the human starts recording) and hands the same Playwright `Page`
@@ -40,8 +40,8 @@ export class ScalableDemoRecorder {
     private readonly _browser: Browser;
     private readonly _browserContext: BrowserContext;
     // Collaborator browsers run in a separate **headless** Chromium instance so they
-    // don\u2019t steal screen real estate or keyboard focus from the headed primary
-    // browser the human is recording. Created lazily on first use.
+    // don't steal screen real estate or keyboard focus from the headed primary browser
+    // the human is recording. Created lazily on first use.
     private _collaboratorBrowser: Browser | null = null;
     private readonly _secondaryContexts: Array<BrowserContext> = [];
 
@@ -84,9 +84,9 @@ export class ScalableDemoRecorder {
          * interface but drives the main session instead of a headless second window.
          *
          * When provided the recorder prompts the human to start their screen recorder,
-         * then runs the actions sequentially and waits for a final \u201CFinished
-         * recording?\u201D confirmation before closing. When both `actions` and
-         * `collaborators` are provided the actions run concurrently.
+         * then runs the actions sequentially and waits for a final "Finished recording?"
+         * confirmation before closing. When both `actions` and `collaborators` are
+         * provided the actions run concurrently.
          *
          * If omitted the recorder falls back to the manual flow where instructions are
          * printed and the human drives the UI themselves.
@@ -94,17 +94,17 @@ export class ScalableDemoRecorder {
         actions?: ReadonlyArray<(page: Page) => Promise<void>>;
         /**
          * Other signed-in browser windows that drive realtime state during the recording
-         * (incoming chat messages, typing indicators, another account\u2019s presence,
-         * reactions, etc.). Keyed by an arbitrary string identifier the caller picks
-         * \u2014 it\u2019s only used in log output.
+         * (incoming chat messages, typing indicators, another account's presence,
+         * reactions, etc.). Keyed by an arbitrary string identifier the caller picks, it's
+         * only used in log output.
          *
-         * Each collaborator\u2019s browser is created, signed in, and given a blank page
+         * Each collaborator's browser is created, signed in, and given a blank page
          * **before** the human starts recording, so opening a second browser window
-         * doesn\u2019t happen while the screen recorder is rolling. The `actions` array
-         * runs sequentially inside that browser, and different collaborators run their
-         * arrays concurrently. Actions don\u2019t start until **after** the \u201Cpress
-         * enter to fire collaborator actions\u201D prompt \u2014 so you have time to start
-         * your screen recorder first.
+         * doesn't happen while the screen recorder is rolling. The `actions` array runs
+         * sequentially inside that browser, and different collaborators run their arrays
+         * concurrently. Actions don't start until **after** the "press enter to fire
+         * collaborator actions" prompt so you have time to start your screen recorder
+         * first.
          */
         collaborators?: Record<string, ScalableDemoRecorderCollaborator>;
     }): Promise<void> {
@@ -144,9 +144,9 @@ export class ScalableDemoRecorder {
 
             await prepare?.(page);
 
-            // Spin up each collaborator\u2019s browser up front so the cost of opening a new
-            // Chromium context doesn\u2019t happen while the human is screen recording. The
-            // page is blank until the first action navigates it.
+            // Spin up each collaborator's browser up front so the cost of opening a new
+            // Chromium context doesn't happen while the human is screen recording. The page is
+            // blank until the first action navigates it.
             const collaboratorPages = collaborators
                 ? await this._openCollaboratorPages(collaborators, fixedTime)
                 : new Map<string, Page>();
@@ -231,10 +231,10 @@ export class ScalableDemoRecorder {
         fixedTime: Date | undefined,
     ): Promise<Map<string, Page>> {
         // Launch one headless Chromium for all collaborators \u2014 cheaper than one per
-        // collaborator, and since they\u2019re invisible there\u2019s no reason to isolate
-        // them at the OS-window level. Separate from the primary browser so the
-        // human\u2019s headed recording window isn\u2019t fighting collaborator windows
-        // for focus or screen real estate.
+        // collaborator, and since they're invisible there's no reason to isolate them at
+        // the OS-window level. Separate from the primary browser so the human's headed
+        // recording window isn't fighting collaborator windows for focus or screen real
+        // estate.
         const collaboratorBrowser = (this._collaboratorBrowser ??= await chromium.launch({
             headless: true,
         }));
@@ -276,10 +276,10 @@ async function setPageFixedTime(page: Page, fixedTime: Date) {
 }
 
 /**
- * Run each collaborator\u2019s `actions` array concurrently. Each collaborator
- * runs its own actions sequentially so callers can reason about order within a
- * single browser. Errors in one action are logged but don\u2019t abort the
- * recording or cancel other collaborators.
+ * Run each collaborator's `actions` array concurrently. Each collaborator runs its
+ * own actions sequentially so callers can reason about order within a single
+ * browser. Errors in one action are logged but don't abort the recording or cancel
+ * other collaborators.
  */
 function runCollaboratorsInBackground(
     collaborators: Record<string, ScalableDemoRecorderCollaborator>,

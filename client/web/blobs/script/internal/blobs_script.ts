@@ -21,7 +21,6 @@ declare global {
 }
 
 function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number) {
-    // eslint-disable-next-line cyberworlds/string-quotes
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
 
     const actuallyDrawBlobs = (colorScheme: ColorScheme) => {

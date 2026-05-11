@@ -422,7 +422,7 @@ describe("/tasks/{id}/mention", () => {
         });
     });
 
-    test("can’t read task mention without access", async () => {
+    test("can\u2019t read task mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -443,13 +443,13 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("You aren’t allowed to access this task."),
+                    message: expect.stringMatching("You aren\u2019t allowed to access this task."),
                 }),
             },
         });
     });
 
-    test("can’t read task mention for non-existent task", async () => {
+    test("can\u2019t read task mention for non-existent task", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -467,7 +467,7 @@ describe("/tasks/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This task doesn’t exist"),
+                    message: expect.stringMatching("This task doesn\u2019t exist"),
                 }),
             },
         });
@@ -624,7 +624,7 @@ describe("/task-collections/{id}/mention", () => {
         });
     });
 
-    test("can’t read task collection mention without access", async () => {
+    test("can\u2019t read task collection mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -648,14 +648,14 @@ describe("/task-collections/{id}/mention", () => {
             body: {
                 error: expect.objectContaining({
                     message: expect.stringMatching(
-                        "You aren’t allowed to access this task collection.",
+                        "You aren\u2019t allowed to access this task collection.",
                     ),
                 }),
             },
         });
     });
 
-    test("can’t read task collection mention for non-existent collection", async () => {
+    test("can\u2019t read task collection mention for non-existent collection", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -673,7 +673,7 @@ describe("/task-collections/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This task collection doesn’t exist"),
+                    message: expect.stringMatching("This task collection doesn\u2019t exist"),
                 }),
             },
         });

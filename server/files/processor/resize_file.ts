@@ -316,8 +316,6 @@ export async function resizeFile(
                     // - Bound both width and height by our maximum file preview resize width.
                     //
                     // https://trac.ffmpeg.org/wiki/Scaling
-                    //
-                    // eslint-disable-next-line cyberworlds/string-quotes
                     `scale='min(${width},iw)':${maxResizeWidth}:force_original_aspect_ratio=decrease`,
                 ].join(",");
 

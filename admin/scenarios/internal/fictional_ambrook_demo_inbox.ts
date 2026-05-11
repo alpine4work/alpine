@@ -114,9 +114,10 @@ Blah blah blah.
         await channel.createPost(
             mattRHorn,
             markdown`
-                Our first foray into podcast advertising is going great! We’re seeing a lot more
-                sign ups than we expected coming from the campaign’s vanity URLs. What are some of
-                the podcasts y’all listen to that you think we should buy ad spots on next month?
+                Our first foray into podcast advertising is going great! We\u2019re seeing a lot
+                more sign ups than we expected coming from the campaign\u2019s vanity URLs. What are
+                some of the podcasts y\u2019all listen to that you think we should buy ad spots on
+                next month?
             `,
             {
                 overrideCreatedTime: new CalendarDateTime(
@@ -197,10 +198,10 @@ we have publicity rights for this customer?
 | Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>            |
 | Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
 
-As the quarter continues we’ll reevaluate our approach. We don’t expect to sign many large
-businesses this quarter (instead, we’re looking to go up market in Q4) but that may change if we end
-up getting a lot of inbound interest from enterprise customers. If we do move upmarket earlier than
-expected we’ll need to prioritize some new projects.
+As the quarter continues we\u2019ll reevaluate our approach. We don\u2019t expect to sign many large
+businesses this quarter (instead, we\u2019re looking to go up market in Q4) but that may change if
+we end up getting a lot of inbound interest from enterprise customers. If we do move upmarket
+earlier than expected we\u2019ll need to prioritize some new projects.
 
 - Blah
 - Blah
@@ -218,9 +219,9 @@ understanding where it went.
 
 ## Proposed solution
 
-Build a dead-simple mobile flow to capture receipts in the field the moment they’re handed over. A
-user snaps a photo (even offline), the app queues and syncs it when connectivity returns, and OCR
-extracts key fields (vendor, date, total, tax, category). Receipts then appear in our app as
+Build a dead-simple mobile flow to capture receipts in the field the moment they\u2019re handed
+over. A user snaps a photo (even offline), the app queues and syncs it when connectivity returns,
+and OCR extracts key fields (vendor, date, total, tax, category). Receipts then appear in our app as
 structured records, ready to review, tag, and export.
 
 ## Primary users
@@ -253,8 +254,8 @@ structured records, ready to review, tag, and export.
             roseCompas,
             {from: 57, to: 79},
             markdown`
-This project should be high priority! It’s a feature our customers are constantly asking us for.
-What can we deprioritize to get this done this quarter?
+This project should be high priority! It\u2019s a feature our customers are constantly asking us
+for. What can we deprioritize to get this done this quarter?
             `,
             {
                 overrideCreatedTime: new CalendarDateTime(

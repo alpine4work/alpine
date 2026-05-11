@@ -42,8 +42,8 @@ export async function createFictionalAmbrookDemoFeed({
         markdown`
 ### Incident retrospective: upload backlog
 
-- What happened: Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn’t process
-  due to a misconfigured worker autoscaler.
+- What happened: Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn\u2019t
+  process due to a misconfigured worker autoscaler.
 
 - Impact: 7.2% of uploads were delayed up to 55 minutes; no data loss.
 
@@ -71,8 +71,8 @@ Thanks to Mason and Cass for rapid triage.
     const post1 = await salesChannel.createPost(
         cliffWeathers,
         markdown`
-Some common questions and answers I’m seeing come up in customer calls about our the new receipt
-scanner mobile feature:
+Some common questions and answers I\u2019m seeing come up in customer calls about our the new
+receipt scanner mobile feature:
 
 **Q: Can I save receipts without signal?**\\\n A: Yes. The mobile app stores images locally and
 syncs later.
@@ -80,7 +80,7 @@ syncs later.
 **Q: How do I know it synced?**\\\n A: Look for the small cloud icon. Grey = pending; blue = synced.
 
 **Q: My receipt is upside down, how do I fix it?**\\\n A: If a receipt looks crooked, tap
-“Auto-rotate” to straighten the image.
+\u201CAuto-rotate\u201D to straighten the image.
         `,
         {
             overrideCreatedTime: baseTime
@@ -107,7 +107,7 @@ syncs later.
             markdown`
 In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
-quarter. We’re going to add a couple features for larger businesses this quarter.
+quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 
 | Project                  | DRI                                                                       | Priority <span hidden data-column-widths="4,3,2"/> |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |

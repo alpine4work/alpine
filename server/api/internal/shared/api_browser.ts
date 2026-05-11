@@ -95,7 +95,6 @@ export async function renderApiBrowser({
             if (classes.length === 0) {
                 highlightedPrettyBodyHtml += escapeHtml(text);
             } else {
-                // eslint-disable-next-line cyberworlds/string-quotes
                 highlightedPrettyBodyHtml += `<span class="${classes}">${escapeHtml(text)}</span>`;
             }
         },

@@ -1155,7 +1155,6 @@ async function actuallyHandleFetch(
 
         response.headers.append(
             "server-timing",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
         );
     }

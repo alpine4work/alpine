@@ -5,7 +5,7 @@ export const summarizeViewedPostDemoRecordingWidth = scalableDemoWideViewport.wi
 export const summarizeViewedPostDemoRecordingHeight = scalableDemoWideViewport.height;
 
 // Fill these in after recording: the frame of the first usable moment of take 1
-// (Rose landing on the post) and the last usable moment of take 2 (Rose’s reply
+// (Rose landing on the post) and the last usable moment of take 2 (Rose's reply
 // hitting the thread).
 const summarizeViewedPostDemoRecordingFirstFrameWithoutPadding = 95;
 const summarizeViewedPostDemoRecordingLastFrameWithoutPadding = 3320;

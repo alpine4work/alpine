@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {User} from "phosphor-react";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {userIconSvg} from "~/client/web/icons/user_icon_svg.js";

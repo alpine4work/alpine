@@ -479,7 +479,6 @@ async function actuallyHandleFetch(
 
                 const filename =
                     getContentFileDownloadNameFromContentType(canonicalizedContentType);
-                // eslint-disable-next-line cyberworlds/string-quotes
                 response.headers.set("Content-Disposition", `attachment; filename="${filename}"`);
             }
 

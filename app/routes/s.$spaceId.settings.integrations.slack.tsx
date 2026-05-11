@@ -307,7 +307,8 @@ function SlackWorkspaceSection({
                                                         "_blank",
                                                     );
                                                 },
-                                                pressErrorTitle: "Couldn’t open Slack workspace",
+                                                pressErrorTitle:
+                                                    "Couldn\u2019t open Slack workspace",
                                             },
                                         ],
                                         hasAdminAccess
@@ -315,7 +316,7 @@ function SlackWorkspaceSection({
                                                   {
                                                       label: "Disconnect",
                                                       pressErrorTitle:
-                                                          "Couldn’t disconnect Slack workspace",
+                                                          "Couldn\u2019t disconnect Slack workspace",
                                                       onPress: () =>
                                                           setShouldShowDisconnectWorkspaceConfirmation(
                                                               true,

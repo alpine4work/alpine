@@ -77,7 +77,7 @@ export default function SpaceIntegrationListSettingsRoute() {
     return (
         <Box position="relative" zIndex="0" display="flex" flexDirection="column" gap="6">
             <Box fontSize="75" color="grey-60" userSelect="text">
-                Want an integration you don’t see here? Let us know:{" "}
+                Want an integration you don&#x2019;t see here? Let us know:{" "}
                 <Link color="inherit" url="mailto:feedback@alpine.inc">
                     feedback@alpine.inc
                 </Link>

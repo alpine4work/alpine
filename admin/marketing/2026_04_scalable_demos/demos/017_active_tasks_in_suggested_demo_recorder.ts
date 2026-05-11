@@ -31,8 +31,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         `${spaceUrl}/accounts/${accountSession.account.id}?mention=short`;
 
     // ── Active project tasks Cass is driving this week ────────────────── These three
-    // are the top of Cass’s suggested list. Each is a `layout: "Project"` task with
-    // Cass marked Active so it carries the “in progress” dot the suggested sidebar
+    // are the top of Cass's suggested list. Each is a `layout: "Project"` task with
+    // Cass marked Active so it carries the "in progress" dot the suggested sidebar
     // shows.
 
     const q4PlanningProject = await TestTask.create(accounts.cassCade, {
@@ -59,18 +59,18 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         notes: markdown`
 ## Role
 
-A second backend engineer working alongside Elle on Alpine’s server-side: realtime sync, the
+A second backend engineer working alongside Elle on Alpine\u2019s server-side: realtime sync, the
 DynamoDB data layer that backs every product surface, OpenSearch indexing and ranking, and the
 reliability work that keeps the live product up.
 
-## What you’ll own
+## What you\u2019ll own
 
 - Realtime infrastructure: connection handling, presence, deployment safety
 - Data modeling in DynamoDB for documents, tasks, chat, and forum entities
 - Search and affinity ranking in OpenSearch
 - Shared on-call rotation with Elle
 
-## What we’re looking for
+## What we\u2019re looking for
 
 - 6+ years of production backend experience, ideally on a small team where you owned systems end to
   end
@@ -85,7 +85,7 @@ reliability work that keeps the live product up.
 - DynamoDB single-table design or wide-column data modeling
 - Search relevance work beyond plumbing queries
 
-## What we’re not optimizing for
+## What we\u2019re not optimizing for
 
 - Specific framework background. Node.js, AWS, Cloudflare — none of it is exotic.
 - Pedigree. Track record is what matters.
@@ -94,7 +94,7 @@ reliability work that keeps the live product up.
     await seniorBackendHiringProject.updateAssigneeStatus(accounts.cassCade, "Active");
 
     // Hiring funnel subtasks in chronological order. Earlier rounds are closed,
-    // reference checks and the offer letter are in flight this week, onboarding hasn’t
+    // reference checks and the offer letter are in flight this week, onboarding hasn't
     // started.
     await runAllPromises([
         TestTask.create(accounts.cassCade, {
@@ -274,14 +274,14 @@ Senior backend engineer offer goes out this week.
         q4PlanningDoc.updateContentPreview(),
     ]);
 
-    // ── Forum posts that show up in today’s home feed ───────────────
+    // ── Forum posts that show up in today's home feed ───────────────
 
     const masonColumnResizingPost = await engineeringChannel.createPost(
         accounts.masonClay,
         markdown`
 Column resizing for tables just landed. Snap by default, hold Alt for smooth. Both modes feel right
-after a few minutes of use. The handle hit area is generous so it doesn’t fight selection. Last big
-piece before we ship.
+after a few minutes of use. The handle hit area is generous so it doesn\u2019t fight selection. Last
+big piece before we ship.
         `,
         {overrideCreatedTime: daysAgoAt(0, 8, 42)},
     );
@@ -295,7 +295,8 @@ piece before we ship.
 ### Tables ship Wednesday ✨
 
 Help doc is in review and the forum announcement is ready to go. If you have screenshots or short
-clips of tables in real docs you’ve been writing, drop them in this thread and I’ll work them in.
+clips of tables in real docs you\u2019ve been writing, drop them in this thread and I\u2019ll work
+them in.
         `,
         {overrideCreatedTime: daysAgoAt(0, 9, 5)},
     );
@@ -444,7 +445,7 @@ It\u2019s a40-person eng team, similar shape to Meridian. Demo\u2019s booked for
         ),
     ]);
 
-    // Suggested-list-only entities that round out the visible space but don’t need
+    // Suggested-list-only entities that round out the visible space but don't need
     // their own affinity boost.
     void TestTaskCollection.create(accounts.cassCade, {name: "Sprint Oct 13", access: "Public"});
 
@@ -505,29 +506,30 @@ It\u2019s a40-person eng team, similar shape to Meridian. Demo\u2019s booked for
 
     await recorder.record({
         instructions: markdown`
-Cass logs into Alpine in the morning. The home feed shows what’s new across the team overnight, and
-the right-hand sidebar surfaces Suggested — affinity-ranked, with the projects she’s actively
-working on pinned at the top. The point of the demo: in two glances she sees both “what’s new for
-the day” (the feed) and “what’s mine to drive” (active tasks at the top of suggested), then clicks
-straight into the project that needs her.
+Cass logs into Alpine in the morning. The home feed shows what\u2019s new across the team overnight,
+and the right-hand sidebar surfaces Suggested — affinity-ranked, with the projects she\u2019s
+actively working on pinned at the top. The point of the demo: in two glances she sees both
+\u201Cwhat\u2019s new for the day\u201D (the feed) and \u201Cwhat\u2019s mine to drive\u201D (active
+tasks at the top of suggested), then clicks straight into the project that needs her.
 
 1. Start with the cursor parked over the home feed entries on the left, near the top. Pause for a
    beat so the viewer registers the layout: feed on the left, Suggested on the right.
 
-2. Scroll the feed slowly one screen down so a couple of new updates pass by — Holly’s tables ship
-   announcement, Mason’s column-resizing post, the Q4 planning draft, Elle’s realtime reliability
-   post, Cliff’s new inbound. Then scroll back to the top.
+2. Scroll the feed slowly one screen down so a couple of new updates pass by — Holly\u2019s tables
+   ship announcement, Mason\u2019s column-resizing post, the Q4 planning draft, Elle\u2019s realtime
+   reliability post, Cliff\u2019s new inbound. Then scroll back to the top.
 
-3. Move the cursor over to the Suggested header on the right. Hover briefly so the viewer’s eye
+3. Move the cursor over to the Suggested header on the right. Hover briefly so the viewer\u2019s eye
    follows.
 
-4. The top three items in Suggested are the projects Cass is actively working on: “Q4 Planning,”
-   “Tables in Rich Text Editor,” and “Senior Backend Engineer Hiring,” each carrying the
-   active-status indicator. Hover the first one for a beat, then the second.
+4. The top three items in Suggested are the projects Cass is actively working on: \u201CQ4
+   Planning,\u201D \u201CTables in Rich Text Editor,\u201D and \u201CSenior Backend Engineer
+   Hiring,\u201D each carrying the active-status indicator. Hover the first one for a beat, then the
+   second.
 
-5. Click “Tables in Rich Text Editor.” The project peek/preview opens showing the child tasks —
-   selection model and keyboard nav closed, column resizing in progress, help doc pending. Hold for
-   a second so the contents are legible.
+5. Click \u201CTables in Rich Text Editor.\u201D The project peek/preview opens showing the child
+   tasks — selection model and keyboard nav closed, column resizing in progress, help doc pending.
+   Hold for a second so the contents are legible.
 
 6. Close the peek (Esc or click outside) so the home feed is visible again. Park the cursor near
    where you started so the loop point is clean.

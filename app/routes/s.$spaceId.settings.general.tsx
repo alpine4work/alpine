@@ -120,7 +120,9 @@ export default function SpaceGeneralSettingsRoute() {
                 if (!responseBody.ok) throw responseBody.error;
 
                 if (responseBody.type !== "UploadSpaceAvatar") {
-                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                    throw new InternalError(
+                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
+                    );
                 }
                 return responseBody;
             },
@@ -299,7 +301,7 @@ export default function SpaceGeneralSettingsRoute() {
                                     await handleUpdateThemeColor(color);
                                 }
                             },
-                            pressErrorTitle: "Couldn’t update theme color",
+                            pressErrorTitle: "Couldn\u2019t update theme color",
                         }))}
                     >
                         <Button

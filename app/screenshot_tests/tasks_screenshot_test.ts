@@ -411,7 +411,7 @@ async function createPersonalTasks(
     });
 
     await TestTask.create(session, {
-        title: "Roll up Holly’s survey findings into the inputs section",
+        title: "Roll up Holly\u2019s survey findings into the inputs section",
         parent: q4PlanningTask,
     });
     await TestTask.create(session, {
@@ -440,7 +440,7 @@ snap-by-default with Alt for smooth.
     });
 
     await TestTask.create(session, {
-        title: "Read Holly’s Q3 survey summary before meeting",
+        title: "Read Holly\u2019s Q3 survey summary before meeting",
         assignee: session,
         dueDate: new CalendarDate(2025, 10, 1),
         priority: "Medium",
@@ -543,7 +543,7 @@ snap-by-default with Alt for smooth.
     }
 
     await TestTask.create(session, {
-        title: "Block Rose’s calendar for the offer call",
+        title: "Block Rose\u2019s calendar for the offer call",
         assignee: session,
         collections: collections.hiring,
         priority: "High",
@@ -598,7 +598,7 @@ async function createTablesProject(
         layout: "Project",
         notes: markdown`
 Tables in our rich text editor. Insert, edit, navigate, resize, paste in from a spreadsheet. The
-bulk of the work is a custom cell selection model sitting on top of the document’s existing
+bulk of the work is a custom cell selection model sitting on top of the document\u2019s existing
 selection state.
         `,
         priority: "High",
@@ -695,7 +695,7 @@ selection state.
         assignee: accounts.mattRHorn,
         assigneeStatus: "Active",
         dueDate: new CalendarDate(2025, 10, 7),
-        notes: "Holly’s draft is in good shape. Make sure screenshots match the final UI and the snap-to-grid language stays practical.",
+        notes: "Holly\u2019s draft is in good shape. Make sure screenshots match the final UI and the snap-to-grid language stays practical.",
     });
 
     await TestTask.create(accounts.cassCade, {
@@ -785,8 +785,8 @@ a cell move within the paragraph or should it move between cells?
         assigneeStatus: "Active",
         dueDate: new CalendarDate(2025, 10, 10),
         notes: markdown`
-Going with Matt’s anchor model. The table toolbar takes priority whenever a cell selection is active
-so it no longer fights the floating format menu.
+Going with Matt\u2019s anchor model. The table toolbar takes priority whenever a cell selection is
+active so it no longer fights the floating format menu.
         `,
         priority: "Low",
     });
@@ -945,7 +945,7 @@ async function createSprintTasksAndBugTasks(
         priority: "High",
     });
     await TestTask.create(accounts.cassCade, {
-        title: "Document title doesn’t sync via realtime",
+        title: "Document title doesn\u2019t sync via realtime",
         assignee: accounts.elleKappaTan,
         collections: [sprint, bugs, collections.realtimeReliability],
         priority: "Medium",

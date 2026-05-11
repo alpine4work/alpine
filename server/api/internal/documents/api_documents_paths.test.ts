@@ -477,7 +477,7 @@ describe("/documents/{id}/mention", () => {
         });
     });
 
-    test("can’t read document mention without access", async () => {
+    test("can\u2019t read document mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -496,13 +496,15 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("You aren’t allowed to access this document."),
+                    message: expect.stringMatching(
+                        "You aren\u2019t allowed to access this document.",
+                    ),
                 }),
             },
         });
     });
 
-    test("can’t read document mention for non-existent document", async () => {
+    test("can\u2019t read document mention for non-existent document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -518,7 +520,7 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This document doesn’t exist"),
+                    message: expect.stringMatching("This document doesn\u2019t exist"),
                 }),
             },
         });

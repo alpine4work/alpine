@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {

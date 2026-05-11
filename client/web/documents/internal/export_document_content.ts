@@ -215,7 +215,6 @@ export async function exportDocumentContent({
             if (classes.length === 0) {
                 html += escapeHtml(text);
             } else {
-                // eslint-disable-next-line cyberworlds/string-quotes
                 html += `<span class="${classes}">${escapeHtml(text)}</span>`;
             }
         },

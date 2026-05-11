@@ -2750,13 +2750,13 @@ export async function getSearchEntityWithStrongConsistency(
 
     if (entity === null) {
         throw new NotFoundError("Search entity not found", {
-            displayMessage: errorDisplayMessage`This ${getSearchEntityNoun(type)} doesn’t exist.`,
+            displayMessage: errorDisplayMessage`This ${getSearchEntityNoun(type)} doesn\u2019t exist.`,
         });
     }
 
     if (entity.isPrivate) {
         throw new PermissionDeniedError("Search entity is private", {
-            displayMessage: errorDisplayMessage`You aren’t allowed to access this ${getSearchEntityNoun(type)}.`,
+            displayMessage: errorDisplayMessage`You aren\u2019t allowed to access this ${getSearchEntityNoun(type)}.`,
         });
     }
 

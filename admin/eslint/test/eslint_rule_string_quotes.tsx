@@ -55,6 +55,10 @@ console.log(`<mark class="highlight-red">High</mark>`);
 // We correctly identify this as HTML and don't warn.
 console.log(`<mark class='highlight-red'>High</mark>`);
 
+// We correctly identify this as HTML and don't warn when the attribute contains
+// interpolation.
+console.log(`<mark class="${space}">High</mark>`);
+
 // The `'` in `Can't` should be a curly quote.
 // eslint-disable-next-line cyberworlds/string-quotes
 console.log('<mark class="highlight-red">Can\'t</mark>');
@@ -71,8 +75,50 @@ console.log("Couldn&#x2019;t go back");
 // eslint-disable-next-line cyberworlds/string-quotes
 console.log(`Couldn&#x2019;t go back`);
 
+// Raw curly quote characters in regular strings should use Unicode escapes.
+// eslint-disable-next-line cyberworlds/string-quotes
+console.log("Opening double quote: “");
+
+// Raw curly quote characters in regular strings should use Unicode escapes.
+// eslint-disable-next-line cyberworlds/string-quotes
+console.log("Closing double quote: ”");
+
+// Raw curly quote characters in regular strings should use Unicode escapes.
+// eslint-disable-next-line cyberworlds/string-quotes
+console.log("Opening single quote: ‘");
+
+// Raw curly quote characters in regular strings should use Unicode escapes.
+// eslint-disable-next-line cyberworlds/string-quotes
+console.log("Closing single quote: ’");
+
+// Raw curly quote characters in template literals should use Unicode escapes.
+// eslint-disable-next-line cyberworlds/string-quotes
+console.log(`Closing single quote: ’`);
+
+// Raw curly quote characters in JSX attribute strings should use HTML entities.
+// eslint-disable-next-line cyberworlds/string-quotes
+<div aria-label="Couldn’t go back" />;
+
+// Raw curly quote characters in JSX text should use HTML entities.
+// eslint-disable-next-line cyberworlds/string-quotes
+<div>Couldn’t go back</div>;
+
 // Unicode escapes in regular strings are fine.
 console.log("Couldn\u2019t go back");
 
 // Unicode escapes in template literals are fine.
 console.log(`Couldn\u2019t go back`);
+
+// Comments can use "straight" double quotes and 'straight' single quotes.
+
+// eslint-disable-next-line cyberworlds/string-quotes
+// Comments should not use “raw” double quotes.
+
+// eslint-disable-next-line cyberworlds/string-quotes
+// Comments should not use ‘raw’ single quotes.
+
+// eslint-disable-next-line cyberworlds/string-quotes
+// Comments should not use \u201C Unicode quote escapes.
+
+// eslint-disable-next-line cyberworlds/string-quotes
+// Comments should not use &#x201C; HTML quote escapes.

@@ -7132,7 +7132,7 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getFileFromAttachment(
@@ -7185,7 +7185,7 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getFileFromAttachment(
@@ -7299,7 +7299,7 @@ test("can\u2019t attach file if you don\u2019t have view access to the target", 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(
         getFileFromAttachment(
@@ -7654,7 +7654,7 @@ test("can\u2019t attach file to new target you don\u2019t have access to", async
             from: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
             to: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     await expect(
         getFileFromAttachment(
@@ -7757,7 +7757,7 @@ test("can\u2019t get file from attachment if you don\u2019t have access to the a
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getFileFromAttachment(
@@ -7792,7 +7792,7 @@ test("can\u2019t attach file when uploading if you don\u2019t have view access t
             contentLength: 100,
             attachTargetAuthorizer: FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 });
 
 test("can\u2019t attach file when uploading if you don\u2019t have edit access to the target", async () => {
@@ -8004,7 +8004,7 @@ test("can\u2019t detach file without view access", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `Edit` access level"));
 
     expect(
         await getFileFromAttachment(

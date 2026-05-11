@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 
 // TODO(calebmer, #phosphor-v2): The `<Waveform>` icon is in Phosphor v2. Upgrading

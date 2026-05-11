@@ -331,14 +331,14 @@ export function actuallyCreateIntegrationTestEnvironment(
         taskContextModule: {
             tokenAgent: () => {
                 if (jobQueueServiceTokenAgent === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return jobQueueServiceTokenAgent;
             },
             router: new TaskRealtimeServiceLocalRouter({
                 port: () => {
                     if (taskRealtimeServicePort === null)
-                        throw new InternalError("Test services haven’t initialized");
+                        throw new InternalError("Test services haven\u2019t initialized");
 
                     return taskRealtimeServicePort;
                 },
@@ -350,7 +350,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         constants: new ConstantsContextModule({
             edgeServiceUrl: () => {
                 if (edgeServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return `http://localhost:${edgeServicePort}`;
             },
@@ -949,7 +949,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         services: {
             getBaseUrl: () => {
                 if (edgeServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return `http://localhost:${edgeServicePort}`;
             },
@@ -962,25 +962,25 @@ export function actuallyCreateIntegrationTestEnvironment(
             },
             getAgentServicePort: () => {
                 if (agentServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return agentServicePort;
             },
             getAppServiceTokenAgent: () => {
                 if (appServiceTokenAgent === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return appServiceTokenAgent;
             },
             getJobQueueServiceTokenAgent: () => {
                 if (jobQueueServiceTokenAgent === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return jobQueueServiceTokenAgent;
             },
             getMockChatGptLocalUnscopedApiKey: async () => {
                 if (mockChatGptUnscopedApiKeyPath === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 const apiKey = await fs.readFile(mockChatGptUnscopedApiKeyPath, "utf8");
                 return assertApiKey(apiKey.trim());

@@ -173,7 +173,6 @@ export function serializeEmailMessageToMimeString(
     if (htmlPart && !hasAttachments) {
         return [
             ...baseHeaders,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
             ``,
             `--${alternativeBoundary}`,
@@ -189,7 +188,6 @@ export function serializeEmailMessageToMimeString(
     // present.
     const bodyPart = htmlPart
         ? [
-              // eslint-disable-next-line cyberworlds/string-quotes
               `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
               ``,
               `--${alternativeBoundary}`,
@@ -213,10 +211,10 @@ export function serializeEmailMessageToMimeString(
         // Use RFC 2231 extended parameter syntax for non-ASCII filenames (RFC 5987).
         const contentTypeFilenameParam = needsRfc2231
             ? `name*=${encodeFilenameWithPercentEncoding(attachment.filename)}`
-            : `name="${attachment.filename}"`; // eslint-disable-line cyberworlds/string-quotes
+            : `name="${attachment.filename}"`;
         const dispositionFilenameParam = needsRfc2231
             ? `filename*=${encodeFilenameWithPercentEncoding(attachment.filename)}`
-            : `filename="${attachment.filename}"`; // eslint-disable-line cyberworlds/string-quotes
+            : `filename="${attachment.filename}"`;
         return [
             `--${mixedBoundary}`,
             `Content-Type: ${attachment.contentType}; ${contentTypeFilenameParam}`,
@@ -229,7 +227,6 @@ export function serializeEmailMessageToMimeString(
 
     return [
         ...baseHeaders,
-        // eslint-disable-next-line cyberworlds/string-quotes
         `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
         ``,
         `--${mixedBoundary}`,

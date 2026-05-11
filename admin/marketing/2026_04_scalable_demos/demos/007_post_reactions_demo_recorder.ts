@@ -18,7 +18,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     const post = await channel.createPost(
         accounts.masonClay,
-        "Today’s my first day here as a product engineer. Excited to be working with such a cracked team! In my interviews everyone was really nice and really smart and it convinced me I just had to work here. My hobbies are hiking, camping, and climbing. Last weekend I went camping in the smokey mountains.",
+        "Today\u2019s my first day here as a product engineer. Excited to be working with such a cracked team! In my interviews everyone was really nice and really smart and it convinced me I just had to work here. My hobbies are hiking, camping, and climbing. Last weekend I went camping in the smokey mountains.",
         {overrideCreatedTime: new Date("2026-10-18T14:53:41.765Z")},
     );
 

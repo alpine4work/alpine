@@ -427,7 +427,6 @@ function* printApiContentBlockElementToMarkdown(
             const style = `float: ${side}; clear: both`;
             yield {
                 type: "html",
-                // eslint-disable-next-line cyberworlds/string-quotes
                 value: `<div style="${style}">${fileOrPreviewToHtml(element.element, options.spaceId)}</div>`,
             };
             break;
@@ -449,7 +448,6 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     // If the file is a web safe image then use an `<img>` element. Files with unknown
     // content type also use `<img>` as the default.
     if (!contentType || isWebSafeImageContentType(contentType)) {
-        // eslint-disable-next-line cyberworlds/string-quotes
         return `<img src="${escapedUrl}"${styleAttr}/>`;
     }
 
@@ -459,7 +457,6 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
     if (isWebSafeVideoContentType(contentType) || contentType === "video/mp4") {
-        // eslint-disable-next-line cyberworlds/string-quotes
         return `<video controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></video>`;
     }
 
@@ -469,12 +466,10 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
     if (isWebSafeAudioContentType(contentType) || contentType === "audio/mp4") {
-        // eslint-disable-next-line cyberworlds/string-quotes
         return `<audio controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></audio>`;
     }
 
     // Otherwise, fallback to an `<object>` element.
-    // eslint-disable-next-line cyberworlds/string-quotes
     return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}/>`;
 }
 
@@ -485,7 +480,6 @@ function fileOrPreviewToHtml(
     spaceId: SpaceId,
     style?: string,
 ): string {
-    // eslint-disable-next-line cyberworlds/string-quotes
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
@@ -495,7 +489,6 @@ function fileOrPreviewToHtml(
         case "Preview": {
             const previewUrl = printPreviewTargetUrl(spaceId, element.target);
             const title = element.title?.trim() ? element.title : "";
-            // eslint-disable-next-line cyberworlds/string-quotes
             return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr}/>`;
         }
         default:
@@ -538,11 +531,9 @@ function printApiContentCodeBlockElementToMarkdown(
         };
     }
 
-    // The HTML specification itself recommends `class="language-*"` as a way to
-    // signal the language we're using:
+    // The HTML specification itself recommends `class="language-*"` as a way to signal
+    // the language we're using:
     // https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-code-element
-    //
-    // eslint-disable-next-line cyberworlds/string-quotes
     let html = `<pre>\n<code class="language-${escapeHtml(element.language)}">\n`;
 
     for (const line of element.lines) {
@@ -610,21 +601,18 @@ function printApiContentCodeBlockElementToMarkdown(
                         html += "<del>";
                         break;
                     case "Link": {
-                        // eslint-disable-next-line cyberworlds/string-quotes
                         html += `<a href="${escapeHtml(mark.url)}">`;
                         break;
                     }
                     case "Highlight": {
                         const color = printApiContentInlineElementHighlightMarkColor(mark.color);
-                        // eslint-disable-next-line cyberworlds/string-quotes
                         html += `<mark class="highlight-${color}">`;
                         break;
                     }
                     case "Comment": {
                         html += options.withSimpleCommentMarkHtml
                             ? "<comment>"
-                            : // eslint-disable-next-line cyberworlds/string-quotes
-                              `<mark data-comment="${mark.threadId}">`;
+                            : `<mark data-comment="${mark.threadId}">`;
                         break;
                     }
                     default:
@@ -756,8 +744,6 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         !options.withoutTableWidth &&
         (element.width !== 1 || element.columns.some(column => column.width !== 1))
     ) {
-        /* eslint-disable cyberworlds/string-quotes */
-
         let html = "<span hidden";
 
         if (element.width !== 1) {
@@ -771,8 +757,6 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         }
 
         html += "/>";
-
-        /* eslint-enable cyberworlds/string-quotes */
 
         const lastRow = rows[rows.length - 1];
         if (lastRow !== undefined) {
@@ -804,8 +788,6 @@ function* printApiContentTableBlockElementToMarkdown(
 
     let tableTagHtml = "<table";
 
-    /* eslint-disable cyberworlds/string-quotes */
-
     if (!options.withoutTableWidth) {
         if (element.width !== 1) {
             tableTagHtml += ` data-width="${JSON.stringify(element.width)}"`;
@@ -817,8 +799,6 @@ function* printApiContentTableBlockElementToMarkdown(
             ).slice(1, -1)}"`;
         }
     }
-
-    /* eslint-enable cyberworlds/string-quotes */
 
     tableTagHtml += ">";
 
@@ -1316,7 +1296,6 @@ function* printApiContentInlineElementToMarkdown(
             if (!linkMark) {
                 yield* contents;
             } else {
-                // eslint-disable-next-line cyberworlds/string-quotes
                 const openHtml = `<a href="${escapeHtml(linkMark.url)}">`;
                 const closeHtml = "</a>";
 
@@ -1516,8 +1495,6 @@ function* printApiContentInlineElementMarksToMarkdown(
     } else {
         // If the URL looks like a mention then we need to use the HTML `<a>` form to
         // serialize the link. So the Markdown link isn't parsed as a mention.
-        //
-        // eslint-disable-next-line cyberworlds/string-quotes
         const openHtml = `<a href="${escapeHtml(mentionishMark.url)}">`;
         const closeHtml = "</a>";
 
@@ -1563,7 +1540,6 @@ function* printApiContentInlineElementMarkToMarkdown(
         case "Highlight": {
             const color = printApiContentInlineElementHighlightMarkColor(mark.color);
 
-            // eslint-disable-next-line cyberworlds/string-quotes
             const openHtml = `<mark class="highlight-${escapeHtml(color)}">`;
             const closeHtml = `</mark>`;
 
@@ -1575,8 +1551,7 @@ function* printApiContentInlineElementMarkToMarkdown(
         case "Comment": {
             const openHtml = options.withSimpleCommentMarkHtml
                 ? "<comment>"
-                : // eslint-disable-next-line cyberworlds/string-quotes
-                  `<mark data-comment="${mark.threadId}">`;
+                : `<mark data-comment="${mark.threadId}">`;
             const closeHtml = options.withSimpleCommentMarkHtml ? "</comment>" : "</mark>";
 
             yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};

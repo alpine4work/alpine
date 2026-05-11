@@ -58,7 +58,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         offsiteScheduling,
     ] = await runAllPromises([
         TestTask.create(accounts.cassCade, {
-            title: "Review Holly’s sales one-pager edits",
+            title: "Review Holly\u2019s sales one-pager edits",
             assignee: accounts.cassCade,
             priority: "Medium",
             dueDate: daysFromToday(3),
@@ -127,32 +127,35 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     await recorder.record({
         instructions: markdown`
-Cass is in “My tasks.” Setting a due date in Alpine doesn’t have to mean opening a date picker — she
-can drop a task into a relative-date section and it lands with that date, or create a task straight
-inside a section so it’s authored with the due date already attached. Two beats: one drag, one
-inline create.
+Cass is in \u201CMy tasks.\u201D Setting a due date in Alpine doesn\u2019t have to mean opening a
+date picker — she can drop a task into a relative-date section and it lands with that date, or
+create a task straight inside a section so it\u2019s authored with the due date already attached.
+Two beats: one drag, one inline create.
 
-1. Expand the Chrome window so the corner radiuses aren’t in the recording frame.
+1. Expand the Chrome window so the corner radiuses aren\u2019t in the recording frame.
 
-2. Start recording on the “My tasks” page. Pause for a beat at the top so the relative-date section
-   headers — “Active,” “Due today,” “Due soon,” “Remaining” — are visible. Scroll slowly down
-   through the sections once so the viewer reads the shape of the day, then scroll back to the top.
+2. Start recording on the \u201CMy tasks\u201D page. Pause for a beat at the top so the
+   relative-date section headers — \u201CActive,\u201D \u201CDue today,\u201D \u201CDue soon,\u201D
+   \u201CRemaining\u201D — are visible. Scroll slowly down through the sections once so the viewer
+   reads the shape of the day, then scroll back to the top.
 
-3. **Drag a task into a relative-date section.** Scroll to the “Remaining” section. Click and hold
-   on “SSO scoping next steps with Elle,” drag it up, and drop it inside the “Due soon” section
-   (this week). The task should appear in “Due soon” with its due date set automatically — no date
-   picker opened.
+3. **Drag a task into a relative-date section.** Scroll to the \u201CRemaining\u201D section. Click
+   and hold on \u201CSSO scoping next steps with Elle,\u201D drag it up, and drop it inside the
+   \u201CDue soon\u201D section (this week). The task should appear in \u201CDue soon\u201D with its
+   due date set automatically — no date picker opened.
 
-4. Pause for a beat so the viewer registers that the dragged task now sits under “Due soon” with a
-   real relative date attached. Scroll back up so the top sections are visible again.
+4. Pause for a beat so the viewer registers that the dragged task now sits under \u201CDue
+   soon\u201D with a real relative date attached. Scroll back up so the top sections are visible
+   again.
 
-5. **Create a task directly inside a relative-date section.** Hover over the “Due today” section
-   header so the inline “+” appears at the top of the section. Click it. Type “Block focus time for
-   Q4 plan review” and press Enter. The new task is created already due today — again, no date
-   picker.
+5. **Create a task directly inside a relative-date section.** Hover over the \u201CDue today\u201D
+   section header so the inline \u201C+\u201D appears at the top of the section. Click it. Type
+   \u201CBlock focus time for Q4 plan review\u201D and press Enter. The new task is created already
+   due today — again, no date picker.
 
-6. Pause for a beat so both new states are visible (the dragged task in “Due soon,” the inline task
-   in “Due today”). Park the mouse near the top of the view so the loop point is clean.
+6. Pause for a beat so both new states are visible (the dragged task in \u201CDue soon,\u201D the
+   inline task in \u201CDue today\u201D). Park the mouse near the top of the view so the loop point
+   is clean.
         `,
         session: accounts.cassCade,
         path: `/s/${space.id}/tasks`,

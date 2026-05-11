@@ -58,13 +58,11 @@ export function renderTaskChildTasksProgressWheel({
     );
 
     // Track SVG (background circle)
-    // eslint-disable-next-line cyberworlds/string-quotes
     const trackSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="${taskChildTasksProgressWheelTrackClassName}" style="color: ${colorSchemeVars["grey-20"]}" fill="currentColor" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}"><circle cx="${viewBoxSize / 2}" cy="${viewBoxSize / 2}" r="${radius}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/></svg>`;
     containerHtml.appendChild(createSvgHtmlGenerator(trackSvg));
 
     // Progress line SVG
     const pathD = `M ${viewBoxSize / 2}, ${viewBoxSize / 2} m 0, -${radius} a ${radius},${radius} 0 1,1 0,${radius * 2} a ${radius},${radius} 0 1,1 0,-${radius * 2}`;
-    // eslint-disable-next-line cyberworlds/string-quotes
     const progressSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="${taskChildTasksProgressWheelLineClassName}" fill="currentColor" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}"><path d="${pathD}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" stroke-dasharray="${fraction * circumference} ${circumference}" style="transition: stroke-dasharray 200ms ease"/></svg>`;
     containerHtml.appendChild(createSvgHtmlGenerator(progressSvg));
 

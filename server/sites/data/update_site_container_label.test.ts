@@ -74,7 +74,7 @@ describe("updateSiteContainerLabel", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("throws NotFoundError when container doesn’t exist", async () => {
+    test("throws NotFoundError when container doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const site = await TestSite.create(session);

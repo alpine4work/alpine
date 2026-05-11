@@ -312,7 +312,7 @@ async function createTablesProject(
         layout: "Project",
         notes: markdown`
 Tables in our rich text editor. Insert, edit, navigate, resize, paste in from a spreadsheet. The
-bulk of the work is a custom cell selection model sitting on top of the document’s existing
+bulk of the work is a custom cell selection model sitting on top of the document\u2019s existing
 selection state.
         `,
         priority: "High",
@@ -346,7 +346,7 @@ a cell move within the paragraph or should it move between cells?
         parent: projectTask,
         assignee: accounts.mattRHorn,
         assigneeStatus: "Active",
-        notes: "Holly’s draft is in good shape. Make sure screenshots match the final UI and the snap-to-grid language stays practical.",
+        notes: "Holly\u2019s draft is in good shape. Make sure screenshots match the final UI and the snap-to-grid language stays practical.",
     });
 
     return {projectTask, featuredProjectTask};

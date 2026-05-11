@@ -93,7 +93,6 @@ export function renderTaskPriorityIcon({
 
     const sizeStyle = `width: ${spacing[size]}; height: ${spacing[size]}`;
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="${taskPriorityIconClassName}" style="${sizeStyle}"><rect x="23.5" y="5" width="2" height="22" rx="1" fill="${fillBar3 ? filledBarColor : unfilledBarColor}"/><rect x="15" y="10.5" width="2" height="16.5" rx="1" fill="${fillBar2 ? filledBarColor : unfilledBarColor}"/><rect x="6.5" y="16" width="2" height="11" rx="1" fill="${fillBar1 ? filledBarColor : unfilledBarColor}"/></svg>`;
 
     return createSvgHtmlGenerator(svg);
@@ -120,7 +119,6 @@ function renderTaskPriorityIconUrgent({
             `${pingAnimationWithDelayClassName} ${taskPriorityIconUrgentPingContainerClassName}`,
         );
 
-        // eslint-disable-next-line cyberworlds/string-quotes
         const pingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="${sizeStyle}"><circle cx="16" cy="16" r="13" fill="${colorSchemeVars["red-50-const"]}"/></svg>`;
         pingContainerHtml.appendChild(createSvgHtmlGenerator(pingSvg));
     }
@@ -129,7 +127,6 @@ function renderTaskPriorityIconUrgent({
         ? taskPriorityIconUrgentCircleFillHighlightedClassName
         : taskPriorityIconUrgentCircleFillNotHighlightedClassName;
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     const mainSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="${sizeStyle}"><circle cx="16" cy="16" r="13" class="${circleClassName}"/><rect x="15" y="9" width="2" height="9" rx="1" fill="${colorSchemeVars["grey-0-const"]}"/><circle cx="16" cy="21.5" r="1.5" fill="${colorSchemeVars["grey-0-const"]}"/></svg>`;
     containerHtml.appendChild(createSvgHtmlGenerator(mainSvg));
 

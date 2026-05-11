@@ -2,10 +2,12 @@ import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+/* eslint-disable cyberworlds/string-quotes */
 /**
  * Convert all straight quotes (`'` and `"`) into proper curly quotes (`\u201C`,
  * `\u201D`, `\u2018`, `\u2019`).
  */
+/* eslint-enable cyberworlds/string-quotes */
 export function convertApiContentToProperQuotes(content: ApiContent): ApiContent {
     return visitAndProduceApiContent(content, {
         visitInlineElement: (element, {elements, index: currentElementIndex}) => {

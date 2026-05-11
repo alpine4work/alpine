@@ -69,7 +69,7 @@ Due date appears one day earlier than expected.
             space.id,
             [
                 2000,
-                "## Incorrect Due Date Display\n\nStarted coding. I’ll let you know when I’m done [(watch me work)](http://localhost:3000).",
+                "## Incorrect Due Date Display\n\nStarted coding. I\u2019ll let you know when I\u2019m done [(watch me work)](http://localhost:3000).",
             ],
             {waitMillisecondsBetweenTokens: 15},
         ),

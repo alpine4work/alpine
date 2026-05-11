@@ -143,7 +143,7 @@ describe("dangerouslyGetAddToSiteTransactionEntries", () => {
         expect(attrs.firstEntityId).toBe(existingEntityId);
     });
 
-    test("throws when parentId doesn’t exist in the site tree", async () => {
+    test("throws when parentId doesn\u2019t exist in the site tree", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const site = await TestSite.create(session);

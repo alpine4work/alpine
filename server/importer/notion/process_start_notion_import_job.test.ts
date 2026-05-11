@@ -2064,7 +2064,7 @@ ${child2.toReference()}`,
             expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find "I'm a nested page" and "Page Parent" by title
-            const nestedPageDoc = await findDocumentByTitle(space.id, "I’m a nested page");
+            const nestedPageDoc = await findDocumentByTitle(space.id, "I\u2019m a nested page");
             const pageParentDoc = await findDocumentByTitle(space.id, "Page Parent");
 
             expect(nestedPageDoc).toBeDefined();
@@ -2077,7 +2077,7 @@ ${child2.toReference()}`,
             expect(nestedContent.type).toBe("doc");
             expect(nestedContent.content[0]).toEqual({
                 type: "title",
-                content: [{type: "text", text: "I’m a nested page"}],
+                content: [{type: "text", text: "I\u2019m a nested page"}],
             });
 
             // Verify it has a parent document mention to Page Parent
@@ -2104,7 +2104,10 @@ ${child2.toReference()}`,
             expect(nestedChildDocsHeading).toBeDefined();
 
             // Find the double nested page document
-            const doubleNestedDoc = await findDocumentByTitle(space.id, "I’m a double nested page");
+            const doubleNestedDoc = await findDocumentByTitle(
+                space.id,
+                "I\u2019m a double nested page",
+            );
             expect(doubleNestedDoc).toBeDefined();
 
             // Verify there's a list item mentioning the double nested page Mentions are now

@@ -131,9 +131,9 @@ forum in one place, but they want better control over what interrupts them.
 
 Representative notes:
 
-> “I love having everything in one place, but I still need quieter defaults.”
+> \u201CI love having everything in one place, but I still need quieter defaults.\u201D
 
-> “Search is fine until the workspace gets large enough that history matters.”
+> \u201CSearch is fine until the workspace gets large enough that history matters.\u201D
 
 Notification control should be the leading product bet. Search speed is close behind, especially for
 larger accounts that are deciding whether to expand. The tables result is satisfying, but _not_ the
@@ -154,7 +154,7 @@ should not have to rediscover every old shortcut by hand.
 **What holds up**
 
 - Text mark toolbar state is clear.
-- Keyboard shortcuts mostly preserve the writer’s _rhythm_.
+- Keyboard shortcuts mostly preserve the writer\u2019s _rhythm_.
 
 **Needs revisiting**
 
@@ -207,9 +207,9 @@ plain:
 - <mark class="highlight-purple">Home feed</mark> shows created and shared work without another
   status meeting.
 
-For [Cliff](CLIFF_MENTION)’s demos, lead with the home feed. It shows the whole company moving at
-once: created work, shared docs, project updates, and the conversations around them. Keep the inbox
-section _shorter than the live demo_.
+For [Cliff](CLIFF_MENTION)\u2019s demos, lead with the home feed. It shows the whole company moving
+at once: created work, shared docs, project updates, and the conversations around them. Keep the
+inbox section _shorter than the live demo_.
             `.replaceAll("CLIFF_MENTION", accountMentionUrl(accounts.cliffWeathers)),
         }),
         TestDocument.create(accounts.cassCade, {
@@ -440,9 +440,9 @@ No sync incidents since rollout.
         salesChannel.createPost(
             accounts.cliffWeathers,
             markdown`
-Meridian case study drove a real inbound. New VP Eng prospect came in through Holly’s piece, and
-they are exactly the profile we wanted: 40-person engineering team, too many tools, actively looking
-for consolidation.
+Meridian case study drove a real inbound. New VP Eng prospect came in through Holly\u2019s piece,
+and they are exactly the profile we wanted: 40-person engineering team, too many tools, actively
+looking for consolidation.
 
 The one-pager worked well in the first call. I still want a stronger inbox section before the next
 round.
@@ -477,8 +477,8 @@ I will consolidate Friday morning so Rose has a clean version before final revie
         craftChannel.createPost(
             accounts.masonClay,
             markdown`
-The table toolbar feels much better after Matt’s spacing pass. I still think the hover state is a
-little too quiet when a cell is selected, but it is no longer fighting the text toolbar.
+The table toolbar feels much better after Matt\u2019s spacing pass. I still think the hover state is
+a little too quiet when a cell is selected, but it is no longer fighting the text toolbar.
             `,
             {overrideCreatedTime: daysAgoAt(2, 17, 15)},
         ),
@@ -495,8 +495,8 @@ should not miss it.
         craftChannel.createPost(
             accounts.cassCade,
             markdown`
-Matt, Mason, I’m calling the tables interaction model settled unless launch feedback shows a real
-problem. Let’s save the remaining editor polish for the next pass.
+Matt, Mason, I\u2019m calling the tables interaction model settled unless launch feedback shows a
+real problem. Let\u2019s save the remaining editor polish for the next pass.
             `,
             {overrideCreatedTime: daysAgoAt(1, 12, 50)},
         ),
@@ -537,7 +537,7 @@ problem. Let’s save the remaining editor polish for the next pass.
         ),
         cliffInboundPost.createComment(
             accounts.hollyEvergreen,
-            "I’ll add the inbox paragraph before the next call.",
+            "I\u2019ll add the inbox paragraph before the next call.",
         ),
         cliffInboundPost.createComment(
             accounts.cassCade,
@@ -549,7 +549,7 @@ problem. Let’s save the remaining editor polish for the next pass.
         ),
         inputsPost.createComment(
             accounts.elleKappaTan,
-            "i’ll add capacity notes for sso and search before lunch",
+            "i\u2019ll add capacity notes for sso and search before lunch",
         ),
         inputsPost.createComment(
             accounts.hollyEvergreen,
@@ -738,7 +738,7 @@ problem. Let’s save the remaining editor polish for the next pass.
         instructions: markdown`
 Manual setup:
 
-- Make the recording window bigger so we don’t have rounded corners in the cropped recording.
+- Make the recording window bigger so we don\u2019t have rounded corners in the cropped recording.
 - Scroll to the bottom of the feed so the virtualized scroll view gets the correct height for all
   items. Then scroll back to the top of the page.
 

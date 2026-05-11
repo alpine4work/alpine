@@ -126,7 +126,7 @@ stabilizing realtime and kicking off the mobile redesign - more on both below.
 
     await document.updateContentPreview();
 
-    // Populate Cass\u2019s suggested search list. 5 entries total, with the Mobile App
+    // Populate Cass's suggested search list. 5 entries total, with the Mobile App
     // Redesign project at position 3.
 
     const spaceId = space.id;
@@ -159,7 +159,7 @@ stabilizing realtime and kicking off the mobile redesign - more on both below.
             entityId: `Task:${mobileAppRedesignProject.id}`,
             points: 997_000_000,
         }),
-        // Rank 4 — Rose\u2019s account.
+        // Rank 4 — Rose's account.
         addSearchAffinityEntityPointsForTest(accounts.cassCade.action(), {
             spaceId,
             accountId,

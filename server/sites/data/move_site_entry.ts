@@ -76,7 +76,7 @@ export async function moveSiteEntry(
             throw new FailedPreconditionError(
                 "Cannot move the root item. The root item must remain at the top level.",
                 {
-                    displayMessage: errorDisplayMessage`Can’t move the site’s root element.`,
+                    displayMessage: errorDisplayMessage`Can\u2019t move the site\u2019s root element.`,
                 },
             );
         }

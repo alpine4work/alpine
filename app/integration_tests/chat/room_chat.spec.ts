@@ -156,7 +156,7 @@ test("can lose access to a chat room in realtime", async ({
         .click();
     await page1.getByRole("menuitem", {name: "remove access"}).click();
 
-    await expect(page2.getByText("Couldn’t open chat")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open chat")).toBeVisible();
     await expect(page2.getByRole("heading", {name: "Loses Access Room"})).toBeHidden();
 
     await browserContext2.close();
@@ -197,7 +197,7 @@ test("chat room can be shared by URL with view access", async ({browser, page: p
 
     await page2.goto(`/s/${space.id}/chat/${chat.id}`);
 
-    await expect(page2.getByText("Couldn’t open chat")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t open chat")).toBeVisible();
     await expect(page2.getByRole("heading", {name: "URL Shared Room"})).toBeHidden();
 
     const browserContext1 = await browser.newContext();

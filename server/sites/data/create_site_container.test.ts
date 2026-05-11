@@ -75,7 +75,7 @@ describe("createSiteContainer", () => {
         );
     });
 
-    test("throws when parent doesn’t exist", async () => {
+    test("throws when parent doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const site = await TestSite.create(session);

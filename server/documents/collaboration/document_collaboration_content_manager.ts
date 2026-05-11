@@ -947,7 +947,7 @@ export class DocumentCollaborationContentManager {
 
             if (persistedVersion !== newVersion) {
                 throw new DataLossError(
-                    "Some process updated document content other than the document’s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                    "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                 );
             }
 

@@ -144,7 +144,7 @@ export function createContentEditorFileNodeViewConstructor({
                 [
                     {
                         label: `Turn into ${entityNoun} link`,
-                        pressErrorTitle: `Couldn’t turn into ${entityNoun} link`,
+                        pressErrorTitle: `Couldn\u2019t turn into ${entityNoun} link`,
                         icon: <ArrowSquareIn />,
                         iconPlacement: "end",
                         onPress: async () => {

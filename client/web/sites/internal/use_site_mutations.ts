@@ -56,8 +56,8 @@ import {SiteSideBarSectionModel} from "~/shared/sites/site_model.js";
 import {validateSiteContainerIsEmpty} from "~/shared/sites/validate_site_container_is_empty.js";
 
 /**
- * Hook that provides mutation functions for editing a site\u2019s tree. Each
- * mutation applies an optimistic update immediately and reverts on failure.
+ * Hook that provides mutation functions for editing a site's tree. Each mutation
+ * applies an optimistic update immediately and reverts on failure.
  */
 export function useSiteMutations() {
     const context = useAppContext();

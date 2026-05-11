@@ -59,7 +59,7 @@ describe("deleteSiteContainer", () => {
                 siteId: site.id,
                 container: {type: "SideBarSection", id: parentSectionId},
             }),
-        ).rejects.toThrow("Can’t delete a container that has children");
+        ).rejects.toThrow("Can\u2019t delete a container that has children");
     });
 
     test("throws when trying to delete the root container", async () => {
@@ -72,7 +72,7 @@ describe("deleteSiteContainer", () => {
                 siteId: site.id,
                 container: site.initialSideBarRoot,
             }),
-        ).rejects.toThrow("Can’t delete the Site’s root element");
+        ).rejects.toThrow("Can\u2019t delete the Site\u2019s root element");
     });
 
     test("throws PermissionDeniedError when actor lacks Manage access", async () => {
@@ -94,7 +94,7 @@ describe("deleteSiteContainer", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("throws NotFoundError when container doesn’t exist", async () => {
+    test("throws NotFoundError when container doesn\u2019t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const site = await TestSite.create(session);

@@ -1043,8 +1043,6 @@ export function renderFileImagePreviewPlaceholder(
     fileSize: {width: number; height: number},
     placeholder: FileImagePreviewPlaceholder,
 ) {
-    /* eslint-disable cyberworlds/string-quotes */
-
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
     const pixelGridHeight = pixelGrid.length;
@@ -1090,8 +1088,6 @@ export function renderFileImagePreviewPlaceholder(
 
     svg += "</g></svg>";
     return svg;
-
-    /* eslint-enable cyberworlds/string-quotes */
 }
 
 /**
@@ -1198,8 +1194,6 @@ function renderFileProcessingPreviewPlaceholder(
     pixelGrid: ReadonlyArray<ReadonlyArray<ColorWithShade>>,
     {className = ""}: {className?: string} = {},
 ) {
-    /* eslint-disable cyberworlds/string-quotes */
-
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
 
@@ -1235,8 +1229,6 @@ function renderFileProcessingPreviewPlaceholder(
 
     svg += "</g></svg>";
     return svg;
-
-    /* eslint-enable cyberworlds/string-quotes */
 }
 
 export function addContentFilePreviewBehaviorBase(

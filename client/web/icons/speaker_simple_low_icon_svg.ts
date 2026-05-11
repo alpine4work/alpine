@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 
 // Hardcode Phosphor speaker-simple-low icon SVG. This is since we don't want to

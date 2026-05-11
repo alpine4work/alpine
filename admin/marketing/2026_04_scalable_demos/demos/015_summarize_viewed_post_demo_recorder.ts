@@ -30,7 +30,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const mentionRose = mention(accounts.roseCompas, "Rose Compás");
     const mentionMatt = mention(accounts.mattRHorn, "Matt Horn");
 
-    // Seed several channels so Rose’s feed and sidebar don’t feel empty, and so her
+    // Seed several channels so Rose's feed and sidebar don't feel empty, and so her
     // inbox contains a realistic mix of unread items. The launch channel is where our
     // main post lives; the others exist primarily for sample content.
     const productLaunchChannel = await TestChannel.create(accounts.cassCade, {
@@ -41,13 +41,13 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const designChannel = await TestChannel.create(accounts.mattRHorn, {name: "Design"});
     const salesChannel = await TestChannel.create(accounts.cliffWeathers, {name: "Sales"});
 
-    // --- Feed content (unmentioned posts that populate Rose’s feed) ---
+    // --- Feed content (unmentioned posts that populate Rose's feed) ---
 
     await generalChannel.createPost(
         accounts.hollyEvergreen,
         markdown`
-Reminder: all-hands is Tuesday 2pm ET. We’ll celebrate launch day together. Pizza will be delivered
-to the office for anyone in person.
+Reminder: all-hands is Tuesday 2pm ET. We\u2019ll celebrate launch day together. Pizza will be
+delivered to the office for anyone in person.
         `,
         {overrideCreatedTime: new Date("2026-04-21T13:00:00.000Z")},
     );
@@ -83,7 +83,7 @@ quarter.
         accounts.masonClay,
         markdown`
 Heads up: status page integration ships with the launch. If you see an incident auto-opened on
-Monday morning, it’s the migration, not a real outage.
+Monday morning, it\u2019s the migration, not a real outage.
         `,
         {overrideCreatedTime: new Date("2026-04-23T20:20:00.000Z")},
     );
@@ -122,7 +122,7 @@ to Wednesday — just need a thumbs up from you.
     const post = await productLaunchChannel.createPost(
         accounts.cassCade,
         `
-${mentionRose} — we’re 9 days out from the public launch and I want to lock in our final
+${mentionRose} — we\u2019re 9 days out from the public launch and I want to lock in our final
 go/no-go plan today. Proposing we ship Tuesday morning as planned. Dropping the open
 questions here so we can resolve them in-thread instead of another meeting.
         `,
@@ -142,7 +142,7 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "mattRHorn",
-            text: "One thing to watch: the hero video is still using last month’s render. I’ll swap it before freeze on Monday.",
+            text: "One thing to watch: the hero video is still using last month\u2019s render. I\u2019ll swap it before freeze on Monday.",
         },
         {
             author: "masonClay",
@@ -166,7 +166,7 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "masonClay",
-            text: "We still need to flip the feature flag for the new onboarding flow. I’d like to do that Monday morning so we have a 24h soak in production.",
+            text: "We still need to flip the feature flag for the new onboarding flow. I\u2019d like to do that Monday morning so we have a 24h soak in production.",
         },
         {
             author: "elleKappaTan",
@@ -198,7 +198,7 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "cassCade",
-            text: "War room feels heavy for this launch. Let’s keep it in-post unless something goes sideways.",
+            text: "War room feels heavy for this launch. Let\u2019s keep it in-post unless something goes sideways.",
         },
         {
             author: "mattRHorn",
@@ -210,7 +210,7 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "elleKappaTan",
-            text: "I’ll own the cache purge step in the runbook. Just added it.",
+            text: "I\u2019ll own the cache purge step in the runbook. Just added it.",
         },
         {
             author: "cliffWeathers",
@@ -222,15 +222,15 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "cassCade",
-            text: `${mentionRose}, I know you’re double booked Friday afternoon. Can we get the legal sign-off before your 10am?`,
+            text: `${mentionRose}, I know you\u2019re double booked Friday afternoon. Can we get the legal sign-off before your 10am?`,
         },
         {
             author: "mattRHorn",
-            text: "Also: the customer testimonial video from Acme is back. It’s good. Want to land it on the homepage at launch.",
+            text: "Also: the customer testimonial video from Acme is back. It\u2019s good. Want to land it on the homepage at launch.",
         },
         {
             author: "masonClay",
-            text: "One more thing: the status page integration ships in the same release. If anyone sees weird incidents open on Monday, that’s why.",
+            text: "One more thing: the status page integration ships in the same release. If anyone sees weird incidents open on Monday, that\u2019s why.",
         },
         {
             author: "elleKappaTan",
@@ -238,15 +238,15 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "cliffWeathers",
-            text: "Pricing experiment results: variant B (annual discount) converted 2.1x. We’re going with B on launch day.",
+            text: "Pricing experiment results: variant B (annual discount) converted 2.1x. We\u2019re going with B on launch day.",
         },
         {
             author: "hollyEvergreen",
-            text: "Field team is ready. They’ll be responding on social from 5am PT to 9pm PT Tuesday.",
+            text: "Field team is ready. They\u2019ll be responding on social from 5am PT to 9pm PT Tuesday.",
         },
         {
             author: "mattRHorn",
-            text: "Forgot to mention, the new logo lockup ships with this release. It’s subtle but the whole brand system updates at once.",
+            text: "Forgot to mention, the new logo lockup ships with this release. It\u2019s subtle but the whole brand system updates at once.",
         },
         {
             author: "masonClay",
@@ -258,15 +258,15 @@ questions here so we can resolve them in-thread instead of another meeting.
         },
         {
             author: "cassCade",
-            text: "Last open item I’m tracking: customer success needs the final pricing table by Friday so they can update the renewal playbook.",
+            text: "Last open item I\u2019m tracking: customer success needs the final pricing table by Friday so they can update the renewal playbook.",
         },
         {
             author: "cliffWeathers",
-            text: "That’s downstream of the legal sign-off. Same Friday deadline.",
+            text: "That\u2019s downstream of the legal sign-off. Same Friday deadline.",
         },
         {
             author: "mattRHorn",
-            text: "Ok, I’m out for the night. Will have the final Figma ready by 9am tomorrow.",
+            text: "Ok, I\u2019m out for the night. Will have the final Figma ready by 9am tomorrow.",
         },
         {
             author: "hollyEvergreen",
@@ -305,7 +305,7 @@ questions here so we can resolve them in-thread instead of another meeting.
             space.id,
             [
                 2_000,
-                "Here’s a quick read on the launch post you’re on:",
+                "Here\u2019s a quick read on the launch post you\u2019re on:",
                 100,
                 "**Summary.** Tuesday launch is still the plan. Engineering is green, mobile is submitted, press embargo is locked with 7 outlets, social and sales enablement are queued up. Rollback plan is documented and fast.",
                 100,
@@ -315,11 +315,11 @@ questions here so we can resolve them in-thread instead of another meeting.
                 100,
                 "- Customer success needs the final pricing table by the same Friday deadline — downstream of the legal sign-off.",
                 100,
-                "- Smaller open decisions: Monday 30-min pre-launch readiness review (Elle proposed, Mason +1’d), and whether to keep launch-day coordination in this post or spin up a war room channel (Cass leaning toward in-post).",
+                "- Smaller open decisions: Monday 30-min pre-launch readiness review (Elle proposed, Mason +1\u2019d), and whether to keep launch-day coordination in this post or spin up a war room channel (Cass leaning toward in-post).",
                 100,
                 "**Draft reply** you can post as-is or tweak:",
                 100,
-                `> Approving legal sign-off for Friday morning. ${mentionMatt}, can you have the pricing copy in front of me by 9am? Cliff, you’re unblocked after that. Also good with Elle and Mason on the Monday readiness review, and let’s stay in this post for launch-day coordination unless something goes sideways.`,
+                `> Approving legal sign-off for Friday morning. ${mentionMatt}, can you have the pricing copy in front of me by 9am? Cliff, you\u2019re unblocked after that. Also good with Elle and Mason on the Monday readiness review, and let\u2019s stay in this post for launch-day coordination unless something goes sideways.`,
             ],
             {waitMillisecondsBetweenTokens: 10},
         ),
@@ -327,12 +327,12 @@ questions here so we can resolve them in-thread instead of another meeting.
 
     await recorder.record({
         instructions: markdown`
-This demo shows how an agent like ChatGPT can answer a question about the thing you’re currently
-looking at — without you ever leaving your workflow. Rose is the CEO. Her feed has the day’s
-highlights, her inbox is full, she has a launch post she needs to act on, and her next meeting is in
-10 minutes.
+This demo shows how an agent like ChatGPT can answer a question about the thing you\u2019re
+currently looking at — without you ever leaving your workflow. Rose is the CEO. Her feed has the
+day\u2019s highlights, her inbox is full, she has a launch post she needs to act on, and her next
+meeting is in 10 minutes.
 
-1. Expand the Chrome window so corner radiuses aren’t included in the recording.
+1. Expand the Chrome window so corner radiuses aren\u2019t included in the recording.
 
 2. Start recording.
 
@@ -343,8 +343,8 @@ highlights, her inbox is full, she has a launch post she needs to act on, and he
    approval from Matt, a board-deck tag from Cliff, an onboarding scheduling question from Holly,
    and at the top the launch-day go/no-go post from Cass.
 
-5. Click the launch post from Cass so it peeks open on the right. Scroll the peek briefly so it’s
-   obvious there’s a long comment thread.
+5. Click the launch post from Cass so it peeks open on the right. Scroll the peek briefly so
+   it\u2019s obvious there\u2019s a long comment thread.
 
 6. While the post is still peeked on the right, open the 1:1 chat with ChatGPT **from the space
    sidebar** (the ChatGPT direct chat under the people/agents section). It should open as a peek on
@@ -355,17 +355,17 @@ highlights, her inbox is full, she has a launch post she needs to act on, and he
     > Can you summarize this post, call out any important points, and draft a response for me?
 
 8. Press send. Within a couple of seconds ChatGPT will begin streaming. It will stream three
-   sections in order: a short **Summary**, **Important points** (the “Legal sign-off” bullet is the
-   key beat — pause a moment after it appears so it reads on camera), and a **Draft reply**
-   block-quote Rose can post as-is.
+   sections in order: a short **Summary**, **Important points** (the \u201CLegal sign-off\u201D
+   bullet is the key beat — pause a moment after it appears so it reads on camera), and a **Draft
+   reply** block-quote Rose can post as-is.
 
 9. Let the full response finish streaming. Select the draft-reply quote text and copy it.
 
 10. Close the peek chat so the launch post is visible again in the peek pane (inbox still on the
     left, sidebar still on the far left).
 
-11. Click into the post’s comment composer inside the peek and paste the draft reply. Feel free to
-    make a tiny edit if it looks too robotic.
+11. Click into the post\u2019s comment composer inside the peek and paste the draft reply. Feel free
+    to make a tiny edit if it looks too robotic.
 
 12. Send the reply. Stop recording once it lands in the thread.
         `,

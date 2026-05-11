@@ -3289,7 +3289,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is looking at’ message when user starts viewing a new entity", async () => {
+    test("injects \u2018is looking at\u2019 message when user starts viewing a new entity", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const request = createBaseRequest({
@@ -3359,7 +3359,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is no longer looking at’ message when user stops viewing an entity", async () => {
+    test("injects \u2018is no longer looking at\u2019 message when user stops viewing an entity", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         // First, set up initial state with a previous entity
@@ -3493,7 +3493,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is still looking at’ message if user is viewing the same entity after 10 minutes", async () => {
+    test("injects \u2018is still looking at\u2019 message if user is viewing the same entity after 10 minutes", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const viewingTarget = {
@@ -3571,7 +3571,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is now looking at’ message when user switches from one entity to another", async () => {
+    test("injects \u2018is now looking at\u2019 message when user switches from one entity to another", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const previousDocumentId = generateId<DocumentId>();

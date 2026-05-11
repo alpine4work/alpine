@@ -8,7 +8,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     // Elle owns the realtime reliability work. This is her technical design doc for
-    // the reconnection and health check changes she\u2019s shipping in week 3 of the
+    // the reconnection and health check changes she's shipping in week 3 of the
     // UNIVERSE.md timeline. Matt and Mason leave comments during their design review.
     const doc = await TestDocument.create(accounts.elleKappaTan, {
         title: "Realtime Reliability: Reconnection Design",
@@ -62,7 +62,7 @@ over 5 min.
     });
     await doc.updateContentPreview();
 
-    // Thread 1 \u2014 Mason on \u201Call disconnected clients\u201D in Overview
+    // Thread 1 \u2014 Mason on "all disconnected clients" in Overview
     await doc.createCommentThread(
         accounts.masonClay,
         {from: 227, to: 253},
@@ -72,14 +72,14 @@ about timing spread
         `,
     );
 
-    // Thread 2 \u2014 Matt on \u201Cthundering herd\u201D in Overview
+    // Thread 2 \u2014 Matt on "thundering herd" in Overview
     await doc.createCommentThread(
         accounts.mattRHorn,
         {from: 316, to: 348},
         "Worth linking the postmortem here \u2014 the exact blast radius numbers will help readers calibrate whether these changes are proportionate.",
     );
 
-    // Thread 3 \u2014 Elle on \u201Cfixed 2-second retry interval\u201D in Root cause
+    // Thread 3 \u2014 Elle on "fixed 2-second retry interval" in Root cause
     await doc.createCommentThread(
         accounts.elleKappaTan,
         {from: 398, to: 457},
@@ -89,8 +89,7 @@ there
         `,
     );
 
-    // Thread 4 \u2014 Matt on \u201Cjittered exponential backoff\u201D in Proposed
-    // changes
+    // Thread 4 \u2014 Matt on "jittered exponential backoff" in Proposed changes
     await doc.createCommentThread(
         accounts.mattRHorn,
         {from: 768, to: 800},
@@ -100,8 +99,7 @@ random in [0, delay] for better distribution at the high end.
         `,
     );
 
-    // Thread 5 \u2014 Mason on \u201Cconnection pool is warmed up\u201D in health
-    // checks
+    // Thread 5 \u2014 Mason on "connection pool is warmed up" in health checks
     await doc.createCommentThread(
         accounts.masonClay,
         {from: 1009, to: 1018},
@@ -111,7 +109,7 @@ cache hydration?
         `,
     );
 
-    // Thread 6 \u2014 Matt on \u201Cconnection drop rate\u201D in Alerting
+    // Thread 6 \u2014 Matt on "connection drop rate" in Alerting
     await doc.createCommentThread(
         accounts.mattRHorn,
         {from: 1214, to: 1239},
@@ -121,7 +119,7 @@ longer window.
         `,
     );
 
-    // Thread 7 \u2014 Elle on \u201Creconnection success rate\u201D in Alerting
+    // Thread 7 \u2014 Elle on "reconnection success rate" in Alerting
     await doc.createCommentThread(
         accounts.elleKappaTan,
         {from: 1274, to: 1284},
@@ -130,9 +128,8 @@ longer window.
         `,
     );
 
-    // Thread 8 \u2014 All three on \u201CJitter strategy: additive vs
-    // multiplicative?\u201D in Open questions \u2014 this is the thread Cass clicks
-    // open
+    // Thread 8 \u2014 All three on "Jitter strategy: additive vs multiplicative?" in
+    // Open questions \u2014 this is the thread Cass clicks open
     const jitterThread = await doc.createCommentThread(
         accounts.mattRHorn,
         {from: 1544, to: 1559},

@@ -403,8 +403,6 @@ function SearchEntityViewExplainDebugWidgetOverlay({
 }
 
 function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSearchHitExplanation) {
-    /* eslint-disable cyberworlds/string-quotes */
-
     const structureClassName = sprinkles({color: "grey-30"});
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
     const descriptionClassName = sprinkles({color: "grey-60"});
@@ -481,6 +479,4 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     };
 
     return print("", "", rootExplanation, printValue(rootExplanation.value));
-
-    /* eslint-enable cyberworlds/string-quotes */
 }

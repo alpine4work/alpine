@@ -529,7 +529,7 @@ test("public room chats add a feed candidate", async () => {
     ).toEqual([]);
 });
 
-test("public room chats don’t add another feed candidate when reshared", async () => {
+test("public room chats don\u2019t add another feed candidate when reshared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
