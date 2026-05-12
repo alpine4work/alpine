@@ -31,6 +31,7 @@ ts_project(
         "//shared/avatar",
         "//shared/context",
         "//shared/design",
+        "//shared/emails",
         "//shared/error",
         "//shared/helpers",
         "//shared/notifications",

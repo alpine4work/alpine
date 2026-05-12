@@ -225,6 +225,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/design:design_core",
     "//shared/documents:documents",
     "//shared/dynamo:dynamo",
+    "//shared/emails:emails",
     "//shared/error:error",
     "//shared/error:error_core",
     "//shared/feed:feed",
