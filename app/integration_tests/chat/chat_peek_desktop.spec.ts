@@ -74,29 +74,29 @@ test("will remember the account being messaged in a chat peek", async ({
     await page.keyboard.type("Test document content 2");
     await expect(page.getByText("Test document content 2")).toBeVisible();
 
-    await page.getByRole("button", {name: "Close"}).click();
+    const peekStack = page.getByTestId("PeekStack");
 
+    await peekStack.getByRole("button", {name: "Close"}).click();
     await expect(page.getByText("Test document content 2")).toBeHidden();
-
-    await page.getByRole("button", {name: "Close"}).click();
-
     await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeVisible();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
-    await page.getByRole("button", {name: "Close"}).click();
+    await peekStack.getByRole("button", {name: "Close"}).click();
 
-    await expect(
-        page.getByTestId("PeekStack").getByRole("textbox", {name: "Document"}),
-    ).toBeHidden();
-
+    await expect(page.getByRole("combobox", {name: "To"})).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(peekStack.getByRole("textbox", {name: "Document"})).toBeVisible();
+
+    await peekStack.getByRole("button", {name: "Close"}).click();
+
+    await expect(peekStack.getByRole("textbox", {name: "Document"})).toBeHidden();
     await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
     await expect(page.getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
-    await page.getByRole("button", {name: "Close"}).click();
+    await peekStack.getByRole("button", {name: "Close"}).click();
 
     await expect(page.getByRole("combobox", {name: "To"})).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeHidden();

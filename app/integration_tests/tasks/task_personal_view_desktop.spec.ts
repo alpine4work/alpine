@@ -1563,7 +1563,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1583,7 +1583,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1602,9 +1602,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1623,7 +1623,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1641,9 +1641,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1661,7 +1661,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1678,9 +1678,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1697,7 +1697,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1713,9 +1713,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1731,7 +1731,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1746,9 +1746,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+z");
 
     await expectTaskGridView(
         page,
@@ -1763,27 +1763,27 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expectTaskGridView(
         page,

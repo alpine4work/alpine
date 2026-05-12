@@ -1,0 +1,87 @@
+diff --git a/lib/common/esmLoaderHost.js b/lib/common/esmLoaderHost.js
+index 81e9ad002fe1280b1d1bf7eaed672da1659f657f..c08c723f0d9ac2a7abd962f1081bc9d27064d8f4 100644
+--- a/lib/common/esmLoaderHost.js
++++ b/lib/common/esmLoaderHost.js
+@@ -42,6 +42,11 @@ var import_portTransport = require("../transform/portTransport");
+ var import_transform = require("../transform/transform");
+ let loaderChannel;
+ function registerESMLoader() {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return false;  
++
+   if (process.env.PW_DISABLE_TS_ESM)
+     return true;
+   if ("Bun" in globalThis)
+diff --git a/lib/reporters/base.js b/lib/reporters/base.js
+index e6f1c4680db11927d7b98157e1583712c62ec483..4b70ba58a925625239ae358833c77fa2afd7d33e 100644
+--- a/lib/reporters/base.js
++++ b/lib/reporters/base.js
+@@ -364,12 +364,23 @@ function formatFailure(screen, config, test, index, options) {
+         }
+       } else if (attachment.path) {
+         const relativePath = relativeFilePath(screen, config, attachment.path);
+-        resultLines.push(screen.colors.dim(`    ${relativePath}`));
++        // NOTE(calebmer): The paths reported by Playwright for our test logs
++        // are very confusing and inaccessible since they're in a sandbox.
++        // Modify the reporter to print a friendlier path to our developers.
++        const bazelTestlogsMatch = relativePath.match(/(?:^|\/)testlogs\/(.+\/integration_tests)\/(.+)\/test\.outputs\/(.+)/);
++        if (!bazelTestlogsMatch) {
++          resultLines.push(screen.colors.dim(`    ${relativePath}`));
++        } else {
++          resultLines.push(screen.colors.dim(`    bazel-testlogs/${bazelTestlogsMatch[1]}/${bazelTestlogsMatch[2]}/test.outputs/outputs.zip contains ${bazelTestlogsMatch[3]}`));
++        }
+         if (attachment.name === "trace") {
+-          const packageManagerCommand = (0, import_utils.getPackageManagerExecCommand)();
+           resultLines.push(screen.colors.dim(`    Usage:`));
+           resultLines.push("");
+-          resultLines.push(screen.colors.dim(`        ${packageManagerCommand} playwright show-trace ${quotePathIfNeeded(relativePath)}`));
++          if (!bazelTestlogsMatch) {
++            resultLines.push(screen.colors.dim(`        npx playwright show-trace ${quotePathIfNeeded(relativePath)}`));
++          } else {
++            resultLines.push(screen.colors.dim(`        bazel run //${bazelTestlogsMatch[1]}:${bazelTestlogsMatch[2]}_show_trace -- ${bazelTestlogsMatch[3]}`));
++          }
+           resultLines.push("");
+         }
+       } else {
+diff --git a/lib/transform/transform.js b/lib/transform/transform.js
+index 931791b25b848e910d8d16138771c531f7b9bb9d..3b486ee1697285c4c42417bc8bf7dd877771ef54 100644
+--- a/lib/transform/transform.js
++++ b/lib/transform/transform.js
+@@ -122,6 +122,11 @@ function loadAndValidateTsconfigsForFolder(folder) {
+ const pathSeparator = process.platform === "win32" ? ";" : ":";
+ const builtins = new Set(import_module.default.builtinModules);
+ function resolveHook(filename, specifier) {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return;  
++
+   if (specifier.startsWith("node:") || builtins.has(specifier))
+     return;
+   if (!shouldTransform(filename))
+@@ -185,6 +190,11 @@ function setTransformData(pluginName, value) {
+   transformData.set(pluginName, value);
+ }
+ function transformHook(originalCode, filename, moduleUrl) {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return;  
++
+   const hasPreprocessor = process.env.PW_TEST_SOURCE_TRANSFORM && process.env.PW_TEST_SOURCE_TRANSFORM_SCOPE && process.env.PW_TEST_SOURCE_TRANSFORM_SCOPE.split(pathSeparator).some((f) => filename.startsWith(f));
+   const pluginsPrologue = _transformConfig.babelPlugins;
+   const pluginsEpilogue = hasPreprocessor ? [[process.env.PW_TEST_SOURCE_TRANSFORM]] : [];
+@@ -226,6 +236,11 @@ async function requireOrImport(file) {
+ }
+ let transformInstalled = false;
+ function installTransformIfNeeded() {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return;  
++
+   if (transformInstalled)
+     return;
+   transformInstalled = true;

@@ -274,7 +274,7 @@ load("//admin/playwright:playwright_browsers.bzl", "playwright_browsers_reposito
 
 playwright_browsers_repository(
     name = "playwright_browsers",
-    playwright_version = "1.46.0",
+    playwright_version = "1.59.1",
 )
 
 # =========================================================================== #

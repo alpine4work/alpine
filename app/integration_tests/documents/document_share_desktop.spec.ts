@@ -1866,7 +1866,7 @@ test("can send invite from modal with keyboard shortcut", async ({
     const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
     await inviteModal.getByRole("textbox", {name: "Emails"}).click();
 
-    await page.keyboard.press("ControlOrMeta+Enter");
+    await page.keyboard.press("Control+Enter");
 
     await expect(inviteModal).toBeHidden();
     await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
