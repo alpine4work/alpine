@@ -1,23 +1,11 @@
 import {redirect} from "@remix-run/node";
 import {Outlet, ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
-import {
-    ContextType,
-    ReactElement,
-    ReactNode,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext, To, useParams} from "react-router";
+import {To, useParams} from "react-router";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
-import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
-import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_registry_context.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
 import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
@@ -51,10 +39,8 @@ import {
     PeekStackContextProviderRef,
 } from "~/client/web/peek/peek_stack.js";
 import {useBrowserId, useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/web/search/search_modal.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
 import {
@@ -64,7 +50,6 @@ import {
 } from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {PurchasedLifetimeAccessModal} from "~/client/web/spaces/layout/purchased_lifetime_access_modal.js";
-import {SpaceLayoutNativeMobileInboxController} from "~/client/web/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {
     SpaceLayoutSideBar,
     SpaceLayoutSideBarContentBlockWidthContextProvider,
@@ -108,7 +93,6 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
@@ -119,10 +103,7 @@ import {
     getAccountByIdAsAdmin,
     updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {
-    registerOurAccountAppleDeviceToken,
-    registerOurAccountWebPushSubscription,
-} from "~/shared/rpc/notifications_rpc_definitions.js";
+import {registerOurAccountWebPushSubscription} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
     instantiateBotSpaceAccount,
@@ -395,8 +376,6 @@ const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchem
     options: standardSearchOptions,
 };
 
-const spaceNativeMobileOutletParentRouteIds = ["root", "routes/s.$spaceId"] as const;
-
 const outletContainerContainerClassName = sprinkles({
     overflow: "hidden",
     position: "relative",
@@ -429,7 +408,6 @@ const searchParametersToDelete = ["from", "purchased"];
  * need to opt-out and manage scrolling on their own (e.g. virtualized lists).
  */
 export default function SpaceLayoutRoute() {
-    const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const params = useParams();
@@ -581,44 +559,6 @@ export default function SpaceLayoutRoute() {
         toggleSuppression: toggleHintSuppressionForDev,
     }));
 
-    // In native mobile iOS apps, save any iOS device tokens to the server. We'll use
-    // the device token to actually send the user push notifications.
-    useEffect(() => {
-        if (!NativeMobileBridge) return;
-
-        const take = () => {
-            NativeMobileBridge!.notifications.takeAppleDeviceTokens().then(
-                deviceTokens => {
-                    for (const deviceToken of deviceTokens) {
-                        registerOurAccountAppleDeviceToken(context, {deviceToken}).then(
-                            () => {
-                                // Hooray!
-                            },
-                            error => {
-                                context.tracer
-                                    .getRoot()
-                                    .logException("Couldn\u2019t save iOS device token", error);
-                            },
-                        );
-                    }
-                },
-                error => {
-                    context.tracer
-                        .getRoot()
-                        .logException("Couldn\u2019t take iOS device tokens", error);
-                },
-            );
-        };
-
-        // Initial take call in case device tokens were added before our JavaScript code
-        // started running.
-        take();
-
-        return NativeMobileBridge.notifications.subscribeToAppleDeviceTokensUpdate(() => {
-            take();
-        });
-    }, [context]);
-
     // Don't re-prompt or recheck for browser push notification permission if we've
     // already done so. The user may have dismissed the permission prompt, and we don't
     // want to ask again unless they reload the page.
@@ -753,8 +693,7 @@ export default function SpaceLayoutRoute() {
         );
     }
 
-    const hasSpaceLayoutWebMobileTabBar =
-        loaderData.type === "WithAccess" && platform === "mobile" && !clientInfo.isNativeMobile;
+    const hasSpaceLayoutWebMobileTabBar = loaderData.type === "WithAccess" && platform === "mobile";
 
     return (
         <GlobalKeyDownEvent
@@ -885,7 +824,6 @@ export default function SpaceLayoutRoute() {
                                         globalLoadingIndicator={globalLoadingIndicator}
                                     >
                                         <SpaceLayoutRouteOutlet
-                                            dataRouterStateContext={dataRouterStateContext}
                                             loaderData={loaderData}
                                             isSearchModalOpen={hasAddedSearchModal}
                                             setSearchQueryText={setSearchQueryText}
@@ -898,12 +836,6 @@ export default function SpaceLayoutRoute() {
                                             initialInbox={loaderData.inbox}
                                         />
                                     )}
-                                    {loaderData.type === "WithAccess" &&
-                                        clientInfo.isNativeMobile && (
-                                            <SpaceLayoutNativeMobileInboxController
-                                                initialInbox={loaderData.inbox}
-                                            />
-                                        )}
                                 </ContextMenuContextProvider>
                             </TaskRealtimeClientContextProvider>
                         </SpaceContextProvider>
@@ -915,22 +847,16 @@ export default function SpaceLayoutRoute() {
 }
 
 function SpaceLayoutRouteOutlet({
-    dataRouterStateContext,
     loaderData,
     isSearchModalOpen,
     setSearchQueryText,
     globalLoadingIndicator,
 }: {
-    dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
     loaderData: SchemaType<typeof LoaderSchema>;
     isSearchModalOpen: boolean;
     setSearchQueryText: (queryText: string) => void;
     globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
-    const params = useParams();
-    const context = useAppContext();
-    const updateMetaTitle = useUpdateMetaTitle();
-    const clientInfo = useClientInfo();
     const platform = usePlatform();
     const {space} = useSpaceContext();
 
@@ -980,10 +906,6 @@ function SpaceLayoutRouteOutlet({
         };
     }, []);
 
-    const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
-        ? dataRouterStateContext
-        : null;
-
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isBehindMobileFullScreenModal;
 
@@ -996,220 +918,117 @@ function SpaceLayoutRouteOutlet({
     // elements on mobile devices. (Like the URL bar.)
     const outletContainerHeight =
         resizedWindowHeightForMobileWebKit !== null
-            ? loaderData.type === "WithAccess" &&
-              platform === "mobile" &&
-              !clientInfo.isNativeMobile
+            ? loaderData.type === "WithAccess" && platform === "mobile"
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
-            : loaderData.type === "WithAccess" &&
-                platform === "mobile" &&
-                !clientInfo.isNativeMobile
+            : loaderData.type === "WithAccess" && platform === "mobile"
               ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
               : "100svh";
 
     const globalLoadingIndicatorForMobile = platform === "mobile" ? globalLoadingIndicator : null;
 
-    const nodes = useMemo(() => {
-        const nodes = [];
+    return useMemo(() => {
+        const hasSpaceLayoutSideBar = loaderData.type === "WithAccess" && platform !== "mobile";
 
-        if (!nativeMobileRouterState) {
-            const hasSpaceLayoutSideBar = loaderData.type === "WithAccess" && platform !== "mobile";
-
-            nodes.push(
-                <div
-                    // We need a key since we're in an array but the key doesn't matter.
-                    key="0"
-                    className={outletContainerContainerClassName}
-                    style={{
-                        height: outletContainerHeight,
-                        // @ts-expect-error: TypeScript doesn't understand CSS variables but
-                        // they're fine.
-                        "--space-outlet-height": outletContainerHeight,
-                    }}
+        return (
+            <div
+                // We need a key since we're in an array but the key doesn't matter.
+                key="0"
+                className={outletContainerContainerClassName}
+                style={{
+                    height: outletContainerHeight,
+                    // @ts-expect-error: TypeScript doesn't understand CSS variables but
+                    // they're fine.
+                    "--space-outlet-height": outletContainerHeight,
+                }}
+            >
+                <RootOverlayScopeContextProvider
+                    // Only create a root overlay scope here if we'll be shrinking our outlet height
+                    // when the mobile keyboard opens.
+                    isDisabled={platform !== "mobile"}
                 >
-                    <RootOverlayScopeContextProvider
-                        // Only create a root overlay scope here if we'll be shrinking our outlet height
-                        // when the mobile keyboard opens.
-                        isDisabled={platform !== "mobile"}
-                    >
-                        <div
-                            className={outletContainerClassName}
-                            style={{
-                                height: outletContainerHeight,
-                                // While inert, remove the document from the content flow and make it invisible.
-                                // `bottom: 0` is so that a tall inert route doesn't grow our `<body>`'s height.
-                                position: isInert ? "absolute" : "relative",
-                                bottom: isInert ? "0" : undefined,
-                                visibility: isInert ? "hidden" : undefined,
-                                // A `<div>` positioned relatively is implicitly `width: 100%`. Make sure the
-                                // absolutely positioned inert route gets the same width.
-                                left: isInert ? "0" : undefined,
-                                right: isInert ? "0" : undefined,
-                            }}
-                            // The [`<Offscreen>` component][1] React claims is coming may be a better fit here
-                            // so we don't actually render content in the DOM. `inert` has good browser support
-                            // though!
-                            //
-                            // [1]: https://react.dev/blog/2022/03/29/react-v18
-                            // [2]: https://caniuse.com/?search=inert
-                            inert={isInert ? true : undefined}
-                            // Make sure inert content is not in the accessibility tree.
-                            aria-hidden={isInert ? "true" : undefined}
-                        >
-                            {hasSpaceLayoutSideBar && (
-                                <SpaceLayoutSideBar
-                                    space={space}
-                                    currentAccount={loaderData.currentAccount}
-                                    initialInbox={loaderData.inbox}
-                                    isSearchModalOpen={isSearchModalOpen}
-                                    onSearchPress={() => setSearchQueryText("")}
-                                />
-                            )}
-                            <LoadingIndicatorSpaceOutletContainer
-                                routeId="routes/s.$spaceId"
-                                hasSpaceLayoutSidebar={platform !== "mobile"}
-                            >
-                                <SpaceLayoutSideBarContentBlockWidthContextProvider
-                                    isDisabled={!hasSpaceLayoutSideBar}
-                                >
-                                    <Outlet />
-                                </SpaceLayoutSideBarContentBlockWidthContextProvider>
-                            </LoadingIndicatorSpaceOutletContainer>
-                            {globalLoadingIndicatorForMobile && (
-                                <Box
-                                    pointerEvents="none"
-                                    position="absolute"
-                                    zIndex="10"
-                                    right="0"
-                                    borderTopLeftRadius="1"
-                                    backgroundColor="grey-0"
-                                    style={{
-                                        // Position with `top` instead of using `bottom: 0` so the saving indicator is
-                                        // below the keyboard when the keyboard opens.
-                                        top:
-                                            loaderData.type === "WithAccess" &&
-                                            platform === "mobile"
-                                                ? `calc(100svh - ${addRemLengths(
-                                                      spaceLayoutWebMobileTabBarHeight,
-                                                      globalLoadingIndicatorChipHeight,
-                                                  )})`
-                                                : undefined,
-                                    }}
-                                >
-                                    <GlobalLoadingIndicatorChip
-                                        indicator={globalLoadingIndicatorForMobile}
-                                    />
-                                </Box>
-                            )}
-                        </div>
-                    </RootOverlayScopeContextProvider>
-                </div>,
-            );
-        } else {
-            const outletContainerStyle = {height: outletContainerHeight};
-
-            // In our native mobile app, render all inert routes for this `SpaceId`. We render
-            // them here instead of `root.tsx` so we can share space context like the task
-            // realtime client.
-            //
-            // To learn more about inert route rendering, there's a comment in `root.tsx` on
-            // top of a similar loop over `nativeMobileRouterState.inertRouterStates` you can
-            // read.
-            for (const {
-                entryKey,
-                routerState: inertRouterState,
-            } of nativeMobileRouterState.inertRouterStates) {
-                if (
-                    !inertRouterState.matches.some(
-                        match =>
-                            match.route.id === "routes/s.$spaceId" &&
-                            match.params.spaceId === params.spaceId,
-                    )
-                ) {
-                    continue;
-                }
-
-                nodes.push(
-                    <NativeMobileOutlet
-                        key={entryKey}
-                        parentRouteIds={spaceNativeMobileOutletParentRouteIds}
-                        tracer={context.tracer.getRoot()}
-                        inertRouterState={inertRouterState}
-                        onUpdateMetaTitle={updateMetaTitle}
-                        globalLoadingIndicator={null}
+                    <div
                         className={outletContainerClassName}
-                        style={outletContainerStyle}
-                        renderOutlet={outlet => (
-                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
-                                {outlet}
-                            </LoadingIndicatorSpaceOutletContainer>
+                        style={{
+                            height: outletContainerHeight,
+                            // While inert, remove the document from the content flow and make it invisible.
+                            // `bottom: 0` is so that a tall inert route doesn't grow our `<body>`'s height.
+                            position: isInert ? "absolute" : "relative",
+                            bottom: isInert ? "0" : undefined,
+                            visibility: isInert ? "hidden" : undefined,
+                            // A `<div>` positioned relatively is implicitly `width: 100%`. Make sure the
+                            // absolutely positioned inert route gets the same width.
+                            left: isInert ? "0" : undefined,
+                            right: isInert ? "0" : undefined,
+                        }}
+                        // The [`<Offscreen>` component][1] React claims is coming may be a better fit here
+                        // so we don't actually render content in the DOM. `inert` has good browser support
+                        // though!
+                        //
+                        // [1]: https://react.dev/blog/2022/03/29/react-v18
+                        // [2]: https://caniuse.com/?search=inert
+                        inert={isInert ? true : undefined}
+                        // Make sure inert content is not in the accessibility tree.
+                        aria-hidden={isInert ? "true" : undefined}
+                    >
+                        {hasSpaceLayoutSideBar && (
+                            <SpaceLayoutSideBar
+                                space={space}
+                                currentAccount={loaderData.currentAccount}
+                                initialInbox={loaderData.inbox}
+                                isSearchModalOpen={isSearchModalOpen}
+                                onSearchPress={() => setSearchQueryText("")}
+                            />
                         )}
-                    />,
-                );
-            }
-
-            nodes.push(
-                <NativeMobileOutlet
-                    key={nativeMobileRouterState.entryKey}
-                    parentRouteIds={spaceNativeMobileOutletParentRouteIds}
-                    tracer={context.tracer.getRoot()}
-                    isInert={isInert}
-                    inertRouterState={null}
-                    onUpdateMetaTitle={updateMetaTitle}
-                    globalLoadingIndicator={globalLoadingIndicatorForMobile}
-                    className={outletContainerClassName}
-                    style={outletContainerStyle}
-                    renderOutlet={outlet => (
-                        <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
-                            {outlet}
+                        <LoadingIndicatorSpaceOutletContainer
+                            routeId="routes/s.$spaceId"
+                            hasSpaceLayoutSidebar={platform !== "mobile"}
+                        >
+                            <SpaceLayoutSideBarContentBlockWidthContextProvider
+                                isDisabled={!hasSpaceLayoutSideBar}
+                            >
+                                <Outlet />
+                            </SpaceLayoutSideBarContentBlockWidthContextProvider>
                         </LoadingIndicatorSpaceOutletContainer>
-                    )}
-                />,
-            );
-        }
-
-        // Maintain a consistent ordering of history stack items in the DOM. If history
-        // stack items move during a navigation then their scroll positions and other DOM
-        // state will be reset!
-        //
-        // History stack items often change order when switching tabs. For instance if you
-        // switch to the inbox tab then all previous inbox history stack entries will be
-        // moved to the end of `inertRouterStates`. If we keep entries in
-        // `inertRouterStates` order then React will happily call `Element.appendChild()`
-        // (or `Element.insertBefore()`) to move the history stack entry in the DOM which
-        // resets the route's `scrollTop` state so if the user navigates back their scroll
-        // position is lost. `scrollTop` also updates without sending a scroll event which
-        // means `useNavigationBar()`'s state won't update which will look broken.
-        //
-        // [Example of a problem not sorting causes][1]. Notice how the second time we
-        // navigate to the document it's been scrolled to the top. That's because the inert
-        // route DOM nodes are being reordered.
-        //
-        // [1]: https://gist.github.com/calebmer/9fdbc9ffb08c700c6737866f18fe340a
-        if (nodes.length > 1) {
-            nodes.sort((node1, node2) =>
-                defaultCompareStrings(String(node1.key), String(node2.key)),
-            );
-        }
-
-        return nodes;
+                        {globalLoadingIndicatorForMobile && (
+                            <Box
+                                pointerEvents="none"
+                                position="absolute"
+                                zIndex="10"
+                                right="0"
+                                borderTopLeftRadius="1"
+                                backgroundColor="grey-0"
+                                style={{
+                                    // Position with `top` instead of using `bottom: 0` so the saving indicator is
+                                    // below the keyboard when the keyboard opens.
+                                    top:
+                                        loaderData.type === "WithAccess" && platform === "mobile"
+                                            ? `calc(100svh - ${addRemLengths(
+                                                  spaceLayoutWebMobileTabBarHeight,
+                                                  globalLoadingIndicatorChipHeight,
+                                              )})`
+                                            : undefined,
+                                }}
+                            >
+                                <GlobalLoadingIndicatorChip
+                                    indicator={globalLoadingIndicatorForMobile}
+                                />
+                            </Box>
+                        )}
+                    </div>
+                </RootOverlayScopeContextProvider>
+            </div>
+        );
     }, [
-        nativeMobileRouterState,
-        loaderData,
-        platform,
-        outletContainerHeight,
-        isInert,
-        space,
-        isSearchModalOpen,
         globalLoadingIndicatorForMobile,
+        isInert,
+        isSearchModalOpen,
+        loaderData,
+        outletContainerHeight,
+        platform,
         setSearchQueryText,
-        context.tracer,
-        updateMetaTitle,
-        params.spaceId,
+        space,
     ]);
-
-    // React supports rendering an array as children but TypeScript gets confused.
-    return nodes as any as ReactElement;
 }
 
 /**
@@ -1411,14 +1230,6 @@ function useMobileWebKitKeyboardSupport() {
 
     useEffect(() => {
         if (!isMobileWebKit) return;
-
-        // Don't install WebKit keyboard support in our native mobile app since we
-        // completely disable WebKit's keyboard behavior there. Opting to implement our own
-        // keyboard support for native mobile apps.
-        //
-        // Notably we'd like to avoid a `touchmove` handler with `{ passive: false }` to
-        // improve touch interaction performance.
-        if (NativeMobileBridge) return;
 
         let resizeTimeout: Timeout | null = null;
 
