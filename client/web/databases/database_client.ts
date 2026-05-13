@@ -398,7 +398,6 @@ export class DatabaseClient {
         // the pages we're about to write to durable
         // storage are observed on the next read.
         this.database.discardBuffer();
-        this.database.assertBufferIsEmpty("writePageDiffsFromRealtime");
 
         let anyWritten = false;
         for (const [tableId, tableDiffs] of pageDiffs) {

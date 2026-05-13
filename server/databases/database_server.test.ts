@@ -241,6 +241,7 @@ describe("DatabaseServer", () => {
 
             const db = server.unsafeGetDbForTests();
             db.exec("INSERT INTO items VALUES (2)");
+            server.commitBufferForTests();
 
             const after = server.execute("SELECT COUNT(*) as cnt FROM items", {
                 allowWrites: "none",

@@ -160,6 +160,11 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
     } {
+        // The error path below clears the buffer to recover
+        // from a partial write; assert up front that we're
+        // not silently throwing away pre-existing buffered
+        // writes belonging to a prior (forgotten) drain.
+        this.database.assertBufferIsEmpty("_runAndPersist");
         let inner: {
             result: T;
             readPages: ReadonlyDatabasePageSet;
