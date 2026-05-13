@@ -8,7 +8,7 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebDocumentPage = {
     readonly type: "Document";
@@ -41,6 +41,30 @@ export async function readAgentWebDocumentPage(
             id,
             version: document.version,
         },
+    };
+}
+
+export async function createAgentWebDocumentPage(
+    context: AgentWebContextWithoutStorage,
+    spaceId: SpaceId,
+    newPage: AgentWebDocumentPage,
+): Promise<AgentWebDocumentPageMetadata & {type: "Document"}> {
+    const {
+        data: {document},
+    } = await context.api.post(context.span, "/documents", {
+        body: {
+            spaceId,
+            document: {
+                title: newPage.title,
+                content: newPage.content,
+            },
+        },
+    });
+
+    return {
+        type: "Document",
+        id: document.id,
+        version: document.version,
     };
 }
 

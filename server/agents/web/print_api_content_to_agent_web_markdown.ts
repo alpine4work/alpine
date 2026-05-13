@@ -1,13 +1,10 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, RootContent} from "mdast";
-import {
-    printAgentWebPageLinkLabel,
-    printAgentWebPageLinkPathname,
-} from "~/server/agents/web/agent_web_page_link.js";
-import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
+import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
@@ -133,75 +130,41 @@ async function traverseApiContentMarkdownNode(
             const mentionElement = node.data
                 .mentionElement as ApiContentMentionInlineElementResponse;
 
-            return storage.mutex.withLock(async () => {
-                const pageLink = createApiTargetAgentWebPageLink(mentionElement.target);
-                const pageLinkKey = printAgentWebPageLinkKey(pageLink);
+            const pageLink = createApiTargetAgentWebPageLink(mentionElement.target);
+            const pageLinkPathname = await createAgentWebPageLinkPathname(storage, pageLink);
 
-                let dedupeNumber = 1;
-                let pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
+            const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);
 
-                const [initialActualPageLink, latestPageLinkPathname] = await runAllPromises([
-                    storage.pageLinkByPathname.get(pageLinkPathname),
-                    storage.latestPageLinkPathnameByKey.get(pageLinkKey),
-                ]);
+            // We encode the fact that this is a short account mention by using a label that's
+            // different from what you'd expect when printing `pageLink`.
+            const pageLinkLabel =
+                mentionElement.target.type === "Account" && mentionElement.isAccountShortName
+                    ? mentionElement.target.shortName
+                    : originalPageLinkLabel;
 
-                let actualPageLink = initialActualPageLink;
+            let pageLinkPath = pageLinkPathname;
 
-                while (
-                    actualPageLink !== undefined &&
-                    printAgentWebPageLinkKey(actualPageLink) !== pageLinkKey
-                ) {
-                    dedupeNumber++;
-                    pageLinkPathname = printAgentWebPageLinkPathname(pageLink, dedupeNumber);
-                    actualPageLink = await storage.pageLinkByPathname.get(pageLinkPathname);
-                }
+            // If we weren't able to encode the fact that this is a short account mention by
+            // using the short account name in the label, then add a hash part to the path.
+            // When resolving the path we should ignore the hash part (which mirrors web server
+            // behavior, the hash part isn't sent to the server it's only visible on the
+            // client).
+            //
+            // We shouldn't see this much in practice because the client shouldn't set
+            // `isAccountShortName` if the short name is identical to the long name.
+            if (
+                mentionElement.target.type === "Account" &&
+                mentionElement.isAccountShortName &&
+                mentionElement.target.shortName === originalPageLinkLabel
+            ) {
+                pageLinkPath += "#short";
+            }
 
-                if (actualPageLink === undefined || !isDeepEqual(actualPageLink, pageLink)) {
-                    await storage.pageLinkByPathname.put(pageLinkPathname, pageLink);
-                }
-
-                // We write in sequence instead of in parallel because if we load
-                // `pageLinkPathname` from `latestPageLinkPathnameByKey` and it doesn't exist in
-                // `pageLinkByPathname` the agent is going to have a bad time. Since we'll throw a
-                // redirection error followed by a not found error when the agent tries to read the
-                // redirection.
-                if (latestPageLinkPathname !== pageLinkPathname) {
-                    await storage.latestPageLinkPathnameByKey.put(pageLinkKey, pageLinkPathname);
-                }
-
-                const originalPageLinkLabel = printAgentWebPageLinkLabel(pageLink);
-
-                // We encode the fact that this is a short account mention by using a label that's
-                // different from what you'd expect when printing `pageLink`.
-                const pageLinkLabel =
-                    mentionElement.target.type === "Account" && mentionElement.isAccountShortName
-                        ? mentionElement.target.shortName
-                        : originalPageLinkLabel;
-
-                let pageLinkPath = pageLinkPathname;
-
-                // If we weren't able to encode the fact that this is a short account mention by
-                // using the short account name in the label, then add a hash part to the path.
-                // When resolving the path we should ignore the hash part (which mirrors web server
-                // behavior, the hash part isn't sent to the server it's only visible on the
-                // client).
-                //
-                // We shouldn't see this much in practice because the client shouldn't set
-                // `isAccountShortName` if the short name is identical to the long name.
-                if (
-                    mentionElement.target.type === "Account" &&
-                    mentionElement.isAccountShortName &&
-                    mentionElement.target.shortName === originalPageLinkLabel
-                ) {
-                    pageLinkPath += "#short";
-                }
-
-                return {
-                    type: "link",
-                    url: pageLinkPath,
-                    children: [{type: "text", value: pageLinkLabel}],
-                };
-            });
+            return {
+                type: "link",
+                url: pageLinkPath,
+                children: [{type: "text", value: pageLinkLabel}],
+            };
         }
         default:
             return node;

@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/htmlparser2",
         "//:node_modules/prettier",
         "//:node_modules/pretty-bytes",
+        "//:node_modules/stemmer",
         "//server/agents/api",
         "//shared/api/markdown",
         "//shared/api/specification",

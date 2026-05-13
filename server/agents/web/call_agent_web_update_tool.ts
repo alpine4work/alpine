@@ -39,7 +39,7 @@ export async function callAgentWebUpdateTool(
             replaceAll: boolean;
         }>;
     },
-) {
+): Promise<string> {
     assert(updates.length > 0);
 
     const {path} = normalizeAgentWebPath(originalPath);
@@ -232,6 +232,8 @@ export async function callAgentWebUpdateTool(
             newlineIndexes: newNewlineIndexes!,
         });
     });
+
+    return "Update was successful.\n";
 }
 
 async function updateAgentWebPageLink(
