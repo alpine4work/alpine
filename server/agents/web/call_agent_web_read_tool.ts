@@ -16,7 +16,7 @@ import {
     printAgentWebPageLinkKey,
 } from "~/server/agents/web/agent_web_page_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_read_more_tool.js";
+import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     printAgentWebDocumentPage,
@@ -111,7 +111,7 @@ export async function callAgentWebReadTool(
         const encoder = new TextEncoder();
         const responseBytes = encoder.encode(responseString);
 
-        // Find all the newline indexes in our response. So the `read_more` tool can easily
+        // Find all the newline indexes in our response. So the `scroll` tool can easily
         // return a slice of the response.
         const newlineByteIndexes: Array<number> = [];
 
@@ -137,7 +137,7 @@ export async function callAgentWebReadTool(
         } else {
             return truncateAgentWebReadResponse(
                 {responseBytes, newlineByteIndexes},
-                {offsetLine: 0, limitBytes, isReadMoreTool: false},
+                {offsetLine: 0, limitBytes, isScrollTool: false},
             );
         }
     });

@@ -289,8 +289,8 @@ export async function callAgentWebUpdateTool(
             );
         }
 
-        // Allow future `read_more` calls and future `update` calls to operate on the
-        // updated response we just wrote to the database.
+        // Allow future `scroll` calls and future `update` calls to operate on the updated
+        // response we just wrote to the database.
         await context.storage.readResponseByPath.put(path, {
             expirationTime: readResponse.expirationTime,
             pageMetadata: newPageMetadata,

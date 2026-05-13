@@ -141,7 +141,7 @@ export interface AgentWebSessionStorage {
     /**
      * Responses for a `read` tool call based on the path that was used. Every time
      * `read` is called we re-read the link from Alpine. Then tools like `update` and
-     * `read_more` use the cached response to process that result.
+     * `scroll` use the cached response to process that result.
      *
      * Results in this cache expire (currently they expire after an hour). This forces
      * agents with long lived sessions (like OpenClaw) to re-`read` links to get the
@@ -150,7 +150,7 @@ export interface AgentWebSessionStorage {
      * The underlying storage implementation is strongly encouraged to remove entries
      * from this collection when they expire to save on storage costs.
      *
-     * - `read_more` is used to paginate through the response. The initial `read` tool
+     * - `scroll` is used to paginate through the response. The initial `read` tool
      *   call truncates the response to a fixed number of bytes.
      *
      * - `update` is used to update data in Alpine. The agent uses a find-and-replace

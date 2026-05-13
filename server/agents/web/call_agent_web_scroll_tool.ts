@@ -6,8 +6,7 @@ import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-// NOCOMMIT: Should I name this tool `scroll` instead?
-export async function callAgentWebReadMoreTool(
+export async function callAgentWebScrollTool(
     context: AgentWebContext,
     {
         path: originalPath,
@@ -30,7 +29,7 @@ export async function callAgentWebReadMoreTool(
 
     if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
         throw new NotFoundError("Read response not found or expired", {
-            displayMessage: errorDisplayMessage`Can\u2019t call the \`read_more\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${originalPath}\` then call the \`read_more\` tool again.`,
+            displayMessage: errorDisplayMessage`Can\u2019t call the \`scroll\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path \`${originalPath}\` then call the \`scroll\` tool again.`,
         });
     }
 
@@ -47,7 +46,7 @@ export async function callAgentWebReadMoreTool(
     return truncateAgentWebReadResponse(readResponse, {
         offsetLine,
         limitBytes,
-        isReadMoreTool: true,
+        isScrollTool: true,
     });
 }
 
@@ -62,11 +61,11 @@ export function truncateAgentWebReadResponse(
     {
         offsetLine,
         limitBytes,
-        isReadMoreTool,
+        isScrollTool,
     }: {
         offsetLine: number;
         limitBytes: number;
-        isReadMoreTool: boolean;
+        isScrollTool: boolean;
     },
 ) {
     const decoder = new TextDecoder();
@@ -141,8 +140,8 @@ export function truncateAgentWebReadResponse(
 
         truncationString += ` of ${newlineByteIndexes.length}.`;
 
-        if (!isReadMoreTool) {
-            truncationString += ` Call the \`read_more\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
+        if (!isScrollTool) {
+            truncationString += ` Call the \`scroll\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
         } else {
             truncationString += ` Use \`offset\` of ${newlineByteIndexResult.index + 2}`;
         }

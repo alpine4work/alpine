@@ -1,7 +1,7 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageLinkPathname} from "~/server/agents/web/agent_web_page_link.js";
-import {callAgentWebReadMoreTool} from "~/server/agents/web/call_agent_web_read_more_tool.js";
+import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -136,7 +136,7 @@ function stripEndOfFileSuffix(response: string): string {
 }
 
 async function readFull(path: string): Promise<string> {
-    const response = await callAgentWebReadMoreTool(context, {
+    const response = await callAgentWebScrollTool(context, {
         path,
         offset: 1,
         limit: "200kb",
@@ -524,13 +524,13 @@ test("does not extend cache expiration after update", async () => {
     jest.setSystemTime(new Date(t0.getTime() + 59 * 60 * 1000));
 
     await expect(
-        callAgentWebReadMoreTool(context, {path, offset: 1, limit: "200kb"}),
+        callAgentWebScrollTool(context, {path, offset: 1, limit: "200kb"}),
     ).resolves.toContain("(End of file.");
 
     jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
 
     await expect(
-        callAgentWebReadMoreTool(context, {path, offset: 1, limit: "200kb"}),
+        callAgentWebScrollTool(context, {path, offset: 1, limit: "200kb"}),
     ).rejects.toThrow(NotFoundError);
 });
 

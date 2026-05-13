@@ -1,9 +1,9 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
-    callAgentWebReadMoreTool,
+    callAgentWebScrollTool,
     truncateAgentWebReadResponse,
-} from "~/server/agents/web/call_agent_web_read_more_tool.js";
+} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
@@ -14,7 +14,7 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-const {span} = testTracer.startSpan("call_agent_web_read_more_tool.test.ts");
+const {span} = testTracer.startSpan("call_agent_web_scroll_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
@@ -47,7 +47,7 @@ function createReadResponseFromString(responseString: string): {
     };
 }
 
-test("paginates through a long document across multiple read_more calls", async () => {
+test("paginates through a long document across multiple scroll calls", async () => {
     const documentId = generateId<DocumentId>();
 
     await context.storage.pageLinkByPathname.put("/document/long-document", {
@@ -73,9 +73,9 @@ test("paginates through a long document across multiple read_more calls", async 
 
 Paragraph 1: alpha beta gamma.
 
-(Response truncated, 749b remaining. Showing lines 1-4 of 49. Call the \`read_more\` tool with an \`offset\` of 5 to continue.)`);
+(Response truncated, 749b remaining. Showing lines 1-4 of 49. Call the \`scroll\` tool with an \`offset\` of 5 to continue.)`);
 
-    const secondResponse = await callAgentWebReadMoreTool(context, {
+    const secondResponse = await callAgentWebScrollTool(context, {
         path: "/document/long-document",
         offset: 5,
         limit: "50b",
@@ -86,7 +86,7 @@ Paragraph 2: alpha beta gamma.
 
 (Response truncated, 717b remaining. Showing lines 5-6 of 49. Use \`offset\` of 7 to continue.)`);
 
-    const finalResponse = await callAgentWebReadMoreTool(context, {
+    const finalResponse = await callAgentWebScrollTool(context, {
         path: "/document/long-document",
         offset: 7,
         limit: "10kb",
@@ -140,7 +140,7 @@ Paragraph 24: alpha beta gamma.
 (End of file. Showing lines 7-49 of 49.)`);
 });
 
-test("paginates through a long GFM table across multiple read_more calls", async () => {
+test("paginates through a long GFM table across multiple scroll calls", async () => {
     const path = "/document/release-matrix-table";
     const tableResponseString = `\
 # Release Matrix
@@ -167,7 +167,7 @@ test("paginates through a long GFM table across multiple read_more calls", async
 
     const firstResponseString = truncateAgentWebReadResponse(
         createReadResponseFromString(tableResponseString),
-        {offsetLine: 0, limitBytes: 180, isReadMoreTool: false},
+        {offsetLine: 0, limitBytes: 180, isScrollTool: false},
     );
 
     expect(firstResponseString).toEqual(`\
@@ -177,9 +177,9 @@ test("paginates through a long GFM table across multiple read_more calls", async
 | - | - | - |
 | M01 API schema freeze | Platform | Done |
 | M02 Query planner rollout | Search | In Progress |
-(Response truncated, 510b remaining. Showing lines 1-6 of 16. Call the \`read_more\` tool with an \`offset\` of 7 to continue.)`);
+(Response truncated, 510b remaining. Showing lines 1-6 of 16. Call the \`scroll\` tool with an \`offset\` of 7 to continue.)`);
 
-    const secondResponseString = await callAgentWebReadMoreTool(context, {
+    const secondResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 7,
         limit: "180b",
@@ -191,7 +191,7 @@ test("paginates through a long GFM table across multiple read_more calls", async
 | M05 Agent memory sync | Agents | Planned |
 (Response truncated, 360b remaining. Showing lines 7-9 of 16. Use \`offset\` of 10 to continue.)`);
 
-    const thirdResponseString = await callAgentWebReadMoreTool(context, {
+    const thirdResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 10,
         limit: "180b",
@@ -203,7 +203,7 @@ test("paginates through a long GFM table across multiple read_more calls", async
 | M08 Search ranking tuning | Search | Planned |
 (Response truncated, 211b remaining. Showing lines 10-12 of 16. Use \`offset\` of 13 to continue.)`);
 
-    const fourthResponseString = await callAgentWebReadMoreTool(context, {
+    const fourthResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 13,
         limit: "180b",
@@ -215,7 +215,7 @@ test("paginates through a long GFM table across multiple read_more calls", async
 | M11 Import migration tooling | Platform | Planned |
 (Response truncated, 47b remaining. Showing lines 13-15 of 16. Use \`offset\` of 16 to continue.)`);
 
-    const fifthResponseString = await callAgentWebReadMoreTool(context, {
+    const fifthResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 16,
         limit: "180b",
@@ -260,9 +260,9 @@ In October 2006, YouTube was bought by Google for $1.65 billion. Google’s owne
 
 Since its purchase by Google, YouTube has expanded beyond the core website into mobile apps, network television, and the ability to link with other platforms. Video categories on YouTube include music videos, video clips, news, short films, feature films, songs, documentaries, movie trailers, teasers, live streams, vlogs, and more. Most content is generated by individuals, including collaborations between YouTubers and corporate sponsors. Established media corporations such as Disney, Paramount, NBCUniversal, and Warner Bros. Discovery have also created and expanded their corporate YouTube channels to advertise to a greater audience.
 
-(Response truncated, 3.64kb remaining. Showing lines 1-8 of 21. Call the \`read_more\` tool with an \`offset\` of 9 to continue.)`);
+(Response truncated, 3.64kb remaining. Showing lines 1-8 of 21. Call the \`scroll\` tool with an \`offset\` of 9 to continue.)`);
 
-    const secondResponseString = await callAgentWebReadMoreTool(context, {
+    const secondResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 9,
         limit: "2kb",
@@ -279,7 +279,7 @@ According to a story that has often been repeated in the media, Hurley and Chen 
 
 (Response truncated, 2.29kb remaining. Showing lines 9-16 of 21. Use \`offset\` of 17 to continue.)`);
 
-    const thirdResponseString = await callAgentWebReadMoreTool(context, {
+    const thirdResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 17,
         limit: "2kb",
@@ -292,7 +292,7 @@ YouTube was not the first video-sharing site on the Internet; Vimeo was launched
 
 (Response truncated, 343b remaining. Showing lines 17-20 of 21. Use \`offset\` of 21 to continue.)`);
 
-    const fourthResponseString = await callAgentWebReadMoreTool(context, {
+    const fourthResponseString = await callAgentWebScrollTool(context, {
         path,
         offset: 21,
         limit: "2kb",
@@ -323,7 +323,7 @@ test("uses normalized path when reading cached responses", async () => {
         limit: "10kb",
     });
 
-    const responseString = await callAgentWebReadMoreTool(context, {
+    const responseString = await callAgentWebScrollTool(context, {
         path: "document/path-normalized?a=1&b=2#tail",
         offset: 1,
         limit: "10kb",
@@ -339,7 +339,7 @@ Only one paragraph.
 
 test("throws when read response does not exist", async () => {
     await expect(
-        callAgentWebReadMoreTool(context, {
+        callAgentWebScrollTool(context, {
             path: "/document/missing",
             offset: 1,
             limit: "10kb",
@@ -354,7 +354,7 @@ test("throws when read response is expired", async () => {
     });
 
     await expect(
-        callAgentWebReadMoreTool(context, {
+        callAgentWebScrollTool(context, {
             path: "/document/expired",
             offset: 1,
             limit: "10kb",
@@ -369,7 +369,7 @@ test.each([0, 1.5, 3])("throws for invalid offset %s", async offset => {
     });
 
     await expect(
-        callAgentWebReadMoreTool(context, {
+        callAgentWebScrollTool(context, {
             path: "/document/offset",
             offset,
             limit: "10kb",
@@ -381,7 +381,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with end-of-file line range", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("alpha\nbeta\ngamma"),
-            {offsetLine: 0, limitBytes: 100, isReadMoreTool: true},
+            {offsetLine: 0, limitBytes: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("alpha\nbeta\ngamma\n\n(End of file. Showing lines 1-3 of 3.)");
@@ -390,7 +390,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with singular end-of-file line text", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("alpha\nbeta\ngamma"),
-            {offsetLine: 2, limitBytes: 100, isReadMoreTool: true},
+            {offsetLine: 2, limitBytes: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("gamma\n\n(End of file. Showing line 3 of 3.)");
@@ -399,7 +399,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates to a newline when the newline is after half the byte limit", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 0, limitBytes: 10, isReadMoreTool: true},
+            {offsetLine: 0, limitBytes: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -410,7 +410,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates at the exact byte limit when newline would be too early", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("a\nbbbbbbbbbb\ncccc"),
-            {offsetLine: 0, limitBytes: 10, isReadMoreTool: true},
+            {offsetLine: 0, limitBytes: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -421,7 +421,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("trims adjacent newline candidates to avoid returning trailing blank lines", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("line1\n\n\nline2\nline3"),
-            {offsetLine: 0, limitBytes: 8, isReadMoreTool: true},
+            {offsetLine: 0, limitBytes: 8, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -432,7 +432,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates correctly from a non-zero offset", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 2, limitBytes: 12, isReadMoreTool: true},
+            {offsetLine: 2, limitBytes: 12, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -443,7 +443,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates correctly in the middle of a line", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 2, limitBytes: 4, isReadMoreTool: true},
+            {offsetLine: 2, limitBytes: 4, isScrollTool: true},
         );
 
         expect(responseString).toBe(
