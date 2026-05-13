@@ -217,20 +217,20 @@ export class DatabaseServer {
                         after: new Uint8Array(after),
                     });
                 }
-                // fileSizeInPages is filled in below, after
-                // the drain — at that point the storage
-                // size reflects this batch's truncate +
-                // writes.
-                changedPages.set(tableId, {pages, fileSizeInPages: 0});
+                // `fileSizesInPages` already reflects the
+                // post-drain logical size (Database folds in
+                // buffered truncates + max page index), so
+                // we can stamp it in pre-drain.
+                const fileSizeInPages = buffered.fileSizesInPages.get(tableId);
+                assert(
+                    fileSizeInPages !== undefined,
+                    `missing fileSizeInPages for table ${tableId}`,
+                );
+                changedPages.set(tableId, {pages, fileSizeInPages});
             }
         }
 
         const postWriteVersion = this._persistBuffer();
-
-        // Patch in post-drain file sizes per touched table.
-        for (const [tableId, entry] of changedPages) {
-            entry.fileSizeInPages = this.storage.getFileSize(tableId) / sqlitePageSize;
-        }
 
         // Build the readPages map with full page data +
         // version per table. For pages that were just
