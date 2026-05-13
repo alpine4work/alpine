@@ -187,10 +187,10 @@ export class DatabaseServer {
             this.database.discardBuffer();
             throw error;
         }
-        return this._finalize(inner.result, inner.readPages);
+        return this._persistAndBuildResult(inner.result, inner.readPages);
     }
 
-    private _finalize<T>(
+    private _persistAndBuildResult<T>(
         result: T,
         readPagesSet: ReadonlyDatabasePageSet,
     ): {
