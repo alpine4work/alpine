@@ -332,13 +332,18 @@ describe("per-browser page tracking", () => {
         // Page 2 was returned as updatedPages → pending
         // (not skipped by filterReadPages).
         const allPages = new Map([
-            [0, {version: 1, data: new Uint8Array(1)}],
-            [1, {version: 1, data: new Uint8Array(1)}],
-            [2, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [0, {version: 1, data: new Uint8Array(1)}],
+                    [1, {version: 1, data: new Uint8Array(1)}],
+                    [2, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         const filtered = tracker.filterReadPages(browserId, allPages);
-        expect(filtered.size).toBe(1);
-        expect(filtered.has(2)).toBe(true);
+        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
+        expect(filtered.get(databaseMainTableId)?.has(2)).toBe(true);
     });
 
     test("ensureCacheIsUpToDate marks updatedPages as pending in tracker", async () => {
@@ -372,8 +377,13 @@ describe("per-browser page tracking", () => {
 
         // Now page 1 is confirmed (skipped)
         const allPages = new Map([
-            [0, {version: 1, data: new Uint8Array(1)}],
-            [1, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [0, {version: 1, data: new Uint8Array(1)}],
+                    [1, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         expect(tracker.filterReadPages(browserId, allPages).size).toBe(0);
     });
@@ -388,13 +398,18 @@ describe("per-browser page tracking", () => {
 
         // Acknowledged pages are confirmed — skipped by filterReadPages
         const pages = new Map([
-            [5, {version: 1, data: new Uint8Array(1)}],
-            [6, {version: 1, data: new Uint8Array(1)}],
-            [8, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [5, {version: 1, data: new Uint8Array(1)}],
+                    [6, {version: 1, data: new Uint8Array(1)}],
+                    [8, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.size).toBe(1);
-        expect(filtered.has(8)).toBe(true);
+        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
+        expect(filtered.get(databaseMainTableId)?.has(8)).toBe(true);
     });
 
     test("handleClose unregisters connection from tracker", () => {
@@ -403,12 +418,14 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        tracker.setPages(browserId, [0, 1]);
+        tracker.setPages(browserId, new Map([[databaseMainTableId, [0, 1]]]));
         conn.handleClose();
 
         // After close, entry should be deleted (last connection).
         // filterReadPages returns everything for an unknown browser.
-        const pages = new Map([[0, {version: 1, data: new Uint8Array(1)}]]);
+        const pages = new Map([
+            [databaseMainTableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])],
+        ]);
         expect(tracker.filterReadPages(browserId, pages)).toEqual(pages);
     });
 
@@ -423,15 +440,20 @@ describe("per-browser page tracking", () => {
         await acknowledgePages(conn2, [2, 3]);
 
         const pages = new Map([
-            [0, {version: 1, data: new Uint8Array(1)}],
-            [1, {version: 1, data: new Uint8Array(1)}],
-            [2, {version: 1, data: new Uint8Array(1)}],
-            [3, {version: 1, data: new Uint8Array(1)}],
-            [4, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [0, {version: 1, data: new Uint8Array(1)}],
+                    [1, {version: 1, data: new Uint8Array(1)}],
+                    [2, {version: 1, data: new Uint8Array(1)}],
+                    [3, {version: 1, data: new Uint8Array(1)}],
+                    [4, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.size).toBe(1);
-        expect(filtered.has(4)).toBe(true);
+        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
+        expect(filtered.get(databaseMainTableId)?.has(4)).toBe(true);
     });
 
     test("closing one of two connections preserves page set", () => {
@@ -441,13 +463,18 @@ describe("per-browser page tracking", () => {
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
         createTrackedConnection(doStorage, tracker, browserId);
 
-        tracker.setPages(browserId, [0, 1]);
+        tracker.setPages(browserId, new Map([[databaseMainTableId, [0, 1]]]));
         conn1.handleClose();
 
         // Entry should still exist — conn2 is still open
         const pages = new Map([
-            [0, {version: 1, data: new Uint8Array(1)}],
-            [1, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [0, {version: 1, data: new Uint8Array(1)}],
+                    [1, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         expect(tracker.filterReadPages(browserId, pages).size).toBe(0);
     });
@@ -620,11 +647,16 @@ describe("per-browser page tracking", () => {
 
         // Tracker should only know about page 0 now
         const pages = new Map([
-            [0, {version: 1, data: new Uint8Array(1)}],
-            [1, {version: 1, data: new Uint8Array(1)}],
+            [
+                databaseMainTableId,
+                new Map([
+                    [0, {version: 1, data: new Uint8Array(1)}],
+                    [1, {version: 1, data: new Uint8Array(1)}],
+                ]),
+            ],
         ]);
         const filtered = tracker.filterReadPages(browserId, pages);
-        expect(filtered.size).toBe(1);
-        expect(filtered.has(1)).toBe(true);
+        expect(filtered.get(databaseMainTableId)?.size).toBe(1);
+        expect(filtered.get(databaseMainTableId)?.has(1)).toBe(true);
     });
 });

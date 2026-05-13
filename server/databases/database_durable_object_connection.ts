@@ -107,27 +107,23 @@ export class DatabaseDurableObjectConnection {
                     });
                 }
 
-                // Browser-page tracking is still single-table —
-                // filter and surface only the main table's
-                // reads through it. Other tables (when added)
-                // will need to be plumbed in here.
-                const mainReadPages = result.readPages.get(databaseMainTableId) ?? new Map();
-                const filteredMain = input.returnPages
-                    ? this._browserPageTracker.filterReadPages(this._browserId, mainReadPages)
+                const filteredReadPages = input.returnPages
+                    ? this._browserPageTracker.filterReadPages(this._browserId, result.readPages)
                     : null;
 
-                if (filteredMain !== null && filteredMain.size > 0) {
-                    this._browserPageTracker.addPendingPages(this._browserId, filteredMain.keys());
+                if (filteredReadPages !== null && filteredReadPages.size > 0) {
+                    const pendingByTable = new Map<DatabaseTableId, Iterable<number>>();
+                    for (const [tableId, tablePages] of filteredReadPages) {
+                        pendingByTable.set(tableId, tablePages.keys());
+                    }
+                    this._browserPageTracker.addPendingPages(this._browserId, pendingByTable);
                 }
 
                 return {
                     result: input.returnResult
                         ? ({name: input.action.name, output: result.result} as any)
                         : null,
-                    readPages:
-                        filteredMain === null
-                            ? null
-                            : new Map([[databaseMainTableId, filteredMain]]),
+                    readPages: filteredReadPages,
                 };
             });
         },
@@ -185,10 +181,16 @@ export class DatabaseDurableObjectConnection {
                     matchingPages.push(pageIndex);
                 }
             }
-            this._browserPageTracker.setPages(this._browserId, matchingPages);
+            this._browserPageTracker.setPages(
+                this._browserId,
+                new Map([[databaseMainTableId, matchingPages]]),
+            );
 
             if (updatedPages.size > 0) {
-                this._browserPageTracker.addPendingPages(this._browserId, updatedPages.keys());
+                this._browserPageTracker.addPendingPages(
+                    this._browserId,
+                    new Map([[databaseMainTableId, updatedPages.keys()]]),
+                );
             }
 
             const fileSizeInPages =
@@ -200,8 +202,7 @@ export class DatabaseDurableObjectConnection {
             };
         },
         acknowledgePages: async (_context, input) => {
-            const pageIndexes = input.pageIndexes.get(databaseMainTableId) ?? [];
-            this._browserPageTracker.addPages(this._browserId, pageIndexes);
+            this._browserPageTracker.addPages(this._browserId, input.pageIndexes);
             return {};
         },
     };
@@ -222,16 +223,18 @@ export class DatabaseDurableObjectConnection {
         switch (eventStub.type) {
             case "PagesChanged": {
                 // Per-browser filter: only forward diffs for
-                // pages this browser might have cached.
-                // Browser-page tracking is still single-table,
-                // so consult it only for the main table.
+                // pages this browser might have cached, per
+                // table.
                 const filtered = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {diffs, fileSizeInPages}] of eventStub.pageDiffs) {
                     const tableFiltered = new Map<number, {version: number; diff: PageDiff}>();
                     for (const [pageIndex, value] of diffs) {
                         if (
-                            tableId !== databaseMainTableId ||
-                            this._browserPageTracker.clientMightHavePage(this._browserId, pageIndex)
+                            this._browserPageTracker.clientMightHavePage(
+                                this._browserId,
+                                tableId,
+                                pageIndex,
+                            )
                         ) {
                             tableFiltered.set(pageIndex, value);
                         }

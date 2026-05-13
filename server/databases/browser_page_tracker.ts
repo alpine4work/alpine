@@ -1,4 +1,8 @@
-import type {BrowserId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import type {
+    BrowserId,
+    DatabaseTableId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
 
 /**
  * Two-tier status for tracked pages:
@@ -13,7 +17,10 @@ type PageStatus = "confirmed" | "pending";
  * Tracks which SQLite pages each browser already
  * has cached in OPFS, with two confidence tiers:
  * **confirmed** (client acknowledged) and **pending**
- * (sent but not yet acknowledged).
+ * (sent but not yet acknowledged). Pages are
+ * partitioned by {@link DatabaseTableId} since a
+ * client may have many independent table databases
+ * attached.
  *
  * - `filterReadPages` skips only confirmed pages,
  *   so pending pages are re-sent if needed.
@@ -29,7 +36,10 @@ type PageStatus = "confirmed" | "pending";
 export class BrowserPageTracker {
     private readonly _browsers = new Map<
         BrowserId,
-        {connections: Set<WebSocketConnectionId>; pages: Map<number, PageStatus>}
+        {
+            connections: Set<WebSocketConnectionId>;
+            pages: Map<DatabaseTableId, Map<number, PageStatus>>;
+        }
     >();
 
     registerConnection(browserId: BrowserId, connectionId: WebSocketConnectionId): void {
@@ -51,21 +61,30 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Full replacement of the browser's known page set.
-     * All provided pages are marked as confirmed.
-     * Clears any previously pending pages.
+     * Full replacement of the browser's known page set
+     * across every table. All provided pages are marked
+     * as confirmed. Clears any previously pending or
+     * confirmed pages, including for tables not present
+     * in `pagesByTable`.
      *
      * Called after `ensureCacheIsUpToDate` determines
      * which pages the client already has valid copies of.
      */
-    setPages(browserId: BrowserId, pageIndexes: Iterable<number>): void {
+    setPages(
+        browserId: BrowserId,
+        pagesByTable: ReadonlyMap<DatabaseTableId, Iterable<number>>,
+    ): void {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return;
-        const pages = new Map<number, PageStatus>();
-        for (const idx of pageIndexes) {
-            pages.set(idx, "confirmed");
+        const next = new Map<DatabaseTableId, Map<number, PageStatus>>();
+        for (const [tableId, indexes] of pagesByTable) {
+            const tablePages = new Map<number, PageStatus>();
+            for (const idx of indexes) {
+                tablePages.set(idx, "confirmed");
+            }
+            next.set(tableId, tablePages);
         }
-        entry.pages = pages;
+        entry.pages = next;
     }
 
     /**
@@ -73,11 +92,17 @@ export class BrowserPageTracker {
      * acknowledges receiving pages. If a page was
      * pending, it is promoted to confirmed.
      */
-    addPages(browserId: BrowserId, pageIndexes: ReadonlyArray<number>): void {
+    addPages(
+        browserId: BrowserId,
+        pagesByTable: ReadonlyMap<DatabaseTableId, ReadonlyArray<number>>,
+    ): void {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return;
-        for (const idx of pageIndexes) {
-            entry.pages.set(idx, "confirmed");
+        for (const [tableId, indexes] of pagesByTable) {
+            const tablePages = this._getOrCreateTable(entry, tableId);
+            for (const idx of indexes) {
+                tablePages.set(idx, "confirmed");
+            }
         }
     }
 
@@ -86,12 +111,18 @@ export class BrowserPageTracker {
      * acknowledged). Pages already marked confirmed are
      * not downgraded.
      */
-    addPendingPages(browserId: BrowserId, pageIndexes: Iterable<number>): void {
+    addPendingPages(
+        browserId: BrowserId,
+        pagesByTable: ReadonlyMap<DatabaseTableId, Iterable<number>>,
+    ): void {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return;
-        for (const idx of pageIndexes) {
-            if (entry.pages.get(idx) !== "confirmed") {
-                entry.pages.set(idx, "pending");
+        for (const [tableId, indexes] of pagesByTable) {
+            const tablePages = this._getOrCreateTable(entry, tableId);
+            for (const idx of indexes) {
+                if (tablePages.get(idx) !== "confirmed") {
+                    tablePages.set(idx, "pending");
+                }
             }
         }
     }
@@ -102,30 +133,56 @@ export class BrowserPageTracker {
      * whether to include a page in changedPages events.
      * Returns false for unknown browsers.
      */
-    clientMightHavePage(browserId: BrowserId, pageIndex: number): boolean {
+    clientMightHavePage(
+        browserId: BrowserId,
+        tableId: DatabaseTableId,
+        pageIndex: number,
+    ): boolean {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return false;
-        return entry.pages.has(pageIndex);
+        return entry.pages.get(tableId)?.has(pageIndex) ?? false;
     }
 
     /**
      * Return a new map containing only the pages the
-     * browser does NOT have confirmed. Pending pages
-     * are included (re-sent) since the client may not
-     * have processed them yet.
+     * browser does NOT have confirmed, partitioned by
+     * table. Pending pages are included (re-sent) since
+     * the client may not have processed them yet. Tables
+     * with no surviving pages are omitted.
      */
     filterReadPages(
         browserId: BrowserId,
-        readPages: ReadonlyMap<number, {version: number; data: Uint8Array}>,
-    ): Map<number, {version: number; data: Uint8Array}> {
+        readPages: ReadonlyMap<
+            DatabaseTableId,
+            ReadonlyMap<number, {version: number; data: Uint8Array}>
+        >,
+    ): Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>> {
         const entry = this._browsers.get(browserId);
-        if (entry === undefined) return new Map(readPages);
-        const filtered = new Map<number, {version: number; data: Uint8Array}>();
-        for (const [pageIndex, value] of readPages) {
-            if (entry.pages.get(pageIndex) !== "confirmed") {
-                filtered.set(pageIndex, value);
+        const filtered = new Map<
+            DatabaseTableId,
+            Map<number, {version: number; data: Uint8Array}>
+        >();
+        for (const [tableId, tablePages] of readPages) {
+            const knownPages = entry?.pages.get(tableId);
+            const out = new Map<number, {version: number; data: Uint8Array}>();
+            for (const [pageIndex, value] of tablePages) {
+                if (knownPages?.get(pageIndex) === "confirmed") continue;
+                out.set(pageIndex, value);
             }
+            if (out.size > 0) filtered.set(tableId, out);
         }
         return filtered;
+    }
+
+    private _getOrCreateTable(
+        entry: {pages: Map<DatabaseTableId, Map<number, PageStatus>>},
+        tableId: DatabaseTableId,
+    ): Map<number, PageStatus> {
+        let tablePages = entry.pages.get(tableId);
+        if (tablePages === undefined) {
+            tablePages = new Map();
+            entry.pages.set(tableId, tablePages);
+        }
+        return tablePages;
     }
 }
