@@ -40,10 +40,16 @@ export async function callAgentWebFindTool(
     if (
         !Number.isInteger(offsetMatchIndex) ||
         offsetMatchIndex < 0 ||
-        offsetMatchIndex > matches.length - 1
+        (matches.length > 0 && offsetMatchIndex > matches.length - 1)
     ) {
         throw new FailedPreconditionError("Invalid offset match index", {
-            displayMessage: errorDisplayMessage`Found ${matches.length} ${matches.length === 1 ? "match" : "matches"} so the \`offset\` must be between 0 and ${matches.length - 1}. Instead \`offset\` is ${offsetMatchIndex}.`,
+            displayMessage: errorDisplayMessage`Found ${matches.length} ${matches.length === 1 ? "match" : "matches"} so \`offset\` must be between 0 and ${matches.length - 1}. Instead \`offset\` is ${offsetMatchIndex}.`,
+        });
+    }
+
+    if (!Number.isInteger(limitMatchLength) || limitMatchLength <= 0) {
+        throw new FailedPreconditionError("Invalid limit match length", {
+            displayMessage: errorDisplayMessage`\`limit\` must be greater than 0. Instead \`limit\` is ${limitMatchLength}.`,
         });
     }
 
@@ -79,8 +85,12 @@ export async function callAgentWebFindTool(
         output += "\n\n</match>\n";
     }
 
-    if (matches.length > matchesSlice.length)
+    if (
+        matches.length > matchesSlice.length &&
+        offsetMatchIndex + limitMatchLength < matches.length
+    ) {
         output += `\n(Use \`offset\` of ${offsetMatchIndex + limitMatchLength} to continue.)\n`;
+    }
 
     return output;
 }
@@ -103,7 +113,7 @@ function previewAgentWebFindMatch({
     endNewline: number;
 } {
     const matchStartNewlineIndexResult = assertExists(
-        binarySearchLessThanOrEqual(newlineIndexes, matchStartIndex),
+        binarySearchGreaterThanOrEqual(newlineIndexes, matchStartIndex),
     );
 
     const matchEndNewlineIndexResult = assertExists(
@@ -111,9 +121,13 @@ function previewAgentWebFindMatch({
     );
 
     {
-        const matchPreviewStartIndex = matchStartNewlineIndexResult.value + 1;
-        const matchPreviewEndIndex = matchEndNewlineIndexResult.value;
-        const matchPreviewLength = matchPreviewStartIndex - matchPreviewEndIndex;
+        let matchPreviewStartIndex =
+            matchStartNewlineIndexResult.index === 0
+                ? 0
+                : newlineIndexes[matchStartNewlineIndexResult.index - 1]! + 1;
+
+        let matchPreviewEndIndex = matchEndNewlineIndexResult.value;
+        const matchPreviewLength = matchPreviewEndIndex - matchPreviewStartIndex;
 
         // If the match exceeds the limit then truncate within the lines shown. This may
         // include truncating some of the actual match! Hopefully it's pretty rare for the
@@ -125,27 +139,33 @@ function previewAgentWebFindMatch({
             const lengthToMatchEndIndex = matchPreviewEndIndex - matchEndIndex;
 
             const matchStartOverageBytes =
-                overageBytes *
-                (lengthToMatchStartIndex / (lengthToMatchStartIndex + lengthToMatchEndIndex));
+                lengthToMatchStartIndex === 0 && lengthToMatchEndIndex === 0
+                    ? 0
+                    : Math.round(
+                          overageBytes *
+                              (lengthToMatchStartIndex /
+                                  (lengthToMatchStartIndex + lengthToMatchEndIndex)),
+                      );
 
             const matchEndOverageBytes = overageBytes - matchStartOverageBytes;
 
+            matchPreviewStartIndex += matchStartOverageBytes;
+            matchPreviewEndIndex -= matchEndOverageBytes;
+
+            // We always want to include the start of our match in the match preview. If we
+            // need to truncate from the match then truncated from the end not the start.
+            if (matchPreviewStartIndex > matchStartIndex) {
+                matchPreviewEndIndex -= matchPreviewStartIndex - matchStartIndex;
+                matchPreviewStartIndex = matchStartIndex;
+            }
+
             return {
-                matchPreview: response.slice(
-                    matchPreviewStartIndex + matchStartOverageBytes,
-                    matchPreviewEndIndex - matchEndOverageBytes,
-                ),
+                matchPreview: response.slice(matchPreviewStartIndex, matchPreviewEndIndex),
                 startNewline: assertExists(
-                    binarySearchLessThanOrEqual(
-                        newlineIndexes,
-                        matchPreviewStartIndex + matchStartOverageBytes,
-                    ),
+                    binarySearchGreaterThanOrEqual(newlineIndexes, matchPreviewStartIndex),
                 ).index,
                 endNewline: assertExists(
-                    binarySearchGreaterThanOrEqual(
-                        newlineIndexes,
-                        matchPreviewEndIndex - matchEndOverageBytes,
-                    ),
+                    binarySearchGreaterThanOrEqual(newlineIndexes, matchPreviewEndIndex),
                 ).index,
             };
         }
@@ -164,7 +184,7 @@ function previewAgentWebFindMatch({
     let matchAfterNewlineIndexResult = matchEndNewlineIndexResult;
 
     while (true) {
-        if (matchBeforeNewlineIndexResult.index === 0) break;
+        if (matchBeforeNewlineIndexResult.index <= 0) break;
 
         const nextMatchBeforeNewline = matchBeforeNewlineIndexResult.index - 1;
         const nextMatchBeforeNewlineIndex = newlineIndexes[nextMatchBeforeNewline]!;
@@ -208,12 +228,15 @@ function previewAgentWebFindMatch({
     // Remove any empty newlines from the start of the match.
     while (
         matchBeforeNewlineIndexResult.index < newlineIndexes.length &&
+        matchBeforeNewlineIndexResult.index > 0 &&
         matchBeforeNewlineIndexResult.index < matchAfterNewlineIndexResult.index &&
-        matchBeforeNewlineIndexResult.value + 1 ===
-            newlineIndexes[matchBeforeNewlineIndexResult.index + 1]
+        matchBeforeNewlineIndexResult.value - 1 ===
+            newlineIndexes[matchBeforeNewlineIndexResult.index - 1]
     ) {
         matchBeforeNewlineIndexResult.index++;
         matchBeforeNewlineIndexResult.value++;
+
+        throw new Error("NOCOMMIT: When does this run?");
     }
 
     // Remove any empty newlines from the end of the match.
@@ -229,7 +252,9 @@ function previewAgentWebFindMatch({
 
     return {
         matchPreview: response.slice(
-            matchBeforeNewlineIndexResult.value + 1,
+            matchBeforeNewlineIndexResult.index === 0
+                ? 0
+                : newlineIndexes[matchBeforeNewlineIndexResult.index - 1]! + 1,
             matchAfterNewlineIndexResult.value,
         ),
         startNewline: matchBeforeNewlineIndexResult.index,

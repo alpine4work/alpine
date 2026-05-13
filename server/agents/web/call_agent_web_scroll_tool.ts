@@ -35,7 +35,7 @@ export async function callAgentWebScrollTool(
         offsetNewline > readResponse.newlineIndexes.length - 1
     ) {
         throw new FailedPreconditionError("Invalid offset line number", {
-            displayMessage: errorDisplayMessage`The \`offset\` line number must be between 0 and ${readResponse.newlineIndexes.length - 1}. Instead the \`offset\` line number is ${offsetNewline}.`,
+            displayMessage: errorDisplayMessage`The \`offset\` line number must be between 0 and ${readResponse.newlineIndexes.length - 1}. Instead \`offset\` is ${offsetNewline}.`,
         });
     }
 
