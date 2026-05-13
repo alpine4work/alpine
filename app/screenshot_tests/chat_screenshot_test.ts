@@ -4,6 +4,7 @@ import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_en
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
@@ -11,6 +12,37 @@ import {ChatId} from "~/shared/id/types/id_types.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);
+
+    // Create the loading chat in the background while doing all our other screenshot
+    // work since it may take a while.
+    const loadingChatPromise = (async () => {
+        const loadingChat = await TestChat.createRoom(accounts.masonClay, {
+            id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "loadingChat"),
+            name: "Lorem Ipsum",
+            access: "Private",
+        });
+
+        const loadingTimeBase = new Date("2025-10-14T15:24:00.000Z");
+
+        for (let index = 0; index < 105; index++) {
+            await loadingChat.sendMessage(
+                accounts.masonClay,
+                `Lorem ipsum dolor sit amet ${index + 1}`,
+                {overrideCreatedTime: new Date(loadingTimeBase.getTime() + index)},
+            );
+
+            // Every 10 messages, wait for SQS jobs to complete.
+            if ((index + 1) % 10 === 0) {
+                await ProcessContextModule.waitForTestTasks();
+                await runner.services.waitForSqsProcessJobs();
+            }
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        return loadingChat;
+    })();
 
     {
         const directOneOnOneChat = await TestChat.get(accounts.cassCade, accounts.elleKappaTan);
@@ -112,6 +144,20 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         peekPath: `/s/${space.id}/chat/room/new`,
     });
     await runner.screenshot("aB", "new-room");
+
+    {
+        const loadingChat = await loadingChatPromise;
+
+        await runner.goto(accounts.masonClay, `/s/${space.id}/chat/${loadingChat.id}`, {
+            allowPauseNetwork: true,
+        });
+
+        await runner.pauseNetwork();
+        await runner.getByTestId("MessagingScrollView").evaluate(element => {
+            element.scrollTop = 0;
+        });
+        await runner.screenshot("aC", "chat-loading");
+    }
 }
 
 async function createDirectOneOnOneChatMessages(

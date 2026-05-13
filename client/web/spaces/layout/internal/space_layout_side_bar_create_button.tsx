@@ -94,7 +94,8 @@ export function SpaceLayoutSideBarCreateButton() {
                 )}
             >
                 <IconButton
-                    size="lg"
+                    variant="quieter"
+                    size="space-layout-side-bar"
                     description="Create"
                     tooltipPlacement="right"
                     keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "m")}

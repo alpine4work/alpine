@@ -43,6 +43,10 @@ export const colors = {
     "grey-99": "#1a1a1e",
     "grey-100": "#0b0b0d",
 
+    // A color below `grey-100` that we use as the space layout sidebar color in dark
+    // mode.
+    "grey-100-lowered": "#070708",
+
     // We have a set of slightly lighter greys for elevated surfaces in dark mode. When
     // we render peeks on top of other content you have arbitrary peek content above
     // other arbitrary content. In dark mode we can't use shadows to simulate depth and

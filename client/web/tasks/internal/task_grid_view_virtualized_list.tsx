@@ -2712,6 +2712,8 @@ export function useTaskGridViewVirtualizedListBase({
                                     ref={ref}
                                     hasColumns={capabilities.hasColumns}
                                     withoutAssigneeField={capabilities.withoutAssigneeField}
+                                    withoutDueDateField={capabilities.withoutDueDateField}
+                                    withoutCollectionsField={capabilities.withoutCollectionsField}
                                     titleFieldLabel={columnHeaderTitleFieldLabel}
                                     columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                                     minHeight={minHeight}
@@ -2930,10 +2932,11 @@ export function useTaskGridViewVirtualizedListBase({
                     render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
                         {
                             render: renderItem,
-                            containerStyle: {
-                                // Make sure our rows here increment the row number counter.
-                                counterIncrement: tasksStyles.rowNumberCounterName,
-                            },
+                            containerStyle:
+                                item.parents.length === 0
+                                    ? // Make sure our rows here increment the row number counter.
+                                      {counterIncrement: tasksStyles.rowNumberCounterName}
+                                    : undefined,
                         },
                     ),
                 };
@@ -3049,6 +3052,7 @@ export function useTaskGridViewVirtualizedListBase({
                     <TaskGridViewMobileKeyboardToolbarContainer
                         portalRef={mobileKeyboardToolbarPortalRef}
                         withoutAssigneeField={capabilities.withoutAssigneeField}
+                        withoutDueDateField={capabilities.withoutDueDateField}
                     />
                 )}
             </>

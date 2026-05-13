@@ -158,10 +158,6 @@ export async function createLandingPageScenario(
                     width: Math.round(width * scale),
                     height: Math.round(height * scale),
                 },
-                prepare: async page => {
-                    // Hide the space side bar navigation buttons.
-                    await page.evaluate("dev.spaceSideBar.toggleNavigationButtonsVisibility()");
-                },
             };
         })(),
         (() => {

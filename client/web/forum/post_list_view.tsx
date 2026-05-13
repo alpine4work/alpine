@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
@@ -43,10 +44,11 @@ import {
     PostContentViewInitialScroll,
 } from "~/client/web/forum/post_content_view.js";
 import {
+    PostListFooter,
     PostListHeader,
     PostListInterface,
     PostListPostContentItem,
-    PostListWithHeader,
+    PostListWithHeaderOrWithFooter,
 } from "~/client/web/forum/post_list.js";
 import {useConstant} from "~/client/web/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -88,6 +90,7 @@ import {
     postContentViewMinHeightPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
+    postListViewMarginAfterPostWithOpenComments,
     postViewFlex,
     postViewMinHeightPx,
 } from "~/client/web/styles/forum_shared_styles.js";
@@ -97,6 +100,7 @@ import {
     messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/web/styles/messaging_shared_styles.js";
+import {peekStackOverlayBorderRadius} from "~/client/web/styles/peek_shared_styles.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/web/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
@@ -109,10 +113,13 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
+    ParsableRemLength,
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -126,6 +133,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
@@ -157,6 +165,20 @@ import {Store} from "~/shared/store/store.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+const postListViewCardBackgroundClassName = sprinkles({
+    zIndex: "10",
+    pointerEvents: "none",
+    position: "absolute",
+    top: "0",
+    bottom: "-1",
+    left: "-0.5",
+    right: "-0.5",
+    backgroundColor: "grey-0",
+    // Same border radius as a peek. Expanded posts should feel like inline peeks.
+    borderRadius: peekStackOverlayBorderRadius,
+    boxShadow: "elevation-30",
+});
+
 const PostListViewForwardRef = forwardRef(PostListView);
 export {PostListViewForwardRef as PostListView};
 
@@ -186,6 +208,7 @@ export type PostListViewRef = {
 function PostListView(
     {
         header,
+        footer,
         posts: postsWithoutHeader,
         onTogglePostComments,
         onUpdatePostComments,
@@ -211,6 +234,12 @@ function PostListView(
          * render an area at the top of the list describing the channel.
          */
         header?: Memo<PostListHeader>;
+
+        /**
+         * You may provide this prop and we will render an area at the bottom of the list
+         * with whatever you want.
+         */
+        footer?: Memo<PostListFooter>;
 
         /**
          * The post content to be rendered in this post list view.
@@ -327,14 +356,14 @@ function PostListView(
          * actually render a sidebar, you have to render the sidebar yourself. Probably
          * using the `extraChildren` prop.
          */
-        sideBarLeftSize?: Memo<{maxWidth: Spacing; flex: number}>;
+        sideBarLeftSize?: Memo<{maxWidth: ParsableRemLength; flex: number}>;
 
         /**
          * Space allocated for a sidebar rendered to the right of the post list. Doesn't
          * actually render a sidebar, you have to render the sidebar yourself. Probably
          * using the `extraChildren` prop.
          */
-        sideBarRightSize?: Memo<{maxWidth: Spacing; flex: number}>;
+        sideBarRightSize?: Memo<{maxWidth: ParsableRemLength; flex: number}>;
 
         /**
          * Extra children to be rendered in our post list's `<VirtualizedScrollView>`.
@@ -408,10 +437,15 @@ function PostListView(
         asideBufferedHeight: 0,
     });
 
-    const posts = useMemo(
-        () => (header ? new PostListWithHeader(header, postsWithoutHeader) : postsWithoutHeader),
-        [header, postsWithoutHeader],
-    );
+    const posts = useMemo(() => {
+        if (!header && !footer) return postsWithoutHeader;
+
+        return new PostListWithHeaderOrWithFooter(
+            header ?? null,
+            footer ?? null,
+            postsWithoutHeader,
+        );
+    }, [header, footer, postsWithoutHeader]);
 
     const hasAside = routeLayout !== "narrow" && !!aside;
     const hasNavigationBar = !!navigationBar?.navigationBar;
@@ -774,19 +808,27 @@ function PostListView(
     const [isShowingAllContentByPostId, setIsShowingAllContentByPostId] =
         useState<ReadonlyMap<PostId, true>>(emptyMap);
 
-    // If we stop editing a post that was previously collapsed, we should now be
-    // showing the post's entire content.
-    if (
-        postEditing.state.isEditing &&
-        isShowingAllContentByPostId.get(postEditing.state.postId) !== true
-    ) {
-        const {postId} = postEditing.state;
+    if (isPostView || routeLayout === "narrow") {
+        // On narrow layouts, expanding content inline navigates to the post. Keep this
+        // state empty so we never show inline expanded-content styling.
+        if (isShowingAllContentByPostId.size > 0) {
+            setIsShowingAllContentByPostId(emptyMap);
+        }
+    } else {
+        // If we stop editing a post that was previously collapsed, we should now be
+        // showing the post's entire content.
+        if (
+            postEditing.state.isEditing &&
+            isShowingAllContentByPostId.get(postEditing.state.postId) !== true
+        ) {
+            const {postId} = postEditing.state;
 
-        setIsShowingAllContentByPostId(oldIsShowingAllContentByPostId => {
-            const newIsShowingAllContentByPostId = new Map(oldIsShowingAllContentByPostId);
-            newIsShowingAllContentByPostId.set(postId, true);
-            return newIsShowingAllContentByPostId;
-        });
+            setIsShowingAllContentByPostId(oldIsShowingAllContentByPostId => {
+                const newIsShowingAllContentByPostId = new Map(oldIsShowingAllContentByPostId);
+                newIsShowingAllContentByPostId.set(postId, true);
+                return newIsShowingAllContentByPostId;
+            });
+        }
     }
 
     const {jumpState: jumpToMessageRangeState, jumpToMessageRange} = useJumpToMessageRange<PostId>({
@@ -805,6 +847,8 @@ function PostListView(
     // If we're jumping to a post while a post's content is closed then open the
     // content so we can see what the jump animation is trying to highlight!
     if (
+        !isPostView &&
+        routeLayout !== "narrow" &&
         jumpToPostRangeState &&
         isShowingAllContentByPostId.get(jumpToPostRangeState.options.postId) !== true
     ) {
@@ -993,12 +1037,11 @@ function PostListView(
 
         return (
             <div
-                className={sprinkles({
-                    width: "full",
-                    minWidth: "flex-fit",
-                    maxWidth: sideBarLeftSize.maxWidth,
-                })}
-                style={{flex: sideBarLeftSize.flex}}
+                className={sprinkles({width: "full"})}
+                style={{
+                    flex: sideBarLeftSize.flex,
+                    maxWidth: parseRemLength(sideBarLeftSize.maxWidth) + "rem",
+                }}
             />
         );
     }, [sideBarLeftSize]);
@@ -1008,11 +1051,11 @@ function PostListView(
 
         return (
             <div
-                className={sprinkles({
-                    width: "full",
-                    maxWidth: sideBarRightSize.maxWidth,
-                })}
-                style={{flex: sideBarRightSize.flex}}
+                className={sprinkles({width: "full"})}
+                style={{
+                    flex: sideBarRightSize.flex,
+                    maxWidth: parseRemLength(sideBarRightSize.maxWidth) + "rem",
+                }}
             />
         );
     }, [sideBarRightSize]);
@@ -1038,30 +1081,15 @@ function PostListView(
             <div
                 className={sprinkles({
                     position: "absolute",
-                    left: "0",
-                    right: "0",
-                    height: routeLayout === "narrow" ? "border" : "border-thick",
+                    left: screenPaddingX,
+                    right: screenPaddingX,
+                    height: "border",
                     backgroundColor: "grey-5",
                 })}
-                style={{top: routeLayout === "narrow" ? 0 : -1}}
+                style={{top: -1}}
             />
         );
-    }, [routeLayout]);
-
-    const bottomBorder = useMemo(() => {
-        return (
-            <div
-                className={sprinkles({
-                    position: "absolute",
-                    left: "0",
-                    right: "0",
-                    height: routeLayout === "narrow" ? "border" : "border-thick",
-                    backgroundColor: "grey-5",
-                })}
-                style={{bottom: routeLayout === "narrow" ? 0 : -1}}
-            />
-        );
-    }, [routeLayout]);
+    }, []);
 
     const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<PostId>> = useCallback(
         async (postId, {messageIndex, ...input}) => {
@@ -1167,11 +1195,33 @@ function PostListView(
                     };
                 }
                 case "PostContent": {
+                    const isPreviousItemPostWithCardBackground =
+                        !isPostView && routeLayout !== "narrow"
+                            ? isPostListPreviousItemPostWithCardBackground(
+                                  posts,
+                                  index,
+                                  isShowingAllContentByPostId,
+                              )
+                            : false;
+
+                    const isShowingAllContent =
+                        isShowingAllContentByPostId.get(item.post.id) === true;
+
+                    const hasCardBackground =
+                        !isPostView &&
+                        routeLayout !== "narrow" &&
+                        (item.postCommentsState !== "Closed" || isShowingAllContent);
+
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
                             ? postViewMinHeightPx[spacingScale]
                             : postContentViewMinHeightPx[spacingScale],
+                        zIndex: hasCardBackground
+                            ? item.postCommentsState !== "Closed"
+                                ? "20"
+                                : "10"
+                            : "0",
                         node: (
                             <div
                                 className={sprinkles({
@@ -1180,7 +1230,9 @@ function PostListView(
                                     paddingTop:
                                         withSafeAreaInsetTop && index === 0
                                             ? "safe-area-inset"
-                                            : undefined,
+                                            : isPreviousItemPostWithCardBackground
+                                              ? postListViewMarginAfterPostWithOpenComments
+                                              : undefined,
                                     paddingBottom:
                                         index === posts.getItemCount() - (isPostView ? 2 : 1)
                                             ? "safe-area-inset"
@@ -1189,25 +1241,30 @@ function PostListView(
                             >
                                 {sideBarLeftSpacer}
                                 <div
-                                    className={sprinkles({
-                                        position: "relative",
-                                        width: "full",
-                                        minWidth: "flex-fit",
-                                        maxWidth: contentStyles.contentMaxWidth,
-                                    })}
+                                    className={classNames(
+                                        sprinkles({
+                                            position: "relative",
+                                            width: "full",
+                                            minWidth: "flex-fit",
+                                            maxWidth: contentStyles.contentMaxWidth,
+                                        }),
+                                        hasCardBackground && greyElevated1ClassName,
+                                    )}
                                     style={{flex: postViewFlex}}
                                 >
-                                    {((withSafeAreaInsetTop && index === 0) ||
-                                        (hasHeader && index === 1)) &&
-                                        // This is the first post in a `<PostListView>` with a `header` so we need to draw
-                                        // a border between the first `<PostListView>` and the `header`.
+                                    {!isPostView &&
+                                        !hasCardBackground &&
+                                        item.postCommentsState === "Closed" &&
+                                        !isPreviousItemPostWithCardBackground &&
                                         topBorder}
-                                    {!isPostView && item.postCommentsState === "Closed" ? (
-                                        bottomBorder
-                                    ) : (
+                                    {hasCardBackground && item.postCommentsState === "Closed" && (
+                                        <div className={postListViewCardBackgroundClassName} />
+                                    )}
+                                    {(isPostView || item.postCommentsState !== "Closed") && (
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
+                                                zIndex: "20",
                                                 left: "0",
                                                 right: "0",
                                                 bottom: "0",
@@ -1275,10 +1332,22 @@ function PostListView(
                                                 {withAnchor: true},
                                             );
                                         }}
-                                        isShowingAllContent={
-                                            isShowingAllContentByPostId.get(item.post.id) === true
-                                        }
+                                        isShowingAllContent={isShowingAllContent}
                                         onIsShowingAllContentChange={isShowingAllContent => {
+                                            // If you want to see the whole post in a peek (or on mobile) we navigate you to
+                                            // the post view instead of showing it inline. Since a post could be quite long it
+                                            // would be easy to lose your place.
+                                            if (
+                                                isShowingAllContent &&
+                                                routeLayout === "narrow" &&
+                                                !isPostView
+                                            ) {
+                                                navigate(
+                                                    `/s/${item.post.spaceId}/posts/${item.post.id}`,
+                                                );
+                                                return;
+                                            }
+
                                             setIsShowingAllContentByPostId(
                                                 oldIsShowingAllContentByPostId => {
                                                     const newIsShowingAllContentByPostId = new Map(
@@ -1423,13 +1492,17 @@ function PostListView(
                             >
                                 {sideBarLeftSpacer}
                                 <div
-                                    className={sprinkles({
-                                        position: "relative",
-                                        zIndex: "0",
-                                        width: "full",
-                                        minWidth: "flex-fit",
-                                        maxWidth: contentStyles.contentMaxWidth,
-                                    })}
+                                    className={classNames(
+                                        sprinkles({
+                                            position: "relative",
+                                            width: "full",
+                                            minWidth: "flex-fit",
+                                            maxWidth: contentStyles.contentMaxWidth,
+                                        }),
+                                        // Elevated since when comments are open they're rendered in a card design (card
+                                        // background rendered by `CommentInput`).
+                                        greyElevated1ClassName,
+                                    )}
                                     style={{
                                         flex: postViewFlex,
                                     }}
@@ -1463,8 +1536,8 @@ function PostListView(
                             messageEditing.state.isEditing &&
                             messageEditing.state.messageRoomKey === item.post.id &&
                             messageEditing.state.messageIndex === item.postCommentIndex
-                                ? "10"
-                                : "0",
+                                ? "30"
+                                : "20",
                         renderAdditionalItemIndexes: !isPostView
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1481,23 +1554,26 @@ function PostListView(
                     return {
                         key: `PostCommentsTypingIndicator:${item.post.id}`,
                         minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
+                        zIndex: "20",
                         node: (
                             <div
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
-                                    overflow: "hidden",
                                 })}
                             >
                                 {sideBarLeftSpacer}
                                 <div
-                                    className={sprinkles({
-                                        position: "relative",
-                                        zIndex: "0",
-                                        width: "full",
-                                        maxWidth: contentStyles.contentMaxWidth,
-                                        overflow: "hidden",
-                                    })}
+                                    className={classNames(
+                                        sprinkles({
+                                            position: "relative",
+                                            width: "full",
+                                            maxWidth: contentStyles.contentMaxWidth,
+                                        }),
+                                        // Elevated since when comments are open they're rendered in a card design (card
+                                        // background rendered by `CommentInput`).
+                                        greyElevated1ClassName,
+                                    )}
                                     style={{
                                         flex: postViewFlex,
                                     }}
@@ -1606,74 +1682,143 @@ function PostListView(
                             shouldRenderWithRelativePositioning,
                             getPositionByIndex,
                         }) => {
+                            const isPreviousItemPostWithCardBackground = !isPostView
+                                ? isPostListPreviousItemPostWithCardBackground(
+                                      posts,
+                                      item.postContentItemIndex,
+                                      isShowingAllContentByPostId,
+                                  )
+                                : false;
+
                             const postContentPosition = getPositionByIndex(
                                 item.postContentItemIndex,
                             );
+
+                            const postContentPositionOffset =
+                                postContentPosition.offset +
+                                (isPreviousItemPostWithCardBackground
+                                    ? convertRemLengthToPx(
+                                          postListViewMarginAfterPostWithOpenComments,
+                                          spacingScale,
+                                      )
+                                    : 0);
 
                             const postContentOffsetEnd =
                                 postContentPosition.offset + postContentPosition.height;
 
                             return (
-                                <div
-                                    style={{
-                                        pointerEvents: "none",
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        alignItems: "flex-end",
-                                        zIndex: "30",
-                                        ...(!shouldRenderWithRelativePositioning
-                                            ? {
-                                                  position: "absolute",
-                                                  top: postContentOffsetEnd,
-                                                  left: "0",
-                                                  right: "0",
-                                                  height: offset - postContentOffsetEnd + height,
-                                              }
-                                            : {
-                                                  position: "relative",
-                                              }),
-                                    }}
-                                >
+                                <>
                                     <div
-                                        ref={ref}
                                         style={{
-                                            ...(!shouldRenderWithRelativePositioning && {
-                                                position: "sticky",
-                                                bottom: 0,
-                                            }),
-                                        }}
-                                        className={sprinkles({
-                                            width: "full",
+                                            pointerEvents: "none",
                                             display: "flex",
                                             justifyContent: "center",
-                                            paddingBottom:
-                                                index === posts.getItemCount() - 1
-                                                    ? "safe-area-inset"
-                                                    : undefined,
-                                        })}
+                                            alignItems: "flex-end",
+                                            zIndex: "30",
+                                            ...(!shouldRenderWithRelativePositioning
+                                                ? {
+                                                      position: "absolute",
+                                                      top: postContentOffsetEnd,
+                                                      left: "0",
+                                                      right: "0",
+                                                      height:
+                                                          offset - postContentOffsetEnd + height,
+                                                  }
+                                                : {
+                                                      position: "relative",
+                                                  }),
+                                        }}
                                     >
-                                        {sideBarLeftSpacer}
                                         <div
-                                            className={sprinkles({
-                                                position: "relative",
-                                                zIndex: "0",
-                                                width: "full",
-                                                minWidth: "flex-fit",
-                                                maxWidth: contentStyles.contentMaxWidth,
-                                                pointerEvents: "auto",
-                                                backgroundColor: "grey-0",
-                                            })}
+                                            ref={ref}
                                             style={{
-                                                flex: postViewFlex,
+                                                ...(!shouldRenderWithRelativePositioning && {
+                                                    position: "sticky",
+                                                    bottom: 0,
+                                                }),
+                                            }}
+                                            className={sprinkles({
+                                                width: "full",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                paddingBottom:
+                                                    index === posts.getItemCount() - 1
+                                                        ? "safe-area-inset"
+                                                        : undefined,
+                                            })}
+                                        >
+                                            {sideBarLeftSpacer}
+                                            <div
+                                                className={classNames(
+                                                    sprinkles({
+                                                        position: "relative",
+                                                        zIndex: "0",
+                                                        width: "full",
+                                                        minWidth: "flex-fit",
+                                                        maxWidth: contentStyles.contentMaxWidth,
+                                                        pointerEvents: "auto",
+                                                        backgroundColor: "grey-0",
+                                                    }),
+                                                    // Elevated since when comments are open they're rendered in a card design (card
+                                                    // background rendered by `CommentInput`).
+                                                    greyElevated1ClassName,
+                                                )}
+                                                style={{
+                                                    flex: postViewFlex,
+                                                }}
+                                            >
+                                                {inputNode}
+                                            </div>
+                                            {asideSpacer}
+                                            {sideBarRightSpacer}
+                                        </div>
+                                    </div>
+                                    {!shouldRenderWithRelativePositioning && !isPostView && (
+                                        <div
+                                            style={{
+                                                position: "absolute",
+                                                top: postContentPositionOffset,
+                                                height: offset + height - postContentPositionOffset,
+                                                left: 0,
+                                                right: 0,
                                             }}
                                         >
-                                            {inputNode}
-                                            {bottomBorder}
+                                            <div
+                                                className={sprinkles({
+                                                    display: "flex",
+                                                    justifyContent: "center",
+                                                    height: "full",
+                                                })}
+                                            >
+                                                {sideBarLeftSpacer}
+                                                <div
+                                                    className={classNames(
+                                                        sprinkles({
+                                                            position: "relative",
+                                                            width: "full",
+                                                            height: "full",
+                                                            maxWidth: contentStyles.contentMaxWidth,
+                                                        }),
+                                                        // Elevated since when comments are open they're rendered in a card design (card
+                                                        // background rendered by `CommentInput`).
+                                                        greyElevated1ClassName,
+                                                    )}
+                                                    style={{
+                                                        flex: postViewFlex,
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={
+                                                            postListViewCardBackgroundClassName
+                                                        }
+                                                    />
+                                                </div>
+                                                {asideSpacer}
+                                                {sideBarRightSpacer}
+                                            </div>
                                         </div>
-                                        {asideSpacer}
-                                        {sideBarRightSpacer}
-                                    </div>
-                                </div>
+                                    )}
+                                </>
                             );
                         },
                     };
@@ -1684,9 +1829,19 @@ function PostListView(
                 // content to be loaded. Sometimes we may only load 1 post and so the three
                 // shimmers is a little false but this feels like an acceptable tradeoff.
                 case "MoreUnloadedPosts": {
+                    const isPreviousItemPostWithCardBackground =
+                        !isPostView && routeLayout !== "narrow"
+                            ? isPostListPreviousItemPostWithCardBackground(
+                                  posts,
+                                  index,
+                                  isShowingAllContentByPostId,
+                              )
+                            : false;
+
                     return {
                         key: "MoreUnloadedPosts",
                         minHeight: platform !== "mobile" ? "36.125rem" : "26.25rem",
+                        zIndex: "0",
                         node: (
                             <div
                                 className={sprinkles({
@@ -1700,15 +1855,24 @@ function PostListView(
                                     className={sprinkles({
                                         width: "full",
                                         maxWidth: contentStyles.contentMaxWidth,
-                                        overflow: "hidden",
+                                        paddingTop:
+                                            withSafeAreaInsetTop && index === 0
+                                                ? "safe-area-inset"
+                                                : isPreviousItemPostWithCardBackground
+                                                  ? postListViewMarginAfterPostWithOpenComments
+                                                  : undefined,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <PostShimmer />
-                                    <PostShimmer />
-                                    {platform !== "mobile" && <PostShimmer />}
+                                    <PostShimmer
+                                        withoutTopBorder={isPreviousItemPostWithCardBackground}
+                                    />
+                                    <PostShimmer withBottomBorder={platform === "mobile"} />
+                                    {platform !== "mobile" && (
+                                        <PostShimmer withBottomBorder={true} />
+                                    )}
                                     <div
                                         className={sprinkles({
                                             position: "relative",
@@ -1734,20 +1898,21 @@ function PostListView(
                 }
 
                 case "FeedEntry": {
+                    const isPreviousItemPostWithCardBackground =
+                        routeLayout !== "narrow"
+                            ? isPostListPreviousItemPostWithCardBackground(
+                                  posts,
+                                  index,
+                                  isShowingAllContentByPostId,
+                              )
+                            : false;
+
                     const content = (
                         <>
-                            {hasHeader &&
-                                index === 1 &&
-                                // This is the first post in a `<PostListView>` with a `header` so we need to draw
-                                // a border between the first `<PostListView>` and the `header`.
-                                topBorder}
-                            {bottomBorder}
+                            {topBorder}
                             <FeedEntryView entry={item.entry} />
                         </>
                     );
-
-                    const hasPaddingBottom =
-                        item.entry.type === "Welcome" && index === posts.getItemCount() - 1;
 
                     return {
                         key: `FeedEntry:${item.entry.getId()}`,
@@ -1767,22 +1932,71 @@ function PostListView(
                                         width: "full",
                                         minWidth: "flex-fit",
                                         maxWidth: contentStyles.contentMaxWidth,
-                                        paddingBottom: hasPaddingBottom ? "16" : undefined,
+                                        paddingTop:
+                                            withSafeAreaInsetTop && index === 0
+                                                ? "safe-area-inset"
+                                                : isPreviousItemPostWithCardBackground
+                                                  ? postListViewMarginAfterPostWithOpenComments
+                                                  : undefined,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {!hasPaddingBottom ? (
-                                        content
-                                    ) : (
-                                        // If we have a welcome feed entry and it's the last item in the feed, add some
-                                        // spacing underneath the feed entry so the create section doesn't just end at the
-                                        // bottom of the screen.
-                                        <div className={sprinkles({position: "relative"})}>
-                                            {content}
-                                        </div>
-                                    )}
+                                    {content}
+                                </div>
+                                {asideSpacer}
+                                {sideBarRightSpacer}
+                            </div>
+                        ),
+                    };
+                }
+
+                case "Footer": {
+                    // There's only one footer type right now. TypeScript will error here if another
+                    // footer type is ever added.
+                    cast<"MarginBottom">(item.footer.type);
+
+                    const marginBottom: Spacing = "8";
+
+                    const isPreviousItemPostWithCardBackground =
+                        !isPostView && routeLayout !== "narrow"
+                            ? isPostListPreviousItemPostWithCardBackground(
+                                  posts,
+                                  index,
+                                  isShowingAllContentByPostId,
+                              )
+                            : false;
+
+                    return {
+                        key: "Footer",
+                        minHeight: spacing[marginBottom],
+                        zIndex: "0",
+                        node: (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    paddingTop:
+                                        withSafeAreaInsetTop && index === 0
+                                            ? "safe-area-inset"
+                                            : isPreviousItemPostWithCardBackground
+                                              ? postListViewMarginAfterPostWithOpenComments
+                                              : undefined,
+                                })}
+                            >
+                                {sideBarLeftSpacer}
+                                <div
+                                    className={sprinkles({
+                                        position: "relative",
+                                        width: "full",
+                                        minWidth: "flex-fit",
+                                        maxWidth: contentStyles.contentMaxWidth,
+                                        height: marginBottom,
+                                    })}
+                                    style={{flex: postViewFlex}}
+                                >
+                                    {!isPreviousItemPostWithCardBackground && topBorder}
                                 </div>
                                 {asideSpacer}
                                 {sideBarRightSpacer}
@@ -1807,7 +2021,6 @@ function PostListView(
             withSafeAreaInsetTop,
             hasHeader,
             topBorder,
-            bottomBorder,
             postEditing,
             shouldNotShowChannelId,
             initialScrollForFirstPost,
@@ -1836,6 +2049,7 @@ function PostListView(
             onPostRealtimeEventTransaction,
             platform,
             onUpdatePostComments,
+            navigate,
         ],
     );
 
@@ -2012,6 +2226,7 @@ function PostListView(
                     <VirtualizedScrollView
                         ref={viewRef}
                         elementRef={navigationBar?.scrollViewRef}
+                        data-testid="PostListScrollView"
                         scrollbarInsetTop={
                             navigationBar?.scrollbarInsetTop ??
                             (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
@@ -2116,47 +2331,6 @@ function PostListView(
                                 {messagingPointerToolbar}
                             </>
                         }
-                        extraChildrenOutsideContentElement={({contentHeight}) =>
-                            // Our items all have a bottom border. This is good when there's less content than
-                            // room to scroll since it creates a clear shape for the last item in the list.
-                            //
-                            // However, if there are enough items to scroll then when the user has fully
-                            // scrolled we want the last item to _not_ have a border bottom since the bottom of
-                            // the screen creates that boundary. We don't need to render an extra line in the
-                            // margins.
-                            //
-                            // This div covers the bottom border of the last item but only when there's enough
-                            // content to scroll. Otherwise the bottom border needs to be visible to visually
-                            // contain the last item. To debug this it's helpful to switch the
-                            // `backgroundColor` to `red-30` or something similar.
-                            //
-                            // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since the
-                            // only item may be a `<PostContentView>` with a sticky `<PostCommentInput>`. We
-                            // want to make sure the `grey-5` border renders above the `<PostCommentInput>`
-                            // when we're scrolled to the bottom.
-                            !isPostView && (
-                                <div
-                                    className={sprinkles({
-                                        position: "absolute",
-                                        left: "0",
-                                        right: "0",
-                                        top: "0",
-                                    })}
-                                    style={{height: `max(100%, ${contentHeight}px)`}}
-                                >
-                                    <div
-                                        className={sprinkles({
-                                            position: "absolute",
-                                            left: "0",
-                                            right: "0",
-                                            bottom: "0",
-                                            height: "1",
-                                            backgroundColor: "grey-0",
-                                        })}
-                                    />
-                                </div>
-                            )
-                        }
                     />
                     {isPostView &&
                         (() => {
@@ -2232,4 +2406,38 @@ function PostListView(
             </div>
         </>
     );
+}
+
+function isPostListPreviousItemPostWithCardBackground(
+    posts: PostListInterface,
+    index: number,
+    isShowingAllContentByPostId: ReadonlyMap<PostId, true>,
+): boolean {
+    if (!(index > 0)) return false;
+
+    const previousItem = posts.getItem(index - 1);
+
+    switch (previousItem.type) {
+        case "Header":
+        case "Footer":
+        case "MoreUnloadedPosts":
+        case "FeedEntry": {
+            return false;
+        }
+        case "PostContent": {
+            return (
+                previousItem.postCommentsState !== "Closed" ||
+                isShowingAllContentByPostId.get(previousItem.post.id) === true
+            );
+        }
+        case "LoadedPostComment":
+        case "UnloadedPostComment":
+        case "OptimisticPostComment":
+        case "PostCommentsTypingIndicator":
+        case "PostCommentInput": {
+            return true;
+        }
+        default:
+            throw exhaustive(previousItem);
+    }
 }

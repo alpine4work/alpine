@@ -2,6 +2,7 @@ import {postViewFlex} from "~/client/web/styles/forum_shared_styles.js";
 import {
     searchEntityHeaderFontSize,
     searchEntityHeaderLineHeight,
+    searchEntitySideBarWidth,
 } from "~/client/web/styles/search_shared_styles.js";
 import {fontSizes, navigationBarStyles} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
@@ -15,10 +16,14 @@ import {
 } from "~/shared/design/core/spacing.js";
 
 export const feedViewSideBarLeftFlex = postViewFlex * 0.4;
-export const feedViewSideBarRightMaxWidth = "64";
 export const feedViewSideBarRightFlex = postViewFlex * 0.1;
 
-export const feedViewSideBarPaddingLeft = "1";
+export const feedViewSideBarPaddingX = "2";
+export const feedViewSideBarWidth = addRemLengths(
+    feedViewSideBarPaddingX,
+    searchEntitySideBarWidth,
+    feedViewSideBarPaddingX,
+);
 export const feedViewSideBarSpaceNameFontSize = "400";
 export const feedViewSideBarSpaceNameNegativeMarginBottom = "2";
 

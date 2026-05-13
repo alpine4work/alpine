@@ -1,6 +1,7 @@
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
+import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
 import {uploadScreenshotTestFixtureFile} from "~/app/screenshot_tests/helpers/upload_screenshot_test_fixture_file.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -14,6 +15,30 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     const {services} = runner;
     const {space, accounts} = await runner.createDemoSpace(context);
     const tokenAgent = services.getAppServiceTokenAgent();
+
+    // Create the loading channel in the background while doing all our other
+    // screenshot work since it may take a while.
+    const loadingChannelPromise = (async () => {
+        const loadingChannel = await TestChannel.create(accounts.masonClay, {
+            name: "Lorem Ipsum",
+            access: "Private",
+            description: "Dolor sit amet",
+        });
+
+        const loadingTimeBase = new Date("2025-10-14T15:24:00.000Z");
+
+        for (let index = 0; index < 20; index++) {
+            await loadingChannel.createPost(
+                accounts.masonClay,
+                `Lorem ipsum dolor sit amet ${index + 1}`,
+                {
+                    overrideCreatedTime: new Date(loadingTimeBase.getTime() + index),
+                },
+            );
+        }
+
+        return loadingChannel;
+    })();
 
     // Create a channel whose only purpose is to reliably put a subtle notification in
     // Cass Cade's inbox so the inbox button definitely renders with a subtle
@@ -103,12 +128,32 @@ Two questions for the channel:
 Proposal: copy button is always-visible in the top-right corner. Move the language label to
 top-left. Copy is an action people use _a lot_ for shareable code snippets (which is basically every
 doc in our engineering wiki).
+
+One edge case I still need to handle: three code blocks in a row in a table. This layout is pretty
+dense and ends up looking visually busy. Maybe in this case we keep the hide-by-default
+visible-on-hover behavior? Or icon + \u201CCopy\u201D only when the block is wide enough, and fall
+back to icon-only on narrow blocks. Both options keep the control discoverable in the common case
+without making the UI overly busy in the dense table edge case.
         `,
         {
             // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
             // makes sure the reaction party on any messages is stable across renders.
             id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "codeBlockPost"),
             overrideCreatedTime: new Date("2025-10-03T14:12:00.000Z"),
+        },
+    );
+
+    await channel.createPost(
+        accounts.roseCompas,
+        markdown`
+Small thing: our empty states are pretty boring right now. Instead we should use the space for
+education. e.g. prompt the user to create something.
+        `,
+        {
+            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
+            // makes sure the reaction party on any messages is stable across renders.
+            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
+            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
         },
     );
 
@@ -181,13 +226,21 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     const postPath = `/s/${space.id}/posts/${codeBlockPost.id}`;
 
     await runner.goto(accounts.cassCade, channelPath);
-    await expandPostComments(runner, signInPost.id, "Reads more human");
     await runner.screenshot("a0", "channel");
+
+    await expandPostComments(runner, signInPost.id, "Reads more human");
+    await runner.screenshot("a0G", "channel-with-expanded-post-comments");
+
+    await runner.goto(accounts.cassCade, channelPath);
+    await expandPostContent(runner, codeBlockPost.id, "dense table edge case");
+    await runner.screenshot("a0V", "channel-with-expanded-post-content");
+
+    await expandPostComments(runner, signInPost.id, "Reads more human");
+    await runner.screenshot("a0l", "channel-with-expanded-post-comments-and-expanded-post-content");
 
     await channel.access.grantUrl(accounts.cassCade);
 
     await runner.goto(null, channelPath);
-    await expandPostComments(runner, signInPost.id, "Reads more human");
     await runner.screenshot("a1", "channel-url-grant");
 
     await screenshotFileEntity(runner, accounts.cassCade, "a1", "a2", `Channel:${channel.id}`);
@@ -216,6 +269,19 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         peekPath: `/s/${space.id}/posts/new/${postDraftId}`,
     });
     await runner.screenshot("a6", "post-new");
+
+    {
+        const loadingChannel = await loadingChannelPromise;
+
+        await runner.goto(accounts.masonClay, `/s/${space.id}/channels/${loadingChannel.id}`, {
+            allowPauseNetwork: true,
+        });
+        await runner.pauseNetwork();
+        await scrollLocatorToBottom(runner.getByTestId("PostListScrollView"), {
+            withExpectedScrollHeightChange: true,
+        });
+        await runner.screenshot("a7", "channel-loading");
+    }
 }
 
 async function expandPostComments(
@@ -228,5 +294,15 @@ async function expandPostComments(
         .getByRole("button", {name: "1 comment"})
         .click();
     await runner.getByText(expectedCommentText).waitFor();
+    await runner.mouse.move(0, 0);
+}
+
+async function expandPostContent(
+    runner: ScreenshotTestRunner,
+    postId: string,
+    expectedPostText: string,
+) {
+    await runner.page.getByTestId(`PostContentView:${postId}`).getByText("See more").click();
+    await runner.getByText(expectedPostText).waitFor();
     await runner.mouse.move(0, 0);
 }

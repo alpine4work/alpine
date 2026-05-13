@@ -78,6 +78,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -103,6 +104,12 @@ export type PostContentViewInitialScroll = {
     readonly type: "File";
     readonly fileId: FileId;
 };
+
+const postContentViewSeeMore = {
+    type: "Gradient",
+    paddingX: postContentViewInnerMarginY,
+    paddingY: postContentViewInnerMarginY,
+} as const;
 
 export function PostContentView({
     post,
@@ -214,23 +221,38 @@ export function PostContentView({
 
     const isEditingPost = !!postEditingForThisPost;
 
-    const postSnippet = useMemo(() => {
+    const contentSnippet = useMemo(() => {
         if (isPostView) {
             return null;
         } else {
-            return {
-                doc: assertPostContent(
-                    getContentSnippet(
-                        post.content.doc.resolve(0),
-                        {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 5 : 16},
-                        {
-                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
-                            // be slightly more aggressive than the default grapheme count (which counts the
-                            // "l" character which is narrower) since we render the entire snippet.
-                            maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
-                        },
-                    ),
+            let contentSnippet = getContentSnippet(
+                post.content.doc.resolve(0),
+                {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 12 : 16},
+                {
+                    // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
+                    // be slightly more aggressive than the default grapheme count (which counts the
+                    // "l" character which is narrower) since we render the entire snippet.
+                    maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
+                },
+            );
+
+            contentSnippet = assertExists(
+                contentSnippet.type.createAndFill(
+                    contentSnippet.attrs,
+                    filterMapArray(contentSnippet.content.content, node => {
+                        // Strip all dividers from post. Since a divider in a post in a post list may look
+                        // like it's creating a second post. The user needs to press "See more" to expand
+                        // the post into a card view to see any dividers.
+                        if (node.type.name === "divider") return;
+
+                        return node;
+                    }),
+                    contentSnippet.marks,
                 ),
+            );
+
+            return {
+                doc: assertPostContent(contentSnippet),
                 references: post.content.references,
             };
         }
@@ -367,6 +389,9 @@ export function PostContentView({
                 process.env.NODE_ENV !== "production" ? `PostContentView:${post.id}` : undefined
             }
             position="relative"
+            // Render on top of the card background in `<PostListView>` when
+            // `isShowingAllContent` is true.
+            zIndex="20"
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
@@ -450,7 +475,7 @@ export function PostContentView({
                 }}
             >
                 {!isEditingPost ? (
-                    !postSnippet ? (
+                    !contentSnippet ? (
                         <ContentView
                             content={post.content}
                             contentUpdatedTime={post.contentUpdate?.time ?? null}
@@ -476,9 +501,11 @@ export function PostContentView({
                             )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
                             content={post.content}
-                            contentSnippet={postSnippet}
+                            contentSnippet={contentSnippet}
                             isShowingAllContent={isShowingAllContent}
                             onIsShowingAllContentChange={onIsShowingAllContentChange}
+                            // Render the "See more" button via gradient instead of an inline link.
+                            seeMore={postContentViewSeeMore}
                             // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're referencing
                             // a post and not a post comment.
                             data-room={post.id}

@@ -386,6 +386,7 @@ function ChannelPostsRoute({
                 () => (platform === "mobile" ? {type: "NavigationBar"} : undefined),
                 [platform],
             )}
+            footer={useMemo(() => ({type: "MarginBottom"}), [])}
             posts={posts}
             onTogglePostComments={useCallback(
                 postId => setPosts(posts => posts.togglePostComments(postId)),

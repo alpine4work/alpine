@@ -12,6 +12,7 @@ import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_en
 import {createDebug} from "~/admin/helpers/create_debug.js";
 import {createDevEnvPaths} from "~/admin/helpers/create_dev_env_paths.js";
 import {parseDotenvForNodeEnv} from "~/admin/helpers/parse_dotenv.js";
+import {generateScreenshotTestPreviewHtml} from "~/app/screenshot_tests/helpers/generate_screenshot_test_preview_html.js";
 import {screenshotTestLooksSameTolerance} from "~/app/screenshot_tests/helpers/screenshot_test_looks_same_tolerance.js";
 import {screenshotTestEndTime} from "~/app/screenshot_tests/helpers/screenshot_test_time.js";
 import {scrollbarStyles} from "~/client/web/styles/styles.js";
@@ -34,7 +35,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 const debug = createDebug(import.meta.url);
 
-const defaultViewport = {width: 1366, height: 1024};
+export const screenshotTestDefaultViewport = {width: 1366, height: 1024};
 
 type ScreenshotTestSession = TestSession | TestSpaceSession | null;
 
@@ -63,7 +64,12 @@ class ScreenshotRunner {
     readonly #services: TestServices;
     readonly #outputDirectoryPath: string;
 
-    #page: Page | null = null;
+    #pageState: {
+        page: Page;
+        allowPauseNetwork: boolean;
+        isNetworkPaused: boolean;
+    } | null = null;
+
     #screenshotNames = new Set<string>();
     #lastScreenshotOrderKey: OrderKey | null | undefined = undefined;
     #screenshotFileNames = new Set<string>();
@@ -156,9 +162,9 @@ class ScreenshotRunner {
 
     #requirePage(): Page {
         return assertExists(
-            this.#page,
+            this.#pageState,
             "Must call `runner.goto(...)` before using page interaction APIs",
-        );
+        ).page;
     }
 
     async goto(
@@ -167,14 +173,18 @@ class ScreenshotRunner {
         {
             peekPath,
             fixedTime = screenshotTestEndTime,
+            viewport = screenshotTestDefaultViewport,
+            allowPauseNetwork = false,
         }: {
             peekPath?: string;
             fixedTime?: Date;
+            viewport?: "wide" | {width: number; height: number};
+            allowPauseNetwork?: boolean;
         } = {},
     ): Promise<void> {
-        if (this.#page !== null) {
-            await this.#page.close();
-            this.#page = null;
+        if (this.#pageState !== null) {
+            await this.#pageState.page.close();
+            this.#pageState = null;
         }
 
         if (session !== null) {
@@ -184,7 +194,61 @@ class ScreenshotRunner {
         }
 
         const page = await this.#browserContext.newPage();
-        this.#page = page;
+
+        const pageState = {
+            page,
+            allowPauseNetwork,
+            isNetworkPaused: false,
+        };
+
+        this.#pageState = pageState;
+
+        if (allowPauseNetwork) {
+            await page.route("**", async route => {
+                // If the network is paused, then suspend the request forever. Don't error, don't
+                // say we're offline, just never return. Useful for testing loading states.
+                if (pageState.isNetworkPaused) {
+                    // noop
+                } else {
+                    await route.continue();
+                }
+            });
+
+            await page.routeWebSocket("**", async route => {
+                const server = route.connectToServer();
+
+                route.onMessage(message => {
+                    // If the network is paused, then never send this message to the server. Don't
+                    // error, don't say we're offline, just never return. Useful for testing loading
+                    // states.
+                    if (pageState.isNetworkPaused) {
+                        // noop
+                    } else {
+                        server.send(message);
+                    }
+                });
+
+                server.onMessage(message => {
+                    // If the network is paused, then never send this message to the client. Don't
+                    // error, don't say we're offline, just never return. Useful for testing loading
+                    // states.
+                    if (pageState.isNetworkPaused) {
+                        // noop
+                    } else {
+                        route.send(message);
+                    }
+                });
+            });
+        }
+
+        await page.setViewportSize(
+            viewport === "wide"
+                ? {
+                      width: Math.round(screenshotTestDefaultViewport.height * (1920 / 1080)),
+                      height: screenshotTestDefaultViewport.height,
+                  }
+                : viewport,
+        );
 
         // Set the reduced motion preference so there are fewer animations. Animations lead
         // to non-deterministic screenshots.
@@ -324,14 +388,14 @@ class ScreenshotRunner {
             // Wait for all scrollbars to be hidden. If the page just scrolled before our
             // screenshot then there may be some visible scrollbars and we need to wait for
             // those scrollbars to disappear.
-            const scrollbarsPromise = await page
+            const scrollbarsPromise = page
                 .locator(
                     `.${scrollbarStyles.scrollbarThumbHitClassName}:not(.${scrollbarStyles.scrollbarThumbHitHideClassName})`,
                 )
                 .waitFor({state: "detached"});
 
             // Make sure we wait for images to load before taking any screenshot.
-            const filesPromise = await page.evaluate(
+            const filesPromise = page.evaluate(
                 "dev.files && dev.files.waitForImagePreviewContentsToLoad()",
             );
 
@@ -432,6 +496,40 @@ class ScreenshotRunner {
         }
     }
 
+    /**
+     * Pause all new outgoing network requests. If the page makes a network request it
+     * will never get a response after you call this function. This is useful for
+     * testing loading states.
+     *
+     * Must call `runner.goto(...)` with `allowPauseNetwork: true` to call this
+     * function. Otherwise an error will be thrown.
+     */
+    async pauseNetwork() {
+        const pageState = assertExists(
+            this.#pageState,
+            "Must call `runner.goto(...)` with `allowPauseNetwork: true` before pausing the network",
+        );
+
+        assert(
+            pageState.allowPauseNetwork,
+            "Must call `runner.goto(...)` with `allowPauseNetwork: true` before pausing the network",
+        );
+
+        // Make sure we wait for any background processing (e.g. inbox notification
+        // processing) before taking the screenshot.
+        await ProcessContextModule.waitForTestTasks();
+
+        // Wait for `JobQueueService` to process all pending jobs from the SQS job queue.
+        await this.#services.waitForSqsProcessJobs();
+
+        // Wait for any images on the page to load before we pause all network requests.
+        await pageState.page.evaluate("dev.files && dev.files.waitForImagePreviewContentsToLoad()");
+
+        // The routes we install on page creation will now stop responding to network
+        // requests.
+        pageState.isNetworkPaused = true;
+    }
+
     getScreenshotCount(): number {
         return this.#screenshotNames.size;
     }
@@ -441,9 +539,9 @@ class ScreenshotRunner {
     }
 
     async close(): Promise<void> {
-        if (this.#page !== null) {
-            await this.#page.close();
-            this.#page = null;
+        if (this.#pageState !== null) {
+            await this.#pageState.page.close();
+            this.#pageState = null;
         }
     }
 }
@@ -466,6 +564,7 @@ export type ScreenshotTestRunner = Pick<
     | "evaluate"
     | "goto"
     | "screenshot"
+    | "pauseNetwork"
 >;
 
 export async function runScreenshotTests({
@@ -616,11 +715,11 @@ export async function runScreenshotTests({
 
             debug(quote`Writing screenshots to: ${previewDirectoryPath}`);
 
-            await withTemporaryDirectory(
+            const runners = await withTemporaryDirectory(
                 devEnvPaths.temp,
                 "screenshots_",
                 async temporaryDirectoryPath => {
-                    await actuallyRunScreenshotTests({
+                    return actuallyRunScreenshotTests({
                         mode,
                         definitions,
                         undeclaredOutputsDirectoryPath: temporaryDirectoryPath,
@@ -631,7 +730,13 @@ export async function runScreenshotTests({
                 },
             );
 
+            const previewHtmlPath = await generateScreenshotTestPreviewHtml({
+                previewDirectoryPath,
+                testNames: runners.map(runner => runner.testName),
+            });
+
             debug(quote`Screenshots written to: ${previewDirectoryPath}`);
+            debug(quote`Screenshot preview HTML written to: ${previewHtmlPath}`);
             break;
         }
         default:
@@ -777,7 +882,7 @@ async function actuallyRunScreenshotTest({
 
     const browserContext = await browser.newContext({
         ...devices["Desktop Chrome"],
-        viewport: defaultViewport,
+        viewport: screenshotTestDefaultViewport,
         // Take screenshots as if they were on a retina display.
         //
         // The reason this isn't higher (e.g. 3) is because we optimize file image resizing

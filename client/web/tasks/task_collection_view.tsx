@@ -646,6 +646,8 @@ export function TaskCollectionView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
                     isCreatedCollectionFromGhostTaskPrivate,
                 };
             } else {
@@ -656,6 +658,8 @@ export function TaskCollectionView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
                     isCreatedCollectionFromGhostTaskPrivate,
                 };
             }
@@ -939,6 +943,7 @@ export function TaskCollectionView({
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    data-testid="TaskCollectionScrollView"
                     elementRef={scrollViewRef}
                     stateKey={gridViewStateKey}
                     bufferedItemHeight={gridViewBufferedItemHeight}

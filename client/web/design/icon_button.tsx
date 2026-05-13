@@ -37,10 +37,12 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+export const spaceLayoutSideBarIconSize = "1.125rem";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
@@ -48,6 +50,8 @@ export {IconButtonForwardRef as IconButton};
 export type IconButtonVariant =
     | "accent"
     | "quiet"
+    | "quieter"
+    | "quietest"
     | "quiet-above-grey-5-background"
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
@@ -57,7 +61,7 @@ export type IconButtonVariant =
     | "outline"
     | "image";
 
-export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "xl" | "lg" | "space-layout-side-bar" | "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -175,6 +179,12 @@ function IconButton(
         cursor?: "default" | "pointer";
 
         /**
+         * What is the opacity of this button? It'll still occupy space in the layout if
+         * hidden. This corresponds to `opacity` in CSS.
+         */
+        opacity?: "100" | "0";
+
+        /**
          * Don't show a tooltip when hovering over this icon button.
          *
          * Defaults to `false`.
@@ -290,6 +300,7 @@ function IconButton(
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
         cursor = "default",
+        opacity = "100",
         children,
         isDisabled = false,
         withoutTooltip = false,
@@ -430,6 +441,42 @@ function IconButton(
                   };
             break;
         }
+        case "quieter": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredOrTriggeredOverlayOpen
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quietest": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredOrTriggeredOverlayOpen
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
         case "quiet-above-grey-5-background": {
             isQuietVariant = true;
 
@@ -556,32 +603,36 @@ function IconButton(
     }
 
     let buttonSize: Spacing;
-    let iconSize: Spacing;
+    let iconSize: RemLength;
 
     switch (size) {
         case "xl":
             buttonSize = "10";
-            iconSize = "5";
+            iconSize = spacing["5"];
             break;
         case "lg":
             buttonSize = "8";
-            iconSize = "5";
+            iconSize = spacing["5"];
+            break;
+        case "space-layout-side-bar":
+            buttonSize = "8";
+            iconSize = spaceLayoutSideBarIconSize;
             break;
         case "base":
             buttonSize = "7";
-            iconSize = "5";
+            iconSize = spacing["5"];
             break;
         case "md":
             buttonSize = "6";
-            iconSize = "4";
+            iconSize = spacing["4"];
             break;
         case "sm":
             buttonSize = "5";
-            iconSize = "4";
+            iconSize = spacing["4"];
             break;
         case "xs":
             buttonSize = "5";
-            iconSize = "3";
+            iconSize = spacing["3"];
             break;
         default:
             throw exhaustive(size);
@@ -695,6 +746,7 @@ function IconButton(
                             padding: touchSlop.slop,
                             margin: `-${touchSlop.slop}`,
                             borderRadius,
+                            opacity: opacity !== "100" ? opacity : undefined,
                             // If this button is in a `display: flex` element, don't shrink the button based on
                             // other contents.
                             flexShrink: "0",
@@ -756,7 +808,7 @@ function IconButton(
                         <IconContext.Provider
                             value={{
                                 color: "currentColor",
-                                size: spacing[iconSize],
+                                size: iconSize,
                                 weight: isBold ? "bold" : "regular",
                             }}
                         >

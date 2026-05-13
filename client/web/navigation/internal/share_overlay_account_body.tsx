@@ -236,6 +236,9 @@ export function ShareOverlayAccountBody({
                                     }}
                                     // Always in editing mode. User won't be reading while in the modal.
                                     withoutMobileDualModality={true}
+                                    // Given the message input has its own scroll area, don't use the navigation bar as
+                                    // our scroll margin top when scrolling some content into view.
+                                    withoutNavigationBarScrollMarginTop={true}
                                 />
                             </Box>
                         </Box>

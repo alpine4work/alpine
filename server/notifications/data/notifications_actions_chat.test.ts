@@ -12,7 +12,13 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
-import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
+import {getInbox} from "~/server/notifications/data/get_inbox.js";
+import {
+    updateInboxEntryAfterExecuteTransactionTestCheckpoint,
+    updateInboxEntryAfterGetAttributesItemTestCheckpoint,
+    updateInboxEntryBeforeExecuteTransactionTestCheckpoint,
+    updateInboxEntryBeforeGetEntryItemTestCheckpoint,
+} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
 import {
@@ -3777,6 +3783,70 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     },
                 }),
             ]);
+        });
+
+        test("race condition: stale inbox attributes item when decrementing loud notification count", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const chat = await TestChat.get(session1, session2, session3);
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 0},
+            });
+
+            const pause1APromise =
+                updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                    session1.account.id,
+                );
+
+            const pause1BPromise =
+                updateInboxEntryAfterExecuteTransactionTestCheckpoint.pauseForTest(
+                    session1.account.id,
+                );
+
+            const pause2APromise =
+                updateInboxEntryAfterGetAttributesItemTestCheckpoint.pauseForTest(
+                    session2.account.id,
+                );
+
+            const pause2BPromise = updateInboxEntryBeforeGetEntryItemTestCheckpoint.pauseForTest(
+                session2.account.id,
+            );
+
+            await chat.sendMessage(session1);
+            await chat.sendMessage(session2);
+
+            const {unpause: unpause1A} = await pause1APromise;
+
+            // `chat.sendMessage(session2)` has captured a stale inbox attributes item with
+            // `loudNotificationCount` of 0 and hasn't loaded the inbox entry yet.
+            const {unpause: unpause2A} = await pause2APromise;
+            const {unpause: unpause2B} = await pause2BPromise;
+
+            unpause1A();
+
+            // `chat.sendMessage(session1)` has finished so now the inbox attributes item AND
+            // inbox entry item has a `loudNotificationCount` of 1.
+            const {unpause: unpause1B} = await pause1BPromise;
+            unpause1B();
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 1},
+            });
+
+            // Now run `chat.sendMessage(session2)` with a stale inbox attributes item with
+            // `loudNotificationCount` of 0 and a new inbox entry item with
+            // `loudNotificationCount` of 1. This will try to set the inbox attributes item to
+            // `loudNotificationCount` of -1 which fails our schema validation.
+            unpause2A();
+            unpause2B();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 0},
+            });
         });
     });
 }

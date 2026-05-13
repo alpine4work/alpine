@@ -59,7 +59,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     RemLength,
     Spacing,
@@ -227,7 +227,7 @@ function ShareOverlay(
                 // Let initial focus from `<OverlayTriggerButton>` go somewhere other than the add
                 // people text input.
                 tabIndex={0}
-                className={greyElevated1ClassName}
+                className={greyElevated2ClassName}
                 position="relative"
                 zIndex="0"
                 backgroundColor="grey-0"

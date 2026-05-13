@@ -157,7 +157,6 @@ export default function PrintDocumentRoute() {
                             <ContentView
                                 className={classNames(
                                     documentContentStyles.contentClassName,
-                                    documentContentStyles.contentWithWideRouteLayoutClassName,
                                     documentContentStyles.printContentClassName,
                                 )}
                                 isInert={true}

@@ -8,13 +8,10 @@ const metadataByRouteId: Record<
     AppSpaceRouteId | "routes/switch-space",
     {
         readonly errorTitle: string;
-        // Defaults to `Sometimes`
-        readonly spaceSideBarSpacing?: "Always" | "Never" | "Sometimes";
     }
 > = {
     "routes/s.$spaceId._index": {
         errorTitle: "Couldn\u2019t open space",
-        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.accounts.$accountId": {
         errorTitle: "Couldn\u2019t open account",
@@ -54,11 +51,9 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.dev.feed": {
         errorTitle: "Couldn’t open space",
-        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.documents.$documentId._index": {
         errorTitle: "Couldn\u2019t open document",
-        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
         errorTitle: "Couldn\u2019t open comment thread",
@@ -74,7 +69,6 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.inbox": {
         errorTitle: "Couldn\u2019t open inbox",
-        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.invite._index": {
         errorTitle: "Couldn\u2019t open invite",
@@ -84,7 +78,6 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.invite.reject-and-mark-as-spam": {
         errorTitle: "Couldn\u2019t reject invite",
-        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.more._index": {
         errorTitle: "Couldn\u2019t open menu",
@@ -103,7 +96,6 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.notifications.unsubscribe": {
         errorTitle: "Couldn\u2019t unsubscribe from email notification",
-        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.posts.$postId._index": {
         errorTitle: "Couldn\u2019t open post",
@@ -146,7 +138,6 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.integrations.slack.oauth": {
         errorTitle: "Couldn\u2019t complete Slack authorization",
-        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.settings.people": {
         errorTitle: "Couldn\u2019t open people settings",
@@ -159,7 +150,6 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn\u2019t open task",
-        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {
         errorTitle: "Couldn\u2019t open comment reactions",
@@ -169,15 +159,12 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.tasks._index": {
         errorTitle: "Couldn\u2019t open tasks",
-        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.collections.$collectionId": {
         errorTitle: "Couldn\u2019t open task collection",
-        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.view": {
         errorTitle: "Couldn\u2019t open tasks",
-        spaceSideBarSpacing: "Always",
     },
     "routes/switch-space": {
         errorTitle: "Couldn\u2019t open menu",
@@ -214,24 +201,4 @@ export function getRouteErrorTitle(routeId: string | null): string {
 export function useRouteErrorTitle() {
     const {matches} = assertExists(useContext(DataRouterStateContext));
     return getRouteErrorTitle(matches[matches.length - 1]?.route.id ?? null);
-}
-
-/**
- * Are we in a full width route? A full width route is one where the route's
- * contents extend from the left edge of the screen to the right edge of the
- * screen. The space sidebar does not contribute width to routes which aren't full
- * width which allows us to center non-full width route contents.
- */
-export function useSpaceSideBarSpacing(): "Always" | "Never" | "Sometimes" {
-    const {matches} = assertExists(useContext(DataRouterStateContext));
-
-    for (let i = matches.length - 1; i >= 0; i--) {
-        const spaceSideBarSpacing = cast<{
-            [key: string]: (typeof metadataByRouteId)[AppSpaceRouteId];
-        }>(metadataByRouteId)[matches[i]!.route.id]?.spaceSideBarSpacing;
-
-        if (spaceSideBarSpacing) return spaceSideBarSpacing;
-    }
-
-    return "Sometimes";
 }

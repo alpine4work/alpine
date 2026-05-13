@@ -520,6 +520,8 @@ export function TaskPersonalView({
                 hasMultilineTitle: false,
                 hasColumns: true,
                 withoutAssigneeField: true,
+                withoutDueDateField: false,
+                withoutCollectionsField: false,
                 hasDenseFields: false,
                 isCreatedCollectionFromGhostTaskPrivate: true,
             };
@@ -530,6 +532,8 @@ export function TaskPersonalView({
                 hasMultilineTitle: true,
                 hasColumns: false,
                 withoutAssigneeField: true,
+                withoutDueDateField: false,
+                withoutCollectionsField: false,
                 hasDenseFields: true,
                 isCreatedCollectionFromGhostTaskPrivate: true,
             };

@@ -7,6 +7,7 @@ import {To, useParams} from "react-router";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_registry_context.js";
+import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
 import {ContentFileEntityRenderersContextProvider} from "~/client/web/content/file_entity/content_file_entity_renderers_context_provider.js";
 import {waitForContentFileImagePreviewContentsToLoad} from "~/client/web/content/wait_for_content_file_image_preview_contents_to_load.js";
@@ -51,16 +52,13 @@ import {
 } from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {PurchasedLifetimeAccessModal} from "~/client/web/spaces/layout/purchased_lifetime_access_modal.js";
-import {
-    SpaceLayoutSideBar,
-    SpaceLayoutSideBarContentBlockWidthContextProvider,
-} from "~/client/web/spaces/layout/space_layout_side_bar.js";
+import {SpaceLayoutSideBar} from "~/client/web/spaces/layout/space_layout_side_bar.js";
 import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
 import {SpaceThemeColorManager} from "~/client/web/spaces/space_theme_color_manager.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
@@ -376,20 +374,6 @@ const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchem
     isDebugModeEnabled: false,
     options: standardSearchOptions,
 };
-
-const outletContainerContainerClassName = sprinkles({
-    overflow: "hidden",
-    position: "relative",
-    zIndex: "0",
-});
-
-const outletContainerClassName = sprinkles({
-    display: "flex",
-    flexDirection: "row",
-    overflow: "hidden",
-    position: "relative",
-    zIndex: "0",
-});
 
 // Make `clientLoaderTaskStoreLoaderData` available when importing the
 // `s.$spaceId.tsx` route module.
@@ -930,14 +914,35 @@ function SpaceLayoutRouteOutlet({
 
     const globalLoadingIndicatorForMobile = platform === "mobile" ? globalLoadingIndicator : null;
 
+    // Used in `//admin/scenarios/screenshots` for taking a screenshot of a document
+    // with the space side bar hidden.
+    const [isSideBarHiddenForDev, setIsSideBarHiddenForDev] = useState(false);
+
+    useDevConsoleTool("spaceSideBar", () => ({
+        toggleVisibility: () => {
+            // Change visibility synchronously so when taking a screenshot we don't have to
+            // wait for React to re-render.
+            flushSync(() => {
+                setIsSideBarHiddenForDev(isVisible => !isVisible);
+            });
+        },
+    }));
+
     return useMemo(() => {
-        const hasSpaceLayoutSideBar = loaderData.type === "WithAccess" && platform !== "mobile";
+        const hasSpaceLayoutSideBar =
+            loaderData.type === "WithAccess" && platform !== "mobile" && !isSideBarHiddenForDev;
+
+        const spaceLayoutMargin = "2";
 
         return (
             <div
                 // We need a key since we're in an array but the key doesn't matter.
                 key="0"
-                className={outletContainerContainerClassName}
+                className={sprinkles({
+                    overflow: "hidden",
+                    position: "relative",
+                    zIndex: "0",
+                })}
                 style={{
                     height: outletContainerHeight,
                     // @ts-expect-error: TypeScript doesn't understand CSS variables but
@@ -951,7 +956,16 @@ function SpaceLayoutRouteOutlet({
                     isDisabled={platform !== "mobile"}
                 >
                     <div
-                        className={outletContainerClassName}
+                        className={sprinkles({
+                            display: "flex",
+                            flexDirection: "row",
+                            overflow: "hidden",
+                            position: "relative",
+                            zIndex: "0",
+                            backgroundColor: hasSpaceLayoutSideBar
+                                ? {light: "grey-1", dark: "grey-100-lowered"}
+                                : undefined,
+                        })}
                         style={{
                             height: outletContainerHeight,
                             // While inert, remove the document from the content flow and make it invisible.
@@ -983,16 +997,33 @@ function SpaceLayoutRouteOutlet({
                                 onSearchPress={() => setSearchQueryText("")}
                             />
                         )}
-                        <LoadingIndicatorSpaceOutletContainer
-                            routeId="routes/s.$spaceId"
-                            hasSpaceLayoutSidebar={platform !== "mobile"}
+                        <div
+                            className={sprinkles({
+                                flexGrow: "1",
+                                overflow: "hidden",
+                                position: "relative",
+                                zIndex: "0",
+                                display: "flex",
+                                flexDirection: "row",
+                                backgroundColor: "grey-0",
+                                marginTop: hasSpaceLayoutSideBar ? spaceLayoutMargin : undefined,
+                                marginBottom: hasSpaceLayoutSideBar ? spaceLayoutMargin : undefined,
+                                marginRight: hasSpaceLayoutSideBar ? spaceLayoutMargin : undefined,
+                                borderRadius: hasSpaceLayoutSideBar ? "1.5" : undefined,
+                                boxShadow: hasSpaceLayoutSideBar ? "elevation-5" : undefined,
+                            })}
                         >
-                            <SpaceLayoutSideBarContentBlockWidthContextProvider
+                            <ContentBlockWidthContextProvider
                                 isDisabled={!hasSpaceLayoutSideBar}
+                                keepAssumedPadding={true}
+                                paddingLeft={spaceLayoutStyles.sideBarWidth}
+                                paddingRight={spaceLayoutMargin}
                             >
-                                <Outlet />
-                            </SpaceLayoutSideBarContentBlockWidthContextProvider>
-                        </LoadingIndicatorSpaceOutletContainer>
+                                <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
+                                    <Outlet />
+                                </LoadingIndicatorSpaceOutletContainer>
+                            </ContentBlockWidthContextProvider>
+                        </div>
                         {globalLoadingIndicatorForMobile && (
                             <Box
                                 pointerEvents="none"
@@ -1026,6 +1057,7 @@ function SpaceLayoutRouteOutlet({
         globalLoadingIndicatorForMobile,
         isInert,
         isSearchModalOpen,
+        isSideBarHiddenForDev,
         loaderData,
         outletContainerHeight,
         platform,

@@ -2,8 +2,12 @@ import {CalendarDate} from "@internationalized/date";
 import Mustache from "mustache";
 import {DemoSpaceAccounts} from "~/admin/environment/demo_space/create_demo_space.js";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
-import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
+import {
+    ScreenshotTestRunner,
+    screenshotTestDefaultViewport,
+} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
+import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
     refreshTaskCollectionIndexForTest,
@@ -35,6 +39,49 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     }
 
     const {space, accounts} = await runner.createDemoSpace(context);
+
+    // Create the loading collection in the background while doing all our other
+    // screenshot work since it may take a while.
+    const loadingCollectionAndTaskPromise = (async () => {
+        const loadingCollection = await TestTaskCollection.create(accounts.masonClay, {
+            name: "Lorem Ipsum",
+            access: "Private",
+        });
+
+        const loadingTask = await TestTask.create(accounts.masonClay, {
+            title: "Lorem Ipsum",
+        });
+
+        for (let index = 0; index < 125; index++) {
+            await TestTask.create(accounts.masonClay, {
+                title: `Lorem ipsum dolor sit amet ${index + 1}`,
+                collections: loadingCollection,
+            });
+
+            // Every 10 messages, wait for SQS jobs to complete.
+            if ((index + 1) % 10 === 0) {
+                await waitForTaskIndex();
+            }
+        }
+
+        await waitForTaskIndex();
+
+        for (let index = 0; index < 105; index++) {
+            await TestTask.create(accounts.masonClay, {
+                title: `Lorem ipsum dolor sit amet ${index + 1}`,
+                parent: loadingTask,
+            });
+
+            // Every 10 messages, wait for SQS jobs to complete.
+            if ((index + 1) % 10 === 0) {
+                await waitForTaskIndex();
+            }
+        }
+
+        await waitForTaskIndex();
+
+        return {loadingCollection, loadingTask};
+    })();
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/tasks`, {
         fixedTime: personalScreenshotTime,
@@ -85,9 +132,40 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
+        viewport: "wide",
+    });
+
+    // Should be visible since we persist the grid view expansion state (modified for
+    // the last screenshot) across page loads.
+    await runner.getByText("Snap math + grid").waitFor();
+
+    await runner.screenshot("a3G", "project-wide");
+
+    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+        fixedTime: sprintScreenshotTime,
+        viewport: {
+            // Copied directly from `getTaskWideProjectLayoutScaleFromWindowWidth()` since
+            // that's the exact breakpoint where we hide two fields.
+            width: 1306,
+            height: screenshotTestDefaultViewport.height,
+        },
+    });
+
+    // Should be visible since we persist the grid view expansion state (modified for
+    // the last screenshot) across page loads.
+    await runner.getByText("Snap math + grid").waitFor();
+
+    await runner.screenshot("a3V", "project-narrow");
+
+    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+        fixedTime: sprintScreenshotTime,
         peekPath: `/s/${space.id}/tasks/${featuredProjectTask.id}`,
     });
-    await runner.getByTestId("PeekStack").waitFor();
+
+    // Should be visible since we persist the grid view expansion state (modified for
+    // the last screenshot) across page loads.
+    await runner.getByText("Snap math + grid").waitFor();
+
     await runner.screenshot("a4", "task-peek");
 
     {
@@ -185,13 +263,14 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.mouse.move(0, 0);
     await runner.screenshot("aC", "project-url-grant");
 
-    await runner.goto(null, `/s/${space.id}/tasks/${projectTask.id}`, {
-        fixedTime: sprintScreenshotTime,
-        peekPath: `/s/${space.id}/tasks/${featuredProjectTask.id}`,
-    });
-    await runner.getByText("2/3").first().click();
-    await runner.getByText("Snap math + grid").waitFor();
+    await runner
+        .getByTestId(`TaskRowView:${featuredProjectTask.id}`)
+        .getByLabel("Open", {exact: true})
+        .click();
+
+    await runner.getByTestId("PeekStackOverlay").waitFor();
     await runner.mouse.move(0, 0);
+
     await runner.screenshot("aD", "task-peek-url-grant");
 
     await runner.goto(null, `/s/${space.id}/tasks/${featuredProjectTask.id}`, {
@@ -203,6 +282,42 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("aF", "collection-url-grant");
+
+    await projectTask.access.revokeUrl(accounts.cassCade);
+    await collections.bugs.access.revokeUrl(accounts.cassCade);
+
+    {
+        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${projectTask.id}`, {
+            fixedTime: sprintScreenshotTime,
+            allowPauseNetwork: true,
+        });
+
+        await runner.pauseNetwork();
+        await runner.getByText("2/3").first().click();
+        await runner.getByTestId("TaskGridViewUnloadedChildTask").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aG", "child-tasks-loading");
+
+        const {loadingCollection, loadingTask} = await loadingCollectionAndTaskPromise;
+
+        await runner.goto(
+            accounts.masonClay,
+            `/s/${space.id}/tasks/collections/${loadingCollection.id}`,
+            {allowPauseNetwork: true},
+        );
+        await runner.pauseNetwork();
+        await scrollLocatorToBottom(runner.getByTestId("TaskCollectionScrollView"), {
+            withExpectedScrollHeightChange: true,
+        });
+        await runner.screenshot("aH", "tasks-loading");
+
+        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${loadingTask.id}`, {
+            allowPauseNetwork: true,
+        });
+        await runner.pauseNetwork();
+        await scrollLocatorToBottom(runner.getByTestId("TaskDetailScrollView"));
+        await runner.screenshot("aI", "task-see-more");
+    }
 }
 
 async function createTaskCollections(session: TestSpaceSession) {
@@ -474,6 +589,7 @@ async function createTablesProject(
     collections: Awaited<ReturnType<typeof createTaskCollections>>,
 ) {
     const projectTask = await TestTask.create(accounts.cassCade, {
+        id: unsafelyGenerateStableId<TaskId>(stableRandom, "projectTask"),
         title: "Tables",
         assignee: accounts.masonClay,
         assigneeStatus: "Active",
@@ -492,6 +608,7 @@ selection state.
         title: "Design spec v1",
         parent: projectTask,
         assignee: accounts.mattRHorn,
+        dueDate: new CalendarDate(2025, 9, 24),
         notes: "Living doc with sections on selection model, toolbar, keyboard nav, and column resizing.",
         priority: "High",
         status: "Closed",
@@ -527,6 +644,7 @@ selection state.
         title: "Add/remove rows",
         parent: projectTask,
         assignee: accounts.masonClay,
+        dueDate: new CalendarDate(2025, 10, 8),
         notes: "Rows are in and covered by the basic table editing path.",
         priority: "Medium",
         status: "Closed",
@@ -536,6 +654,7 @@ selection state.
         title: "Add/remove columns",
         parent: projectTask,
         assignee: accounts.masonClay,
+        dueDate: new CalendarDate(2025, 10, 8),
         notes: "Every row updates together through a small table helper.",
         priority: "Medium",
         status: "Closed",
@@ -575,6 +694,7 @@ selection state.
         parent: projectTask,
         assignee: accounts.mattRHorn,
         assigneeStatus: "Active",
+        dueDate: new CalendarDate(2025, 10, 7),
         notes: "Holly’s draft is in good shape. Make sure screenshots match the final UI and the snap-to-grid language stays practical.",
     });
 
@@ -663,6 +783,7 @@ a cell move within the paragraph or should it move between cells?
         parent: projectTask,
         assignee: accounts.masonClay,
         assigneeStatus: "Active",
+        dueDate: new CalendarDate(2025, 10, 10),
         notes: markdown`
 Going with Matt’s anchor model. The table toolbar takes priority whenever a cell selection is active
 so it no longer fights the floating format menu.
@@ -703,6 +824,7 @@ so it no longer fights the floating format menu.
         parent: projectTask,
         assignee: accounts.mattRHorn,
         collections: [collections.sprintOct6],
+        dueDate: new CalendarDate(2025, 10, 10),
         notes: "Sit with Mason and click through every boring state: empty, single-row, single-column, and too wide.",
         priority: "High",
     });

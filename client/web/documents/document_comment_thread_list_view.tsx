@@ -89,11 +89,6 @@ import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
-const documentCommentThreadListViewMarginY = addRemLengths(
-    documentCommentThreadHeaderPaddingY,
-    documentCommentThreadHeaderPaddingY,
-);
-
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
 // fast. Manually use the `sprinkles()` function instead. This reduces the
@@ -802,7 +797,7 @@ function DocumentCommentThreadListView(
                         : documentCommentThreadHeaderPaddingY;
 
                     const minHeight = addRemLengths(
-                        index !== 0 ? documentCommentThreadListViewMarginY : paddingTop,
+                        index !== 0 ? documentCommentThreadHeaderPaddingY : paddingTop,
                         !withoutCommentThreadPreview
                             ? documentCommentThreadHeaderMinHeightWithoutPaddingTop
                             : documentCommentThreadActionsHeight,
@@ -840,12 +835,12 @@ function DocumentCommentThreadListView(
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                height: "border-thick",
+                                                top: "0",
+                                                left: screenPaddingX,
+                                                right: screenPaddingX,
+                                                height: "border",
                                                 backgroundColor: "grey-5",
                                             })}
-                                            style={{top: -1}}
                                         />
                                     </div>
                                 )}
@@ -854,18 +849,18 @@ function DocumentCommentThreadListView(
                                         className={sprinkles({
                                             position: "relative",
                                             width: "full",
+                                            height: documentCommentThreadHeaderPaddingY,
                                             maxWidth: contentStyles.contentMaxWidth,
                                             paddingX: screenPaddingX,
                                         })}
-                                        style={{height: documentCommentThreadListViewMarginY}}
                                     >
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                bottom: documentCommentThreadHeaderPaddingY,
-                                                height: "border-thick",
+                                                left: screenPaddingX,
+                                                right: screenPaddingX,
+                                                top: "0",
+                                                height: "border",
                                                 backgroundColor: "grey-5",
                                             })}
                                         />
@@ -1147,7 +1142,6 @@ function DocumentCommentThreadListView(
                                             width: "full",
                                             display: "flex",
                                             justifyContent: "center",
-                                            overflow: "hidden",
                                         })}
                                     >
                                         <div
@@ -1233,14 +1227,10 @@ function DocumentCommentThreadListView(
                             top: "0",
                             left: "0",
                             right: "0",
+                            height: "safe-area-inset-top",
                             zIndex: "10",
                             backgroundColor: "grey-0",
                         })}
-                        style={{
-                            // Subtract 1px from `safe-area-inset-top` to account for the thick (2px) top
-                            // border on comment threads.
-                            height: `calc(var(--safe-area-inset-top, 0px) - 1px)`,
-                        }}
                     />
                 )}
                 <VirtualizedScrollView

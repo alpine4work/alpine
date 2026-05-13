@@ -49,15 +49,23 @@ export type TaskGridViewCapabilities = {
           hasDenseFields: false;
           hasColumns: false;
           withoutAssigneeField: false;
+          withoutDueDateField: false;
+          withoutCollectionsField: false;
       }
     | {
           hasDenseFields: true;
           hasColumns: false;
           withoutAssigneeField: boolean;
+          // We could support `withoutDueDateField: true` for dense fields, we just don't
+          // have a use case for it yet and would rather not write code that might get stale.
+          withoutDueDateField: false;
+          withoutCollectionsField: false;
       }
     | {
           hasDenseFields: false;
           hasColumns: true;
           withoutAssigneeField: boolean;
+          withoutDueDateField: boolean;
+          withoutCollectionsField: boolean;
       }
 );

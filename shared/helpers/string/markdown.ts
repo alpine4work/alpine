@@ -6,7 +6,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * Prettier is ignored in the source file the `markdown` template string tag was
  * used in then the Markdown will not be formatted.
  */
-export type PrettyMarkdown = string & {readonly _Markdown: never};
+export type PrettyMarkdown = string & {readonly _PrettyMarkdown: never};
 
 /**
  * Template string tag that tells Prettier to format the string as Markdown.

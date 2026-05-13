@@ -24,7 +24,7 @@ import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
-    feedViewSideBarPaddingLeft,
+    feedViewSideBarPaddingX,
     feedViewSideBarSpaceNameFontSize,
     feedViewSideBarSpaceNameNegativeMarginBottom,
 } from "~/client/web/styles/feed_shared_styles.js";
@@ -208,7 +208,7 @@ export function FeedViewSideBar({
     );
 
     return (
-        <Box pointerEvents="auto" width="full" paddingLeft={feedViewSideBarPaddingLeft}>
+        <Box pointerEvents="auto" width="full" paddingX={feedViewSideBarPaddingX}>
             <Box
                 display="flex"
                 alignItems="center"
@@ -220,6 +220,7 @@ export function FeedViewSideBar({
                     fontStyle="truncate-bold"
                     fontSize={feedViewSideBarSpaceNameFontSize}
                     minWidth="flex-fit"
+                    userSelect="text"
                 >
                     {space.name}
                 </Box>
@@ -489,9 +490,19 @@ function FeedSearchAffinityView({
         <ContextMenuActions actions={contextMenuActions}>
             <Box
                 {...pressProps}
-                paddingX={searchEntityViewDefaultPaddingX}
+                paddingLeft={searchEntityViewDefaultPaddingX}
                 backgroundColor={isPressed || hasActiveContextMenu ? "grey-5" : undefined}
                 borderRadius="1.5"
+                // Don't extend to 100% width, instead fit whatever the title is. It feels weird to
+                // click in open space and have that activate a suggested search entity. In other
+                // surfaces where we show feed entities there's a clear right border so it makes
+                // more sense the click target would extend to the end of that border.
+                width="fit-content"
+                style={{
+                    // We use slightly more `paddingRight` so that the full entity looks visually
+                    // balanced.
+                    paddingRight: addRemLengths(searchEntityViewDefaultPaddingX, "1"),
+                }}
             >
                 <SearchAffinityEntityView result={result} lineClamp={1} />
             </Box>

@@ -11,6 +11,7 @@ import {
     RefAttributes,
     RefObject,
     forwardRef,
+    useCallback,
     useEffect,
     useId,
     useImperativeHandle,
@@ -72,6 +73,8 @@ import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {parseHtml} from "~/client/web/helpers/parse_html.js";
+import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {VideoIcon} from "~/client/web/icons/video_icon.js";
 import {WaveformIcon} from "~/client/web/icons/waveform_icon.js";
@@ -707,6 +710,85 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         return events.addFiles("<MessageInput> drop files", fileInfos);
     };
 
+    // HACK: We set `overscroll-behavior: none` on all our scrollable elements because
+    // we don't want the MacOS "scroll bouncing" effect. However, we do want scroll
+    // chaining to occur. So when you reach the end of scrolling a message input we
+    // should scroll the next scrollable parent. Unfortunately, there's no way to say
+    // "enable scroll chaining but not scroll bouncing BUT only when the element isn't
+    // scrollable" in CSS. So we do it with a bit of JavaScript.
+    //
+    // To see this work try opening a `<PostListView>`, expanding a post, and trying to
+    // scroll with your mouse on top of the message input. This code should fire and
+    // the page should scroll. Otherwise nothing happens.
+    const chainScrollLifecycleRef = useLifecycleRef<HTMLDivElement>(
+        useCallback(element => {
+            const handleWheel = (event: WheelEvent) => {
+                // Only allow scroll chaining if the message input isn't scrollable. If the message
+                // input is scrollable then let's contain scroll within the message input.
+                if (element.scrollHeight > element.clientHeight) return;
+
+                let deltaY: number;
+
+                // NOTE(calebmer): The existence of `deltaMode` on `WheelEvent` has caused me GREAT
+                // PAIN AND HEARTACHE at a previous job. Where for some users on Windows, using
+                // Firefox, with a system setting of "scroll by line" they basically couldn't
+                // scroll in the app (because while the OS thought they were scrolling 1 line of
+                // text we were actually scrolling them by 1px).
+                //
+                // We don't care too much about accurately scrolling the same amount Firefox
+                // scrolls so assume the browser line height distance is 16px.
+                //
+                // [This StackOverflow answer has useful information][1].
+                //
+                // [1]:
+                //     https://stackoverflow.com/questions/20110224/what-is-the-height-of-a-line-in-a-wheel-event-deltamode-dom-delta-line
+                switch (event.deltaMode) {
+                    case WheelEvent.DOM_DELTA_LINE:
+                        deltaY = event.deltaY * 16;
+                        break;
+                    case WheelEvent.DOM_DELTA_PAGE:
+                        deltaY = event.deltaY * window.innerHeight;
+                        break;
+                    case WheelEvent.DOM_DELTA_PIXEL:
+                    default:
+                        deltaY = event.deltaY;
+                        break;
+                }
+
+                if (
+                    (deltaY < 0 && element.scrollTop <= 0) ||
+                    (deltaY > 0 && element.scrollTop >= element.scrollHeight - element.clientHeight)
+                ) {
+                    // Tell the browser we'll be handling this scroll ourselves.
+                    event.preventDefault();
+
+                    let scrollElement: HTMLElement | null = element.parentElement;
+
+                    while (scrollElement) {
+                        const {overflowY} = getComputedStyle(scrollElement);
+
+                        const isScrollable = overflowY === "scroll" || overflowY === "auto";
+                        if (isScrollable) break;
+
+                        scrollElement = scrollElement.parentElement;
+                    }
+
+                    if (scrollElement) {
+                        scrollElement.scrollTop += deltaY;
+                    }
+                }
+            };
+
+            element.addEventListener("wheel", handleWheel, {
+                passive: false,
+            });
+
+            return () => {
+                element.removeEventListener("wheel", handleWheel);
+            };
+        }, []),
+    );
+
     const idBase = useId();
     const containerId = `${idBase}-container`;
     const id = isBottomBar && clientInfo.isNativeMobile && !isInert ? `nmbb-wkt-${idBase}` : idBase;
@@ -1304,19 +1386,22 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     isVisibleWhenFocusWithin={true}
                                 >
                                     <Box
-                                        ref={useScrollbar({
-                                            insetTop:
-                                                messageInputEditorBorderRadiusPx[platform][
-                                                    spacingScale
-                                                ],
-                                            // Don't overlap the send button which is rendered at the bottom of the input.
-                                            insetBottom:
-                                                messageInputEditorMinHeightPx[platform][
-                                                    spacingScale
-                                                ],
-                                            // An additional pixel of inset right to offset the inset 1px border.
-                                            insetRight: 1,
-                                        })}
+                                        ref={useMergedRefs(
+                                            chainScrollLifecycleRef,
+                                            useScrollbar({
+                                                insetTop:
+                                                    messageInputEditorBorderRadiusPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                // Don't overlap the send button which is rendered at the bottom of the input.
+                                                insetBottom:
+                                                    messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                // An additional pixel of inset right to offset the inset 1px border.
+                                                insetRight: 1,
+                                            }),
+                                        )}
                                         maxHeight={
                                             platform === "mobile" || withMobileMaxHeight
                                                 ? "48"
@@ -1406,6 +1491,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 // Message input is always editable, never interactive on mobile. So you can't
                                                 // click links among other things.
                                                 withoutMobileDualModality={true}
+                                                // Given the message input has its own scroll area, don't use the navigation bar as
+                                                // our scroll margin top when scrolling some content into view.
+                                                withoutNavigationBarScrollMarginTop={true}
                                             />
                                         </ContentBlockWidthContextProvider>
                                     </Box>

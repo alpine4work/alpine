@@ -72,7 +72,6 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -565,32 +564,27 @@ export function CreateWidgetSecondaryMenuBar({
                     }
                 }}
             >
-                {interleaveArray(
-                    items.map((item, index) => (
-                        <CreateWidgetSecondaryItem
-                            ref={item.ref}
-                            key={item.name}
-                            name={item.name}
-                            icon={item.icon}
-                            description={item.description}
-                            example={item.example}
-                            createVerb={item.createVerb}
-                            pressErrorTitle={item.pressErrorTitle}
-                            onPress={item.onPress}
-                            withStartHereBadge={item.withStartHereBadge}
-                            withCreateVerbBeforeItemName={withCreateVerbBeforeItemName}
-                            isMobileLayout={isMobileLayout}
-                            baseExampleWidth={baseExampleWidth}
-                            exampleMobileScale={exampleMobileScale}
-                            onCloseWithAnimation={onCloseWithAnimation}
-                            onCloseWithoutAnimation={onCloseWithoutAnimation}
-                            isFirstItem={index === 0}
-                        />
-                    )),
-                    index => (
-                        <CreateWidgetSecondaryItemDivider key={index} />
-                    ),
-                )}
+                {items.map((item, index) => (
+                    <CreateWidgetSecondaryItem
+                        ref={item.ref}
+                        key={item.name}
+                        name={item.name}
+                        icon={item.icon}
+                        description={item.description}
+                        example={item.example}
+                        createVerb={item.createVerb}
+                        pressErrorTitle={item.pressErrorTitle}
+                        onPress={item.onPress}
+                        withStartHereBadge={item.withStartHereBadge}
+                        withCreateVerbBeforeItemName={withCreateVerbBeforeItemName}
+                        isMobileLayout={isMobileLayout}
+                        baseExampleWidth={baseExampleWidth}
+                        exampleMobileScale={exampleMobileScale}
+                        onCloseWithAnimation={onCloseWithAnimation}
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
+                        isFirstItem={index === 0}
+                    />
+                ))}
             </Box>
         </Box>
     );

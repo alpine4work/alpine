@@ -768,43 +768,113 @@ export function initializeScrollbar(
             // We're drawing the following shape except the knobs at the top/bottom are rounded
             // instead of square..
             //
-            // ┌─┐ ┌─┘ └─┐ │ │ │ │ └─┐ ┌─┘ └─┘
+            // ```
+            //   ┌─┐
+            // ┌─┘ └─┐
+            // │     │
+            // │     │
+            // └─┐ ┌─┘
+            //   └─┘
+            // ```
             //
             // At each step we'll trace where our path currently is by adding double lines.
             scrollbarElement.style.clipPath = `path("${[
-                // ┌─┐ ╒─┘ └─┐ │ │ │ │ └─┐ ┌─┘ └─┘
+                // ```
+                //   ┌─┐
+                // ╒─┘ └─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                // ```
                 `M 0,${scrollbarThumbMarginPx + borderRadius}`,
 
-                // ┌─┐ ╒═╛ └─┐ │ │ │ │ └─┐ ┌─┘ └─┘
+                // ```
+                //   ┌─┐
+                // ╒═╛ └─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                // ```
                 `L ${scrollbarThumbInteractiveMarginRemPx},${
                     scrollbarThumbMarginPx + borderRadius
                 }`,
 
-                // ╔═╗ ╒═╝ ╙─┐ │ │ │ │ └─┐ ┌─┘ └─┘
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╙─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                // ```
                 `A ${borderRadius},${borderRadius} 0 0 1 ${
                     scrollbarWidthPx - scrollbarThumbMarginPx - insetRightPx
                 },${scrollbarThumbMarginPx + borderRadius}`,
 
-                // ╔═╗ ╒═╝ ╚═╕ │ │ │ │ └─┐ ┌─┘ └─┘
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╚═╕
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                // ```
                 `L ${scrollbarWidthPx},${scrollbarThumbMarginPx + borderRadius}`,
 
-                // ╔═╗ ╒═╝ ╚═╗ │ ║ │ ║ └─┐ ┌─╜ └─┘
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─┐ ┌─╜
+                //   └─┘
+                // ```
                 `L ${scrollbarWidthPx},${scrollHeight - scrollbarThumbMarginPx - borderRadius}`,
 
-                // ╔═╗ ╒═╝ ╚═╗ │ ║ │ ║ └─┐ ╒═╝ └─┘
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─┐ ╒═╝
+                //   └─┘
+                // ```
                 `L ${scrollbarWidthPx - scrollbarThumbMarginPx - insetRightPx},${
                     scrollHeight - scrollbarThumbMarginPx - borderRadius
                 }`,
 
-                // ╔═╗ ╒═╝ ╚═╗ │ ║ │ ║ └─╖ ╔═╝ ╚═╝
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─╖ ╔═╝
+                //   ╚═╝
+                // ```
                 `A ${borderRadius},${borderRadius} 0 0 1 ${scrollbarThumbInteractiveMarginRemPx},${
                     scrollHeight - scrollbarThumbMarginPx - borderRadius
                 }`,
 
-                // ╔═╗ ╒═╝ ╚═╗ │ ║ │ ║ ╘═╗ ╔═╝ ╚═╝
+                // ```
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // ╘═╗ ╔═╝
+                //   ╚═╝
+                // ```
                 `L 0,${scrollHeight - scrollbarThumbMarginPx - borderRadius}`,
 
-                // ╔═╗ ╔═╝ ╚═╗ ║ ║ ║ ║ ╚═╗ ╔═╝ ╚═╝
+                // ```
+                //   ╔═╗
+                // ╔═╝ ╚═╗
+                // ║     ║
+                // ║     ║
+                // ╚═╗ ╔═╝
+                //   ╚═╝
+                // ```
                 "Z",
             ].join(" ")}")`;
 
@@ -975,6 +1045,7 @@ export function initializeScrollbar(
     /* ========================================================================== *\
      *                       Connect to scrollable element                        *
     \* ========================================================================== */
+
     element.appendChild(scrollbarElement);
 
     elementsWithInitializedScrollbarForDev?.add(element);

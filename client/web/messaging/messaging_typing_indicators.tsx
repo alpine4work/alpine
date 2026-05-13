@@ -56,6 +56,8 @@ export function MessagingTypingIndicators({
 
     return (
         <Box
+            position="relative"
+            zIndex="20"
             style={{
                 minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
                 paddingTop: shouldAddMarginTop

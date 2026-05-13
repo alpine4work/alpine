@@ -15,10 +15,9 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     feedViewSideBarLeftFlex,
     feedViewSideBarRightFlex,
-    feedViewSideBarRightMaxWidth,
+    feedViewSideBarWidth,
 } from "~/client/web/styles/feed_shared_styles.js";
 import {postViewFlex} from "~/client/web/styles/forum_shared_styles.js";
-import {searchEntitySideBarWidth} from "~/client/web/styles/search_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModel} from "~/shared/feed/feed_entry_model.js";
@@ -60,7 +59,7 @@ export function FeedView({
     const sideBarLeftSize = useMemo(
         () =>
             routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
-                ? ({maxWidth: searchEntitySideBarWidth, flex: feedViewSideBarLeftFlex} as const)
+                ? ({maxWidth: feedViewSideBarWidth, flex: feedViewSideBarLeftFlex} as const)
                 : undefined,
         [isLeftSideBarHiddenForDev, routeLayout],
     );
@@ -73,10 +72,7 @@ export function FeedView({
     const sideBarRightSize = useMemo(
         () =>
             routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
-                ? ({
-                      maxWidth: feedViewSideBarRightMaxWidth,
-                      flex: feedViewSideBarRightFlex,
-                  } as const)
+                ? ({maxWidth: feedViewSideBarWidth, flex: feedViewSideBarRightFlex} as const)
                 : undefined,
         [isLeftSideBarHiddenForDev, routeLayout],
     );
@@ -179,7 +175,8 @@ export function FeedView({
                 sideBarLeftSize={sideBarLeftSize}
                 sideBarRightSize={sideBarRightSize}
                 extraChildren={
-                    sideBarLeftSize && (
+                    sideBarLeftSize &&
+                    sideBarRightSize && (
                         <Box
                             zIndex="10"
                             position="sticky"
@@ -191,8 +188,10 @@ export function FeedView({
                             <Box
                                 overflow="hidden"
                                 width="full"
-                                maxWidth={sideBarLeftSize.maxWidth}
-                                style={{flex: sideBarLeftSize.flex}}
+                                style={{
+                                    flex: sideBarLeftSize.flex,
+                                    maxWidth: sideBarLeftSize.maxWidth,
+                                }}
                             >
                                 <FeedViewSideBar
                                     height={size?.height ?? clientInfo.screenHeight}
@@ -204,13 +203,13 @@ export function FeedView({
                                 maxWidth={contentStyles.contentMaxWidth}
                                 style={{flex: postViewFlex}}
                             />
-                            {sideBarRightSize && (
-                                <Box
-                                    width="full"
-                                    maxWidth={sideBarRightSize.maxWidth}
-                                    style={{flex: sideBarRightSize.flex}}
-                                />
-                            )}
+                            <Box
+                                width="full"
+                                style={{
+                                    flex: sideBarRightSize.flex,
+                                    maxWidth: sideBarRightSize.maxWidth,
+                                }}
+                            />
                         </Box>
                     )
                 }

@@ -421,6 +421,7 @@ function VirtualizedScrollView(
         // the name.
         elementRef: elementRefProp,
         stateKey,
+        "data-testid": dataTestId,
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
         scrollbarInsetTop: actualScrollbarInsetTop,
@@ -534,6 +535,11 @@ function VirtualizedScrollView(
          * synchronously so the user doesn't see blank space while the list re-renders.
          */
         stateKey?: Key;
+
+        /**
+         * The `data-testid` attribute to use for this scroll view.
+         */
+        "data-testid"?: string;
 
         /**
          * Item indexes that we always render regardless of where our virtualized window
@@ -1834,6 +1840,7 @@ function VirtualizedScrollView(
                     }),
                     elementRefProp,
                 )}
+                data-testid={dataTestId}
                 className={sprinkles({
                     flexGrow: "1",
                     position: "relative",

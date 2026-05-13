@@ -24,6 +24,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -40,6 +41,8 @@ export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
 export const updateInboxEntryAfterExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
+export const updateInboxEntryAfterGetAttributesItemTestCheckpoint = new TestCheckpoint<AccountId>();
+export const updateInboxEntryBeforeGetEntryItemTestCheckpoint = new TestCheckpoint<AccountId>();
 
 export type UpdateInboxEntryResult = {
     readonly newInboxEntryItem: InboxEntryItem | "Delete";
@@ -127,38 +130,60 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
     let hasAttempted = false;
 
-    const result = await context.dynamo.retryTransaction(async context => {
+    const result = await context.dynamo.retryTransaction(async (context, retry) => {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
+        const getOldInboxItemPromise = async () => {
+            if (isInitialAttempt && initialInboxItemIfExists !== undefined)
+                return initialInboxItemIfExists;
+
+            return InboxTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
+                spaceId: itemKey.spaceId,
+                accountId: itemKey.accountId,
+            });
+        };
+
+        const getOldInboxEntryItemPromise =
+            async (): Promise<InboxEntryMaybeDeletedItem | null> => {
+                const item = await InboxTable.getItemIfExists(context, itemKey);
+                if (item) return {isDeleted: false, item};
+
+                // If this inbox entry is deletable, then check if there's a gravestone for the
+                // inbox entry.
+                if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
+
+                // Most of the time if we can't find the inbox entry it's because it never existed.
+                // Wait until we retry to see if the item was deleted.
+                if (isInitialAttempt) return null;
+
+                const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
+                if (!deletedItem) return null;
+
+                return {isDeleted: true, item: null, deletedItem};
+            };
+
         const [oldInboxItem, oldInboxEntryItem, accountTimeZone] = await runAllPromises([
-            isInitialAttempt && initialInboxItemIfExists !== undefined
-                ? initialInboxItemIfExists
-                : InboxTable.getItemIfExists(context, {
-                      partitionType: "Account",
-                      sortRangeType: "InboxAttributes",
-                      spaceId: itemKey.spaceId,
-                      accountId: itemKey.accountId,
+            // Allow tests to delay when the old inbox attributes item is loaded to simulate
+            // eventually consistent reads.
+            !import.meta.jest
+                ? getOldInboxItemPromise()
+                : getOldInboxItemPromise().then(async item => {
+                      await updateInboxEntryAfterGetAttributesItemTestCheckpoint.waitForTest(
+                          actorAccountId,
+                      );
+                      return item;
                   }),
 
-            InboxTable.getItemIfExists(context, itemKey).then<InboxEntryMaybeDeletedItem | null>(
-                async item => {
-                    if (item) return {isDeleted: false, item};
-
-                    // If this inbox entry is deletable, then check if there's a gravestone for the
-                    // inbox entry.
-                    if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
-
-                    // Most of the time if we can't find the inbox entry it's because it never existed.
-                    // Wait until we retry to see if the item was deleted.
-                    if (isInitialAttempt) return null;
-
-                    const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
-                    if (!deletedItem) return null;
-
-                    return {isDeleted: true, item: null, deletedItem};
-                },
-            ),
+            // Allow tests to delay when the old inbox entry item is loaded to simulate
+            // eventually consistent reads.
+            !import.meta.jest
+                ? getOldInboxEntryItemPromise()
+                : updateInboxEntryBeforeGetEntryItemTestCheckpoint
+                      .waitForTest(actorAccountId)
+                      .then(getOldInboxEntryItemPromise),
 
             getAccountTimeZoneIfExists(context, itemKey.accountId),
         ]);
@@ -266,6 +291,24 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // Optimization: Don't write to the database (and so update `updateVersionLock`) if
         // the item didn't actually update.
         if (!isDeepEqualForUnknownValues(oldInboxItem, newInboxItem)) {
+            // Race condition: we may read a stale `oldInboxItem` (say with
+            // `loudNotificationCount` of 0 when the real value is 1) and a current
+            // `oldInboxEntryItem` (with a `loudNotificationCount` of 1). In this case we'll
+            // generate a negative `loudNotificationCount`.
+            //
+            // If this transaction makes it to the database it'll fail with a condition check
+            // error because the stale `oldInboxItem` has the wrong `updateLockVersion`.
+            // However, this transaction doesn't make it to the database because the
+            // `loudNotificationCount` schema is `Schema.integer.min(0)` so we're unable to
+            // serialize the item and throw a non-retriable error.
+            //
+            // So before we attempt to serialize the item, check if `loudNotificationCount` is
+            // negative and if so then manually retry our DynamoDB transaction loop so we can
+            // read an up-to-date `oldInboxItem`.
+            if (newInboxItem.loudNotificationCount < 0) {
+                throw retry(new InternalError("Inbox `loudNotificationCount` is less than zero"));
+            }
+
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
 

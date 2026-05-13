@@ -7,6 +7,7 @@ import {
     encodeContentDuplicationVariableSchemaForUrl,
     extractContentDuplicationVariableSchema,
 } from "~/shared/content/content_duplication_variable_schema.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -351,6 +352,11 @@ think the takeaway here should be \u201Cdon\u2019t push code on fridays\u201D
         },
     );
 
+    // Make sure we wait for an inbox entry to be added to Cass's inbox so the next
+    // comment can reliably dismiss the entry.
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
     const comment = await commentThread1.createComment(
         accounts.cassCade,
         markdown`
@@ -408,7 +414,7 @@ I already have a half working version of the smooth resize implementation.
         {overrideCreatedTime: new Date("2025-10-06T20:10:01.000Z")},
     );
 
-    await commentThread2.createComment(
+    const lastCommentInCommentThread2 = await commentThread2.createComment(
         accounts.mattRHorn,
         markdown`
 Totally hear you on time, I\u2019m not arguing for a slip. I just want to leave a fuller version of
@@ -446,6 +452,12 @@ the page so future us doesn\u2019t have to go through this debate again.
         {overrideCreatedTime: new Date("2025-10-07T14:20:00.000Z")},
     );
 
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
+    // Make sure Cass dismisses the comment thread inbox entry by setting a reaction.
+    await lastCommentInCommentThread2.setReaction(accounts.cassCade, "GenericLike");
+
     await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${document.id}`);
     await runner.screenshot("a0", "basic");
 
@@ -466,6 +478,18 @@ the page so future us doesn\u2019t have to go through this debate again.
         `/s/${space.id}/documents/${document.id}?comments=${commentThread1.id}`,
     );
     await runner.screenshot("a4", "comment-sidebar");
+
+    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${document.id}`, {
+        viewport: "wide",
+    });
+    await runner.screenshot("a4G", "wide");
+
+    await runner.goto(
+        accounts.cassCade,
+        `/s/${space.id}/documents/${document.id}?comments=${commentThread1.id}`,
+        {viewport: "wide"},
+    );
+    await runner.screenshot("a4V", "comment-sidebar-wide");
 
     await runner.goto(
         accounts.cassCade,

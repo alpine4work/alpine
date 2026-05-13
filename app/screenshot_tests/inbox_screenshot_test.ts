@@ -34,19 +34,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         runner,
         accounts.cassCade,
         space.id,
-        entries.taskPath,
+        entries.documentNewCommentThreadsPath,
         "a1",
-        "task",
-        "We need to make a decision on table column resizing",
+        "document-comments",
+        "Want to flag that I don",
     );
     await screenshotInboxEntry(
         runner,
         accounts.cassCade,
         space.id,
-        entries.documentNewCommentThreadsPath,
+        entries.taskPath,
         "a2",
-        "document-comments",
-        "Want to flag that I don",
+        "task",
+        "We need to make a decision on table column resizing",
     );
     await screenshotInboxEntry(
         runner,

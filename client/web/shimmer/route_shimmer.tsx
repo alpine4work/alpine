@@ -60,11 +60,11 @@ import {
     feedCreateSectionSearchBarContainerPaddingX,
     feedCreateSectionSearchBarContainerPaddingY,
     feedViewSideBarLeftFlex,
-    feedViewSideBarPaddingLeft,
+    feedViewSideBarPaddingX,
     feedViewSideBarRightFlex,
-    feedViewSideBarRightMaxWidth,
     feedViewSideBarSpaceNameFontSize,
     feedViewSideBarSpaceNameNegativeMarginBottom,
+    feedViewSideBarWidth,
 } from "~/client/web/styles/feed_shared_styles.js";
 import {
     channelCreatorDescriptionFieldMinHeightPx,
@@ -91,6 +91,8 @@ import {
     postFauxInputCreateButtonMarginTop,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
+    postListViewAsidePaddingLeft,
+    postListViewAsidePaddingRight,
     postViewContentPaddingTop,
     postViewFlex,
 } from "~/client/web/styles/forum_shared_styles.js";
@@ -113,7 +115,6 @@ import {
     searchEntityHeaderFontSize,
     searchEntityHeaderLineHeight,
     searchEntityHeaderPaddingTop,
-    searchEntitySideBarWidth,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMediaSize,
     searchEntityViewTitleFontSize,
@@ -443,9 +444,8 @@ export function FeedRouteShimmer() {
                 {platform === "desktop" && (
                     <Box
                         width="full"
-                        maxWidth={searchEntitySideBarWidth}
-                        style={{flex: feedViewSideBarLeftFlex}}
-                        paddingLeft={feedViewSideBarPaddingLeft}
+                        style={{flex: feedViewSideBarLeftFlex, maxWidth: feedViewSideBarWidth}}
+                        paddingX={feedViewSideBarPaddingX}
                     >
                         <Box
                             display="flex"
@@ -623,26 +623,17 @@ export function FeedRouteShimmer() {
                             width="16"
                         />
                         <Spacer space={feedCreateSectionForYouHeadingMarginBottom} />
-                        <Box
-                            position="absolute"
-                            left="0"
-                            right="0"
-                            height={platform === "mobile" ? "border" : "border-thick"}
-                            backgroundColor="grey-5"
-                            style={{bottom: -1}}
-                        />
                     </Box>
                     <PostShimmer />
                     <PostShimmer />
                     <PostShimmer />
                     <PostShimmer />
-                    <PostShimmer />
+                    <PostShimmer withBottomBorder />
                 </Box>
                 {platform !== "mobile" && spacingScale !== "small" && (
                     <Box
                         width="full"
-                        maxWidth={feedViewSideBarRightMaxWidth}
-                        style={{flex: feedViewSideBarRightFlex}}
+                        style={{flex: feedViewSideBarRightFlex, maxWidth: feedViewSideBarWidth}}
                     />
                 )}
             </Box>
@@ -816,7 +807,8 @@ function ChannelRouteShimmer() {
                     <Box height="safe-area-inset-top" />
                     <Box height={navigationBarHeight} />
                     <Box
-                        paddingX={screenPaddingX}
+                        paddingLeft={postListViewAsidePaddingLeft}
+                        paddingRight={postListViewAsidePaddingRight}
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"
@@ -1771,7 +1763,7 @@ function InboxRouteShimmer() {
         return (
             <Box width="full" height="full" display="flex" flexDirection="column">
                 <Box flexGrow="1" display="flex" flexDirection="row">
-                    <Box flexShrink="0" width="96" borderRight="grey-5" borderLeft="grey-5">
+                    <Box flexShrink="0" width="96" borderRight="grey-5">
                         <Box flexShrink="0" height={inboxBannerHeight} />
                         <Spacer space="1" />
                         <InboxEntryShimmer withBorderTop titleRagRight="0" subtitleRagRight="8" />
@@ -1950,18 +1942,9 @@ function ChannelPostsNotificationRouteShimmer() {
                 maxWidth={contentStyles.contentMaxWidth}
                 marginX="center"
             >
-                {platform === "mobile" && (
-                    <Box
-                        position="absolute"
-                        left={screenPaddingX}
-                        right={screenPaddingX}
-                        borderBottom="grey-5"
-                        style={{top: -1}}
-                    />
-                )}
                 <PostShimmer />
                 <PostShimmer />
-                <PostShimmer />
+                <PostShimmer withBottomBorder />
             </Box>
         </Box>
     );
@@ -2078,7 +2061,6 @@ function ReactionsRouteShimmer() {
 function ReactionsRouteReactionShimmer() {
     return (
         <Box
-            pointerEvents="auto"
             display="flex"
             alignItems="center"
             gap="4"
@@ -2169,7 +2151,7 @@ function SearchRouteShimmer() {
 
     return (
         <Box width="full" maxWidth={maxWidth} marginX="center">
-            <Box paddingX={screenPaddingX} pointerEvents="auto">
+            <Box paddingX={screenPaddingX}>
                 <Box height="safe-area-inset-top" />
                 <Box
                     height={navigationBarHeight}
@@ -2200,7 +2182,7 @@ function SearchRouteShimmer() {
             </Box>
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
-            <Box paddingX={screenPaddingX} pointerEvents="auto">
+            <Box paddingX={screenPaddingX}>
                 <Box height={searchEntityHeaderPaddingTop} />
                 <TextShimmer
                     fontSize={{

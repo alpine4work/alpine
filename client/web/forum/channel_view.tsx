@@ -482,6 +482,7 @@ export function ChannelView({
         >
             <PostListView
                 header={channelHeader}
+                footer={useMemo(() => ({type: "MarginBottom"}), [])}
                 posts={posts}
                 onTogglePostComments={useCallback(
                     postId => setPosts(posts => posts.togglePostComments(postId)),

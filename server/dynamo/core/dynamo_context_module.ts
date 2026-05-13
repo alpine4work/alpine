@@ -145,6 +145,7 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
         this: ContextModuleBase<Modules> & DynamoContextModule,
         action: (
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
+            retry: (error?: unknown) => never,
         ) => Promise<Value>,
     ): Promise<Value> {
         let hasAlreadyAttempted = false;
@@ -159,7 +160,9 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
             });
 
             if (isInitialAttempt || !("cache" in this._context)) {
-                return this._context.with({dynamo: dynamoContextModule}, action);
+                return this._context.with({dynamo: dynamoContextModule}, context =>
+                    action(context, retry),
+                );
             } else {
                 // On second attempt, use an empty cache when we re-run the action. Because usually
                 // the reason we're retrying is we need to read an item with a newer
@@ -174,8 +177,12 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
                         dynamo: dynamoContextModule,
                         cache: CacheContextModule.new(),
                     },
-                    // @ts-expect-error
-                    action,
+                    context =>
+                        action(
+                            // @ts-expect-error
+                            context,
+                            retry,
+                        ),
                 );
             }
         });

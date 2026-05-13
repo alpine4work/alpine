@@ -13,7 +13,7 @@ import {
     paragraphMargin,
 } from "~/client/web/styles/other/internal/content.css.js";
 import {containerClassName} from "~/client/web/styles/other/internal/content_editor.css.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -127,12 +127,11 @@ export const rowNumberClassName = style({
         "&::before": {
             content: `counter(${rowNumberCounterName})`,
             position: "absolute",
-            left: 0,
+            right: `${parseRemLength(spacing["2"]) - parseRemLength(spacing["0.5"]) / 2}rem`,
             top: "50%",
             transform: "translateY(-50%)",
             pointerEvents: "none",
             display: "block",
-            minWidth: spacing["4"],
             maxWidth: spacing["8"],
             ...fontSizes["25"],
             ...fontStyles["truncate"],

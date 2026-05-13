@@ -2,7 +2,7 @@ import {
     PostBasicList,
     PostListInterface,
     PostListItem,
-    PostListWithHeader,
+    PostListWithHeaderOrWithFooter,
 } from "~/client/web/forum/post_list.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
@@ -984,7 +984,7 @@ test("can add a channel header at the beginning", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    const listWithHeader = new PostListWithHeader(
+    const listWithHeader = new PostListWithHeaderOrWithFooter(
         {
             type: "Channel",
             channel,
@@ -995,6 +995,7 @@ test("can add a channel header at the beginning", () => {
             onSaveDescription: asyncNoop,
             onAddAccountGrantsToAccessPolicy: asyncNoop,
         },
+        null,
         list,
     );
 

@@ -741,6 +741,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}
+                    data-testid="MessagingScrollView"
                     renderItem={renderItem}
                     extraChildren={
                         <>

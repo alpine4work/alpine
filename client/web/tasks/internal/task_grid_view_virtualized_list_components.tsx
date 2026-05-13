@@ -18,7 +18,6 @@ import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
-import {Spacer} from "~/client/web/design/spacer.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {maintainTextInputVisibility} from "~/client/web/design/use_text_input_visibility_maintainer.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
@@ -87,6 +86,8 @@ function TaskGridViewColumnHeader(
     {
         hasColumns,
         withoutAssigneeField,
+        withoutDueDateField,
+        withoutCollectionsField,
         titleFieldLabel,
         columnHeaderControls,
         minHeight,
@@ -95,6 +96,8 @@ function TaskGridViewColumnHeader(
     }: {
         hasColumns: boolean;
         withoutAssigneeField: boolean;
+        withoutDueDateField: boolean;
+        withoutCollectionsField: boolean;
         titleFieldLabel: string | undefined;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
@@ -164,6 +167,8 @@ function TaskGridViewColumnHeader(
                     {hasColumns && (
                         <TaskGridViewActualColumnHeader
                             withoutAssigneeField={withoutAssigneeField}
+                            withoutDueDateField={withoutDueDateField}
+                            withoutCollectionsField={withoutCollectionsField}
                             titleFieldLabel={titleFieldLabel}
                         />
                     )}
@@ -267,6 +272,9 @@ export const TaskGridViewExplicitLoadMoreButtonMemo = memo(
             },
         });
 
+        const spinnerSize = "3";
+        const buttonGap = "1.5";
+
         return (
             <Box
                 position="relative"
@@ -298,23 +306,27 @@ export const TaskGridViewExplicitLoadMoreButtonMemo = memo(
                                 display="flex"
                                 justifyContent="center"
                                 alignItems="center"
-                                gap="1.5"
+                                gap={buttonGap}
                                 cursor="pointer"
                                 opacity={isPressed ? "60" : undefined}
+                                style={{
+                                    // Make sure the button renders in the same position when the loading spinner
+                                    // appears.
+                                    marginLeft: shouldShowPendingSpinner
+                                        ? addRemLengths(spinnerSize, buttonGap)
+                                        : undefined,
+                                }}
                             >
-                                <Spacer space="3" />
                                 <CaretDown size={spacing["3"]} weight="bold" />
                                 <Box fontStyle="semi-bold" color="grey-90">
                                     See more ({totalTaskCount - loadedTaskCount} remaining)
                                 </Box>
-                                {shouldShowPendingSpinner ? (
+                                {shouldShowPendingSpinner && (
                                     <SpinnerGap
                                         className={spinAnimationClassName}
-                                        size={spacing["3"]}
+                                        size={spacing[spinnerSize]}
                                         color={colorSchemeVars["grey-60"]}
                                     />
-                                ) : (
-                                    <Spacer space="3" />
                                 )}
                             </Box>
                         </FocusRing>
@@ -452,6 +464,9 @@ export const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloa
 }) {
     return (
         <TaskGridViewRowShimmer
+            data-testid={
+                process.env.NODE_ENV !== "production" ? "TaskGridViewUnloadedChildTask" : undefined
+            }
             capabilities={capabilities}
             rowMaxWidth={rowMaxWidth}
             randomSeed={parentGridKey}
@@ -522,6 +537,7 @@ const taskRowShimmerRagRights: Array<Spacing> = [
 ];
 
 function TaskGridViewRowShimmer({
+    "data-testid": dataTestId,
     capabilities,
     rowMaxWidth,
     randomSeed,
@@ -532,6 +548,7 @@ function TaskGridViewRowShimmer({
     focusPreviousTaskTitleAll,
     withoutPulseAnimation,
 }: {
+    "data-testid"?: string;
     capabilities: TaskGridViewCapabilities;
     rowMaxWidth: Spacing | null;
     randomSeed: string;
@@ -570,6 +587,7 @@ function TaskGridViewRowShimmer({
     return (
         <Box
             ref={shimmerRef}
+            data-testid={dataTestId}
             maxWidth={rowMaxWidth ?? undefined}
             marginX="center"
             cursor={!capabilities.isReadOnly ? "text" : undefined}

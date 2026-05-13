@@ -3,7 +3,7 @@ import {IconContext} from "phosphor-react";
 import {useCallback, useContext, useEffect, useId, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
+import {IconButton, spaceLayoutSideBarIconSize} from "~/client/web/design/icon_button.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
@@ -25,8 +25,13 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
-import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    negateRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
@@ -237,7 +242,7 @@ export function SpaceLayoutSideBarInboxButton({
                     display="flex"
                     flexDirection="column"
                     overflow="hidden"
-                    className={greyElevated1ClassName}
+                    className={greyElevated2ClassName}
                 >
                     {overlayState.isVisible && (
                         <SpaceLayoutSideBarInboxOverlay
@@ -297,7 +302,8 @@ export function SpaceLayoutSideBarInboxButton({
                 isPending={overlayState.isVisible && overlayState.isPending}
                 // We'll open the overlay after a delay and show a loading indicator there.
                 withoutLoadingIndicator
-                size="lg"
+                variant="quieter"
+                size="space-layout-side-bar"
                 description="Inbox"
                 tooltipPlacement="right"
                 pressErrorTitle="Couldn&#x2019;t open inbox"
@@ -308,14 +314,25 @@ export function SpaceLayoutSideBarInboxButton({
                 // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
                 withoutFocusOnPress={true}
             >
-                <Box position="relative" width="5" height="5">
+                <Box
+                    position="relative"
+                    style={{width: spaceLayoutSideBarIconSize, height: spaceLayoutSideBarIconSize}}
+                >
                     <Box
                         pointerEvents="none"
                         position="absolute"
-                        width="10"
-                        height="10"
-                        top="-5"
-                        right="-5"
+                        style={{
+                            top: negateRemLength(spaceLayoutSideBarIconSize),
+                            right: negateRemLength(spaceLayoutSideBarIconSize),
+                            width: addRemLengths(
+                                spaceLayoutSideBarIconSize,
+                                spaceLayoutSideBarIconSize,
+                            ),
+                            height: addRemLengths(
+                                spaceLayoutSideBarIconSize,
+                                spaceLayoutSideBarIconSize,
+                            ),
+                        }}
                     >
                         <SpaceLayoutSideBarInboxButtonIcon
                             notificationType={notificationType}

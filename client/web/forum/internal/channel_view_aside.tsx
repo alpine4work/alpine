@@ -21,7 +21,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsideFileGap,
-    channelViewAsideFileHeight,
+    channelViewAsideFileHeightRem,
     channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileMaxCount,
@@ -31,6 +31,8 @@ import {
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
     postListViewAsideMaxWidth,
+    postListViewAsidePaddingLeft,
+    postListViewAsidePaddingRight,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
@@ -41,7 +43,8 @@ import {
     MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -75,7 +78,7 @@ export function ChannelViewAside({
 }) {
     const spacingScale = useSpacingScale();
 
-    const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, spacingScale);
+    const fileSizePx = channelViewAsideFileHeightRem * remPxBySpacingScale[spacingScale];
 
     let contributors: ChannelContributorsModel | null = null;
     const fileReferences: Array<{postId: PostId; signedUrlSearch: string; file: FileModel}> = [];
@@ -109,8 +112,8 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
-                paddingLeft="5"
-                paddingRight={screenPaddingX}
+                paddingLeft={postListViewAsidePaddingLeft}
+                paddingRight={postListViewAsidePaddingRight}
                 paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"
@@ -177,7 +180,7 @@ export function ChannelViewAside({
                                 gridTemplateRows: `repeat(${Math.min(
                                     Math.ceil(fileReferences.length / 2),
                                     channelViewAsidePostFileRowCount,
-                                )}, ${channelViewAsideFileHeight})`,
+                                )}, ${channelViewAsideFileHeightRem}rem)`,
                             }}
                         >
                             {mapIterable(

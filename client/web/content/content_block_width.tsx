@@ -104,6 +104,8 @@ export function useContentBlockAvailableWidth() {
     return parent?.availableWidth ?? clientInfo.screenWidth;
 }
 
+type ParsableDimension = ParsableRemLength | `${number}/${number}` | `${number}%`;
+
 /**
  * Change the width available for content layout calculations. Our goal is for
  * `useContentBlockWidth()` to return the same width as CSS statically on the
@@ -121,16 +123,20 @@ export function ContentBlockWidthContextProvider({
     paddingX: paddingXProp,
     paddingLeft: paddingLeftProp,
     paddingRight: paddingRightProp,
+    maxPaddingLeft: maxPaddingLeftProp,
+    maxPaddingRight: maxPaddingRightProp,
     keepAssumedPadding = false,
     withoutAssumedPadding = false,
     children,
 }: {
     isDisabled?: boolean;
-    width?: ParsableRemLength | `${number}/${number}` | number;
-    maxWidth?: ParsableRemLength | number;
-    paddingX?: ParsableRemLength | number;
-    paddingLeft?: ParsableRemLength | number;
-    paddingRight?: ParsableRemLength | number;
+    width?: ParsableDimension | number;
+    maxWidth?: ParsableDimension | number;
+    paddingX?: ParsableDimension | number;
+    paddingLeft?: ParsableDimension | number;
+    paddingRight?: ParsableDimension | number;
+    maxPaddingLeft?: ParsableDimension | number;
+    maxPaddingRight?: ParsableDimension | number;
     keepAssumedPadding?: boolean;
     withoutAssumedPadding?: boolean;
     children: ReactNode;
@@ -153,35 +159,43 @@ export function ContentBlockWidthContextProvider({
         let assumedPaddingLeft = parent?.assumedPaddingLeft ?? screenPaddingXPx;
         let assumedPaddingRight = parent?.assumedPaddingRight ?? screenPaddingXPx;
 
-        if (typeof width === "string") {
-            if (!width.includes("/")) {
-                width = convertRemLengthToPx(width as ParsableRemLength, spacingScale);
-            } else {
-                const [numeratorString = "", denominatorString = ""] = width.split("/", 2);
+        const parse = (value: ParsableDimension): number => {
+            if (value.endsWith("%")) {
+                const fraction = parseFloat(value.slice(0, -1)) / 100;
+
+                return parentWidth * fraction;
+            } else if (value.includes("/")) {
+                const [numeratorString = "", denominatorString = ""] = value.split("/", 2);
                 const numerator = parseFloat(numeratorString);
                 const denominator = parseFloat(denominatorString);
                 const fraction = numerator / denominator;
 
-                width = parentWidth * fraction;
+                return parentWidth * fraction;
+            } else {
+                return convertRemLengthToPx(value as ParsableRemLength, spacingScale);
             }
-        }
+        };
 
-        if (typeof paddingLeft === "string") {
-            paddingLeft = convertRemLengthToPx(paddingLeft, spacingScale);
-        }
-
-        if (typeof paddingRight === "string") {
-            paddingRight = convertRemLengthToPx(paddingRight, spacingScale);
-        }
+        if (typeof width === "string") width = parse(width);
+        if (typeof paddingLeft === "string") paddingLeft = parse(paddingLeft);
+        if (typeof paddingRight === "string") paddingRight = parse(paddingRight);
 
         if (maxWidthProp !== undefined) {
             let maxWidth = maxWidthProp;
-
-            if (typeof maxWidth === "string") {
-                maxWidth = convertRemLengthToPx(maxWidth, spacingScale);
-            }
-
+            if (typeof maxWidth === "string") maxWidth = parse(maxWidth);
             width = Math.min(width, maxWidth);
+        }
+
+        if (maxPaddingLeftProp !== undefined) {
+            let maxPaddingLeft = maxPaddingLeftProp;
+            if (typeof maxPaddingLeft === "string") maxPaddingLeft = parse(maxPaddingLeft);
+            paddingLeft = Math.min(paddingLeft, maxPaddingLeft);
+        }
+
+        if (maxPaddingRightProp !== undefined) {
+            let maxPaddingRight = maxPaddingRightProp;
+            if (typeof maxPaddingRight === "string") maxPaddingRight = parse(maxPaddingRight);
+            paddingRight = Math.min(paddingRight, maxPaddingRight);
         }
 
         if (!keepAssumedPadding) {
@@ -201,6 +215,8 @@ export function ContentBlockWidthContextProvider({
         clientInfo.screenWidth,
         isDisabled,
         keepAssumedPadding,
+        maxPaddingLeftProp,
+        maxPaddingRightProp,
         maxWidthProp,
         paddingLeftProp,
         paddingRightProp,

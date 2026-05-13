@@ -739,6 +739,9 @@ function ContentEditorCommentInput({
                                     // Message input is always editable, never interactive on mobile. So you can't
                                     // click links among other things.
                                     withoutMobileDualModality={true}
+                                    // Given the message input has its own scroll area, don't use the navigation bar as
+                                    // our scroll margin top when scrolling some content into view.
+                                    withoutNavigationBarScrollMarginTop={true}
                                 />
                             </ContentBlockWidthContextProvider>
                         </Box>

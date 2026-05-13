@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {AnimationPlaybackControls, animate} from "motion";
 import {
     ArrowLeft,
@@ -112,7 +111,10 @@ import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_nativ
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {documentContentEditorSidebarWidth} from "~/client/web/styles/document_shared_styles.js";
+import {
+    documentContentEditorSidebarMaxWidth,
+    documentContentEditorSidebarWidth,
+} from "~/client/web/styles/document_shared_styles.js";
 import {
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonNegativeMarginX,
@@ -128,6 +130,7 @@ import {
     contentEditorStyles,
     contentStyles,
     documentContentStyles,
+    elevationVars,
     inputPlaceholderStyles,
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
@@ -844,18 +847,24 @@ export function DocumentContentEditor({
 
     const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
-    const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
-        documentContentEditorSidebarWidth,
-        useSpacingScale(),
-    );
-
     // We compute the _editor_ container size from the container size so that when the
     // sidebar opens/closes we don't need to re-render side decorations when the resize
     // observer changes.
-    const editorContainerWidth =
-        containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
-            ? containerSize.width - documentContentEditorSidebarWidthPx
-            : (containerSize?.width ?? null);
+    const editorContainerWidth = useMemo(() => {
+        if (!(containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"))
+            return containerSize?.width ?? null;
+
+        const sidebarWidth =
+            containerSize.width *
+            (parseFloat(documentContentEditorSidebarWidth.slice(0, -1)) / 100);
+
+        const sidebarMaxWidthPx = convertRemLengthToPx(
+            documentContentEditorSidebarMaxWidth,
+            spacingScale,
+        );
+
+        return containerSize.width - Math.min(sidebarWidth, sidebarMaxWidthPx);
+    }, [containerSize, sidebarState, spacingScale]);
 
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
@@ -1918,206 +1927,216 @@ export function DocumentContentEditor({
                 style={{
                     width:
                         routeLayout !== "narrow" && sidebarState.isOpen
-                            ? `calc(100% - ${spacing[documentContentEditorSidebarWidth]})`
+                            ? `calc(100% - min(${documentContentEditorSidebarWidth}, ${spacing[documentContentEditorSidebarMaxWidth]}))`
                             : "100%",
                 }}
             >
-                {blobsSettings !== null && (
-                    <BlobsArt
-                        settings={blobsSettings}
-                        withBezelTop={withinPeekStackOverlay}
-                        withBezelX={withinPeekStackOverlay}
-                        scale={blobsScale}
-                    />
-                )}
-                <OverlayScopeContextProvider>
-                    <Box className={contentEditorStyles.containerClassName}>
-                        <GlobalKeyDownEvent
-                            onGlobalKeyDown={event => {
-                                // Perform undo/redo on the document even if the document isn't focused. If the
-                                // document is focused and cmd-z is pressed then the document will handle the event
-                                // itself and call `event.preventDefault()` + `event.stopPropagation()`.
-                                switch (event.key) {
-                                    case "z": {
-                                        if (
-                                            clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey
-                                        ) {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-
-                                            if (event.shiftKey) {
-                                                assertExists(editorRef.current).redo();
-                                            } else if (
-                                                (clientInfo.isAppleDevice
-                                                    ? !event.ctrlKey
-                                                    : !event.metaKey) &&
-                                                !event.altKey
-                                            ) {
-                                                assertExists(editorRef.current).undo();
-                                            }
-                                            break;
-                                        }
-                                        break;
-                                    }
-                                    // https://en.wikipedia.org/wiki/Control-Y
-                                    case "y": {
-                                        if (
-                                            clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey
-                                        ) {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-
+                <ContentBlockWidthContextProvider
+                    isDisabled={routeLayout === "narrow" || !sidebarState.isOpen}
+                    paddingRight={documentContentEditorSidebarWidth}
+                    maxPaddingRight={documentContentEditorSidebarMaxWidth}
+                    keepAssumedPadding={true}
+                >
+                    {blobsSettings !== null && (
+                        <BlobsArt
+                            settings={blobsSettings}
+                            withBezelTop={withinPeekStackOverlay}
+                            withBezelX={withinPeekStackOverlay}
+                            scale={blobsScale}
+                        />
+                    )}
+                    <OverlayScopeContextProvider>
+                        <Box className={contentEditorStyles.containerClassName}>
+                            <GlobalKeyDownEvent
+                                onGlobalKeyDown={event => {
+                                    // Perform undo/redo on the document even if the document isn't focused. If the
+                                    // document is focused and cmd-z is pressed then the document will handle the event
+                                    // itself and call `event.preventDefault()` + `event.stopPropagation()`.
+                                    switch (event.key) {
+                                        case "z": {
                                             if (
-                                                (clientInfo.isAppleDevice
-                                                    ? !event.ctrlKey
-                                                    : !event.metaKey) &&
-                                                !event.altKey &&
-                                                !event.shiftKey
+                                                clientInfo.isAppleDevice
+                                                    ? event.metaKey
+                                                    : event.ctrlKey
                                             ) {
-                                                assertExists(editorRef.current).redo();
+                                                event.preventDefault();
+                                                event.stopPropagation();
+
+                                                if (event.shiftKey) {
+                                                    assertExists(editorRef.current).redo();
+                                                } else if (
+                                                    (clientInfo.isAppleDevice
+                                                        ? !event.ctrlKey
+                                                        : !event.metaKey) &&
+                                                    !event.altKey
+                                                ) {
+                                                    assertExists(editorRef.current).undo();
+                                                }
+                                                break;
                                             }
                                             break;
                                         }
-                                        break;
-                                    }
-                                }
-                            }}
-                        >
-                            <ContentEditor
-                                ref={editorRef}
-                                state={editorState}
-                                onChange={(state, transaction) => {
-                                    onEditorStateChange(state);
+                                        // https://en.wikipedia.org/wiki/Control-Y
+                                        case "y": {
+                                            if (
+                                                clientInfo.isAppleDevice
+                                                    ? event.metaKey
+                                                    : event.ctrlKey
+                                            ) {
+                                                event.preventDefault();
+                                                event.stopPropagation();
 
-                                    const createCommentThread: {
-                                        commentThreadId: DocumentCommentThreadId;
-                                        initialCommentContent: MessageContentWithReferences;
-                                        initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
-                                        openCommentThreadPromiseRef?: {
-                                            current: Promise<void> | null;
-                                        };
-                                    } | null =
-                                        transaction.getMeta(createContentCommentThreadMetaKey) ??
-                                        null;
-
-                                    if (
-                                        createCommentThread &&
-                                        createCommentThread.openCommentThreadPromiseRef &&
-                                        sidebarState.isOpen &&
-                                        sidebarState.animationState !== "Closing"
-                                    ) {
-                                        // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                        // creating a comment thread when it exists. If the sidebar is not already open
-                                        // then we rely on our document's global loading indicator to tell us when comments
-                                        // have successfully saved.
-                                        createCommentThread.openCommentThreadPromiseRef.current =
-                                            openCommentThread(createCommentThread.commentThreadId);
-                                    }
-
-                                    if (transaction.docChanged) {
-                                        onContentLocalChange?.();
+                                                if (
+                                                    (clientInfo.isAppleDevice
+                                                        ? !event.ctrlKey
+                                                        : !event.metaKey) &&
+                                                    !event.altKey &&
+                                                    !event.shiftKey
+                                                ) {
+                                                    assertExists(editorRef.current).redo();
+                                                }
+                                                break;
+                                            }
+                                            break;
+                                        }
                                     }
                                 }}
-                                aria-label="Document"
-                                placeholder={
-                                    hasAccessLevel(accessLevel, "Edit")
-                                        ? "Share your ideas, press @ to insert…"
-                                        : "Share your ideas…"
-                                }
-                                accessLevel={accessLevel}
-                                // When you're typing in the first paragraph of a document (2 child nodes, title +
-                                // paragraph) you probably want to insert some formatting (like a table). This
-                                // helps the user discover features of Alpine documents. Since we prompt them with
-                                // "press @ to insert" as a placeholder.
-                                //
-                                // As you're typing a long document probably the next thing you want to do is
-                                // mention another document, task, or something else.
-                                //
-                                // Mentioning a person is probably the last thing you want to do while working on a
-                                // document since mentions won't send a notification when typing in a document.
-                                mentionFloaterSectionOrder={
-                                    content.doc.childCount <= 2
-                                        ? "InsertSuggestedPeople"
-                                        : "SuggestedInsertPeople"
-                                }
-                                // While the sidebar is open, don't render our document toolbar. It would be weird
-                                // for it to pop up when writing a comment.
-                                withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                                className={classNames(
-                                    documentContentStyles.contentClassName,
-                                    routeLayout === "wide" &&
-                                        documentContentStyles.contentWithWideRouteLayoutClassName,
-                                )}
-                                phantomSelections={phantomSelections}
-                                fileAttachmentTarget={fileAttachmentTarget}
-                                commentFileAttachmentTarget={useMemo(
-                                    () => ({type: "DocumentComments", documentId}),
-                                    [documentId],
-                                )}
-                                onEnsureFileAttachmentTarget={ensureCreateDocument}
-                                openCommentThread={openCommentThread}
-                                onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                                    setPressedCommentThreadId(pressedCommentThreadId => {
-                                        if (isHovered) return commentThreadId;
+                            >
+                                <ContentEditor
+                                    ref={editorRef}
+                                    state={editorState}
+                                    onChange={(state, transaction) => {
+                                        onEditorStateChange(state);
+
+                                        const createCommentThread: {
+                                            commentThreadId: DocumentCommentThreadId;
+                                            initialCommentContent: MessageContentWithReferences;
+                                            initialCommentFileIds: ReadonlyArray<
+                                                FileId | FileEntityId
+                                            >;
+                                            openCommentThreadPromiseRef?: {
+                                                current: Promise<void> | null;
+                                            };
+                                        } | null =
+                                            transaction.getMeta(
+                                                createContentCommentThreadMetaKey,
+                                            ) ?? null;
+
                                         if (
-                                            !isHovered &&
-                                            pressedCommentThreadId === commentThreadId
-                                        )
-                                            return null;
-                                        return pressedCommentThreadId;
-                                    });
-                                }}
-                                onSelectionLeave={onClearOurPresenceState}
-                                onSelectionEnter={onUnclearOurPresenceState}
-                                // TODO(#spell-check): Load and pass in actual ignored lints
-                                spellCheckIgnoredLints={[]}
-                                onSpellCheckIgnoreLint={async ({key, kind}) => {
-                                    const {eventTransaction} = await createSpellCheckIgnoredLint(
-                                        context,
-                                        {
-                                            entityId: `Document:${documentId}`,
-                                            key,
-                                            kind,
-                                        },
-                                    );
+                                            createCommentThread &&
+                                            createCommentThread.openCommentThreadPromiseRef &&
+                                            sidebarState.isOpen &&
+                                            sidebarState.animationState !== "Closing"
+                                        ) {
+                                            // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                            // creating a comment thread when it exists. If the sidebar is not already open
+                                            // then we rely on our document's global loading indicator to tell us when comments
+                                            // have successfully saved.
+                                            createCommentThread.openCommentThreadPromiseRef.current =
+                                                openCommentThread(
+                                                    createCommentThread.commentThreadId,
+                                                );
+                                        }
 
-                                    handleEventForSpellCheckIgnoredLint(eventTransaction);
-                                }}
-                                // Since the document content editor fills the entire screen height, it makes sense
-                                // that if the user `mousedown`s in the bottom margin we should create a new
-                                // paragraph and move selection there if the last item is not already a paragraph
-                                // (e.g. a divider or table or something).
-                                withMouseDownAtEndCreatesParagraph={true}
-                            />
-                        </GlobalKeyDownEvent>
-                        {
-                            // IMPORTANT: It's important that this element is below `<ContentEditor>` so that
-                            // `<ContentEditor>` is first in the tab order! This matters when auto-focusing a
-                            // document peek when we open it up.
-                            navigationBar
-                        }
-                        {useMemo(
-                            // Memoize side decorations since it can be an expensive component to re-render.
-                            // Especially during animations.
-                            () =>
-                                platform !== "mobile" && (
-                                    <DocumentContentEditorSideDecorations
-                                        editorContainerWidth={editorContainerWidth}
-                                        contentReferences={content.references}
-                                        decorations={decorations}
-                                        openCommentThread={openCommentThread}
-                                    />
-                                ),
-                            [
-                                content.references,
-                                decorations,
-                                editorContainerWidth,
-                                openCommentThread,
-                                platform,
-                            ],
-                        )}
-                    </Box>
-                </OverlayScopeContextProvider>
+                                        if (transaction.docChanged) {
+                                            onContentLocalChange?.();
+                                        }
+                                    }}
+                                    aria-label="Document"
+                                    placeholder={
+                                        hasAccessLevel(accessLevel, "Edit")
+                                            ? "Share your ideas, press @ to insert…"
+                                            : "Share your ideas…"
+                                    }
+                                    accessLevel={accessLevel}
+                                    // When you're typing in the first paragraph of a document (2 child nodes, title +
+                                    // paragraph) you probably want to insert some formatting (like a table). This
+                                    // helps the user discover features of Alpine documents. Since we prompt them with
+                                    // "press @ to insert" as a placeholder.
+                                    //
+                                    // As you're typing a long document probably the next thing you want to do is
+                                    // mention another document, task, or something else.
+                                    //
+                                    // Mentioning a person is probably the last thing you want to do while working on a
+                                    // document since mentions won't send a notification when typing in a document.
+                                    mentionFloaterSectionOrder={
+                                        content.doc.childCount <= 2
+                                            ? "InsertSuggestedPeople"
+                                            : "SuggestedInsertPeople"
+                                    }
+                                    // While the sidebar is open, don't render our document toolbar. It would be weird
+                                    // for it to pop up when writing a comment.
+                                    withoutMobileKeyboardToolbar={sidebarState.isOpen}
+                                    className={documentContentStyles.contentClassName}
+                                    phantomSelections={phantomSelections}
+                                    fileAttachmentTarget={fileAttachmentTarget}
+                                    commentFileAttachmentTarget={useMemo(
+                                        () => ({type: "DocumentComments", documentId}),
+                                        [documentId],
+                                    )}
+                                    onEnsureFileAttachmentTarget={ensureCreateDocument}
+                                    openCommentThread={openCommentThread}
+                                    onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                        setPressedCommentThreadId(pressedCommentThreadId => {
+                                            if (isHovered) return commentThreadId;
+                                            if (
+                                                !isHovered &&
+                                                pressedCommentThreadId === commentThreadId
+                                            )
+                                                return null;
+                                            return pressedCommentThreadId;
+                                        });
+                                    }}
+                                    onSelectionLeave={onClearOurPresenceState}
+                                    onSelectionEnter={onUnclearOurPresenceState}
+                                    // TODO(#spell-check): Load and pass in actual ignored lints
+                                    spellCheckIgnoredLints={[]}
+                                    onSpellCheckIgnoreLint={async ({key, kind}) => {
+                                        const {eventTransaction} =
+                                            await createSpellCheckIgnoredLint(context, {
+                                                entityId: `Document:${documentId}`,
+                                                key,
+                                                kind,
+                                            });
+
+                                        handleEventForSpellCheckIgnoredLint(eventTransaction);
+                                    }}
+                                    // Since the document content editor fills the entire screen height, it makes sense
+                                    // that if the user `mousedown`s in the bottom margin we should create a new
+                                    // paragraph and move selection there if the last item is not already a paragraph
+                                    // (e.g. a divider or table or something).
+                                    withMouseDownAtEndCreatesParagraph={true}
+                                />
+                            </GlobalKeyDownEvent>
+                            {
+                                // IMPORTANT: It's important that this element is below `<ContentEditor>` so that
+                                // `<ContentEditor>` is first in the tab order! This matters when auto-focusing a
+                                // document peek when we open it up.
+                                navigationBar
+                            }
+                            {useMemo(
+                                // Memoize side decorations since it can be an expensive component to re-render.
+                                // Especially during animations.
+                                () =>
+                                    platform !== "mobile" && (
+                                        <DocumentContentEditorSideDecorations
+                                            editorContainerWidth={editorContainerWidth}
+                                            contentReferences={content.references}
+                                            decorations={decorations}
+                                            openCommentThread={openCommentThread}
+                                        />
+                                    ),
+                                [
+                                    content.references,
+                                    decorations,
+                                    editorContainerWidth,
+                                    openCommentThread,
+                                    platform,
+                                ],
+                            )}
+                        </Box>
+                    </OverlayScopeContextProvider>
+                </ContentBlockWidthContextProvider>
             </Box>
             {sidebarState.isOpen && (
                 <>
@@ -2136,14 +2155,12 @@ export function DocumentContentEditor({
                         position="absolute"
                         zIndex="20"
                         top={routeLayout !== "narrow" ? "0" : undefined}
-                        right={routeLayout !== "narrow" ? "-4" : "0"}
+                        right="0"
                         left={routeLayout !== "narrow" ? undefined : "0"}
-                        paddingRight={routeLayout !== "narrow" ? "4" : undefined}
                         style={{
                             width:
                                 routeLayout !== "narrow"
-                                    ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
-                                      addRemLengths(documentContentEditorSidebarWidth, "4")
+                                    ? `min(${documentContentEditorSidebarWidth}, ${spacing[documentContentEditorSidebarMaxWidth]})`
                                     : "100%",
                             // In the mobile layout (mobile devices and peeks) we show the comment thread in a
                             // bottom sheet. When the comment input is focused on mobile devices we then
@@ -2167,24 +2184,24 @@ export function DocumentContentEditor({
                         <ContentBlockWidthContextProvider
                             isDisabled={routeLayout === "narrow"}
                             width={documentContentEditorSidebarWidth}
+                            maxWidth={documentContentEditorSidebarMaxWidth}
                         >
                             <Box
                                 ref={sidebarRef}
                                 width="full"
                                 height="full"
-                                borderLeft={routeLayout !== "narrow" ? "grey-5" : undefined}
                                 backgroundColor="grey-0"
                                 borderTopRadius={routeLayout !== "narrow" ? undefined : "3"}
-                                boxShadow={
-                                    routeLayout !== "narrow"
-                                        ? undefined
-                                        : "elevation-40-from-bottom"
-                                }
                                 overflow="hidden"
                                 style={{
+                                    boxShadow:
+                                        routeLayout !== "narrow"
+                                            ? `-1px 0 0 0 ${colorSchemeVars["grey-5-translucent"]}`
+                                            : elevationVars["elevation-40-from-bottom"],
+
                                     // Let the browser know we'll be basically immediately animating in the sidebar so
                                     // it can prepare a compositing layer.
-                                    willChange: "transform",
+                                    willChange: routeLayout === "narrow" ? "transform" : undefined,
                                 }}
                             >
                                 <DocumentContentEditorSidebar

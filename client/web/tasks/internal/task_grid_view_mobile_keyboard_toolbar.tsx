@@ -66,6 +66,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     parents,
     isFirstTaskInQuery,
     withoutAssigneeField,
+    withoutDueDateField,
     isQueryManuallySorted,
     titleInputRef,
     nestWithPreviousTaskRowIfExistsAndExpand,
@@ -80,6 +81,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     task: TaskModel | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     withoutAssigneeField: boolean;
+    withoutDueDateField: boolean;
     isQueryManuallySorted: boolean;
     isFirstTaskInQuery: boolean;
     titleInputRef: RefObject<TaskRowTitleInputRef | null>;
@@ -119,6 +121,7 @@ export function TaskGridViewMobileKeyboardToolbar({
                     : null
             }
             withoutAssigneeField={withoutAssigneeField}
+            withoutDueDateField={withoutDueDateField}
             isAssigneeActive={!!task?.getAssignee()}
             onAssigneePress={() => {
                 // `flushSync()` so React re-renders with an open overlay which influences the
@@ -152,9 +155,11 @@ export function TaskGridViewMobileKeyboardToolbar({
 export function TaskGridViewMobileKeyboardToolbarContainer({
     portalRef,
     withoutAssigneeField,
+    withoutDueDateField,
 }: {
     portalRef: Ref<HTMLDivElement>;
     withoutAssigneeField: boolean;
+    withoutDueDateField: boolean;
 }) {
     const {isNativeMobile} = useClientInfo();
     const rootPortalElement = assertExists(
@@ -388,6 +393,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                             onDedentPress={null}
                             onIndentPress={null}
                             withoutAssigneeField={withoutAssigneeField}
+                            withoutDueDateField={withoutDueDateField}
                             isAssigneeActive={false}
                             onAssigneePress={null}
                             isPriorityActive={false}
@@ -408,6 +414,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
     onDedentPress,
     onIndentPress,
     withoutAssigneeField,
+    withoutDueDateField,
     isAssigneeActive,
     onAssigneePress,
     isPriorityActive,
@@ -419,6 +426,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
     onDedentPress: (() => void) | null;
     onIndentPress: (() => void) | null;
     withoutAssigneeField: boolean;
+    withoutDueDateField: boolean;
     isAssigneeActive: boolean;
     onAssigneePress: (() => void) | null;
     isPriorityActive: boolean;
@@ -464,6 +472,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
             )}
             <TaskGridViewMobileKeyboardToolbarButton
                 dividerLeft={withoutAssigneeField}
+                dividerRight={withoutDueDateField}
                 label="Priority"
                 isActive={isPriorityActive}
                 isDisabled={!onPriorityPress}
@@ -476,15 +485,17 @@ function TaskGridViewMobileKeyboardToolbarContent({
                     withCurrentColorForUnfilledBars={true}
                 />
             </TaskGridViewMobileKeyboardToolbarButton>
-            <TaskGridViewMobileKeyboardToolbarButton
-                dividerRight
-                label="Due date"
-                isActive={isDueDateActive}
-                isDisabled={!onDueDatePress}
-                onPress={onDueDatePress ?? noop}
-            >
-                <CalendarBlank />
-            </TaskGridViewMobileKeyboardToolbarButton>
+            {!withoutDueDateField && (
+                <TaskGridViewMobileKeyboardToolbarButton
+                    dividerRight
+                    label="Due date"
+                    isActive={isDueDateActive}
+                    isDisabled={!onDueDatePress}
+                    onPress={onDueDatePress ?? noop}
+                >
+                    <CalendarBlank />
+                </TaskGridViewMobileKeyboardToolbarButton>
+            )}
             <TaskGridViewMobileKeyboardToolbarButton
                 dividerLeft
                 label="Open"

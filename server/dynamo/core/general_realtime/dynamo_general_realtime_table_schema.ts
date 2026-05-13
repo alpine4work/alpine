@@ -1752,6 +1752,10 @@ export class DynamoGeneralRealtimeTableSchema<
                             deletedPartitionKey: action.getPartitionKey(),
                             deletedSortKey: action.getSortKey(),
                         }),
+                        // The caller expects `transactionDirectlyUpdateItem()` to be retriable. Therefore
+                        // this gravestone check should be retriable in case it fails
+                        // (`transactionDoesNotExistConditionCheck()` isn't retriable by default).
+                        {isConditionCheckErrorRetriable: true},
                     ),
                 ],
                 this,

@@ -210,6 +210,8 @@ const grey5TranslucentColor = getColorForShiftingGreyColor(0.1, "5", "0");
 const grey10TranslucentColor = getColorForShiftingGreyColor(0.1, "10", "0");
 const grey30TranslucentColor = getColorForShiftingGreyColor(0.1, "30", "0");
 const grey40TranslucentColor = getColorForShiftingGreyColor(0.1, "40", "0");
+const grey50TranslucentColor = getColorForShiftingGreyColor(0.1, "50", "0");
+const grey60TranslucentColor = getColorForShiftingGreyColor(0.1, "60", "0");
 
 /**
  * Special shades of grey that do not follow the inverted grey color spectrum.
@@ -289,6 +291,20 @@ const specialGreyColorVars: {
      * want the color to show through.
      */
     "grey-40-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-50`. Useful when you want
+     * the color `grey-50` on a white background but over some colorful content you
+     * want the color to show through.
+     */
+    "grey-50-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-60`. Useful when you want
+     * the color `grey-60` on a white background but over some colorful content you
+     * want the color to show through.
+     */
+    "grey-60-translucent": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-5-dark-10": colors["grey-5"],
     "grey-0-opacity-20": `${colors["grey-0"]}${opacityHex(0.2)}`,
@@ -303,6 +319,8 @@ const specialGreyColorVars: {
     "grey-10-translucent": grey10TranslucentColor.light,
     "grey-30-translucent": grey30TranslucentColor.light,
     "grey-40-translucent": grey40TranslucentColor.light,
+    "grey-50-translucent": grey50TranslucentColor.light,
+    "grey-60-translucent": grey60TranslucentColor.light,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -320,6 +338,8 @@ globalStyle(darkColorSchemeSelector, {
         "grey-10-translucent": grey10TranslucentColor.dark,
         "grey-30-translucent": grey30TranslucentColor.dark,
         "grey-40-translucent": grey40TranslucentColor.dark,
+        "grey-50-translucent": grey50TranslucentColor.dark,
+        "grey-60-translucent": grey60TranslucentColor.dark,
     }),
 });
 

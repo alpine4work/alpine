@@ -648,13 +648,26 @@ function TaskRowView(
             if (!capabilities.withoutAssigneeField) {
                 columns.push("Assignee");
             }
+
             columns.push("Priority");
-            columns.push("DueDate");
-            columns.push("Collections");
+
+            if (!capabilities.withoutDueDateField) {
+                columns.push("DueDate");
+            }
+
+            if (!capabilities.withoutCollectionsField) {
+                columns.push("Collections");
+            }
         }
 
         return columns;
-    }, [capabilities.hasColumns, capabilities.withoutAssigneeField, hasTask]);
+    }, [
+        capabilities.hasColumns,
+        capabilities.withoutAssigneeField,
+        capabilities.withoutDueDateField,
+        capabilities.withoutCollectionsField,
+        hasTask,
+    ]);
 
     const {
         isFocusWithin,
@@ -784,16 +797,20 @@ function TaskRowView(
                     return;
                 }
                 case "DueDate": {
-                    if (capabilities.hasColumns && columns.includes(column)) {
-                        assertExists(dueDateCellRef.current).focusCell();
-                    } else if (capabilities.hasDenseFields) {
-                        assertExists(denseFieldsRef.current).focusDueDateInput();
+                    if (!capabilities.withoutDueDateField) {
+                        if (capabilities.hasColumns && columns.includes(column)) {
+                            assertExists(dueDateCellRef.current).focusCell();
+                        } else if (capabilities.hasDenseFields) {
+                            assertExists(denseFieldsRef.current).focusDueDateInput();
+                        }
                     }
                     return;
                 }
                 case "Collections": {
-                    if (capabilities.hasColumns && columns.includes(column)) {
-                        assertExists(collectionsCellRef.current).focusCell();
+                    if (!capabilities.withoutCollectionsField) {
+                        if (capabilities.hasColumns && columns.includes(column)) {
+                            assertExists(collectionsCellRef.current).focusCell();
+                        }
                     }
                     return;
                 }
@@ -1663,23 +1680,23 @@ function TaskRowView(
                                     ? dragHandleContainerIfPrimaryInputCanNotHoverClassName
                                     : dragHandleContainerClassName
                             }
-                        >
-                            {hasTask && !isQueryManuallySorted && (
-                                <div className={tasksStyles.rowNumberClassName} />
-                            )}
-                        </div>
+                        />
                     ))}
                 {!withoutPaddingLeft &&
                     // If the primary input can't hover, don't render expand button. That way user
                     // can't tap in that general location to hit the button.
                     canPrimaryInputHover &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (
-                        <div
-                            className={expandButtonContainerClassName}
-                            style={{opacity: isHovered || isExpandButtonFocused ? 1 : 0}}
-                        >
+                        <div className={expandButtonContainerClassName}>
+                            {hasTask &&
+                                !isQueryManuallySorted &&
+                                !isHovered &&
+                                !isExpandButtonFocused && (
+                                    <div className={tasksStyles.rowNumberClassName} />
+                                )}
                             <IconButton
                                 ref={expandButtonRef}
+                                opacity={isHovered || isExpandButtonFocused ? "100" : "0"}
                                 // Expand button is not tab focusable. Keyboard navigation within a task grid is
                                 // not done with tab navigation.
                                 isTabbable={false}
@@ -1712,7 +1729,11 @@ function TaskRowView(
                             </IconButton>
                         </div>
                     ) : (
-                        <div className={expandButtonContainerClassName} />
+                        <div className={expandButtonContainerClassName}>
+                            {hasTask && !isQueryManuallySorted && (
+                                <div className={tasksStyles.rowNumberClassName} />
+                            )}
+                        </div>
                     ))}
                 {!withoutPaddingLeft && (
                     <div className={statusButtonContainerClassName[platform]}>
@@ -1884,30 +1905,36 @@ function TaskRowView(
                         focusPreviousCell={focusPreviousCell}
                         commitActionTransaction={commitActionTransaction}
                     />
-                    <TaskRowDueDateCell
-                        ref={dueDateCellRef}
-                        isReadOnly={!hasEditAccessLevel}
-                        store={store}
-                        task={task}
-                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
-                        onCellKeyDown={handleCellKeyDown}
-                        onCellKeyDownCapture={handleCellKeyDownCapture}
-                        focusNextCell={focusNextCell}
-                        focusPreviousCell={focusPreviousCell}
-                        commitActionTransaction={commitActionTransaction}
-                    />
-                    <TaskRowCollectionsCell
-                        ref={collectionsCellRef}
-                        isReadOnly={!hasEditAccessLevel}
-                        store={store}
-                        query={query}
-                        task={task}
-                        isCreatedCollectionPrivate={isCreatedCollectionPrivate}
-                        onCellKeyDown={handleCellKeyDown}
-                        onCellKeyDownCapture={handleCellKeyDownCapture}
-                        focusPreviousCell={focusPreviousCell}
-                        commitActionTransaction={commitActionTransaction}
-                    />
+                    {!capabilities.withoutDueDateField && (
+                        <TaskRowDueDateCell
+                            ref={dueDateCellRef}
+                            isReadOnly={!hasEditAccessLevel}
+                            store={store}
+                            task={task}
+                            disableExpensiveFeaturesDuringScroll={
+                                disableExpensiveFeaturesDuringScroll
+                            }
+                            onCellKeyDown={handleCellKeyDown}
+                            onCellKeyDownCapture={handleCellKeyDownCapture}
+                            focusNextCell={focusNextCell}
+                            focusPreviousCell={focusPreviousCell}
+                            commitActionTransaction={commitActionTransaction}
+                        />
+                    )}
+                    {!capabilities.withoutCollectionsField && (
+                        <TaskRowCollectionsCell
+                            ref={collectionsCellRef}
+                            isReadOnly={!hasEditAccessLevel}
+                            store={store}
+                            query={query}
+                            task={task}
+                            isCreatedCollectionPrivate={isCreatedCollectionPrivate}
+                            onCellKeyDown={handleCellKeyDown}
+                            onCellKeyDownCapture={handleCellKeyDownCapture}
+                            focusPreviousCell={focusPreviousCell}
+                            commitActionTransaction={commitActionTransaction}
+                        />
+                    )}
                 </>
             )}
             <div
@@ -1998,6 +2025,7 @@ function TaskRowView(
                     task={task}
                     parents={parents}
                     withoutAssigneeField={capabilities.withoutAssigneeField}
+                    withoutDueDateField={capabilities.withoutDueDateField}
                     isQueryManuallySorted={isQueryManuallySorted}
                     isFirstTaskInQuery={isFirstTaskInQuery}
                     titleInputRef={titleInputRef}

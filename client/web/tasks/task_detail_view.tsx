@@ -42,8 +42,10 @@ import {useTouchSlop} from "~/client/web/design/use_touch_slop.js";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
+import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
@@ -80,7 +82,7 @@ import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_se
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
-import {contentStyles, spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewCommentSectionHeaderHeightPx,
     taskDetailViewDenseFieldGap,
@@ -245,6 +247,9 @@ import {
 } from "~/shared/tasks/title/task_title.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
+const taskWideProjectLayoutWidth = "1/4";
+const taskWideProjectLayoutMaxWidth = "96";
+
 export function TaskDetailView({
     taskId: possiblyGhostTaskId,
     store,
@@ -322,6 +327,7 @@ export function TaskDetailView({
     const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContextIfExists();
     const currentDate = useCurrentDate();
+    const isInitialAppRender = useIsInitialAppRender();
 
     const spaceId = space.id;
 
@@ -815,6 +821,45 @@ export function TaskDetailView({
 
     const isCreatedCollectionPrivate = !effectiveAccessPolicyWithOptimisticState.defaultGrant;
 
+    // If we're rendering a project with a wide `RouteLayout` then we track the window
+    // width to determine how many fields we should show. This state only updates at
+    // specific breakpoints which are chosen so we show 50 characters of the task title
+    // at all times.
+    //
+    // We take a dependency on `isInitialAppRender` so once the initial app render is
+    // done we can switch to the correct scale based on the actual window width in the
+    // same render as everything else that needs to re-render once `isInitialAppRender`
+    // is false (e.g. the comment input which pins itself to the bottom of the screen
+    // after initial render).
+    const [wideProjectLayoutScale, setWideProjectLayoutScale] = useStateWithDependencies(
+        ([isInitialAppRender, isWideProjectLayout]) => {
+            if (!isWideProjectLayout) return "Full";
+
+            return isInitialAppRender
+                ? getTaskWideProjectLayoutScaleFromWindowWidth(clientInfo.screenWidth)
+                : getTaskWideProjectLayoutScaleFromWindowWidth(window.innerWidth);
+        },
+        [isInitialAppRender, isWideProjectLayout],
+    );
+
+    useEffect(() => {
+        if (isInitialAppRender) return;
+        if (!isWideProjectLayout) return;
+
+        const handleWindowResize = () => {
+            setWideProjectLayoutScale(
+                getTaskWideProjectLayoutScaleFromWindowWidth(window.innerWidth),
+            );
+        };
+
+        handleWindowResize();
+
+        window.addEventListener("resize", handleWindowResize);
+        return () => {
+            window.removeEventListener("resize", handleWindowResize);
+        };
+    }, [isInitialAppRender, isWideProjectLayout, setWideProjectLayoutScale]);
+
     const {
         spacingScale,
         stateKey: childrenGridViewStateKey,
@@ -846,6 +891,8 @@ export function TaskDetailView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
                     isCreatedCollectionFromGhostTaskPrivate: isCreatedCollectionPrivate,
                 };
             } else {
@@ -856,10 +903,19 @@ export function TaskDetailView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    withoutDueDateField: wideProjectLayoutScale === "WithoutTwoFields",
+                    withoutCollectionsField:
+                        wideProjectLayoutScale === "WithoutOneField" ||
+                        wideProjectLayoutScale === "WithoutTwoFields",
                     isCreatedCollectionFromGhostTaskPrivate: isCreatedCollectionPrivate,
                 };
             }
-        }, [hasEditAccessLevel, isCreatedCollectionPrivate, isWideProjectLayout]),
+        }, [
+            hasEditAccessLevel,
+            isCreatedCollectionPrivate,
+            isWideProjectLayout,
+            wideProjectLayoutScale,
+        ]),
 
         // Even when `childrenQuery` is null we still want to show the bottom ghost task.
         // If the user starts to type in the bottom ghost task then
@@ -2546,6 +2602,7 @@ export function TaskDetailView({
     const scrollViewNode = (
         <VirtualizedScrollView
             ref={viewRef}
+            data-testid="TaskDetailScrollView"
             elementRef={scrollViewRef}
             scrollbarInsetTop={scrollbarInsetTop}
             stateKey={!isWideProjectLayout ? childrenGridViewStateKey : undefined}
@@ -2598,14 +2655,7 @@ export function TaskDetailView({
 
     if (routeLayout === "wide" && layout !== "Project") {
         node = (
-            <Box
-                flexGrow="1"
-                position="relative"
-                width="full"
-                height="full"
-                overflow="hidden"
-                style={{paddingLeft: spaceLayoutStyles.sideBarSpace}}
-            >
+            <Box flexGrow="1" position="relative" width="full" height="full" overflow="hidden">
                 {scrollViewNode}
             </Box>
         );
@@ -2621,7 +2671,6 @@ export function TaskDetailView({
                 overflow="hidden"
                 display="flex"
                 flexDirection="column"
-                style={{paddingLeft: spaceLayoutStyles.sideBarWidth}}
             >
                 <TaskProjectDetailViewDesktopHeader
                     ref={projectDesktopHeaderRef}
@@ -2651,13 +2700,16 @@ export function TaskDetailView({
                     flexDirection="row"
                     justifyContent="center"
                 >
-                    <ContentBlockWidthContextProvider width="1/4" maxWidth="96">
+                    <ContentBlockWidthContextProvider
+                        width={taskWideProjectLayoutWidth}
+                        maxWidth={taskWideProjectLayoutMaxWidth}
+                    >
                         <Box
                             flexShrink="0"
                             position="relative"
                             height="full"
-                            width="1/4"
-                            maxWidth="96"
+                            width={taskWideProjectLayoutWidth}
+                            maxWidth={taskWideProjectLayoutMaxWidth}
                             paddingTop={taskGridViewColumnHeaderHeight}
                         >
                             <Box
@@ -3481,4 +3533,19 @@ function TaskProjectDetailViewWrapper({
     });
 
     return children;
+}
+
+type TaskWideProjectLayoutScale = "Full" | "WithoutOneField" | "WithoutTwoFields";
+
+function getTaskWideProjectLayoutScaleFromWindowWidth(
+    windowWidth: number,
+): TaskWideProjectLayoutScale {
+    // The goal is to always show at least 50 characters of a task title. These window
+    // widths were hand picked at the boundaries of when the 50th character of a task
+    // title starts to be cut off. (I used a string of 50 "x" characters for this
+    // test.)
+
+    if (windowWidth > 1648) return "Full";
+    if (windowWidth > 1306) return "WithoutOneField";
+    return "WithoutTwoFields";
 }

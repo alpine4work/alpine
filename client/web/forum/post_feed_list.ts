@@ -149,6 +149,10 @@ export class PostFeedList implements PostListInterface {
         return this._entries.getPostRealtimeItemIfExists(postId);
     }
 
+    public hasMorePosts(): boolean {
+        return this.hasMoreEntries;
+    }
+
     public hasOpenPostComments(): boolean {
         return this._entries.openPostCommentsCount > 0;
     }

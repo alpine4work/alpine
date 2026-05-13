@@ -15,6 +15,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const postViewFlex = 6;
 export const postListViewAsideFlex = 4;
+export const postListViewMarginAfterPostWithOpenComments = "2.5";
 
 export const channelViewAsideSectionGap = "7";
 
@@ -107,6 +108,8 @@ export const postViewMinHeightPx = createObjectFromKeys(
 );
 
 export const postListViewAsideMaxWidth = "96";
+export const postListViewAsidePaddingLeft = "8";
+export const postListViewAsidePaddingRight = "5";
 
 export const channelViewMetadataSectionTitleFontSize = "75";
 export const channelViewMetadataSectionTitleColor = "grey-50";
@@ -125,12 +128,12 @@ export const channelViewAsidePostFileMaxCount =
 
 export const channelViewAsideFileGap = "2";
 
-export const channelViewAsideFileHeight: RemLength = `${
+export const channelViewAsideFileHeightRem =
     (parseRemLength(postListViewAsideMaxWidth) -
-        parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1) -
-        parseRemLength(screenPaddingX.desktop) * 2) /
-    channelViewAsidePostFileColumnCount
-}rem`;
+        parseRemLength(postListViewAsidePaddingLeft) -
+        parseRemLength(postListViewAsidePaddingRight) -
+        parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1)) /
+    channelViewAsidePostFileColumnCount;
 
 export const channelFilesViewFileMaxSize = "64";
 export const channelFilesViewFileMinSize = "20";

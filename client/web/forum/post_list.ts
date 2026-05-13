@@ -74,6 +74,10 @@ export type PostListHeader =
           readonly initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
       };
 
+export type PostListFooter = {
+    readonly type: "MarginBottom";
+};
+
 export type PostCommentsState = PostCommentsOpenState | "Closed";
 type PostCommentsOpenState = "Open" | "AlwaysOpen";
 
@@ -135,6 +139,11 @@ export interface PostListInterface {
     } | null;
 
     /**
+     * Are there more posts we can load from this post list?
+     */
+    hasMorePosts(): boolean;
+
+    /**
      * Does the post list have any posts with open comments? Used by mobile since in a
      * list of posts, no post should have open comments.
      */
@@ -149,13 +158,21 @@ export type PostListItemExtra = {
 /**
  * Adds a header item to the beginning of a post list.
  */
-export class PostListWithHeader implements PostListInterface {
-    private readonly _header: PostListHeader;
+export class PostListWithHeaderOrWithFooter implements PostListInterface {
+    private readonly _header: PostListHeader | null;
+    private readonly _footer: PostListFooter | null;
     private readonly _posts: PostListInterface;
+    private readonly _postsItemCount: number;
 
-    constructor(header: PostListHeader, posts: PostListInterface) {
+    constructor(
+        header: PostListHeader | null,
+        footer: PostListFooter | null,
+        posts: PostListInterface,
+    ) {
         this._header = header;
+        this._footer = footer;
         this._posts = posts;
+        this._postsItemCount = posts.getItemCount();
     }
 
     // After adding a header, the post list is not a single post anymore.
@@ -164,67 +181,106 @@ export class PostListWithHeader implements PostListInterface {
     }
 
     public getItemCount(): number {
-        return this._posts.getItemCount() + 1;
+        return (
+            this._postsItemCount +
+            (this._header !== null ? 1 : 0) +
+            (this._footer !== null && !this._posts.hasMorePosts() ? 1 : 0)
+        );
     }
 
     public getItem(index: number): PostListItem {
-        if (index === 0) {
-            return {
-                type: "Header",
-                header: this._header,
-            };
+        let offset = 0;
+
+        if (this._header !== null) {
+            if (index === 0) {
+                return {
+                    type: "Header",
+                    header: this._header,
+                };
+            }
+
+            index -= 1;
+            offset += 1;
         }
 
-        const item = this._posts.getItem(index - 1);
+        if (index < this._postsItemCount) {
+            const item = this._posts.getItem(index);
 
-        // Adjust any item indexes to consider items that come before posts in our
-        // `PostList`.
-        switch (item.type) {
-            case "Header":
-            case "MoreUnloadedPosts":
-            case "FeedEntry":
-                return item;
-            case "PostContent": {
-                return {
-                    ...item,
-                    postContentItemIndex: item.postContentItemIndex + 1,
-                    postCommentInputItemIndex:
-                        item.postCommentInputItemIndex !== null
-                            ? item.postCommentInputItemIndex + 1
-                            : null,
-                };
+            // Adjust any item indexes to consider items that come before posts in our
+            // `PostList`.
+            switch (item.type) {
+                case "Header":
+                case "Footer":
+                case "MoreUnloadedPosts":
+                case "FeedEntry": {
+                    return item;
+                }
+                case "PostContent": {
+                    return {
+                        ...item,
+                        postContentItemIndex: item.postContentItemIndex + offset,
+                        postCommentInputItemIndex:
+                            item.postCommentInputItemIndex !== null
+                                ? item.postCommentInputItemIndex + offset
+                                : null,
+                    };
+                }
+                case "LoadedPostComment":
+                case "UnloadedPostComment":
+                case "OptimisticPostComment":
+                case "PostCommentsTypingIndicator": {
+                    return {
+                        ...item,
+                        postCommentInputItemIndex: item.postCommentInputItemIndex + offset,
+                    };
+                }
+                case "PostCommentInput": {
+                    return {
+                        ...item,
+                        postContentItemIndex: item.postContentItemIndex + offset,
+                    };
+                }
+                default:
+                    throw exhaustive(item);
             }
-            case "LoadedPostComment":
-            case "UnloadedPostComment":
-            case "OptimisticPostComment":
-            case "PostCommentsTypingIndicator": {
-                return {
-                    ...item,
-                    postCommentInputItemIndex: item.postCommentInputItemIndex + 1,
-                };
-            }
-            case "PostCommentInput": {
-                return {
-                    ...item,
-                    postContentItemIndex: item.postContentItemIndex + 1,
-                };
-            }
-            default:
-                throw exhaustive(item);
         }
+
+        index -= this._postsItemCount;
+
+        if (this._footer !== null && !this._posts.hasMorePosts()) {
+            if (index === 0) {
+                return {
+                    type: "Footer",
+                    footer: this._footer,
+                };
+            }
+            index--;
+        }
+
+        throw new OutOfRangeError("Index out of bounds");
     }
 
     public getPostContentItemIfExists(index: number): PostListPostContentItem | null {
-        if (index === 0) return null;
+        let offset = 0;
 
-        const item = this._posts.getPostContentItemIfExists(index - 1);
+        if (this._header !== null) {
+            if (index === 0) return null;
+            index--;
+            offset++;
+        }
+
+        if (index >= this._postsItemCount) return null;
+
+        const item = this._posts.getPostContentItemIfExists(index);
         if (!item) return null;
 
         return {
             ...item,
-            postContentItemIndex: item.postContentItemIndex + 1,
+            postContentItemIndex: item.postContentItemIndex + offset,
             postCommentInputItemIndex:
-                item.postCommentInputItemIndex !== null ? item.postCommentInputItemIndex + 1 : null,
+                item.postCommentInputItemIndex !== null
+                    ? item.postCommentInputItemIndex + offset
+                    : null,
         };
     }
 
@@ -241,13 +297,19 @@ export class PostListWithHeader implements PostListInterface {
         const {post, postCommentsState, postComments, postContentItemIndex, getPostCommentIndex} =
             postResult;
 
+        const offset = this._header !== null ? 1 : 0;
+
         return {
             post,
             postCommentsState,
             postComments,
-            postContentItemIndex: postContentItemIndex + 1,
-            getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + 1,
+            postContentItemIndex: postContentItemIndex + offset,
+            getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + offset,
         };
+    }
+
+    public hasMorePosts() {
+        return this._posts.hasMorePosts();
     }
 
     public hasOpenPostComments(): boolean {
@@ -1256,6 +1318,7 @@ export function getPostListItemExtra(
  */
 export type PostListItem =
     | PostListHeaderItem
+    | PostListFooterItem
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
@@ -1268,6 +1331,11 @@ export type PostListItem =
 export type PostListHeaderItem = {
     readonly type: "Header";
     readonly header: PostListHeader;
+};
+
+export type PostListFooterItem = {
+    readonly type: "Footer";
+    readonly footer: PostListFooter;
 };
 
 /**

@@ -9,8 +9,6 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {RouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
-import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
-import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -28,11 +26,9 @@ let debugRouteShimmerStateStore: ValueStore<"Overlay" | "Full" | null> | undefin
 
 export function LoadingIndicatorSpaceOutletContainer({
     routeId,
-    hasSpaceLayoutSidebar = false,
     children,
 }: {
     routeId: string;
-    hasSpaceLayoutSidebar?: boolean;
     children: ReactElement | null;
 }) {
     const [searchParams] = useSearchParams();
@@ -118,7 +114,6 @@ export function LoadingIndicatorSpaceOutletContainer({
                     matches={matches}
                     searchParams={searchParams}
                     withInboxBanner={withInboxBanner}
-                    hasSpaceLayoutSidebar={hasSpaceLayoutSidebar}
                 />
                 {children}
             </>
@@ -132,32 +127,13 @@ function LoadingIndicatorDebugOverlay({
     matches,
     searchParams,
     withInboxBanner,
-    hasSpaceLayoutSidebar,
 }: {
     matches: Array<AgnosticDataRouteMatch>;
     searchParams: URLSearchParams;
     withInboxBanner: boolean;
-    hasSpaceLayoutSidebar: boolean;
 }) {
-    const spaceSideBarSpacing = useSpaceSideBarSpacing();
-
     return (
-        <Box
-            position="absolute"
-            zIndex="90"
-            inset="0"
-            opacity="90"
-            pointerEvents="none"
-            style={{
-                paddingLeft: hasSpaceLayoutSidebar
-                    ? {
-                          Always: spaceLayoutStyles.sideBarWidth,
-                          Never: 0,
-                          Sometimes: spaceLayoutStyles.sideBarSpace,
-                      }[spaceSideBarSpacing]
-                    : undefined,
-            }}
-        >
+        <Box position="absolute" zIndex="90" inset="0" opacity="90" pointerEvents="none">
             <Box position="absolute" inset="0" zIndex="-10" backgroundColor="grey-0" opacity="60" />
             <RouteShimmer
                 routeId={matches[matches.length - 1]?.route.id ?? null}

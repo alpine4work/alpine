@@ -57,6 +57,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         fixedTime: screenshotTime,
     });
     await runner.screenshot("a0", "basic");
+
+    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/feed?${searchParams.toString()}`, {
+        fixedTime: screenshotTime,
+        viewport: "wide",
+    });
+    await runner.screenshot("a1", "wide");
 }
 
 async function createFeedEntries(

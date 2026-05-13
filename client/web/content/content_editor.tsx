@@ -125,6 +125,7 @@ import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {MenuActionsSection} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
+import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {
     dispatchTriggeredOverlayCloseEvent,
     dispatchTriggeredOverlayOpenEvent,
@@ -690,6 +691,20 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * Only true for `<DocumentContentEditor>` right now.
      */
     withMouseDownAtEndCreatesParagraph?: boolean;
+
+    /**
+     * By default when we scroll content into view we include enough space at the top
+     * of the scroll view to fit a navigation bar in case we're in a route with
+     * `useNavigationBar()`. However, if you're building a message input (or any input
+     * with internal scrolling) then if you're scrolling to show some content then
+     * there's no navigation bar to avoid.
+     *
+     * Use this if you have a `<ContentEditor>` in an input with its own scroll area
+     * (like a message input). If the `<ContentEditor>` is a part of some parent scroll
+     * area (generally the route scroll area) then leaving this as `false` is probably
+     * the best idea.
+     */
+    withoutNavigationBarScrollMarginTop?: boolean;
 } & (
     | {
           /**
@@ -1223,21 +1238,32 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         let lastSpacingScale: SpacingScale | null = null;
+        let lastWithoutNavigationBarScrollMarginTop: boolean | null = null;
         let lastScrollMargin: {top: number; left: number; right: number; bottom: number} | null =
             null;
 
         function getScrollMargin() {
             const spacingScale = getSpacingScaleWithoutListening();
+            const withoutNavigationBarScrollMarginTop =
+                propsRef.current.withoutNavigationBarScrollMarginTop ?? false;
 
-            if (lastScrollMargin !== null && lastSpacingScale === spacingScale)
+            if (
+                lastScrollMargin !== null &&
+                lastSpacingScale === spacingScale &&
+                lastWithoutNavigationBarScrollMarginTop === withoutNavigationBarScrollMarginTop
+            ) {
                 return lastScrollMargin;
+            }
 
             const scrollMarginPx =
                 textInputVisibilityMaintainerMarginYRem * remPxBySpacingScale[spacingScale];
 
             lastSpacingScale = spacingScale;
+            lastWithoutNavigationBarScrollMarginTop = withoutNavigationBarScrollMarginTop;
 
-            lastScrollMargin = {
+            let scrollMarginTop = scrollMarginPx;
+
+            if (schema.nodes.title) {
                 // If our schema has a title then use the title's padding top as our top margin.
                 // This has two important effects:
                 //
@@ -1247,19 +1273,32 @@ function ContentEditor<Content extends ContentWithReferences>(
                 //
                 // 2. Moving up through content with arrow keys and arriving at the title will have
                 //    fully scrolled the editor to the top of the view.
-                top: schema.nodes.title
-                    ? getElementSafeAreaInsetTopPx(view.dom) +
-                      convertRemLengthToPx(
-                          contentStyles.titlePaddingTop[
-                              getPlatformRouteLayout(
-                                  getPlatformWithoutListening(),
-                                  routeLayoutRef.current,
-                              )
-                          ],
-                          spacingScale,
-                      ) +
-                      1
-                    : scrollMarginPx,
+                scrollMarginTop =
+                    getElementSafeAreaInsetTopPx(view.dom) +
+                    convertRemLengthToPx(
+                        contentStyles.titlePaddingTop[
+                            getPlatformRouteLayout(
+                                getPlatformWithoutListening(),
+                                routeLayoutRef.current,
+                            )
+                        ],
+                        spacingScale,
+                    ) +
+                    1;
+            } else if (!withoutNavigationBarScrollMarginTop) {
+                // Always allow enough space for the navigation bar in top scroll margin. For
+                // example, task notes in a peek view need to scroll the peek enough to show where
+                // you're typing when the cursor is underneath the navigation bar.
+                //
+                // NOTE(calebmer): This behavior is a bit strange in message inputs where
+                scrollMarginTop =
+                    getElementSafeAreaInsetTopPx(view.dom) +
+                    convertRemLengthToPx(navigationBarHeight, spacingScale) +
+                    scrollMarginPx;
+            }
+
+            lastScrollMargin = {
+                top: scrollMarginTop,
                 left:
                     scrollMarginPx +
                     // This is the base width of code block line numbers. When scrolling left, to make
