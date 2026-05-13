@@ -22,7 +22,7 @@ describe("pageAccessHook", () => {
         db.exec("INSERT INTO t VALUES(1)");
 
         const readFlags = new Set<number>();
-        db.pageAccessHook((_pArg, _pgno, flags) => {
+        db.pageAccessHook((_schemaName, _pgno, flags) => {
             readFlags.add(flags);
         });
         db.exec("SELECT * FROM t");
@@ -30,7 +30,7 @@ describe("pageAccessHook", () => {
         expect(readFlags.has(pageAccessFlagRead)).toBe(true);
 
         const writeFlags = new Set<number>();
-        db.pageAccessHook((_pArg, _pgno, flags) => {
+        db.pageAccessHook((_schemaName, _pgno, flags) => {
             writeFlags.add(flags);
         });
         db.exec("INSERT INTO t VALUES(2)");
@@ -49,7 +49,7 @@ describe("pageAccessHook", () => {
         db.exec("INSERT INTO t VALUES(1)");
 
         const pages: Array<number> = [];
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagRead) pages.push(pgno);
         });
         db.exec("SELECT * FROM t");
@@ -81,7 +81,7 @@ describe("pageAccessHook", () => {
 
         for (const {name, rootpage} of schema) {
             const pages = new Set<number>();
-            db.pageAccessHook((_pArg, pgno, flags) => {
+            db.pageAccessHook((_schemaName, pgno, flags) => {
                 if (flags === pageAccessFlagRead) pages.add(pgno);
             });
             db.exec(`SELECT * FROM ${name}`);
@@ -103,13 +103,13 @@ describe("pageAccessHook", () => {
         db.exec("INSERT INTO t2 VALUES(2)");
 
         const pagesForT1 = new Set<number>();
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagRead) pagesForT1.add(pgno);
         });
         db.exec("SELECT * FROM t1");
 
         const pagesForT2 = new Set<number>();
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagRead) pagesForT2.add(pgno);
         });
         db.exec("SELECT * FROM t2");
@@ -135,7 +135,7 @@ describe("pageAccessHook", () => {
         db.exec("CREATE TABLE t(a INTEGER)");
 
         const writePages = new Set<number>();
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagWrite) writePages.add(pgno);
         });
         db.exec("INSERT INTO t VALUES(42)");
@@ -154,7 +154,7 @@ describe("pageAccessHook", () => {
         db.exec("INSERT INTO t VALUES(1)");
 
         const pages: Array<number> = [];
-        db.pageAccessHook((_pArg, pgno) => {
+        db.pageAccessHook((_schemaName, pgno) => {
             pages.push(pgno);
         });
         db.exec("SELECT * FROM t");
@@ -182,7 +182,7 @@ describe("pageAccessHook", () => {
 
         // Install hook after pages are cached, then read again.
         const firstRun: Array<number> = [];
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagRead) firstRun.push(pgno);
         });
         db.exec("SELECT * FROM t");
@@ -190,7 +190,7 @@ describe("pageAccessHook", () => {
 
         // A third read should fire the hook with the same pages.
         const secondRun: Array<number> = [];
-        db.pageAccessHook((_pArg, pgno, flags) => {
+        db.pageAccessHook((_schemaName, pgno, flags) => {
             if (flags === pageAccessFlagRead) secondRun.push(pgno);
         });
         db.exec("SELECT * FROM t");
@@ -200,7 +200,26 @@ describe("pageAccessHook", () => {
         db.close();
     });
 
-    test("does not fire for attached databases", async () => {
+    test("schema name for the main database is 'main'", async () => {
+        const sqlite3 = await sqlite3Promise;
+        const db = new sqlite3.oo1.DB("/test-main-schema.sqlite3", "ct");
+
+        db.exec("CREATE TABLE t(a INTEGER)");
+        db.exec("INSERT INTO t VALUES(1)");
+
+        const schemas = new Set<string>();
+        db.pageAccessHook(schemaName => {
+            schemas.add(schemaName);
+        });
+        db.exec("SELECT * FROM t");
+
+        expect(schemas.has("main")).toBe(true);
+
+        db.pageAccessHook(null);
+        db.close();
+    });
+
+    test("fires for attached databases with the AS-name as schema", async () => {
         const sqlite3 = await sqlite3Promise;
         const main = new sqlite3.oo1.DB("/test-main.sqlite3", "ct");
         const attached = new sqlite3.oo1.DB("/test-attached.sqlite3", "ct");
@@ -212,26 +231,36 @@ describe("pageAccessHook", () => {
         main.exec("CREATE TABLE t1(a INTEGER)");
         main.exec("INSERT INTO t1 VALUES(1)");
 
+        // ATTACH must happen BEFORE pageAccessHook so the
+        // new pager exists when we install the hook.
         main.exec("ATTACH '/test-attached.sqlite3' AS other");
 
-        // Hook only covers the main database's pager.
-        const pages: Array<number> = [];
-        main.pageAccessHook((_pArg, pgno, flags) => {
-            if (flags === pageAccessFlagRead) pages.push(pgno);
+        const events: Array<{schema: string; pgno: number}> = [];
+        main.pageAccessHook((schemaName, pgno, flags) => {
+            if (flags === pageAccessFlagRead) events.push({schema: schemaName, pgno});
         });
 
         // Read from the attached database only.
         main.exec("SELECT * FROM other.t2");
-        const pagesFromAttached = [...pages];
+        const fromAttached = events.filter(e => e.schema === "other");
+        const initialMain = events.filter(e => e.schema === "main");
 
         // Read from the main database.
-        pages.length = 0;
+        events.length = 0;
         main.exec("SELECT * FROM t1");
-        const pagesFromMain = [...pages];
+        const fromMain = events.filter(e => e.schema === "main");
 
-        expect(pagesFromMain.length).toBeGreaterThan(0);
-        // Attached DB has a separate pager — hook should not fire.
-        expect(pagesFromAttached.length).toBe(0);
+        expect(fromAttached.length).toBeGreaterThan(0);
+        // Selecting from `other.t2` shouldn't have read main
+        // table pages (other than perhaps ATTACH-related
+        // schema lookups, which we don't strictly assert on).
+        void initialMain;
+        expect(fromMain.length).toBeGreaterThan(0);
+        // No event should report a schema we didn't open.
+        const allSchemas = new Set(events.map(e => e.schema));
+        for (const s of allSchemas) {
+            expect(["main", "other"]).toContain(s);
+        }
 
         main.pageAccessHook(null);
         main.exec("DETACH other");

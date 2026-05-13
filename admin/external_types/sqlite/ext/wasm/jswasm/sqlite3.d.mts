@@ -1276,14 +1276,21 @@ export class Database {
 
   /**
    * Registers a callback that is invoked whenever a database
-   * page is read or written. The callback receives `pArg`
-   * (always 0 from the OO wrapper), the 1-based page number,
-   * and a flag indicating the access type: `1` for read, `2`
-   * for write. Pass a falsy value to disable the hook.
+   * page is read or written, on every database currently
+   * attached to this connection (main, temp, and any ATTACH-ed
+   * schemas). The callback receives the firing schema's name
+   * (e.g. `"main"`, `"temp"`, or the AS-name from an ATTACH),
+   * the 1-based page number, and a flag indicating the access
+   * type: `1` for read, `2` for write. Pass a falsy value to
+   * disable the hook.
+   *
+   * Note: pagers created by ATTACH after this call do NOT
+   * inherit the hook; re-call `pageAccessHook()` after each
+   * ATTACH.
    */
   pageAccessHook(
     callback:
-      | ((pArg: WasmPointer, pgno: number, flags: number) => void)
+      | ((schemaName: string, pgno: number, flags: number) => void)
       | null
       | false
       | 0,

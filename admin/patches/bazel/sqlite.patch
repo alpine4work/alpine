@@ -245,7 +245,7 @@ diff --git a/src/sqlite.h.in b/src/sqlite.h.in
 diff --git a/src/main.c b/src/main.c
 --- a/src/main.c
 +++ b/src/main.c
-@@ -2368,6 +2368,30 @@
+@@ -2368,6 +2368,46 @@
    pRet = db->pUpdateArg;
    db->xUpdateCallback = xCallback;
    db->pUpdateArg = pArg;
@@ -255,24 +255,40 @@ diff --git a/src/main.c b/src/main.c
 +
 +/*
 +** Register a callback to be invoked each time a database page is
-+** read or written.
++** read or written, on every database currently attached to the
++** connection (main, temp, and any ATTACH-ed schemas). The pArg
++** the callback receives is a `const char*` pointer to the firing
++** schema's name (db->aDb[i].zDbSName), which lives for the
++** lifetime of the connection. The `pArg` argument to this
++** function is unused — carried for ABI compatibility.
++**
++** Note: pagers created by ATTACH after this call do NOT inherit
++** the hook automatically; callers must re-invoke this function
++** after each ATTACH.
 +*/
 +void *sqlite3_page_access_hook(
 +  sqlite3 *db,
 +  void (*xCallback)(void*, int, int),
 +  void *pArg
 +){
-+  void *pRet;
++  void *pRet = 0;
++  int i;
 +#ifdef SQLITE_ENABLE_API_ARMOR
 +  if( !sqlite3SafetyCheckOk(db) ){
 +    (void)SQLITE_MISUSE_BKPT;
 +    return 0;
 +  }
 +#endif
++  (void)pArg;
 +  sqlite3_mutex_enter(db->mutex);
-+  pRet = sqlite3PagerSetPageAccessHook(
-+    sqlite3BtreePager(db->aDb[0].pBt), xCallback, pArg
-+  );
++  for(i=0; i<db->nDb; i++){
++    if( db->aDb[i].pBt ){
++      pRet = sqlite3PagerSetPageAccessHook(
++        sqlite3BtreePager(db->aDb[i].pBt), xCallback,
++        (void*)db->aDb[i].zDbSName
++      );
++    }
++  }
    sqlite3_mutex_leave(db->mutex);
    return pRet;
  }
@@ -320,7 +336,7 @@ diff --git a/ext/wasm/api/sqlite3-api-glue.c-pp.js b/ext/wasm/api/sqlite3-api-gl
 diff --git a/ext/wasm/api/sqlite3-api-oo1.c-pp.js b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
 --- a/ext/wasm/api/sqlite3-api-oo1.c-pp.js
 +++ b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
-@@ -1489,6 +1489,20 @@
+@@ -1489,5 +1489,28 @@
      */
      checkRc: function(resultCode){
        return checkSqlite3Rc(this, resultCode);
@@ -328,15 +344,24 @@ diff --git a/ext/wasm/api/sqlite3-api-oo1.c-pp.js b/ext/wasm/api/sqlite3-api-oo1
 +
 +    /**
 +       Registers a callback that is invoked whenever a database page
-+       is read or written. The callback receives the page number and
-+       a flags value: 1 for a page read, 2 for a page write.
-+       Pass a falsy value to disable the hook. Returns this object.
++       is read or written, on every database currently attached to
++       this connection (main, temp, and any ATTACH-ed schemas). The
++       callback receives the firing schema's name (e.g. "main",
++       "temp", or the AS-name from an ATTACH), the 1-based page
++       number, and a flags value: 1 for a page read, 2 for a page
++       write. Pass a falsy value to disable the hook. Returns this
++       object. Note: pagers created by ATTACH after this call do
++       NOT inherit the hook; re-call pageAccessHook() after each
++       ATTACH.
 +    */
 +    pageAccessHook: function(callback){
 +      if( callback && !(callback instanceof Function) ){
 +        toss3("Expected a function or falsy value.");
 +      }
-+      capi.sqlite3_page_access_hook(this.pointer, callback || 0, 0);
++      const wrapped = callback ? function(zSchemaPtr, pgno, flags){
++        callback(zSchemaPtr ? wasm.cstrToJs(zSchemaPtr) : '', pgno, flags);
++      } : 0;
++      capi.sqlite3_page_access_hook(this.pointer, wrapped, 0);
 +      return this;
      },
    }/*DB.prototype*/;

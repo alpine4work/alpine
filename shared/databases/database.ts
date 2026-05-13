@@ -156,6 +156,17 @@ export class Database {
     private readonly storage: ReadonlyDatabaseStorage;
     private readonly tables = new Map<DatabaseTableId, DatabaseTableState>();
     private readonly tempFiles = new Map<string, VfsTempFile>();
+    /**
+     * Maps SQLite schema names (the AS-name supplied to
+     * each VFS open / ATTACH) back to the table they back.
+     * Used by the page-access hook to demux events from
+     * any of the currently-attached databases. The main
+     * connection is opened with the schema name `"main"`,
+     * which SQLite reserves for `aDb[0]`; callers must use
+     * the table id as the schema name for ATTACH-ed
+     * databases (and re-install the hook afterwards).
+     */
+    private readonly schemaToTable = new Map<string, DatabaseTableId>();
     private writeLevel: SqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
@@ -163,6 +174,10 @@ export class Database {
     private constructor(sqlite3: Sqlite3Static, storage: ReadonlyDatabaseStorage) {
         this.storage = storage;
         this.tables.set(databaseMainTableId, new DatabaseTableState());
+        // SQLite reserves the schema name "main" for
+        // `aDb[0]`, so the connection's main table is
+        // always reachable under that name.
+        this.schemaToTable.set("main", databaseMainTableId);
 
         const capi = sqlite3.capi;
         const vfsName = `${vfsNamePrefix}-${vfsCounter++}`;
@@ -215,12 +230,17 @@ export class Database {
         // Capture cache-hit reads via the page access hook
         // so {@link execute} returns a complete read set
         // even when SQLite serves pages from its pager
-        // cache without going through `xRead`.
-        this.db.pageAccessHook((_pArg, pgno, flags) => {
+        // cache without going through `xRead`. The hook
+        // fires for every attached database; demux on
+        // schema name. Reads from schemas we don't own
+        // (e.g. SQLite's `temp`) are ignored.
+        this.db.pageAccessHook((schemaName, pgno, flags) => {
             if (flags !== pageAccessFlagRead) return;
             const readSet = this.currentReadSet;
             if (readSet === null) return;
-            addToTablePageSet(readSet, databaseMainTableId, pgno - 1);
+            const tableId = this.schemaToTable.get(schemaName);
+            if (tableId === undefined) return;
+            addToTablePageSet(readSet, tableId, pgno - 1);
         });
     }
 
