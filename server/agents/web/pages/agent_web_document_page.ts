@@ -49,10 +49,9 @@ export async function updateAgentWebDocumentPage(
     {id, version: oldVersion}: AgentWebDocumentPageMetadata,
     newPage: AgentWebDocumentPage,
 ): Promise<AgentWebDocumentPageMetadata & {type: "Document"}> {
-    // NOCOMMIT: Make sure we test that this endpoint is idempotent!
     const {
         data: {document},
-    } = await context.api.put(context.span, "/documents/{id}", {
+    } = await context.api.patch(context.span, "/documents/{id}", {
         params: {path: {id}},
         body: {
             document: {
