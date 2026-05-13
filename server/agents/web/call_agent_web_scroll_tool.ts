@@ -10,7 +10,7 @@ export async function callAgentWebScrollTool(
     context: AgentWebContext,
     {
         path: originalPath,
-        offset: offsetLine,
+        offset: offsetNewline,
         limit: limitBytesString,
     }: {
         path: string;
@@ -21,10 +21,6 @@ export async function callAgentWebScrollTool(
     const {path} = normalizeAgentWebPath(originalPath);
     const limitBytes = parseAgentWebBytes(limitBytesString);
 
-    // `offsetLine` is 1-indexed for the agent but it's more convenient in our code for
-    // the line to be 0-indexed.
-    offsetLine -= 1;
-
     const readResponse = await context.storage.readResponseByPath.get(path);
 
     if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
@@ -34,69 +30,85 @@ export async function callAgentWebScrollTool(
     }
 
     if (
-        !Number.isInteger(offsetLine) ||
-        offsetLine < 0 ||
-        offsetLine >= readResponse.newlineByteIndexes.length
+        !Number.isInteger(offsetNewline) ||
+        offsetNewline < 0 ||
+        offsetNewline > readResponse.newlineIndexes.length - 1
     ) {
         throw new FailedPreconditionError("Invalid offset line number", {
-            displayMessage: errorDisplayMessage`The \`offset\` line number must be between 1 and ${readResponse.newlineByteIndexes.length}. Instead the \`offset\` line number is ${offsetLine}.`,
+            displayMessage: errorDisplayMessage`The \`offset\` line number must be between 0 and ${readResponse.newlineIndexes.length - 1}. Instead the \`offset\` line number is ${offsetNewline}.`,
         });
     }
 
     return truncateAgentWebReadResponse(readResponse, {
-        offsetLine,
+        offsetNewline,
         limitBytes,
         isScrollTool: true,
     });
 }
 
+/**
+ * Truncates the agent's read response with the specified offset (line number) and
+ * limit (number of bytes).
+ *
+ * JavaScript strings are represented as UTF-16. Ideally `limitBytes` would
+ * represent the number of UTF-8 bytes we're returning. However, practically that
+ * requires a lot of encoding/decoding from JavaScript strings to `Uint8Array`s. So
+ * instead we pretend that each JavaScript character is 1 byte (instead of 2). This
+ * is true for all ASCII strings but breaks down for more complicated Unicode code
+ * points (e.g. emojis).
+ *
+ * So there are some JavaScript characters that take two bytes in UTF-8. So in the
+ * worst case (text that is ONLY such characters) we may return 2x what
+ * `limitBytes` requested. We're ok with this tradeoff since in practice we don't
+ * expect degenerate strings like this to occur and even if they do exceeding the
+ * limit requested by an agent by 2x isn't that bad an outcome.
+ */
 export function truncateAgentWebReadResponse(
     {
-        responseBytes,
-        newlineByteIndexes,
+        response,
+        newlineIndexes,
     }: {
-        responseBytes: Uint8Array;
-        newlineByteIndexes: ReadonlyArray<number>;
+        response: string;
+        newlineIndexes: ReadonlyArray<number>;
     },
     {
-        offsetLine,
+        offsetNewline,
         limitBytes,
         isScrollTool,
     }: {
-        offsetLine: number;
+        offsetNewline: number;
         limitBytes: number;
         isScrollTool: boolean;
     },
 ) {
-    const decoder = new TextDecoder();
-    const offsetByteIndex = offsetLine === 0 ? 0 : newlineByteIndexes[offsetLine - 1]! + 1;
-    let responseString: string;
+    const offsetIndex = offsetNewline === 0 ? 0 : newlineIndexes[offsetNewline - 1]! + 1;
+    let truncatedResponse: string;
 
-    if (responseBytes.length - offsetByteIndex <= limitBytes) {
-        responseString = decoder.decode(responseBytes.subarray(offsetByteIndex));
+    if (response.length - offsetIndex <= limitBytes) {
+        truncatedResponse = response.slice(offsetIndex);
 
         let truncationString = `End of file.`;
 
-        if (offsetLine === newlineByteIndexes.length - 1) {
-            truncationString += ` Showing line ${offsetLine + 1}`;
+        if (offsetNewline === newlineIndexes.length - 1) {
+            truncationString += ` Showing line ${offsetNewline + 1}`;
         } else {
-            truncationString += ` Showing lines ${offsetLine + 1}-${newlineByteIndexes.length}`;
+            truncationString += ` Showing lines ${offsetNewline + 1}-${newlineIndexes.length}`;
         }
 
-        truncationString += ` of ${newlineByteIndexes.length}.`;
+        truncationString += ` of ${newlineIndexes.length}.`;
 
-        responseString += `\n\n(${truncationString})`;
+        truncatedResponse += `\n\n(${truncationString})`;
     } else {
-        let newlineByteIndexResult = assertExists(
-            binarySearchLessThanOrEqual(newlineByteIndexes, offsetByteIndex + limitBytes),
+        let newlineIndexResult = assertExists(
+            binarySearchLessThanOrEqual(newlineIndexes, offsetIndex + limitBytes),
         );
 
-        // Consume newline characters until we find the last non-newline byte.
-        while (newlineByteIndexResult.index < newlineByteIndexes.length) {
-            const previousNewlineByteIndex = newlineByteIndexes[newlineByteIndexResult.index + 1]!;
-            if (previousNewlineByteIndex === newlineByteIndexResult.value + 1) {
-                newlineByteIndexResult = {
-                    index: newlineByteIndexResult.index + 1,
+        // Consume newline characters until we find the last non-newline character.
+        while (newlineIndexResult.index < newlineIndexes.length) {
+            const previousNewlineByteIndex = newlineIndexes[newlineIndexResult.index + 1]!;
+            if (previousNewlineByteIndex === newlineIndexResult.value + 1) {
+                newlineIndexResult = {
+                    index: newlineIndexResult.index + 1,
                     value: previousNewlineByteIndex,
                 };
             } else {
@@ -104,56 +116,47 @@ export function truncateAgentWebReadResponse(
             }
         }
 
-        let truncatedResponseBytes;
-        let lastNewlineIndex;
+        let lastNewline;
         let isTruncatedAtNewline;
 
         // Only truncate to the last newline if we'll return at least half of the limit.
         // Otherwise, truncate exactly at the limit.
-        if (newlineByteIndexResult.value > offsetByteIndex + limitBytes / 2) {
-            truncatedResponseBytes = responseBytes.subarray(
-                offsetByteIndex,
-                newlineByteIndexResult.value + 1,
-            );
+        if (newlineIndexResult.value > offsetIndex + limitBytes / 2) {
+            truncatedResponse = response.slice(offsetIndex, newlineIndexResult.value + 1);
 
-            lastNewlineIndex = newlineByteIndexResult.index;
+            lastNewline = newlineIndexResult.index;
             isTruncatedAtNewline = true;
         } else {
-            truncatedResponseBytes = responseBytes.subarray(
-                offsetByteIndex,
-                offsetByteIndex + limitBytes,
-            );
+            truncatedResponse = response.slice(offsetIndex, offsetIndex + limitBytes);
 
-            lastNewlineIndex = newlineByteIndexResult.index + 1;
+            lastNewline = newlineIndexResult.index + 1;
             isTruncatedAtNewline = false;
         }
 
-        responseString = decoder.decode(truncatedResponseBytes);
+        let truncationString = `Response truncated, ${printAgentWebBytes(response.length - offsetIndex - truncatedResponse.length)} remaining.`;
 
-        let truncationString = `Response truncated, ${printAgentWebBytes(responseBytes.length - offsetByteIndex - truncatedResponseBytes.length)} remaining.`;
-
-        if (offsetLine === lastNewlineIndex) {
-            truncationString += ` Showing line ${offsetLine + 1}`;
+        if (offsetNewline === lastNewline) {
+            truncationString += ` Showing line ${offsetNewline + 1}`;
         } else {
-            truncationString += ` Showing lines ${offsetLine + 1}-${lastNewlineIndex + 1}`;
+            truncationString += ` Showing lines ${offsetNewline + 1}-${lastNewline + 1}`;
         }
 
-        truncationString += ` of ${newlineByteIndexes.length}.`;
+        truncationString += ` of ${newlineIndexes.length}.`;
 
         if (!isScrollTool) {
-            truncationString += ` Call the \`scroll\` tool with an \`offset\` of ${newlineByteIndexResult.index + 2}`;
+            truncationString += ` Call the \`scroll\` tool with an \`offset\` of ${lastNewline + 1}`;
         } else {
-            truncationString += ` Use \`offset\` of ${newlineByteIndexResult.index + 2}`;
+            truncationString += ` Use \`offset\` of ${lastNewline + 1}`;
         }
 
-        if (!isTruncatedAtNewline && offsetLine === lastNewlineIndex) {
+        if (!isTruncatedAtNewline && offsetNewline === lastNewline) {
             truncationString += ` and a higher \`limit\``;
         }
 
         truncationString += ` to continue.`;
 
-        responseString += `(${truncationString})`;
+        truncatedResponse += `(${truncationString})`;
     }
 
-    return responseString;
+    return truncatedResponse;
 }

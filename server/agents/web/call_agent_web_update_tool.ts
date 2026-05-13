@@ -57,9 +57,8 @@ export async function callAgentWebUpdateTool(
             });
         }
 
-        const encoder = new TextEncoder();
-        let newResponseBytes = readResponse.responseBytes;
-        let newNewlineByteIndexes: Array<number>;
+        let newResponse = readResponse.response;
+        let newNewlineIndexes: Array<number>;
 
         for (const {old: oldString, new: newString, replaceAll} of updates) {
             if (newString === oldString) {
@@ -76,114 +75,23 @@ export async function callAgentWebUpdateTool(
                 });
             }
 
-            const oldBytes = encoder.encode(oldString);
-            const newBytes = encoder.encode(newString);
-            const byteDifference = newBytes.length - oldBytes.length;
+            const oldResponse = newResponse;
+            const matchIndexes: Array<number> = [];
+            let lastMatchIndex: number | null = null;
 
-            const oldResponseBytes = newResponseBytes;
+            while (true) {
+                const matchIndex = oldResponse.indexOf(
+                    oldString,
+                    lastMatchIndex !== null ? lastMatchIndex + 1 : 0,
+                );
 
-            const newResponseBuffer = new ArrayBuffer(oldResponseBytes.length + byteDifference, {
-                maxByteLength: replaceAll
-                    ? // The `maxByteLength` assumes `oldResponseBytes` is filled with instances of
-                      // `oldBytes`. For example, `oldBytes` is "ab" and `oldResponseBytes` is
-                      // "abababababababab...".
-                      oldResponseBytes.length +
-                      byteDifference * Math.floor(oldResponseBytes.length / oldBytes.length)
-                    : undefined,
-            });
+                if (matchIndex === -1) break;
 
-            newResponseBytes = new Uint8Array(newResponseBuffer);
-            newNewlineByteIndexes = [];
-
-            let oldByteIndex = 0;
-            let newByteIndex = 0;
-            let matchCount = 0;
-
-            while (oldByteIndex < oldResponseBytes.length) {
-                let found = true;
-
-                const oldByte = oldResponseBytes[oldByteIndex]!;
-
-                if (oldByte !== oldBytes[0]) {
-                    found = false;
-                } else {
-                    const oldBytesLength = oldBytes.length;
-
-                    for (let oldByteIndex2 = 1; oldByteIndex2 < oldBytesLength; oldByteIndex2++) {
-                        if (
-                            oldResponseBytes[oldByteIndex + oldByteIndex2] !==
-                            oldBytes[oldByteIndex2]
-                        ) {
-                            found = false;
-                            break;
-                        }
-                    }
-                }
-
-                // No match found. Copy the existing byte over and carry on.
-                if (!found) {
-                    newResponseBytes[newByteIndex] = oldByte;
-                    if (oldByte === 10) newNewlineByteIndexes.push(newByteIndex);
-                    oldByteIndex++;
-                    newByteIndex++;
-                    continue;
-                }
-
-                matchCount++;
-
-                if (!replaceAll && matchCount > 1) {
-                    const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
-
-                    throw new FailedPreconditionError("Found multiple matches for the old string", {
-                        // We intentionally don't mention the `replaceAll` option in this error message.
-                        // Most of the time the agent's intent is to update exactly one thing. We don't
-                        // want the agent to take the lazy path of setting `replaceAll: true` and
-                        // potentially ovewrite content it didn't intend to overwrite.
-                        //
-                        // This error message was [derived from OpenCode][1].
-                        //
-                        // [1]:
-                        //     https://github.com/anomalyco/opencode/blob/4961d72c0fa23ee23bca9ea59b86a2b13bcf4427/packages/opencode/src/tool/edit.ts#L665
-                        displayMessage: errorDisplayMessage`Multiple matches were found for the \`old\` string ${quotedString}. Provide more surrounding context to make the match unique.`,
-                    });
-                }
-
-                // If the buffer is too small for this additional match, then resize the buffer
-                // assuming 2x the current `matchCount`. We take this 2x heuristic from the
-                // [Rustonomicon's article on allocating memory for a naive `Vec`
-                // implementation][1].
-                //
-                // [1]: https://doc.rust-lang.org/nomicon/vec/vec-alloc.html
-                if (
-                    replaceAll &&
-                    oldResponseBytes.length + byteDifference * matchCount >
-                        newResponseBuffer.byteLength
-                ) {
-                    newResponseBuffer.resize(
-                        Math.min(
-                            oldResponseBytes.length + byteDifference * matchCount * 2,
-                            newResponseBuffer.maxByteLength,
-                        ),
-                    );
-                }
-
-                const newBytesLength = newBytes.length;
-
-                // Actually perform the replace!
-                for (
-                    let newByteIndex2 = 0;
-                    newByteIndex2 < newBytesLength;
-                    newByteIndex2++, newByteIndex++
-                ) {
-                    const newByte = newBytes[newByteIndex2]!;
-                    newResponseBytes[newByteIndex] = newByte;
-                    if (newByte === 10) newNewlineByteIndexes.push(newByteIndex);
-                }
-
-                oldByteIndex += oldBytes.length;
+                matchIndexes.push(matchIndex);
+                lastMatchIndex = matchIndex;
             }
 
-            if (matchCount === 0) {
+            if (matchIndexes.length === 0) {
                 const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
 
                 // Error message [derived from OpenCode][1].
@@ -195,16 +103,48 @@ export async function callAgentWebUpdateTool(
                 });
             }
 
-            // Resize the buffer to its final size based on the number of matches found.
-            if (replaceAll)
-                newResponseBuffer.resize(oldResponseBytes.length + byteDifference * matchCount);
+            if (!replaceAll && matchIndexes.length > 1) {
+                const quotedString = quoteMarkdown([{type: "text", value: oldString}]);
+
+                throw new FailedPreconditionError("Found multiple matches for the old string", {
+                    // We intentionally don't mention the `replaceAll` option in this error message.
+                    // Most of the time the agent's intent is to update exactly one thing. We don't
+                    // want the agent to take the lazy path of setting `replaceAll: true` and
+                    // potentially ovewrite content it didn't intend to overwrite.
+                    //
+                    // This error message was [derived from OpenCode][1].
+                    //
+                    // [1]:
+                    //     https://github.com/anomalyco/opencode/blob/4961d72c0fa23ee23bca9ea59b86a2b13bcf4427/packages/opencode/src/tool/edit.ts#L665
+                    displayMessage: errorDisplayMessage`Multiple matches were found for the \`old\` string ${quotedString}. Provide more surrounding context to make the match unique.`,
+                });
+            }
+
+            let lastOldIndex = 0;
+            newResponse = "";
+
+            for (const matchIndex of matchIndexes) {
+                newResponse += oldResponse.slice(lastOldIndex, matchIndex);
+                newResponse += newString;
+                lastOldIndex = matchIndex + oldString.length;
+            }
+
+            newResponse += oldResponse.slice(lastOldIndex);
+
+            // Find all the newline indexes in our response. So the `scroll` tool can easily
+            // return a slice of the response.
+            newNewlineIndexes = [];
+
+            for (let index = 0; index < newResponse.length; index++) {
+                if (newResponse[index] === "\n") {
+                    newNewlineIndexes.push(index);
+                }
+            }
 
             // There's implicitly a newline at the end of the response. This also means
-            // `newlineByteIndexes` is non-empty.
-            newNewlineByteIndexes.push(newResponseBytes.length);
+            // `newlineIndexes` is non-empty.
+            newNewlineIndexes.push(newResponse.length);
         }
-
-        const decoder = new TextDecoder();
 
         // Not all updates are going to be atomic. If we make an update that's not atomic
         // and it fails then we need to know if part of the update succeeded. If part of
@@ -253,14 +193,8 @@ export async function callAgentWebUpdateTool(
             newPageMetadata = await updateAgentWebPageLink(
                 contextWithPartialSuccessDetection,
                 readResponse.pageMetadata,
-                new Lazy(() => {
-                    const oldResponseString = decoder.decode(readResponse.responseBytes);
-                    return parseMarkdownTree(oldResponseString);
-                }),
-                (() => {
-                    const newResponseString = decoder.decode(newResponseBytes);
-                    return parseMarkdownTree(newResponseString);
-                })(),
+                new Lazy(() => parseMarkdownTree(readResponse.response)),
+                (() => parseMarkdownTree(newResponse))(),
             );
         } catch (error) {
             if (!isPartialSuccess) throw error;
@@ -294,8 +228,8 @@ export async function callAgentWebUpdateTool(
         await context.storage.readResponseByPath.put(path, {
             expirationTime: readResponse.expirationTime,
             pageMetadata: newPageMetadata,
-            responseBytes: newResponseBytes,
-            newlineByteIndexes: newNewlineByteIndexes!,
+            response: newResponse,
+            newlineIndexes: newNewlineIndexes!,
         });
     });
 }

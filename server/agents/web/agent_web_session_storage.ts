@@ -162,8 +162,8 @@ export interface AgentWebSessionStorage {
         {
             readonly expirationTime: Date;
             readonly pageMetadata: AgentWebPageMetadata;
-            readonly responseBytes: Uint8Array;
-            readonly newlineByteIndexes: ReadonlyArray<number>;
+            readonly response: string;
+            readonly newlineIndexes: ReadonlyArray<number>;
         }
     >;
 

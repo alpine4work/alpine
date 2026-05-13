@@ -1,10 +1,10 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {
     callAgentWebScrollTool,
     truncateAgentWebReadResponse,
 } from "~/server/agents/web/call_agent_web_scroll_tool.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
@@ -26,24 +26,23 @@ function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<st
     }) as ApiContentResponse;
 }
 
-function createReadResponseFromString(responseString: string): {
-    responseBytes: Uint8Array;
-    newlineByteIndexes: ReadonlyArray<number>;
+function createReadResponse(response: string): {
+    response: string;
+    newlineIndexes: ReadonlyArray<number>;
 } {
-    const responseBytes = new TextEncoder().encode(responseString);
-    const newlineByteIndexes: Array<number> = [];
+    const newlineIndexes: Array<number> = [];
 
-    for (let index = 0; index < responseBytes.length; index++) {
-        if (responseBytes[index] === 10) {
-            newlineByteIndexes.push(index);
+    for (let index = 0; index < response.length; index++) {
+        if (response[index] === "\n") {
+            newlineIndexes.push(index);
         }
     }
 
-    newlineByteIndexes.push(responseBytes.length);
+    newlineIndexes.push(response.length);
 
     return {
-        responseBytes,
-        newlineByteIndexes,
+        response,
+        newlineIndexes,
     };
 }
 
@@ -162,11 +161,11 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 
     await context.storage.readResponseByPath.put(path, {
         expirationTime: new Date(Date.now() + 60_000),
-        ...createReadResponseFromString(tableResponseString),
+        ...createReadResponse(tableResponseString),
     });
 
     const firstResponseString = truncateAgentWebReadResponse(
-        createReadResponseFromString(tableResponseString),
+        createReadResponse(tableResponseString),
         {offsetLine: 0, limitBytes: 180, isScrollTool: false},
     );
 
@@ -350,7 +349,7 @@ test("throws when read response does not exist", async () => {
 test("throws when read response is expired", async () => {
     await context.storage.readResponseByPath.put("/document/expired", {
         expirationTime: new Date(Date.now() - 60_000),
-        ...createReadResponseFromString("Expired content."),
+        ...createReadResponse("Expired content."),
     });
 
     await expect(
@@ -365,7 +364,7 @@ test("throws when read response is expired", async () => {
 test.each([0, 1.5, 3])("throws for invalid offset %s", async offset => {
     await context.storage.readResponseByPath.put("/document/offset", {
         expirationTime: new Date(Date.now() + 60_000),
-        ...createReadResponseFromString("Single line"),
+        ...createReadResponse("Single line"),
     });
 
     await expect(
@@ -380,7 +379,7 @@ test.each([0, 1.5, 3])("throws for invalid offset %s", async offset => {
 describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with end-of-file line range", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("alpha\nbeta\ngamma"),
+            createReadResponse("alpha\nbeta\ngamma"),
             {offsetLine: 0, limitBytes: 100, isScrollTool: true},
         );
 
@@ -389,7 +388,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("returns the full remaining response with singular end-of-file line text", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("alpha\nbeta\ngamma"),
+            createReadResponse("alpha\nbeta\ngamma"),
             {offsetLine: 2, limitBytes: 100, isScrollTool: true},
         );
 
@@ -398,7 +397,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("truncates to a newline when the newline is after half the byte limit", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
+            createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
             {offsetLine: 0, limitBytes: 10, isScrollTool: true},
         );
 
@@ -409,7 +408,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("truncates at the exact byte limit when newline would be too early", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("a\nbbbbbbbbbb\ncccc"),
+            createReadResponse("a\nbbbbbbbbbb\ncccc"),
             {offsetLine: 0, limitBytes: 10, isScrollTool: true},
         );
 
@@ -420,7 +419,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("trims adjacent newline candidates to avoid returning trailing blank lines", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("line1\n\n\nline2\nline3"),
+            createReadResponse("line1\n\n\nline2\nline3"),
             {offsetLine: 0, limitBytes: 8, isScrollTool: true},
         );
 
@@ -431,7 +430,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("truncates correctly from a non-zero offset", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
+            createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
             {offsetLine: 2, limitBytes: 12, isScrollTool: true},
         );
 
@@ -442,7 +441,7 @@ describe("truncateAgentWebReadResponse", () => {
 
     test("truncates correctly in the middle of a line", () => {
         const responseString = truncateAgentWebReadResponse(
-            createReadResponseFromString("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
+            createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
             {offsetLine: 2, limitBytes: 4, isScrollTool: true},
         );
 

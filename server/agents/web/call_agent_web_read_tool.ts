@@ -74,7 +74,7 @@ export async function callAgentWebReadTool(
             });
         }
 
-        const response = await printAgentWebPage(context.storage, page);
+        const responseTree = await printAgentWebPage(context.storage, page);
 
         // Use Prettier to print our Markdown before sending it to the LLM. We hypothesize
         // this will lead to better performance from the LLM since Prettier formatting is
@@ -85,7 +85,7 @@ export async function callAgentWebReadTool(
         // a plugin that simply returns the `mdast` AST which Prettier understands how to
         // print. This way we don't have to call `printMarkdownTree()` only for Prettier to
         // immediately parse it back into an AST.
-        let responseString = await prettier.format("ignored", {
+        let response = await prettier.format("ignored", {
             parser: "mdast",
             endOfLine: "lf",
             printWidth: 80,
@@ -95,7 +95,7 @@ export async function callAgentWebReadTool(
                 {
                     parsers: {
                         mdast: {
-                            parse: () => response,
+                            parse: () => responseTree,
                             astFormat: "mdast",
                             locStart: node => node.position?.start?.offset ?? 0,
                             locEnd: node => node.position?.end?.offset ?? 0,
@@ -106,38 +106,35 @@ export async function callAgentWebReadTool(
             ],
         });
 
-        responseString = responseString.trim();
-
-        const encoder = new TextEncoder();
-        const responseBytes = encoder.encode(responseString);
+        response = response.trim();
 
         // Find all the newline indexes in our response. So the `scroll` tool can easily
         // return a slice of the response.
-        const newlineByteIndexes: Array<number> = [];
+        const newlineIndexes: Array<number> = [];
 
-        for (let index = 0; index < responseBytes.length; index++) {
-            if (responseBytes[index] === 10) {
-                newlineByteIndexes.push(index);
+        for (let index = 0; index < response.length; index++) {
+            if (response[index] === "\n") {
+                newlineIndexes.push(index);
             }
         }
 
         // There's implicitly a newline at the end of the response. This also means
-        // `newlineByteIndexes` is non-empty.
-        newlineByteIndexes.push(responseBytes.length);
+        // `newlineIndexes` is non-empty.
+        newlineIndexes.push(response.length);
 
         await context.storage.readResponseByPath.put(path, {
             expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
             pageMetadata: intoAgentWebPageMetadata(page),
-            responseBytes,
-            newlineByteIndexes,
+            response,
+            newlineIndexes,
         });
 
-        if (responseBytes.length <= limitBytes) {
-            return responseString;
+        if (response.length <= limitBytes) {
+            return response;
         } else {
             return truncateAgentWebReadResponse(
-                {responseBytes, newlineByteIndexes},
-                {offsetLine: 0, limitBytes, isScrollTool: false},
+                {response, newlineIndexes},
+                {offsetNewline: 0, limitBytes, isScrollTool: false},
             );
         }
     });
