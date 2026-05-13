@@ -1196,10 +1196,17 @@ export async function getDocumentWithOptionalComments(
 export async function getDocumentWithOptionalCommentsIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
+    options: {
+        onSiteId?: (siteId: SiteId) => void;
+    } = {},
 ): Promise<DocumentModel | null> {
     return (
-        (await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, {documentId}))
-            ?.document ?? null
+        (
+            await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, {
+                documentId,
+                onSiteId: options.onSiteId,
+            })
+        )?.document ?? null
     );
 }
 
@@ -1245,6 +1252,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         documentId,
         commentThreadIds: requestedCommentThreadIdsPromise,
         onSpaceId,
+        onSiteId,
     }: {
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading in
@@ -1256,6 +1264,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         // document which may be before the function as a whole returns. This function will
         // not be called in error cases.
         onSpaceId?: (spaceId: SpaceId) => void;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<{
     document: DocumentModel;
@@ -1302,6 +1311,10 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             case "Attributes": {
                 maybeAttributes = item;
                 onSpaceId?.(item.spaceId);
+
+                if (item.accessPolicy.type === "Site") {
+                    onSiteId?.(item.accessPolicy.siteId);
+                }
 
                 // Save the document attributes item to our context cache so if
                 // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content

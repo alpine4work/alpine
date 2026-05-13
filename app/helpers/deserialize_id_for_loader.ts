@@ -20,9 +20,11 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {createSiteNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {createSpaceNotFoundError} from "~/shared/spaces/space_error_messages.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 
@@ -96,6 +98,14 @@ export function deserializeSpaceIdForLoader(id: string | null | undefined): Spac
 export function deserializeBotIdForLoader(id: string | null | undefined): BotId {
     if (!id || !isId<BotId>(id)) {
         throw createBotNotFoundError(id ?? undefined);
+    }
+
+    return id;
+}
+
+export function deserializeSiteIdForLoader(id: string | null | undefined): SiteId {
+    if (!id || !isId<SiteId>(id)) {
+        throw createSiteNotFoundError(id ?? undefined);
     }
 
     return id;

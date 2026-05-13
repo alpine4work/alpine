@@ -13,6 +13,7 @@ import {getCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
+import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
@@ -23,6 +24,7 @@ import {TaskGridViewDndContext} from "~/client/web/tasks/task_grid_view_dnd_cont
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSite} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
@@ -38,6 +40,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -219,7 +222,16 @@ export async function loader({request, params, context: unauthenticatedContext}:
               ]
             : normalizeTaskQuerySorts(sorts);
 
-    const [filterReferences, loadQueryResult, isFavorite] = await runAllPromises([
+    const sitePrefetcher = createSiteLoaderDataPrefetcher({
+        request,
+        entityId: `TaskCollection:${collectionId}`,
+        fetchSite: siteId => getSite(context, {siteId}),
+    });
+
+    const [, filterReferences, loadQueryResult, isFavorite] = await runAllPromises([
+        authorizeTaskCollectionAccess(context, collectionId, "View", null, {
+            onSiteId: sitePrefetcher.onSiteId,
+        }),
         getTaskQueryFilterReferences(context, spaceId, filters),
         (async () => {
             if (normalizedFiltersResult.type !== "Possible") {
@@ -319,6 +331,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             filterReferences,
         },
         {
+            siteLoaderData: await sitePrefetcher.get(),
             taskStoreLoaderData: loadQueryResult
                 ? {
                       queries: [
@@ -374,12 +387,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function TaskCollectionRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
+    const {collectionId} = useParams();
+    assert(collectionId && isId<TaskCollectionId>(collectionId));
 
-    return (
+    return useSiteChromeContainer(
+        {entityId: `TaskCollection:${collectionId}`},
         <TaskCollectionRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-        />
+        />,
     );
 }
 

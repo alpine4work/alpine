@@ -1821,16 +1821,19 @@ index 36ab79ad110c11b718b4cf69be19db51b9b343fa..dc99a5a2a4d98f25c743a436166fcf61
 +    options?: {disableErrorBoundaryForFirstMatch?: boolean},
 +): React.ReactElement | null;
 diff --git a/dist/lib/context.d.ts b/dist/lib/context.d.ts
-index c1bcca16986b51f76ccecd1b81584e951e627ca6..f58b5965b035804e3e85ebf44daba453c713a51d 100644
+index c1bcca16986b51f76ccecd1b81584e951e627ca6..3a54f4cd9342c4a04720286e16f3b8a0e2a6dbc2 100644
 --- a/dist/lib/context.d.ts
 +++ b/dist/lib/context.d.ts
-@@ -61,6 +61,9 @@ export interface NavigateOptions {
+@@ -61,6 +61,12 @@ export interface NavigateOptions {
      relative?: RelativeRoutingType;
      unstable_flushSync?: boolean;
      unstable_viewTransition?: boolean;
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    unstable_shouldRevalidate?: boolean;
++    // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++    // `navigate()`.
++    unstable_headers?: HeadersInit;
  }
  /**
   * A Navigator is a "location changer"; it's how you get to different locations.

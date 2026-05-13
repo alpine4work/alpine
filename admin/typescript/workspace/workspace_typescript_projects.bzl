@@ -78,6 +78,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/search/core:core",
     "//client/web/settings:settings",
     "//client/web/shimmer:shimmer",
+    "//client/web/sites:sites",
     "//client/web/sites/context:context",
     "//client/web/spaces:spaces",
     "//client/web/spaces/layout:layout",

@@ -13,7 +13,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.js";
 
 export const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatItem | null>({
     // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
@@ -21,65 +21,86 @@ export const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatIte
     whenActorChanges: "DangerouslyShare",
 });
 
-export function getChatItemIfExistsForAuthorization(
+export async function getChatItemIfExistsForAuthorization(
     context: ServerMinimalActionContext,
     chatId: ChatId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = emptyObject,
 ): Promise<ChatItem | null> {
-    return ChatItemAuthorizationCache.get(context, consistency, chatId, async consistency => {
-        let attributesItem: ChatAttributesItem | undefined;
-        const accountItems: Array<ChatAccountItem> = [];
+    const chatItem = await ChatItemAuthorizationCache.get(
+        context,
+        consistency,
+        chatId,
+        async consistency => {
+            let attributesItem: ChatAttributesItem | undefined;
+            const accountItems: Array<ChatAccountItem> = [];
 
-        for await (const item of ChatTable.query(context, {
-            limit: "All",
-            consistency,
-            partitionKey: {
-                partitionType: "Chat",
-                chatId,
-            },
-            startSortKey: {
-                sortRangeType: "Attributes",
-            },
-            endSortKey: {
-                sortRangeType: "Account",
-                accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-            },
-        })) {
-            switch (item.sortRangeType) {
-                case "Attributes": {
-                    assert(!attributesItem);
-                    attributesItem = item;
-                    break;
+            for await (const item of ChatTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Chat",
+                    chatId,
+                },
+                startSortKey: {
+                    sortRangeType: "Attributes",
+                },
+                endSortKey: {
+                    sortRangeType: "Account",
+                    accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+                },
+            })) {
+                switch (item.sortRangeType) {
+                    case "Attributes": {
+                        assert(!attributesItem);
+                        attributesItem = item;
+                        break;
+                    }
+                    case "Account": {
+                        assert(attributesItem);
+                        accountItems.push(item);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(item);
                 }
-                case "Account": {
-                    assert(attributesItem);
-                    accountItems.push(item);
-                    break;
-                }
-                default:
-                    throw exhaustive(item);
             }
-        }
 
-        if (!attributesItem) {
-            assert(accountItems.length === 0);
-            return null;
-        }
+            if (!attributesItem) {
+                assert(accountItems.length === 0);
+                return null;
+            }
 
-        return {
-            attributesItem,
-            // `Room` chats shouldn't have account items, only `Direct` chats. However, due to
-            // race condition or some error edge cases we may have account items in the
-            // database for `Room` chats. Ignore the account items in this case.
-            accountItems: attributesItem.definition.type === "Direct" ? accountItems : emptyArray,
-        };
-    });
+            return {
+                attributesItem,
+                // `Room` chats shouldn't have account items, only `Direct` chats. However, due to
+                // race condition or some error edge cases we may have account items in the
+                // database for `Room` chats. Ignore the account items in this case.
+                accountItems:
+                    attributesItem.definition.type === "Direct" ? accountItems : emptyArray,
+            };
+        },
+    );
+
+    if (
+        chatItem?.attributesItem.definition.type === "Room" &&
+        chatItem.attributesItem.definition.accessPolicy.type === "Site"
+    ) {
+        onSiteId?.(chatItem.attributesItem.definition.accessPolicy.siteId);
+    }
+
+    return chatItem;
 }
 
 export async function getChatItemForAuthorization(
     context: ServerMinimalActionContext,
     chatId: ChatId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<ChatItem> {
     const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
     if (!chatItem) throw createChatNotFoundError(chatId);

@@ -25,6 +25,7 @@ import {
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
+import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -45,6 +46,7 @@ import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSite} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
@@ -70,6 +72,7 @@ import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
@@ -246,6 +249,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
               }
             : null;
 
+    const sitePrefetcher = createSiteLoaderDataPrefetcher({
+        request,
+        entityId: `Task:${taskId}`,
+        fetchSite: siteId => getSite(context, {siteId}),
+    });
+
     const [
         loadQueriesOutputResult,
         task,
@@ -265,6 +274,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         getTaskNotesContentAndOptionalInitialCommentsIfExists(context, {
             taskId,
             commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+            onSiteId: sitePrefetcher.onSiteId,
         }),
         isSpaceAccessAuthorized && showInboxEntry
             ? getInboxEntry(context.actor.authorizeSession(), {
@@ -366,6 +376,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             filterReferences,
         },
         {
+            siteLoaderData: await sitePrefetcher.get(),
             taskStoreLoaderData: loadQueriesOutput
                 ? {
                       queries: childrenQuery
@@ -418,12 +429,15 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function TaskRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
+    const {taskId} = useParams();
+    assert(taskId && isId<TaskId>(taskId));
 
-    return (
+    return useSiteChromeContainer(
+        {entityId: `Task:${taskId}`},
         <TaskRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-        />
+        />,
     );
 }
 

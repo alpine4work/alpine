@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import {useMatches} from "@remix-run/react";
-import {Memo, ReactNode, createContext, useCallback, useContext, useMemo} from "react";
+import {Memo, ReactNode, createContext, useCallback, useContext, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
@@ -24,7 +25,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
-import {SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
+import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
@@ -178,8 +179,10 @@ export type SiteActiveState = {
 //   =============================================================================
 
 type SiteActivationState = {
-    readonly siteId: SiteId;
-    readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+    readonly site: {
+        readonly siteId: SiteId;
+        readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+    };
     readonly activeEntityId: SiteItemSearchEntityId | null;
 };
 
@@ -198,9 +201,9 @@ export function useSiteActivation(): SiteActivationContextValue {
     return context;
 }
 
-function findSiteActivationInMatches(
+function findSiteLoaderDataInMatches(
     matches: ReadonlyArray<{readonly id: string; readonly data: unknown}>,
-): SiteActivationState | null {
+): SiteLoaderData | null {
     for (const match of matches) {
         const loaderData = match.data as SchemaSerializedValue;
         if (!isPlainObject(loaderData)) continue;
@@ -211,6 +214,60 @@ function findSiteActivationInMatches(
         return getLoaderDataWithSchema(SiteLoaderDataSchema, siteLoaderDataSerializedValue);
     }
     return null;
+}
+
+/**
+ * Decide what activation state to hold given the loader data on the current
+ * matched routes and the activation we already have.
+ *
+ * - `null` from the loader: no site on this route — clear activation.
+ * - `UseNewSite`: server returned a query result; adopt it. If we already have an
+ *   activation for the same site we keep the existing reference so
+ *   `ActiveSiteDataProvider` doesn't reset its WebSocket / optimistic state.
+ * - `UseActiveSite`: client signaled (via `?siteFromCache=...`) that it already
+ *   has the site cached, so the loader skipped the fetch. Keep current activation
+ *   when siteIds match. If they don't match (or there is no current activation)
+ *   throw — the cache hint is only emitted by within-app navigation that already
+ *   has the site loaded, so a mismatch indicates a programming error.
+ */
+function computeNextActivation(
+    siteData: SiteLoaderData | null,
+    current: SiteActivationState | null,
+): SiteActivationState | null {
+    if (siteData === null) return null;
+
+    switch (siteData.type) {
+        case "UseNewSite":
+            if (current?.site.siteId === siteData.siteId) {
+                if (current.activeEntityId === siteData.activeEntityId) return current;
+
+                return {
+                    site: current.site,
+                    activeEntityId: siteData.activeEntityId,
+                };
+            }
+
+            return {
+                site: {
+                    siteId: siteData.siteId,
+                    initialQueryResult: siteData.initialQueryResult,
+                },
+                activeEntityId: siteData.activeEntityId,
+            };
+        case "UseActiveSite":
+            if (current?.site.siteId !== siteData.siteId) {
+                throw new InternalError("Site ID mismatch");
+            }
+
+            if (current.activeEntityId === siteData.activeEntityId) return current;
+
+            return {
+                site: current.site,
+                activeEntityId: siteData.activeEntityId,
+            };
+        default:
+            throw exhaustive(siteData);
+    }
 }
 
 type SiteTreeForClient = SiteTreeBase<SiteEntryModel>;
@@ -232,6 +289,21 @@ type SiteDataContextValue = {
             ) => SiteTreeForClient,
         ) => void
     >;
+
+    /**
+     * Run `fn` with the realtime event subscription paused. Incoming WebSocket events
+     * are queued instead of being applied to the tree until `fn` resolves (or throws),
+     * at which point the queue flushes and normal delivery resumes.
+     *
+     * NOTE(ifitzsimmons, #pause-site-realtime-events): This is a utility function that
+     * allows you to pause the realtime event subscription for a given function. This
+     * is useful when you want to perform an operation that should not be affected by
+     * realtime events. It will only flush the queue when all pausers have released.
+     *
+     * For more on this, you can find the parent comment using the
+     * pause-site-realtime-events tag, where the parent comment is prepended by 2 #'s
+     */
+    readonly withPausedRealtimeEvents: Memo<<T>(fn: () => Promise<T>) => Promise<T>>;
 };
 
 const SiteDataContext = createContext<SiteDataContextValue | null>(null);
@@ -249,21 +321,30 @@ const SiteDataContext = createContext<SiteDataContextValue | null>(null);
  */
 export function SiteProvider({children}: {readonly children: ReactNode}) {
     const matches = useMatches();
-    const activation = useMemo(() => findSiteActivationInMatches(matches), [matches]);
+    const siteLoaderData = useMemo(() => findSiteLoaderDataInMatches(matches), [matches]);
+
+    const activation = useStateWithDependenciesWithoutDispatch<
+        SiteActivationState | null,
+        [SiteLoaderData | null]
+    >(
+        ([siteLoaderData], previousActivation) =>
+            computeNextActivation(siteLoaderData, previousActivation ?? null),
+        [siteLoaderData],
+    );
 
     const activationContextValue = useMemo(
         (): SiteActivationContextValue => ({
-            activeSiteId: activation?.siteId ?? null,
+            activeSiteId: activation?.site.siteId ?? null,
         }),
-        [activation?.siteId],
+        [activation?.site.siteId],
     );
 
     return (
         <SiteActivationContext.Provider value={activationContextValue}>
             {activation ? (
                 <ActiveSiteDataProvider
-                    siteId={activation.siteId}
-                    initialQueryResult={activation.initialQueryResult}
+                    siteId={activation.site.siteId}
+                    initialQueryResult={activation.site.initialQueryResult}
                     activeEntityId={activation.activeEntityId}
                 >
                     {children}
@@ -301,13 +382,30 @@ function ActiveSiteDataProvider({
         shouldConnectToRealtime ? `/api/durable-objects/sites/${siteId}` : null,
     );
 
+    // Counter (not boolean) so concurrent pauses compose. The queue holds raw
+    // event-transactions whose delivery to the realtime query was deferred while
+    // paused; they're replayed in arrival order on resume once the counter hits zero.
+    // Queue is lazily allocated — the common case (no pauses, or no events arriving
+    // during a pause) doesn't pay for an array.
+    const pauseCountRef = useRef(0);
+    const pausedEventQueueRef = useRef<Array<
+        ReadonlyArray<DynamoGeneralRealtimeEvent<SiteOrSiteEntryModel>>
+    > | null>(null);
+
     const {query, handleEvent: handleEventForSite} = useDynamoGeneralRealtimeQuery(
         initialQueryResult,
         {
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber =>
+                    subscribeToEvents(event => {
+                        if (pauseCountRef.current > 0) {
+                            (pausedEventQueueRef.current ??= []).push(event.eventTransaction);
+                            return;
+                        }
+                        subscriber(event.eventTransaction);
+                    }),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -375,7 +473,7 @@ function ActiveSiteDataProvider({
                 tree: treeState.tree.copyTreeWithNewSite(site),
             };
         } else {
-            assert(queryDerived.entries !== entries);
+            assert(entries !== treeState.entries);
 
             treeState = {
                 site,
@@ -383,7 +481,6 @@ function ActiveSiteDataProvider({
                 tree: treeState.tree.copyTreeWithNewEntries(entries),
             };
         }
-
         updateTreeState(() => treeState);
     }
 
@@ -417,6 +514,29 @@ function ActiveSiteDataProvider({
         return {activeEntityId, activeSideBarId};
     }, [activeEntityId, tree]);
 
+    const withPausedRealtimeEvents = useCallback(
+        async function <Value>(action: () => Promise<Value>): Promise<Value> {
+            pauseCountRef.current += 1;
+            try {
+                return await action();
+            } finally {
+                // Only flush when the outermost pauser releases — a nested pauser shouldn't drain
+                // the outer one's queue prematurely.
+                pauseCountRef.current -= 1;
+                if (pauseCountRef.current === 0) {
+                    const queued = pausedEventQueueRef.current;
+                    pausedEventQueueRef.current = null;
+                    if (queued) {
+                        for (const eventTransaction of queued) {
+                            handleEventForSite(eventTransaction);
+                        }
+                    }
+                }
+            }
+        },
+        [handleEventForSite],
+    );
+
     const contextValue = useMemo(
         (): SiteDataContextValue => ({
             siteId,
@@ -424,8 +544,16 @@ function ActiveSiteDataProvider({
             activeState,
             updateTreeOptimistically,
             handleEventForSite,
+            withPausedRealtimeEvents,
         }),
-        [siteId, tree, activeState, updateTreeOptimistically, handleEventForSite],
+        [
+            siteId,
+            tree,
+            activeState,
+            updateTreeOptimistically,
+            handleEventForSite,
+            withPausedRealtimeEvents,
+        ],
     );
 
     return <SiteDataContext.Provider value={contextValue}>{children}</SiteDataContext.Provider>;

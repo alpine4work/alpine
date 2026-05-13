@@ -16,6 +16,7 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {SiteId} from "~/shared/id/types/id_types.js";
 
 export async function actuallyGetChatAndInitialMessages(
     context: ServerActionContext,
@@ -23,6 +24,7 @@ export async function actuallyGetChatAndInitialMessages(
         result: ChatForAccountsResult;
         messagesLimit: number;
         onChat?: (chat: ChatModel) => void;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<{
     chat: ChatModel;
@@ -43,10 +45,12 @@ export async function actuallyGetChatAndInitialMessagesIfPossible(
         result,
         messagesLimit,
         onChat,
+        onSiteId,
     }: {
         result: ChatForAccountsResult;
         messagesLimit: number;
         onChat?: (chat: ChatModel) => void;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<Result<
     {
@@ -62,7 +66,7 @@ export async function actuallyGetChatAndInitialMessagesIfPossible(
     let chatResultPromise: Promise<Result<ChatModel, ErrorBase> | null>;
     switch (result.type) {
         case "FoundIdOnly": {
-            chatResultPromise = getChatIfPossible(context, result.chatId);
+            chatResultPromise = getChatIfPossible(context, result.chatId, {onSiteId});
             break;
         }
         case "FoundItems": {
@@ -73,6 +77,7 @@ export async function actuallyGetChatAndInitialMessagesIfPossible(
                     context,
                     result.chatId,
                     "View",
+                    {onSiteId},
                 );
 
                 if (!authorizationResult?.ok) return authorizationResult;

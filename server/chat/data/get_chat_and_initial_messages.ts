@@ -6,7 +6,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId, SiteId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get our chat and initial messages that come with it efficiently at once.
@@ -16,10 +16,12 @@ export function getChatAndInitialMessages(
     {
         chatId,
         messagesLimit,
+        onSiteId,
         onChat,
     }: {
         chatId: ChatId;
         messagesLimit: number;
+        onSiteId?: (siteId: SiteId) => void;
         onChat?: (chat: ChatModel) => void;
     },
 ): Promise<{
@@ -33,6 +35,7 @@ export function getChatAndInitialMessages(
     return actuallyGetChatAndInitialMessages(context, {
         result: {type: "FoundIdOnly", chatId},
         messagesLimit,
+        onSiteId,
         onChat,
     });
 }

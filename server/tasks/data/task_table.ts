@@ -190,6 +190,7 @@ import {
     AccountId,
     BrowserId,
     FileId,
+    SiteId,
     SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
@@ -4602,7 +4603,7 @@ async function getTaskCollectionItemForAuthorization(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<TaskCollectionEssentialAttributesItemBase> {
     const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,
@@ -4627,12 +4628,24 @@ async function getTaskCollectionItemForAuthorizationIfExists(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = emptyObject,
 ): Promise<TaskCollectionEssentialAttributesItemBase | null> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
-    if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
+    if (collectionIndexDoc) {
+        const collectionItem = convertTaskCollectionIndexDocToItem(collectionIndexDoc);
+        if (collectionItem.accessPolicy.value.type === "Site") {
+            onSiteId?.(collectionItem.accessPolicy.value.siteId);
+        }
+        return collectionItem;
+    }
 
-    return TaskCollectionItemAuthorizationCache.get(
+    const collectionItem = await TaskCollectionItemAuthorizationCache.get(
         context,
         consistency,
         collectionId,
@@ -4647,6 +4660,12 @@ async function getTaskCollectionItemForAuthorizationIfExists(
                 {consistency},
             ),
     );
+
+    if (collectionItem?.accessPolicy.value.type === "Site") {
+        onSiteId?.(collectionItem.accessPolicy.value.siteId);
+    }
+
+    return collectionItem;
 }
 
 async function authorizeTaskCollectionItemAccess(
@@ -4759,7 +4778,7 @@ export async function authorizeTaskCollectionAccess(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<{spaceId: SpaceId}> {
     const collectionItem = await getTaskCollectionItemForAuthorization(
         context,
@@ -4791,7 +4810,7 @@ export async function authorizeTaskCollectionAccessIfPossible(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null> {
     const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,
@@ -5297,7 +5316,13 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
         commentsSummaryItem: TaskCommentsSummaryItem | null;
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = {},
 ): Promise<Value | null> {
     let item: TaskEssentialAttributesItem | null = null;
     let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
@@ -5320,6 +5345,9 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
         })) {
             if (currentItem.sortRangeType === "EssentialAttributes") {
                 item = currentItem;
+                if (currentItem.accessPolicy?.value?.type === "Site") {
+                    onSiteId?.(currentItem.accessPolicy.value.siteId);
+                }
             } else if (currentItem.sortRangeType === "CommentsSummary") {
                 commentsSummaryItem = currentItem;
             } else if (currentItem.sortRangeType === "Notes") {
@@ -7244,7 +7272,15 @@ export async function getTaskCommentPayloadsFromStart(
  */
 export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
     context: ServerActionContext,
-    {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
+    {
+        taskId,
+        commentsLimit,
+        onSiteId,
+    }: {
+        taskId: TaskId;
+        commentsLimit: number;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<{
     notes: {
         version: number;
@@ -7315,6 +7351,7 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
                     commentsSummaryItem,
                 };
             },
+            {onSiteId},
         ).finally(() => {
             // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId` in
             // failure scenarios.

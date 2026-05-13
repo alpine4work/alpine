@@ -2493,6 +2493,7 @@ export class DynamoGeneralRealtimeTableSchema<
             limit,
             consistency,
             onItem,
+            onModel,
         }: {
             partitionKey: PartitionKey;
             startSortKey?: StartSortKey;
@@ -2510,7 +2511,20 @@ export class DynamoGeneralRealtimeTableSchema<
             // everything you have to say so.
             limit: number | "All";
             consistency?: DynamoCacheReadConsistency;
+            // Fires with the raw underlying item as soon as it's read from the database,
+            // before the model is built. Use this when you need the earliest possible signal
+            // from the query (e.g. to read attributes off the raw item).
             onItem?: (
+                item: Extract<
+                    Types["Item"],
+                    PartitionKey & {
+                        readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                    }
+                >,
+            ) => void;
+            // Fires after the model has been built for an item. Use this when you need the
+            // parsed model.
+            onModel?: (
                 item: DynamoGeneralRealtimeItem<
                     ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
                 >,
@@ -2580,6 +2594,9 @@ export class DynamoGeneralRealtimeTableSchema<
                 // more items in the query.
                 if (typeof limit === "number" && index >= limit) return null;
 
+                // Observe the raw item before paying the cost of building the model.
+                onItem?.(item as any);
+
                 const realtimeItem = {
                     key: this._table.serializeOpaqueItemKey(item),
                     version: item.updateLockVersion ?? 0,
@@ -2587,8 +2604,8 @@ export class DynamoGeneralRealtimeTableSchema<
                 };
 
                 // If you want to observe query items immediately after they're built you can use
-                // the `onItem` callback.
-                onItem?.(realtimeItem);
+                // the `onModel` callback.
+                onModel?.(realtimeItem);
 
                 return realtimeItem;
             },

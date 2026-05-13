@@ -15,7 +15,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type ChannelPreviewAttributesItem = {
     readonly spaceId: SpaceId;
@@ -61,7 +61,7 @@ export function convertChannelModelToChannelPreviewAttributesItem(
     };
 }
 
-export function getChannelPreviewItemForAuthorizationIfExists(
+export async function getChannelPreviewItemForAuthorizationIfExists(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -70,22 +70,41 @@ export function getChannelPreviewItemForAuthorizationIfExists(
         dynamo: DynamoContextModule;
     }>,
     channelId: ChannelId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void} = {},
 ): Promise<ChannelPreviewAttributesItem | null> {
-    return ChannelPreviewItemAuthorizationCache.get(context, consistency, channelId, consistency =>
-        ForumRealtimeTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Channel",
-                sortRangeType: "Attributes",
-                channelId,
-            },
-            {
-                consistency,
-                attributes: ["spaceId", "createdTime", "name", "accessPolicy", "updateLockVersion"],
-            },
-        ),
+    const channelItem = await ChannelPreviewItemAuthorizationCache.get(
+        context,
+        consistency,
+        channelId,
+        async consistency =>
+            ForumRealtimeTable.getPartialItemIfExists(
+                context,
+                {
+                    partitionType: "Channel",
+                    sortRangeType: "Attributes",
+                    channelId,
+                },
+                {
+                    consistency,
+                    attributes: [
+                        "spaceId",
+                        "createdTime",
+                        "name",
+                        "accessPolicy",
+                        "updateLockVersion",
+                    ],
+                },
+            ),
     );
+
+    if (channelItem?.accessPolicy.type === "Site") {
+        onSiteId?.(channelItem.accessPolicy.siteId);
+    }
+
+    return channelItem;
 }
 
 export async function getChannelPreviewItemForAuthorization(

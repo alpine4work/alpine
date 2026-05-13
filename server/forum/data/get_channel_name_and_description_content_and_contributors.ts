@@ -63,7 +63,7 @@ export async function getChannelNameAndDescriptionContentAndContributors(
     );
 
     const {channelItem, contributorsItem} = await promise;
-    await authorizeChannelItemAccess(context, channelItem, "View");
+    await authorizeChannelItemAccess(context, channelItem, "View", {consistency});
 
     return {
         version: channelItem.updateLockVersion ?? 0,

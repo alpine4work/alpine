@@ -12,6 +12,7 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
@@ -36,6 +37,7 @@ import {isSubscribedToChannel} from "~/server/forum/data/is_subscribed_to_channe
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSite} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
@@ -59,6 +61,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     ServerSynchronizationCheckpoint,
@@ -150,6 +153,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const consistency: DynamoReadConsistency | undefined =
         url.searchParams.get("consistency") === "strong" ? "Strong" : undefined;
 
+    const sitePrefetcher = createSiteLoaderDataPrefetcher({
+        request,
+        entityId: `Channel:${channelId}`,
+        fetchSite: siteId => getSite(context, {siteId}),
+    });
+
     const [channelResult, postsResult, isSubscribed, isFavorite] = await runAllPromises([
         // If we're creating the channel then create an empty query since we should know
         // the channel model and initial channel contributors:
@@ -191,6 +200,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                   // the client would need to load new files if switching from mobile to desktop.
                   postFilesLimit: channelViewAsidePostFileMaxCount,
                   consistency,
+                  onSiteId: sitePrefetcher.onSiteId,
               }),
 
         // If we're creating the channel then create an empty query since there are no
@@ -227,12 +237,18 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }),
     ]);
 
-    return jsonWithSchema(LoaderSchema, {
-        channelResult,
-        postsResult,
-        isSubscribed,
-        isFavorite,
-    });
+    return jsonWithSchema(
+        LoaderSchema,
+        {
+            channelResult,
+            postsResult,
+            isSubscribed,
+            isFavorite,
+        },
+        {
+            siteLoaderData: await sitePrefetcher.get(),
+        },
+    );
 }
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -294,7 +310,7 @@ export default function ChannelRoute() {
             : null,
     );
 
-    return (
+    let node = (
         <Box flexGrow="1" overflow="hidden" position="relative" zIndex="20" height="full">
             <ChannelView
                 // Remount when navigating to a different channel.
@@ -306,4 +322,7 @@ export default function ChannelRoute() {
             />
         </Box>
     );
+
+    node = useSiteChromeContainer({entityId: `Channel:${channelId}`}, node);
+    return node;
 }

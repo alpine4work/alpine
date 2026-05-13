@@ -26,7 +26,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 /**
  * Get a `ChannelModel` and post files in the channel all at once. Executes a
@@ -39,11 +39,13 @@ export function getChannelAndMetadataIfPossible(
         postFilesLimit,
         afterItemKey = null,
         consistency = "Eventual",
+        onSiteId,
     }: {
         channelId: ChannelId;
         postFilesLimit: number;
         afterItemKey?: DynamoItemKey | null;
         consistency?: DynamoReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
     if (afterItemKey) {
@@ -51,7 +53,7 @@ export function getChannelAndMetadataIfPossible(
             const [channelResult, queryResult] = await runAllPromises([
                 // Get the channel preview separately to make sure we're authorized to make this
                 // request.
-                getChannelPreviewIfPossible(context, channelId, {consistency}),
+                getChannelPreviewIfPossible(context, channelId, {consistency, onSiteId}),
 
                 ForumRealtimeTable.realtimeQuery(context, {
                     consistency,
@@ -81,6 +83,11 @@ export function getChannelAndMetadataIfPossible(
                 // Plus one for `ChannelModel` and plus one for `ChannelContributorsModel`.
                 limit: postFilesLimit + 2,
                 onItem: item => {
+                    if (item.sortRangeType === "Attributes" && item.accessPolicy.type === "Site") {
+                        onSiteId?.(item.accessPolicy.siteId);
+                    }
+                },
+                onModel: item => {
                     if (item.model instanceof ChannelModel) {
                         channelPromiseResolver.resolve(item.model);
                     }
@@ -179,6 +186,7 @@ export async function getChannelAndMetadata(
         postFilesLimit: number;
         afterItemKey?: DynamoItemKey | null;
         consistency?: DynamoReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
     const result = await getChannelAndMetadataIfPossible(context, options);

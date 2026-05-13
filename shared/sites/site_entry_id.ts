@@ -2,7 +2,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
+import {assertId, isId} from "~/shared/id/id.js";
 import {SiteSideBarId, SiteSideBarSectionId, SiteTopBarId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -163,6 +163,13 @@ export function printSiteContainerId<T extends SiteContainerIdObject["type"]>(
         default:
             throw exhaustive(object);
     }
+}
+
+export function parseSiteSideBarSectionContainerId(
+    id: SiteSideBarSectionContainerId,
+): SiteSideBarSectionContainerIdObject {
+    const [, idPayload = ""] = id.split(":", 2);
+    return {type: "SideBarSection", id: assertId<SiteSideBarSectionId>(idPayload)};
 }
 
 export function isSiteEntryId(id: string): id is SiteEntryId {

@@ -14,6 +14,7 @@ import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_loa
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
@@ -24,6 +25,7 @@ import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSite} from "~/server/sites/data/get_site.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -32,6 +34,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     ServerSynchronizationCheckpointSchema,
@@ -64,6 +67,12 @@ export async function loader({context: unauthenticatedContext, request, params}:
     const createSearchParam = url.searchParams.get("create");
 
     let createdChat: ChatModel | null = null;
+
+    const sitePrefetcher = createSiteLoaderDataPrefetcher({
+        request,
+        entityId: `Chat:${chatId}`,
+        fetchSite: siteId => getSite(context, {siteId}),
+    });
 
     if (createSearchParam !== null) {
         try {
@@ -126,6 +135,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             : getChatAndInitialMessages(context, {
                   chatId,
                   messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                  onSiteId: sitePrefetcher.onSiteId,
                   // Immediately resolve `chatPromiseResolver` once the chat is loaded. This function
                   // may take longer to return as it loads messages from the chat.
                   onChat: chatPromiseResolver.resolve,
@@ -158,15 +168,21 @@ export async function loader({context: unauthenticatedContext, request, params}:
         ),
     ]);
 
-    return jsonWithSchema(LoaderSchema, {
-        checkpoint,
-        chat,
-        initialIsSubscribed,
-        initialMessages,
-        initialOtherReferencedMessages,
-        inboxEntry,
-        isFavorite,
-    });
+    return jsonWithSchema(
+        LoaderSchema,
+        {
+            checkpoint,
+            chat,
+            initialIsSubscribed,
+            initialMessages,
+            initialOtherReferencedMessages,
+            inboxEntry,
+            isFavorite,
+        },
+        {
+            siteLoaderData: await sitePrefetcher.get(),
+        },
+    );
 }
 
 // We don't need to reload when certain search params change.
@@ -285,7 +301,7 @@ export default function ChatRoute() {
         getChatOrAccountSearchAffinityEntityId(currentAccount?.id, chat),
     );
 
-    const node = (
+    let node = (
         <Box flexGrow="1" width="full" height="full" overflow="hidden">
             <ChatView
                 // Remount whenever we navigate to a different chat.
@@ -304,11 +320,14 @@ export default function ChatRoute() {
         </Box>
     );
 
-    return useInboxBannerOutletContainer(
+    node = useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
             maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );
+
+    node = useSiteChromeContainer({entityId: `Chat:${chat.id}`}, node);
+    return node;
 }

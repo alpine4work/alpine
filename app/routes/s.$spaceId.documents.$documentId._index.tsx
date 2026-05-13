@@ -17,6 +17,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
@@ -25,6 +26,7 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSite} from "~/server/sites/data/get_site.js";
 import {
     createEmptySpellCheckIgnoredLintsForNewEntity,
     getSpellCheckIgnoredLints,
@@ -47,6 +49,7 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {
@@ -78,9 +81,17 @@ export async function loader({params, context: unauthenticatedContext, request}:
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
+    const sitePrefetcher = createSiteLoaderDataPrefetcher({
+        request,
+        entityId: `Document:${documentId}`,
+        fetchSite: siteId => getSite(context, {siteId}),
+    });
+
     const [document, commentThreadResultResult, isFavorite, spellCheckIgnoredLintsResult] =
         await runAllPromises([
-            getDocumentWithOptionalCommentsIfExists(context, documentId),
+            getDocumentWithOptionalCommentsIfExists(context, documentId, {
+                onSiteId: sitePrefetcher.onSiteId,
+            }),
             commentThreadId
                 ? captureResultPromise(async () => {
                       // Generate checkpoint before we start loading data. So when we backfill we include
@@ -126,12 +137,18 @@ export async function loader({params, context: unauthenticatedContext, request}:
         spellCheckIgnoredLints = unwrapResult(spellCheckIgnoredLintsResult);
     }
 
-    return jsonWithSchema(LoaderSchema, {
-        document,
-        commentThreadResult,
-        isFavorite,
-        spellCheckIgnoredLints,
-    });
+    return jsonWithSchema(
+        LoaderSchema,
+        {
+            document,
+            commentThreadResult,
+            isFavorite,
+            spellCheckIgnoredLints,
+        },
+        {
+            siteLoaderData: await sitePrefetcher.get(),
+        },
+    );
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => {
@@ -274,7 +291,7 @@ export default function DocumentRoute() {
         setIsShareActivationHintVisible(false);
     }
 
-    return (
+    let node = (
         <DocumentContentEditor
             // Re-render when the document changes
             key={documentId}
@@ -337,4 +354,7 @@ export default function DocumentRoute() {
             }}
         />
     );
+
+    node = useSiteChromeContainer({entityId: `Document:${documentId}`}, node);
+    return node;
 }

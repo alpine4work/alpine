@@ -100,6 +100,7 @@ ts_project(
         "//client/web/rpc",
         "//client/web/settings",
         "//client/web/shimmer",
+        "//client/web/sites",
         "//client/web/spaces",
         "//client/web/spaces/layout",
         "//client/web/styles",

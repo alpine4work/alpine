@@ -19,13 +19,16 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.js";
 
 export async function authorizeChatAccessAndReturnItem(
     context: ServerActionContext,
     chatId: ChatId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<ChatAttributesItem> {
     return unwrapResult(
         await authorizeChatAccessAndReturnItemIfPossible(
@@ -41,7 +44,10 @@ export async function authorizeChatAccessAndReturnItemIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<ChatAttributesItem, ErrorBase>> {
     switch (context.actor.type) {
         case "Session":
@@ -144,7 +150,10 @@ export async function authorizeChatAccessForAccountAndReturnItem(
     chatId: ChatId,
     accountId: AccountId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<{attributesItem: ChatAttributesItem; definition: ChatDefinitionForAuthorization}> {
     return unwrapResult(
         await authorizeChatAccessForAccountAndReturnItemIfPossible(
@@ -172,7 +181,10 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
     chatId: ChatId,
     accountId: AccountId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<
     Result<
         {attributesItem: ChatAttributesItem; definition: ChatDefinitionForAuthorization},
@@ -209,7 +221,8 @@ export async function authorizeChatAccessForAccountAndReturnItemIfPossible(
         case "Anonymous":
         case "Bot": {
             // Throw if actor doesn't have access to the chat. We only return a `Result` when
-            // the account we're checking doesn't have access to the chat.
+            // the account we're checking doesn't have access to the chat. The inner call emits
+            // `onSiteId` via the underlying chat-item / attributes-item loaders.
             const attributesItem = unwrapResult(
                 await authorizeChatAccessAndReturnItemIfPossible(
                     context,

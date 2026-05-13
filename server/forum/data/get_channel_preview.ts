@@ -9,7 +9,7 @@ import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
 
 /**
  * Gets a preview channel object with the provided `ChannelId`. Returns null if the
@@ -22,7 +22,10 @@ import {ChannelId} from "~/shared/id/types/id_types.js";
 export async function getChannelPreviewIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<ChannelPreviewModel, ErrorBase> | null> {
     const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
         context,
@@ -62,7 +65,7 @@ export async function getChannelPreviewIfPossible(
 export async function getChannelPreviewIfExists(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<ChannelPreviewModel | null> {
     const channelResult = await getChannelPreviewIfPossible(context, channelId, options);
     if (!channelResult) return null;
@@ -79,7 +82,7 @@ export async function getChannelPreviewIfExists(
 export async function getChannelPreview(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<ChannelPreviewModel> {
     const channel = await getChannelPreviewIfExists(context, channelId, options);
     if (!channel) throw createChannelNotFoundError(channelId);

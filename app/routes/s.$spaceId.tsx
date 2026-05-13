@@ -43,6 +43,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {SearchModal} from "~/client/web/search/search_modal.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
+import {SiteProvider} from "~/client/web/sites/context/site_context.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
@@ -816,27 +817,29 @@ export default function SpaceLayoutRoute() {
                                         : (loaderData.currentAccountWithoutSpace?.id ?? null)
                                 }
                             >
-                                <ContextMenuContextProvider>
-                                    <PeekStackContextProvider
-                                        ref={peekStackRef}
-                                        // The peek stack component is responsible for rendering our global loading
-                                        // indicator so it can make sure the loading indicator avoids the peek stack.
-                                        globalLoadingIndicator={globalLoadingIndicator}
-                                    >
-                                        <SpaceLayoutRouteOutlet
-                                            loaderData={loaderData}
-                                            isSearchModalOpen={hasAddedSearchModal}
-                                            setSearchQueryText={setSearchQueryText}
+                                <SiteProvider>
+                                    <ContextMenuContextProvider>
+                                        <PeekStackContextProvider
+                                            ref={peekStackRef}
+                                            // The peek stack component is responsible for rendering our global loading
+                                            // indicator so it can make sure the loading indicator avoids the peek stack.
                                             globalLoadingIndicator={globalLoadingIndicator}
-                                        />
-                                    </PeekStackContextProvider>
-                                    {modals}
-                                    {hasSpaceLayoutWebMobileTabBar && (
-                                        <SpaceLayoutWebMobileTabBar
-                                            initialInbox={loaderData.inbox}
-                                        />
-                                    )}
-                                </ContextMenuContextProvider>
+                                        >
+                                            <SpaceLayoutRouteOutlet
+                                                loaderData={loaderData}
+                                                isSearchModalOpen={hasAddedSearchModal}
+                                                setSearchQueryText={setSearchQueryText}
+                                                globalLoadingIndicator={globalLoadingIndicator}
+                                            />
+                                        </PeekStackContextProvider>
+                                        {modals}
+                                        {hasSpaceLayoutWebMobileTabBar && (
+                                            <SpaceLayoutWebMobileTabBar
+                                                initialInbox={loaderData.inbox}
+                                            />
+                                        )}
+                                    </ContextMenuContextProvider>
+                                </SiteProvider>
                             </TaskRealtimeClientContextProvider>
                         </SpaceContextProvider>
                     )}

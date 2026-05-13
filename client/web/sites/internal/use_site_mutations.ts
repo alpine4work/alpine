@@ -1,9 +1,13 @@
-import {useNavigate} from "@remix-run/react";
 import {useCallback} from "react";
+import {flushSync} from "react-dom";
+import {NavigateOptions} from "react-router";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
-import {useSiteContext} from "~/client/web/sites/context/site_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -35,17 +39,17 @@ import {doesSiteEntryMoveIntroduceCycle} from "~/shared/sites/does_site_entry_mo
 import {mergeNewSitePositionIntoSiteEntry} from "~/shared/sites/merge_new_site_position_into_site_entry.js";
 import {
     SiteContainerId,
-    SiteEntityIdObject,
     SiteSideBarContainerId,
     SiteSideBarSectionContainerId,
-    SiteSideBarSectionContainerIdObject,
-    getSiteEntryKey,
-    isSiteContainerIdObject,
+    isSiteSideBarContainerId,
+    isSiteSideBarSectionContainerId,
     parseSiteContainerId,
+    parseSiteSideBarSectionContainerId,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
 import {
     SiteItemSearchEntityId,
+    isSiteItemSearchEntityId,
     parseSiteItemSearchEntityId,
 } from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteSideBarSectionModel} from "~/shared/sites/site_model.js";
@@ -59,9 +63,41 @@ export function useSiteMutations() {
     const context = useAppContext();
     const reporter = useReporter();
     const clientInfo = useClientInfo();
+    const {activeSiteId} = useSiteActivation();
     const {space, currentAccount} = useSpaceContext();
-    const {tree, updateTreeOptimistically, handleEventForSite} = useSiteContext();
-    const navigate = useNavigate();
+    const {
+        tree,
+        updateTreeOptimistically,
+        handleEventForSite,
+        activeState,
+        withPausedRealtimeEvents,
+    } = useSiteContext();
+    const routeLayout = useRouteLayout();
+    const _navigate = useNavigate();
+
+    const navigateWithinSite = useCallback(
+        (to: string, options?: NavigateOptions) => {
+            return _navigate(to, {
+                ...options,
+
+                // Without this parameter, navigating to another entity in the site will open the
+                // new entity in a peek view instead of "replacing" the current route with the next
+                // entity's route.
+                replace: true,
+
+                // When navigating within a site, we send some header data to the server to let it
+                // know that it doesn't need to re-fetch the site with all of its items. When a
+                // site is active, we've already performed an initial query against the site item
+                // and are subscribed to udpate events.
+                unstable_headers: activeSiteId
+                    ? {
+                          "cyberworlds-active-site-id": activeSiteId,
+                      }
+                    : undefined,
+            });
+        },
+        [activeSiteId, _navigate],
+    );
 
     const siteId = tree.site.id;
 
@@ -157,21 +193,50 @@ export function useSiteMutations() {
             orderKey: OrderKey,
             parentId: SiteContainerId,
         ): Promise<{entityId: SiteItemSearchEntityId}> => {
-            // TODO(#sites): How should we handle entities in other sites? For now, we add them
-            // to the new site if possible, otherwise we throw an access error.
-            const {eventTransaction} = await addEntityToSite(context, {
-                siteId,
-                spaceId: space.id,
-                entityId: entity.id,
-                parentId,
-                orderKey,
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the entity may appear in the site chrome before we navigate to it.
+            return withPausedRealtimeEvents(async () => {
+                // TODO(#sites): How should we handle entities in other sites? For now, we add them
+                // to the new site if possible, otherwise we throw an access error.
+                const {eventTransaction} = await addEntityToSite(context, {
+                    siteId,
+                    spaceId: space.id,
+                    entityId: entity.id,
+                    parentId,
+                    orderKey,
+                });
+
+                // NOTE(ifitzsimmons, 2026-04-29): We typically navigate to a new route after
+                // adding an entity to a site, removing an entity from a site, etc. When doing
+                // this, we want to make sure that the site chrome is updated in the same browser
+                // paint as when we navigate to new route.
+                //
+                // So as an example of what we are trying to avoid, when we remove an entity from a
+                // site, we remove it and navigate to the next entity. Without using `flushSync`,
+                // you'd probaly see the entity disappear from the site chrome before actually
+                // navigating to the next entity, which introduces some pretty obvious screen
+                // flicker.
+                await navigateWithinSite(
+                    getSearchDynamicEntityPath(
+                        space.id,
+                        parseSiteItemSearchEntityId(entity.id),
+                        routeLayout,
+                    ),
+                );
+                flushSync(() => handleEventForSite(eventTransaction));
+
+                return {entityId: entity.id};
             });
-
-            handleEventForSite(eventTransaction);
-
-            return {entityId: entity.id};
         },
-        [context, handleEventForSite, siteId, space.id],
+        [
+            context,
+            handleEventForSite,
+            navigateWithinSite,
+            routeLayout,
+            siteId,
+            space.id,
+            withPausedRealtimeEvents,
+        ],
     );
 
     const deleteContainer = useCallback(
@@ -251,43 +316,82 @@ export function useSiteMutations() {
         async (entityId: SiteItemSearchEntityId): Promise<void> => {
             const adjacentEntityId = computeAdjacentEntityId(entityId, tree);
 
-            const {eventTransaction} = await removeEntityFromSite(context, {
-                siteId,
-                spaceId: space.id,
-                entityId,
-            });
-
-            handleEventForSite(eventTransaction);
-
-            if (!adjacentEntityId) {
-                // TODO(#sites): We need to build out a blank site page and navigate there in the
-                // scenario where the user has removed the last entity from the site.
-                navigate(`/s/${space.id}`);
+            // If a user removes an entity that they are not currently looking at, it's fine to
+            // remove it as quickly as possible. We don't need to navigate to another entity.
+            if (activeState.activeEntityId !== entityId) {
+                const rpcPromise = removeEntityFromSite(context, {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                });
+                updateTreeOptimistically(
+                    rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                    (oldTree, promiseValue) => {
+                        // If promise value is defined, that means rpcPromise resolved and
+                        // handleEventForSite() has run. Since handleEventForSite() will incorporate the
+                        // update into our store we can simply return oldTree from here as an optimization.
+                        if (promiseValue !== undefined) {
+                            return oldTree;
+                        }
+                        return oldTree.deleteEntry(entityId);
+                    },
+                );
                 return;
             }
 
-            const entity = parseSiteItemSearchEntityId(adjacentEntityId);
-            switch (entity.type) {
-                case "Document":
-                    navigate(`/s/${space.id}/documents/${entity.documentId}`);
-                    break;
-                case "Channel":
-                    navigate(`/s/${space.id}/channels/${entity.channelId}`);
-                    break;
-                case "Task":
-                    navigate(`/s/${space.id}/tasks/${entity.taskId}`);
-                    break;
-                case "TaskCollection":
-                    navigate(`/s/${space.id}/tasks/collections/${entity.collectionId}`);
-                    break;
-                case "Chat":
-                    navigate(`/s/${space.id}/chat/${entity.chatId}`);
-                    break;
-                default:
-                    throw exhaustive(entity);
-            }
+            // NOTE(ifitzsimmons, @#pause-site-realtime-events): We're removing the entity
+            // that's currently loaded, so we need to navigate to the next entity once the
+            // current entity is removed.
+            //
+            // However, there are race conitions aplenty that we need to consider. When we fire
+            // off the RPC request, two things happen somewhat simultaneously:
+            //
+            // 1. The rpc runs and returns the event transaction, which we broadcast to the
+            //    realtime query.
+            // 2. As soon as the entity is removed at the DB layer, it sends the event to the
+            //    realtime query via the WebSocket.
+            //
+            // If (2) wins out, then the site tree in context will be updated with the removal
+            // of the current entity. This would cause a flicker on the screen, because when we
+            // look for the current entity in the tree in `useSiteChromeContainer`, we don't
+            // find it. Since we don't find it, we won't render the site chrome. What the user
+            // sees is a brief paint of the current entity without the site chrome, and then
+            // they see the site pop back onto the screen for the next entity after (1)
+            // resolves and navigation completes.
+            //
+            // To avoid this, we pause the realtime subsription, so that even if (2) wins out,
+            // the event will be queued and applied to the tree after (1) resolves.
+            await withPausedRealtimeEvents(async () => {
+                const {eventTransaction} = await removeEntityFromSite(context, {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                });
+
+                await navigateWithinSite(
+                    adjacentEntityId
+                        ? getSearchDynamicEntityPath(
+                              space.id,
+                              parseSiteItemSearchEntityId(adjacentEntityId),
+                              routeLayout,
+                          )
+                        : `/s/${space.id}/sites/${siteId}`,
+                );
+                flushSync(() => handleEventForSite(eventTransaction));
+            });
         },
-        [context, handleEventForSite, siteId, space.id, tree, navigate],
+        [
+            tree,
+            activeState.activeEntityId,
+            withPausedRealtimeEvents,
+            context,
+            siteId,
+            space.id,
+            updateTreeOptimistically,
+            handleEventForSite,
+            navigateWithinSite,
+            routeLayout,
+        ],
     );
 
     /**
@@ -296,28 +400,10 @@ export function useSiteMutations() {
      * RPC.
      */
     const moveEntry = useCallback(
-        (
-            entry:
-                | (SiteSideBarSectionContainerIdObject & {
-                      newPosition: {
-                          parentId: SiteSideBarContainerId | SiteSideBarSectionContainerId;
-                          orderKey: OrderKey;
-                      };
-                  })
-                | (SiteEntityIdObject & {
-                      newPosition: {
-                          parentId: SiteContainerId;
-                          orderKey: OrderKey;
-                      };
-                  }),
-        ) => {
+        (entry: MoveSiteEntryInput) => {
             if (
-                isSiteContainerIdObject(entry) &&
-                doesSiteEntryMoveIntroduceCycle(
-                    printSiteContainerId(entry),
-                    entry.newPosition.parentId,
-                    tree,
-                )
+                isSiteSideBarSectionContainerId(entry.id) &&
+                doesSiteEntryMoveIntroduceCycle(entry.id, entry.newPosition.parentId, tree)
             ) {
                 // If a section has children and a user drags the section into its current place,
                 // the drag target may think that the user is attempting to drag the section within
@@ -326,7 +412,7 @@ export function useSiteMutations() {
                 return;
             }
 
-            const oldEntry = tree.getEntry(getSiteEntryKey(entry));
+            const oldEntry = tree.getEntry(entry.id);
             assert(oldEntry.parentId !== null);
 
             if (
@@ -337,13 +423,11 @@ export function useSiteMutations() {
                 return;
             }
 
-            const rpcPromise = moveSiteEntry(context, {
-                siteId,
-                item: entry,
-            });
-
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite(result.eventTransaction ?? [])),
+                moveSiteEntry(context, {
+                    siteId,
+                    item: createMoveSiteEntryItem(entry),
+                }).then(result => handleEventForSite(result.eventTransaction)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -352,9 +436,8 @@ export function useSiteMutations() {
                         return oldTree;
                     }
 
-                    return oldTree.updateEntry(
-                        entry.type === "Entity" ? entry.id : printSiteContainerId(entry),
-                        oldEntry => mergeNewSitePositionIntoSiteEntry(oldEntry, entry.newPosition),
+                    return oldTree.updateEntry(entry.id, oldEntry =>
+                        mergeNewSitePositionIntoSiteEntry(oldEntry, entry.newPosition),
                     );
                 },
             );
@@ -371,72 +454,84 @@ export function useSiteMutations() {
         async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
             const documentId = generateId<DocumentId>();
 
-            const {eventTransactionForSite} = await createDocument(context, {
-                spaceId: space.id,
-                documentId,
-                sitePosition: {siteId, parentId, orderKey},
-            });
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the document may appear in the site chrome before we navigate to it.
+            await withPausedRealtimeEvents(async () => {
+                const {eventTransactionForSite} = await createDocument(context, {
+                    spaceId: space.id,
+                    documentId,
+                    sitePosition: {siteId, parentId, orderKey},
+                });
 
-            // When we navigate to the document, we need to handle read-after-write
-            // consistency. Broadcasting the event ensures that the document is visible to
-            // realtime query as soon as we navigate to it.
-            handleEventForSite(eventTransactionForSite);
-            navigate(`/s/${space.id}/documents/${documentId}`);
+                await navigateWithinSite(`/s/${space.id}/documents/${documentId}`);
+                flushSync(() => handleEventForSite(eventTransactionForSite));
+            });
         },
-        [context, space.id, siteId, handleEventForSite, navigate],
+        [
+            withPausedRealtimeEvents,
+            context,
+            handleEventForSite,
+            navigateWithinSite,
+            space.id,
+            siteId,
+        ],
     );
 
     const createTaskInSite = useCallback(
         async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
             const taskId = generateId<TaskId>();
 
-            const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
-                spaceId: space.id,
-                clientId: null,
-                actions: [
-                    {
-                        type: "UpdateTask",
-                        time: [Date.now(), 0],
-                        taskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: assertExists(currentAccount).id,
-                            creatorTimeZone: clientInfo.timeZone,
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the task may appear in the site chrome before we navigate to it.
+            await withPausedRealtimeEvents(async () => {
+                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                    spaceId: space.id,
+                    clientId: null,
+                    actions: [
+                        {
+                            type: "UpdateTask",
+                            time: [Date.now(), 0],
+                            taskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: assertExists(currentAccount).id,
+                                creatorTimeZone: clientInfo.timeZone,
+                            },
                         },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: [Date.now(), 0],
-                        taskId,
-                        taskAction: {
-                            type: "UpdateAccessPolicy",
-                            accessPolicy: {
-                                type: "Site",
-                                siteId,
-                                position: {
-                                    parentId,
-                                    orderKey,
+                        {
+                            type: "UpdateTask",
+                            time: [Date.now(), 0],
+                            taskId,
+                            taskAction: {
+                                type: "UpdateAccessPolicy",
+                                accessPolicy: {
+                                    type: "Site",
+                                    siteId,
+                                    position: {
+                                        parentId,
+                                        orderKey,
+                                    },
                                 },
                             },
                         },
-                    },
-                ],
-            });
+                    ],
+                });
 
-            // When we navigate to the task, we need to handle read-after-write consistency.
-            // Broadcasting the event ensures that the task is visible to realtime query as
-            // soon as we navigate to it.
-            handleEventForSite(assertExists(eventTransactionForSite));
-            navigate(`/s/${space.id}/tasks/${taskId}`);
+                await navigateWithinSite(`/s/${space.id}/tasks/${taskId}`);
+                if (eventTransactionForSite) {
+                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                }
+            });
         },
         [
+            withPausedRealtimeEvents,
             context,
             space.id,
             currentAccount,
             clientInfo.timeZone,
             siteId,
             handleEventForSite,
-            navigate,
+            navigateWithinSite,
         ],
     );
 
@@ -444,58 +539,79 @@ export function useSiteMutations() {
         async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
             const channelId = generateId<ChannelId>();
 
-            const {eventTransactionForSite} = await createChannel(context, {
-                spaceId: space.id,
-                channelId,
-                name: "Untitled channel",
-                accessPolicy: {type: "Site", siteId, position: {parentId, orderKey}},
-            });
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the channel may appear in the site chrome before we navigate to it.
+            await withPausedRealtimeEvents(async () => {
+                const {eventTransactionForSite} = await createChannel(context, {
+                    spaceId: space.id,
+                    channelId,
+                    name: "Untitled channel",
+                    accessPolicy: {type: "Site", siteId, position: {parentId, orderKey}},
+                });
 
-            // When we navigate to the channel, we need to handle read-after-write consistency.
-            // Broadcasting the event ensures that the channel is visible to realtime query as
-            // soon as we navigate to it.
-            handleEventForSite(eventTransactionForSite);
-            navigate(`/s/${space.id}/channels/${channelId}`);
+                await navigateWithinSite(`/s/${space.id}/channels/${channelId}`);
+
+                flushSync(() => handleEventForSite(eventTransactionForSite));
+            });
         },
-        [context, space.id, siteId, handleEventForSite, navigate],
+        [
+            withPausedRealtimeEvents,
+            context,
+            handleEventForSite,
+            navigateWithinSite,
+            space.id,
+            siteId,
+        ],
     );
 
     const createTaskCollectionInSite = useCallback(
         async ({parentId, orderKey}: {parentId: SiteContainerId; orderKey: OrderKey}) => {
             const collectionId = generateId<TaskCollectionId>();
 
-            const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
-                spaceId: space.id,
-                clientId: null,
-                actions: [
-                    {
-                        type: "UpdateCollection",
-                        time: [Date.now(), 0],
-                        collectionId,
-                        collectionAction: {
-                            type: "Create",
-                            creatorId: assertExists(currentAccount).id,
-                            name: "Untitled collection",
-                            accessPolicy: {
-                                type: "Site",
-                                siteId,
-                                position: {
-                                    parentId,
-                                    orderKey,
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the task collection may appear in the site chrome before we navigate to
+            // it.
+            await withPausedRealtimeEvents(async () => {
+                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                    spaceId: space.id,
+                    clientId: null,
+                    actions: [
+                        {
+                            type: "UpdateCollection",
+                            time: [Date.now(), 0],
+                            collectionId,
+                            collectionAction: {
+                                type: "Create",
+                                creatorId: assertExists(currentAccount).id,
+                                name: "Untitled collection",
+                                accessPolicy: {
+                                    type: "Site",
+                                    siteId,
+                                    position: {
+                                        parentId,
+                                        orderKey,
+                                    },
                                 },
                             },
                         },
-                    },
-                ],
-            });
+                    ],
+                });
 
-            // When we navigate to the task collection, we need to handle read-after-write
-            // consistency. Broadcasting the event ensures that the task collection is visible
-            // to realtime query as soon as we navigate to it.
-            handleEventForSite(assertExists(eventTransactionForSite));
-            navigate(`/s/${space.id}/tasks/collections/${collectionId}`);
+                await navigateWithinSite(`/s/${space.id}/tasks/collections/${collectionId}`);
+                if (eventTransactionForSite) {
+                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                }
+            });
         },
-        [context, space.id, currentAccount, siteId, handleEventForSite, navigate],
+        [
+            withPausedRealtimeEvents,
+            context,
+            space.id,
+            currentAccount,
+            siteId,
+            handleEventForSite,
+            navigateWithinSite,
+        ],
     );
 
     return {
@@ -511,4 +627,62 @@ export function useSiteMutations() {
         createChannelInSite,
         createTaskCollectionInSite,
     };
+}
+
+type MoveSiteEntryInput =
+    | {
+          id: SiteSideBarSectionContainerId;
+          newPosition: {
+              parentId: SiteSideBarContainerId | SiteSideBarSectionContainerId;
+              orderKey: OrderKey;
+          };
+      }
+    | {
+          id: SiteItemSearchEntityId;
+          newPosition: {
+              parentId: SiteContainerId;
+              orderKey: OrderKey;
+          };
+      };
+function createMoveSiteEntryItem(entry: MoveSiteEntryInput):
+    | {
+          type: "SideBarSection";
+          id: SiteSideBarSectionId;
+          newPosition: {
+              parentId: SiteSideBarContainerId | SiteSideBarSectionContainerId;
+              orderKey: OrderKey;
+          };
+      }
+    | {
+          type: "Entity";
+          id: SiteItemSearchEntityId;
+          newPosition: {
+              parentId: SiteContainerId;
+              orderKey: OrderKey;
+          };
+      } {
+    const idObject = isSiteItemSearchEntityId(entry.id)
+        ? ({type: "Entity", id: entry.id} as const)
+        : parseSiteSideBarSectionContainerId(entry.id);
+
+    const newParentId = entry.newPosition.parentId;
+
+    switch (idObject.type) {
+        case "Entity": {
+            return {type: "Entity", id: idObject.id, newPosition: entry.newPosition};
+        }
+        case "SideBarSection": {
+            assert(
+                isSiteSideBarSectionContainerId(newParentId) ||
+                    isSiteSideBarContainerId(newParentId),
+            );
+            return {
+                type: "SideBarSection",
+                id: idObject.id,
+                newPosition: {parentId: newParentId, orderKey: entry.newPosition.orderKey},
+            };
+        }
+        default:
+            throw exhaustive(idObject);
+    }
 }

@@ -8,7 +8,7 @@ import {ChatModel} from "~/shared/chat/chat_model.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId, SiteId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get the provided chat by `ChatId`.
@@ -16,7 +16,10 @@ import {ChatId} from "~/shared/id/types/id_types.js";
 export async function getChat(
     context: ServerActionContext,
     chatId: ChatId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<ChatModel> {
     const chat = await getChatIfPossible(context, chatId, options);
     if (!chat) throw createChatNotFoundError(chatId);
@@ -26,13 +29,18 @@ export async function getChat(
 export async function getChatIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<ChatModel, ErrorBase> | null> {
     const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
     if (!chatItem) return null;
 
     // This call won't make any database calls since it's after the
     // `getChatItemForAuthorization()` call which will cache the data we need.
+    // `onSiteId` was already fired during the load above; the cached path here won't
+    // fire it again, so there's no need to forward it.
     const result = await authorizeChatAccessIfPossible(context, chatId, "View");
     if (!result.ok) return result;
 

@@ -13,7 +13,7 @@ export const sitePermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Recor
     Manage: errorDisplayMessage`You aren\u2019t allowed to share this site. Ask someone who can share the site to give you share access.`,
 };
 
-export function createSiteNotFoundError(siteId: string) {
+export function createSiteNotFoundError(siteId: string | undefined) {
     return new NotFoundError("Site not found", {
         aggregateDedupeKey: siteId,
         displayMessage: errorDisplayMessage`This site doesn\u2019t exist. Try searching \u201Cmy sites\u201D to see sites you have access to.`,
