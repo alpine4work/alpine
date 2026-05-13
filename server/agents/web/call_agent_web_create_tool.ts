@@ -16,8 +16,13 @@ import {
 } from "~/server/agents/web/pages/agent_web_document_page.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {InvalidArgumentError, getErrorCode} from "~/shared/error/error.js";
+import {
+    concatErrorDisplayMessages,
+    errorDisplayMessage,
+} from "~/shared/error/error_display_message.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
@@ -33,7 +38,79 @@ export async function callAgentWebCreateTool(
 ): Promise<string> {
     const contentTree = parseMarkdownTree(content);
 
-    const {noun, pageMetadata, pageLink} = await createAgentWebPageLink(context, type, contentTree);
+    // Not all updates are going to be atomic. If we make an update that's not atomic
+    // and it fails then we need to know if part of the update succeeded. If part of
+    // the update succeeded then we need to delete our entry from `readResponseByPath`
+    // since it's invalid. The agent will need to re-read the path.
+    //
+    // TODO(calebmer, #agent-web): Once we have an update that might have a partial
+    // success then write a test to make sure in the partial success case we clean
+    // `readResponseByPath`!
+    let isPartialSuccess = false;
+
+    const contextWithPartialSuccessDetection: AgentWebContext = {
+        ...context,
+        api: {
+            get: context.api.get.bind(context.api),
+            put: async (...args: any): Promise<any> => {
+                // eslint-disable-next-line prefer-spread
+                const value = await context.api.put.apply(context.api, args);
+                isPartialSuccess = true;
+                return value;
+            },
+            post: async (...args: any): Promise<any> => {
+                // eslint-disable-next-line prefer-spread
+                const value = await context.api.post.apply(context.api, args);
+                isPartialSuccess = true;
+                return value;
+            },
+            delete: async (...args: any): Promise<any> => {
+                // eslint-disable-next-line prefer-spread
+                const value = await context.api.delete.apply(context.api, args);
+                isPartialSuccess = true;
+                return value;
+            },
+            patch: async (...args: any): Promise<any> => {
+                // eslint-disable-next-line prefer-spread
+                const value = await context.api.patch.apply(context.api, args);
+                isPartialSuccess = true;
+                return value;
+            },
+        },
+    };
+
+    let noun: string;
+    let pageMetadata: AgentWebPageMetadata;
+    let pageLink: AgentWebPageLink;
+    try {
+        ({noun, pageMetadata, pageLink} = await createAgentWebPageLink(
+            contextWithPartialSuccessDetection,
+            type,
+            contentTree,
+        ));
+    } catch (error) {
+        if (!isPartialSuccess) throw error;
+
+        const errorCode = getErrorCode(error);
+        const ErrorConstructor = getErrorConstructorForCode(errorCode);
+        const displayMessage = getErrorDisplayMessage(error);
+
+        // Modify the `displayMessage` so the agent knows the update was a partial success
+        // and that it needs to call `read` again since just trying `update` again won't
+        // work because we deleted the entry from `readResponseByPath`.
+        throw new ErrorConstructor(
+            (error instanceof Error ? error.message : String(error)) +
+                " (PARTIAL SUCCESS: some of this create was persisted)",
+            {
+                cause: error,
+                displayMessage: concatErrorDisplayMessages(
+                    displayMessage,
+                    errorDisplayMessage` (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)`,
+                ),
+            },
+        );
+    }
+
     const pageLinkPathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
 
     // Find all the newline indexes in our content. So the `scroll` tool can easily
