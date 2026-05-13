@@ -1,7 +1,6 @@
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {binarySearchGreaterThanOrEqual} from "~/server/agents/web/internal/binary_search_greater_than_or_equal.js";
-import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -233,10 +232,10 @@ function previewAgentWebFindMatch({
         matchBeforeNewlineIndexResult.value - 1 ===
             newlineIndexes[matchBeforeNewlineIndexResult.index - 1]
     ) {
-        matchBeforeNewlineIndexResult.index++;
-        matchBeforeNewlineIndexResult.value++;
-
-        throw new Error("NOCOMMIT: When does this run?");
+        matchBeforeNewlineIndexResult = {
+            index: matchBeforeNewlineIndexResult.index + 1,
+            value: newlineIndexes[matchBeforeNewlineIndexResult.index + 1]!,
+        };
     }
 
     // Remove any empty newlines from the end of the match.
@@ -246,8 +245,10 @@ function previewAgentWebFindMatch({
         matchAfterNewlineIndexResult.value - 1 ===
             newlineIndexes[matchAfterNewlineIndexResult.index - 1]
     ) {
-        matchAfterNewlineIndexResult.index--;
-        matchAfterNewlineIndexResult.value--;
+        matchAfterNewlineIndexResult = {
+            index: matchAfterNewlineIndexResult.index - 1,
+            value: matchAfterNewlineIndexResult.value - 1,
+        };
     }
 
     return {

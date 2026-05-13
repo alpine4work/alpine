@@ -213,6 +213,30 @@ needle
 `);
 });
 
+test("trims included leading blank context without removing the match", async () => {
+    const path = "/document/leading-blank-context";
+
+    await seedReadResponse({
+        path,
+        response: "intro\n\nneedle\nafter",
+    });
+
+    const responseString = await callFindTool({path, matchLimit: "20b"});
+
+    expect(responseString).toEqual(`\
+Found 1 match.
+
+<match>
+
+needle
+after
+
+(Showing lines 3-4.)
+
+</match>
+`);
+});
+
 test("truncates a long matched line around the match", async () => {
     const path = "/document/long-line";
 
