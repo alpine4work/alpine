@@ -708,7 +708,7 @@ function addDedupeNumberToTruncatedAgentWebMarkdownUrl(
 }
 
 function toFixedWithoutTrailingZeros(value: number, fractionDigits: number): string {
-    const string = value.toFixed(fractionDigits);
+    const string = value.toFixed(Math.min(fractionDigits, 100));
 
     let endIndex = string.length;
 

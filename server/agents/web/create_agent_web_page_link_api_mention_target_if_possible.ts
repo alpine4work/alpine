@@ -10,58 +10,38 @@ export function createAgentWebPageLinkApiMentionTargetIfPossible(
     switch (link.type) {
         case "Account":
         case "Channel":
+        case "Chat":
         case "Document":
+        case "Post":
         case "Task":
         case "TaskCollection": {
             return {type: "MentionTarget", target: link};
         }
-        case "ChatMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return {
-                        type: "MentionTarget",
-                        target: {type: "Chat", id: link.id, title: link.preview.title},
-                    };
-                }
-                case "Message": {
-                    return {
-                        type: "Url",
-                        url: `https://alpine.inc/s/${spaceId}/chat/${link.id}?message=${link.preview.index}`,
-                    };
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
-        }
-        case "DocumentMessages": {
+        case "ChatMessage": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/s/${spaceId}/documents/${link.id}?comments=${link.threadId}&comment=${link.preview.index}`,
+                url: `https://alpine.inc/s/${spaceId}/chat/${link.id}?message=${link.index}`,
             };
         }
-        case "PostMessages": {
-            switch (link.preview.type) {
-                case "Title": {
-                    return {
-                        type: "MentionTarget",
-                        target: {type: "Post", id: link.id, title: link.preview.title},
-                    };
-                }
-                case "Message": {
-                    return {
-                        type: "Url",
-                        url: `https://alpine.inc/s/${spaceId}/posts/${link.id}?comment=${link.preview.index}`,
-                    };
-                }
-                default:
-                    throw exhaustive(link.preview);
-            }
-        }
-        case "TaskMessages": {
+        case "DocumentMessage": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/s/${spaceId}/tasks/${link.id}?comment=${link.preview.index}`,
+                url: `https://alpine.inc/s/${spaceId}/documents/${link.id}?comments=${link.threadId}&comment=${link.index}`,
             };
         }
+        case "PostMessage": {
+            return {
+                type: "Url",
+                url: `https://alpine.inc/s/${spaceId}/posts/${link.id}?comment=${link.index}`,
+            };
+        }
+        case "TaskMessage": {
+            return {
+                type: "Url",
+                url: `https://alpine.inc/s/${spaceId}/tasks/${link.id}?comment=${link.index}`,
+            };
+        }
+        default:
+            throw exhaustive(link);
     }
 }

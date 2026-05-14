@@ -3,7 +3,7 @@ import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.j
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
-    ApiContentResponseArbitrary,
+    ApiContentArbitrary,
     apiContentArbitrarySpaceId,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
 
@@ -12,7 +12,7 @@ fc.configureGlobal({interruptAfterTimeLimit: 20 * 1000});
 
 test("can parse exact same content that was printed", () => {
     fc.assert(
-        fc.property(ApiContentResponseArbitrary, content => {
+        fc.property(ApiContentArbitrary, content => {
             const markdown = printApiContentToMarkdown(content, {
                 spaceId: apiContentArbitrarySpaceId,
             });

@@ -97,9 +97,15 @@ export async function printAgentWebMessagingPageBase(
     for (const block of blocks) {
         switch (block.type) {
             case "Time": {
+                // This is the format our Markdown parser would return when parsing
+                // `<time>test</time>`. Use the same format here when printing.
                 children.push({
-                    type: "html",
-                    value: `<time>${escapeHtml(block.timeContent)}</time>`,
+                    type: "paragraph",
+                    children: [
+                        {type: "html", value: "<time>"},
+                        {type: "text", value: block.timeContent},
+                        {type: "html", value: "</time>"},
+                    ],
                 });
                 break;
             }
@@ -495,7 +501,6 @@ export async function parseAgentWebMessagingPageBase(
                     }
                 },
 
-                // NOCOMMIT: Generative test!
                 ontext: start => {
                     hasUnknownHtml = true;
                     firstHtmlTextIndex ??= start;
@@ -682,8 +687,6 @@ function createUnexpectedMarkdownError(
     messageNouns: AgentWebMessagingPageNouns,
     position: Node["position"],
 ) {
-    console.trace("yoyoyo");
-
     return new InvalidArgumentError("Unexpected markdown node type", {
         displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
     });

@@ -8,7 +8,9 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebSessionStorage {
+export function createAgentWebSessionStorageForTest(
+    spaceId: SpaceId,
+): AgentWebSessionStorage & {deleteAll(): Promise<void>} {
     const temporaryStorage = new TemporaryDurableObjectStorage();
 
     afterEach(async () => {
@@ -34,7 +36,7 @@ export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebS
         };
     }
 
-    const storage: AgentWebSessionStorage = {
+    const storage: AgentWebSessionStorage & {deleteAll(): Promise<void>} = {
         spaceId,
         mutex: new Mutex(),
         pageLinkByPathname: createAgentWebSessionStorageCollection(),
@@ -47,6 +49,7 @@ export function createAgentWebSessionStorageForTest(spaceId: SpaceId): AgentWebS
         tableColumnWidthsByTruncatedColumnWidths: createAgentWebSessionStorageCollection(),
         readResponseByPath: createAgentWebSessionStorageCollection(),
         readResponseMutexByPath: new Map(),
+        deleteAll: () => temporaryStorage.deleteAll(),
     };
 
     return storage;

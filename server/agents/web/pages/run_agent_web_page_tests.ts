@@ -1,7 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
@@ -49,11 +48,6 @@ export function runAgentWebPageTests<PageLink, Page>({
     >;
 }) {
     const storage = createAgentWebSessionStorageForTest(agentWebPageTestsSpaceId);
-
-    function normalizePage(page: any): any {
-        if ("content" in page) page = {...page, content: normalizeApiContentResponse(page.content)};
-        return page;
-    }
 
     function renderErrorDisplayMessage(displayMessage: ErrorDisplayMessage): string {
         let string = "";
@@ -107,14 +101,12 @@ export function runAgentWebPageTests<PageLink, Page>({
                     await print(storage, testCase.pageLink, testCase.page);
 
                     expect(
-                        normalizePage(
-                            await parse(
-                                storage,
-                                testCase.pageLink,
-                                parseMarkdownTree(testCase.markdown),
-                            ),
+                        await parse(
+                            storage,
+                            testCase.pageLink,
+                            parseMarkdownTree(testCase.markdown),
                         ),
-                    ).toEqual(normalizePage(testCase.page));
+                    ).toEqual(testCase.page);
                 } else {
                     let error;
                     try {
@@ -142,10 +134,8 @@ export function runAgentWebPageTests<PageLink, Page>({
             test("parses new page from markdown", async () => {
                 if (!testCase.createParseError && !testCase.parseError) {
                     expect(
-                        normalizePage(
-                            await parse(storage, null, parseMarkdownTree(testCase.markdown)),
-                        ),
-                    ).toEqual(normalizePage(testCase.page));
+                        await parse(storage, null, parseMarkdownTree(testCase.markdown)),
+                    ).toEqual(testCase.page);
                 } else {
                     let error;
                     try {

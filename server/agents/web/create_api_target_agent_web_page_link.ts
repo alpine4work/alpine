@@ -10,77 +10,49 @@ export function createApiTargetAgentWebPageLink(
 ): AgentWebPageLink {
     switch (target.type) {
         case "Account":
+        case "Chat":
         case "Channel":
         case "Document":
+        case "Post":
         case "Task":
         case "TaskCollection": {
             return target;
         }
-        case "Chat": {
-            return {
-                type: "ChatMessages",
-                id: target.id,
-                preview: {
-                    type: "Title",
-                    title: target.title,
-                },
-            };
-        }
         case "ChatMessage": {
             return {
-                type: "ChatMessages",
+                type: "ChatMessage",
                 id: target.id,
-                preview: {
-                    type: "Message",
-                    index: target.index,
-                    authorShortName: target.author.shortName,
-                    bodySnippet: flatBodyMatch(target.bodyMatch),
-                },
+                index: target.index,
+                authorShortName: target.author.shortName,
+                bodySnippet: flatBodyMatch(target.bodyMatch),
             };
         }
         case "DocumentMessage": {
             return {
-                type: "DocumentMessages",
+                type: "DocumentMessage",
                 id: target.id,
                 threadId: target.threadId,
-                preview: {
-                    index: target.index,
-                    authorShortName: target.author.shortName,
-                    bodySnippet: flatBodyMatch(target.bodyMatch),
-                },
-            };
-        }
-        case "Post": {
-            return {
-                type: "PostMessages",
-                id: target.id,
-                preview: {
-                    type: "Title",
-                    title: target.title,
-                },
+                index: target.index,
+                authorShortName: target.author.shortName,
+                bodySnippet: flatBodyMatch(target.bodyMatch),
             };
         }
         case "PostMessage": {
             return {
-                type: "PostMessages",
+                type: "PostMessage",
                 id: target.id,
-                preview: {
-                    type: "Message",
-                    index: target.index,
-                    authorShortName: target.author.shortName,
-                    bodySnippet: flatBodyMatch(target.bodyMatch),
-                },
+                index: target.index,
+                authorShortName: target.author.shortName,
+                bodySnippet: flatBodyMatch(target.bodyMatch),
             };
         }
         case "TaskMessage": {
             return {
-                type: "TaskMessages",
+                type: "TaskMessage",
                 id: target.id,
-                preview: {
-                    index: target.index,
-                    authorShortName: target.author.shortName,
-                    bodySnippet: flatBodyMatch(target.bodyMatch),
-                },
+                index: target.index,
+                authorShortName: target.author.shortName,
+                bodySnippet: flatBodyMatch(target.bodyMatch),
             };
         }
         default:

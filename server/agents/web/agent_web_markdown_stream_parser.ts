@@ -198,7 +198,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                     };
 
                     // We only need to update the last part if it actually changed.
-                    if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
+                    if (!isDeepEqual(this._parts[this._parts.length - 1], firstPart)) {
                         putParts.push({span: textSpan, part: firstPart});
                         this._parts[this._parts.length - 1] = firstPart;
                     }
@@ -506,16 +506,15 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
                 // This link looks like a mention, let's add the correct link to the Markdown tree
                 // before parsing into content.
-                if (!/[a-zA-Z0-9]+:/.test(node.url)) {
+                if (!/^[a-zA-Z0-9]+:/.test(node.url)) {
                     const {pathname} = normalizeAgentWebPath(node.url);
 
                     // TODO(ifitzsimmons, #format-non-mentionable-content): If the link is not
                     // mentionable, `pageLink` will be null. We need to build a plain link for non
                     // mentionable content and we also need to swap the label so something more user
                     // friendly (`mentionLabel`).
-                    const pageLinkKey = await storage.pageLinkByPathname.get(pathname);
-
-                    if (!pageLinkKey) return node;
+                    const pageLink = await storage.pageLinkByPathname.get(pathname);
+                    if (!pageLink) return node;
 
                     const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
                         storage.spaceId,
@@ -553,7 +552,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                                     mentionElement: {
                                         type: "Mention",
                                         target: mentionTargetResult.target,
-                                        isAccountShortName,
+                                        isAccountShortName: isAccountShortName || undefined,
                                     },
                                 },
                             };

@@ -44,6 +44,10 @@ export function normalizeApiContentResponse(content: ApiContentResponse): ApiCon
     });
 }
 
+export function normalizeDraftApiContentResponse(content: Draft<ApiContentResponse>) {
+    normalizeApiContentBlockElements(content.elements, {isResponse: true});
+}
+
 type ApiContentNormalizationOptions = {
     readonly isResponse: boolean;
 };

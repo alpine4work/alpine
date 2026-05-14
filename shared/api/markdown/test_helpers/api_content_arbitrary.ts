@@ -61,20 +61,20 @@ export const apiContentArbitrarySpaceId = generateId<SpaceId>();
 
 // Use TypeScript `Record` so we get a type error when a type is added to the
 // union, reminding us that we need to add another entry.
-function createUnionArbitrary<Element extends {readonly type: string}>(
-    object: Record<Element["type"], MaybeWeightedArbitrary<Element>>,
-): Arbitrary<Element> {
-    const arbitraries: Array<MaybeWeightedArbitrary<Element>> = Object.values(object);
+export function createUnionArbitrary<Value extends {readonly type: string}>(
+    object: Record<Value["type"], MaybeWeightedArbitrary<Value>>,
+): Arbitrary<Value> {
+    const arbitraries: Array<MaybeWeightedArbitrary<Value>> = Object.values(object);
     return fc.oneof(...arbitraries);
 }
 
-function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
+export function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
     return fc
         .uint8Array({minLength: idByteLength, maxLength: idByteLength})
         .map(bytes => encodeId<Value>(bytes));
 }
 
-const ApiMentionTargetTitleArbitrary = fc.oneof(
+export const ApiContentTextArbitrary = fc.oneof(
     {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},
     {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
 );
@@ -83,27 +83,27 @@ const ApiPreviewTargetArbitraries = {
     Channel: fc.record({
         type: fc.constant("Channel"),
         id: createIdArbitrary<ChannelId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
     }),
     Chat: fc.record({
         type: fc.constant("Chat"),
         id: createIdArbitrary<ChatId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
     }),
     Document: fc.record({
         type: fc.constant("Document"),
         id: createIdArbitrary<DocumentId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
     }),
     Post: fc.record({
         type: fc.constant("Post"),
         id: createIdArbitrary<PostId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
     }),
     Task: fc.record({
         type: fc.constant("Task"),
         id: createIdArbitrary<TaskId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
         status: fc.oneof(
             fc.constant({type: "Open", isActive: false}),
             fc.constant({type: "Open", isActive: true}),
@@ -113,7 +113,7 @@ const ApiPreviewTargetArbitraries = {
     TaskCollection: fc.record({
         type: fc.constant("TaskCollection"),
         id: createIdArbitrary<TaskCollectionId>(),
-        title: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
     }),
 };
 
@@ -122,8 +122,8 @@ const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>
     Account: fc.record({
         type: fc.constant("Account"),
         id: createIdArbitrary<AccountId>(),
-        title: ApiMentionTargetTitleArbitrary,
-        shortName: ApiMentionTargetTitleArbitrary,
+        title: ApiContentTextArbitrary,
+        shortName: ApiContentTextArbitrary,
     }),
 });
 
@@ -178,14 +178,9 @@ const ApiContentInlineElementMarkArbitrary = createUnionArbitrary<ApiContentInli
     Comment: ApiContentInlineElementCommentMarkArbitrary,
 });
 
-const ApiContentTextInlineElementTextArbitrary = fc.oneof(
-    {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},
-    {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
-);
-
 const ApiContentTextInlineElementArbitrary: Arbitrary<ApiContentTextInlineElement> = fc.record({
     type: fc.constant("Text"),
-    text: ApiContentTextInlineElementTextArbitrary,
+    text: ApiContentTextArbitrary,
     marks: fc.oneof(
         {arbitrary: fc.constant([]), weight: 5},
         fc.array(ApiContentInlineElementMarkArbitrary, {
@@ -466,7 +461,7 @@ const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
 const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContentCodeBlockElementTextInlineElement> =
     fc.record({
         type: fc.constant("Text"),
-        text: ApiContentTextInlineElementTextArbitrary,
+        text: ApiContentTextArbitrary,
         marks: fc.oneof(
             {arbitrary: fc.constant([]), weight: 5},
             fc.array(ApiContentCodeBlockElementTextInlineElementMarkArbitrary, {

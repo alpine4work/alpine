@@ -622,5 +622,15 @@ Hello there.
                 ],
             },
         },
+        {
+            name: "empty time",
+            pageLink: null,
+            markdown: `\
+<time></time>
+`,
+            page: {
+                blocks: [{type: "Time", timeContent: ""}],
+            },
+        },
     ],
 });
