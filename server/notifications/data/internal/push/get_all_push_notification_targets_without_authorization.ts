@@ -36,6 +36,7 @@ export function getAllPushNotificationTargetsWithoutAuthorization(
         item => {
             switch (item.sortRangeType) {
                 case "SlackIntegration":
+                    if (item.spaceId !== spaceId) return null;
                     return {
                         type: "SlackIntegration",
                         spaceId: item.spaceId,
