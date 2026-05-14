@@ -6,15 +6,31 @@
  */
 
 /**
- * Controls which SQL operations are permitted:
+ * Controls which SQL operations are permitted in
+ * normal execution paths:
  *
  * - `"none"` — read-only: select, read, transaction,
  *   function, recursive.
  * - `"data"` — above + DML: insert, update, delete,
  *   savepoint.
- * - `"schema+data"` — above + DDL + pragma: everything.
+ * - `"schema+data"` — above + DDL + pragma.
+ *
+ * `ATTACH` / `DETACH` are NOT permitted at any of
+ * these levels; they're gated behind the internal
+ * {@link InternalSqliteWriteLevel} value `"attach"`,
+ * which only `Database.attach()` is allowed to use.
  */
 export type SqliteWriteLevel = "none" | "data" | "schema+data";
+
+/**
+ * Internal extension of {@link SqliteWriteLevel} that
+ * adds the `"attach"` mode: the only mode under which
+ * the authorizer permits `SQLITE_ATTACH` /
+ * `SQLITE_DETACH`. Used by `Database.attach()` to
+ * briefly authorize an ATTACH around the SQL it issues
+ * itself; never exposed in public APIs.
+ */
+export type InternalSqliteWriteLevel = SqliteWriteLevel | "attach";
 
 // Mapping from SQLite authorizer action codes to
 // human-readable names.
@@ -69,15 +85,23 @@ export function sqliteAuthorizerActionName(code: number): string | undefined {
  * Returns whether {@link action} is allowed at the given
  * {@link writeLevel}. Pass `null` for idle/setup contexts
  * (e.g. running PRAGMAs at startup) where everything
- * should be allowed.
+ * except attach/detach should be allowed.
  */
 export function isSqliteActionAllowed(
     action: string,
-    writeLevel: SqliteWriteLevel | null,
+    writeLevel: InternalSqliteWriteLevel | null,
 ): boolean {
-    if (writeLevel === null) {
-        return true;
+    // `attach` / `detach` are reserved for the internal
+    // `"attach"` write level used by `Database.attach()`.
+    // Banning them everywhere else keeps user-supplied
+    // SQL from sneaking in a schema we don't track.
+    if (action === "attach" || action === "detach") {
+        return writeLevel === "attach";
     }
+    // Conversely, attach mode allows only the universally-
+    // permitted set below — no DML/DDL/pragmas etc. — so
+    // an action lifting writeLevel to "attach" can't also
+    // smuggle in arbitrary writes.
     switch (action) {
         case "read":
         case "select":
@@ -85,6 +109,12 @@ export function isSqliteActionAllowed(
         case "function":
         case "recursive":
             return true;
+    }
+    if (writeLevel === "attach") {
+        return false;
+    }
+    if (writeLevel === null) {
+        return true;
     }
     if (writeLevel === "none") {
         return false;

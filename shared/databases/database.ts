@@ -16,6 +16,7 @@ import {installVfs} from "~/shared/databases/install_vfs.js";
 import {sql} from "~/shared/databases/sql.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {
+    type InternalSqliteWriteLevel,
     type SqliteWriteLevel,
     isSqliteActionAllowed,
     sqliteAuthorizerActionName,
@@ -167,7 +168,7 @@ export class Database {
      * databases (and re-install the hook afterwards).
      */
     private readonly schemaToTable = new Map<string, DatabaseTableId>();
-    private writeLevel: SqliteWriteLevel | null = null;
+    private writeLevel: InternalSqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
 
@@ -227,21 +228,7 @@ export class Database {
             this.db.exec(pragma);
         }
 
-        // Capture cache-hit reads via the page access hook
-        // so {@link execute} returns a complete read set
-        // even when SQLite serves pages from its pager
-        // cache without going through `xRead`. The hook
-        // fires for every attached database; demux on
-        // schema name. Reads from schemas we don't own
-        // (e.g. SQLite's `temp`) are ignored.
-        this.db.pageAccessHook((schemaName, pgno, flags) => {
-            if (flags !== pageAccessFlagRead) return;
-            const readSet = this.currentReadSet;
-            if (readSet === null) return;
-            const tableId = this.schemaToTable.get(schemaName);
-            if (tableId === undefined) return;
-            addToTablePageSet(readSet, tableId, pgno - 1);
-        });
+        this.installPageAccessHook();
     }
 
     /** Open a {@link Database} backed by `storage`. */
@@ -394,6 +381,52 @@ export class Database {
         this.db.exec("PRAGMA shrink_memory");
     }
 
+    /**
+     * Attach an additional per-table SQLite database to
+     * this connection so its pages flow through the same
+     * VFS / page-access hook plumbing as the main table.
+     *
+     * The patched authorizer denies `ATTACH` at every
+     * normal write level; this method briefly flips
+     * `writeLevel` to the internal `"attach"` value so
+     * the SQL it issues itself is permitted, then restores
+     * it. Schema name and VFS filename are both `tableId`,
+     * so `schemaToTable` maps `tableId → tableId`.
+     *
+     * The caller is responsible for ensuring the backing
+     * `storage` already has a page store for `tableId`
+     * before this is invoked. Must be called when no
+     * `execute()` is in flight.
+     */
+    attach(tableId: DatabaseTableId): void {
+        assert(!this.tables.has(tableId), `attach: table already attached: ${tableId}`);
+        assert(this.writeLevel === null, "attach is not supported during an in-flight execute");
+
+        // The VFS open callback runs synchronously during
+        // ATTACH and looks up state by tableId, so the
+        // entry must exist before the SQL runs.
+        this.tables.set(tableId, new DatabaseTableState());
+
+        this.writeLevel = "attach";
+        try {
+            // Our table ids are 26-char alphanumerics, so
+            // safe to inline as both an identifier and a
+            // path without escaping.
+            this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${tableId}"`);
+            this.schemaToTable.set(tableId, tableId);
+        } catch (error) {
+            this.tables.delete(tableId);
+            throw error;
+        } finally {
+            this.writeLevel = null;
+        }
+
+        // The new pager exists now; re-install the hook so
+        // the C side loops over the updated `aDb[]` and
+        // covers it too.
+        this.installPageAccessHook();
+    }
+
     close(): void {
         this.db.close();
     }
@@ -405,6 +438,41 @@ export class Database {
     }
 
     // -- Internal -----------------------------------------------------------
+
+    /**
+     * Captures cache-hit reads via the page access hook
+     * so {@link execute} returns a complete read set even
+     * when SQLite serves pages from its pager cache
+     * without going through `xRead`. The hook fires for
+     * every attached database; demux on schema name.
+     * Reads from schemas we don't own (e.g. SQLite's
+     * `temp`) are ignored.
+     *
+     * Stored as an arrow-function field so re-installs
+     * pass the same JS reference and the FuncPtrAdapter
+     * doesn't churn wasm thunks.
+     */
+    private readonly handlePageAccess = (
+        schemaName: string,
+        pgno: number,
+        flags: number,
+    ): void => {
+        if (flags !== pageAccessFlagRead) return;
+        const readSet = this.currentReadSet;
+        if (readSet === null) return;
+        const tableId = this.schemaToTable.get(schemaName);
+        if (tableId === undefined) return;
+        addToTablePageSet(readSet, tableId, pgno - 1);
+    };
+
+    /**
+     * (Re-)install the page-access hook on every
+     * currently-attached database's pager. Call after any
+     * operation that grows `db->aDb[]` (i.e. ATTACH).
+     */
+    private installPageAccessHook(): void {
+        this.db.pageAccessHook(this.handlePageAccess);
+    }
 
     private runTracked<T>(
         writeLevel: SqliteWriteLevel,

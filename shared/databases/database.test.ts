@@ -3,6 +3,7 @@
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 // ---------------------------------------------------------------------------
@@ -200,6 +201,81 @@ describe("Database — authorizer", () => {
             const result = database.executeSql("SELECT id FROM items", {allowWrites: level});
             expect(result.rows).toEqual([{id: 1}]);
         }
+    });
+
+    test("rejects ATTACH at every public writeLevel", async () => {
+        const {database} = await createDatabase();
+
+        for (const level of ["none", "data", "schema+data"] as const) {
+            expect(() =>
+                database.executeSql("ATTACH DATABASE '/foo' AS foo", {allowWrites: level}),
+            ).toThrow();
+        }
+    });
+
+    test("rejects ATTACH issued through the raw SQLite handle", async () => {
+        const {database} = await createDatabase();
+        const db = database.unsafeGetDbForTests();
+
+        // writeLevel is null (no execute in flight); the
+        // authorizer must still ban attach.
+        expect(() => db.exec("ATTACH DATABASE '/foo' AS foo")).toThrow();
+    });
+});
+
+describe("Database — attach", () => {
+    test("attaches a fresh table and reports reads under the new tableId", async () => {
+        const {database, storage} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        database.attach(otherTableId);
+
+        // Write a table into the attached schema, persist,
+        // and read back. The new pager must flow through the
+        // same VFS / hook plumbing as the main table.
+        database.executeSql(
+            `CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`,
+            {allowWrites: "schema+data"},
+        );
+        database.executeSql(`INSERT INTO "${otherTableId}".items VALUES (1)`, {
+            allowWrites: "data",
+        });
+        commit(database, storage);
+
+        const result = database.executeSql(`SELECT id FROM "${otherTableId}".items`, {
+            allowWrites: "none",
+        });
+
+        expect(result.rows).toEqual([{id: 1}]);
+        const otherReads = result.readPages.get(otherTableId);
+        expect(otherReads).toBeDefined();
+        expect(otherReads!.size).toBeGreaterThan(0);
+        // No reads should bleed into the main table for a
+        // query that touches only the attached schema.
+        expect(result.readPages.has(databaseMainTableId)).toBe(false);
+    });
+
+    test("rejects re-attaching the same table", async () => {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        database.attach(otherTableId);
+
+        expect(() => database.attach(otherTableId)).toThrow("already attached");
+    });
+
+    test("after attach, normal writeLevel still bans further ATTACH", async () => {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        database.attach(otherTableId);
+
+        const yetAnother = generateChronologicalId<DatabaseTableId>();
+        expect(() =>
+            database.executeSql(`ATTACH DATABASE '/${yetAnother}' AS "${yetAnother}"`, {
+                allowWrites: "schema+data",
+            }),
+        ).toThrow();
     });
 });
 
