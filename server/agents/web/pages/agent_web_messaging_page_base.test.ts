@@ -6,9 +6,11 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {
-    ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentInlineElementResponse,
+    ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
+    ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 const apostrophe = String.fromCharCode(39);
@@ -18,12 +20,17 @@ function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
     return {elements};
 }
 
-function paragraph(elements: ReadonlyArray<ApiContentInlineElement>) {
-    return {type: "Paragraph" as const, elements};
+function paragraph(
+    elements: ReadonlyArray<ApiContentInlineElementResponse>,
+): ApiContentParagraphBlockElementResponse {
+    return {type: "Paragraph", elements};
 }
 
-function text(text: string, marks?: ReadonlyArray<ApiContentInlineElementMark>) {
-    return {type: "Text" as const, text, marks};
+function text(
+    text: string,
+    marks?: ReadonlyArray<ApiContentInlineElementMark>,
+): ApiContentTextInlineElement {
+    return {type: "Text", text, marks};
 }
 
 runAgentWebPageTests<null, AgentWebMessagingPageBase>({
@@ -118,7 +125,7 @@ const done = true;
                                 language: "javascript",
                                 lines: [
                                     {
-                                        elements: [text("const done = true;")],
+                                        elements: [{type: "Text", text: "const done = true;"}],
                                     },
                                 ],
                             },
@@ -205,7 +212,7 @@ After the empty paragraph.
 Hello outside.
 `,
             parseError:
-                "Messages must be wrapped in `<human>` or `<bot>` tags. Move this content into a message or remove it.",
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements.",
         },
         {
             name: "message without name attribute",
@@ -218,7 +225,7 @@ Hello.
 </human>
 `,
             parseError:
-                'The `<human>` tag is missing the required `name` attribute. Add `name="..."` to the tag.',
+                "`<human>` element on line 1 is missing the `name` attribute. All messages must include the name of the author.",
         },
         {
             name: "unclosed message",
@@ -229,7 +236,47 @@ Hello.
 Hello.
 `,
             parseError:
-                "Messages must close their `<bot>` tag. Add `</bot>` at the end of the message.",
+                "`<bot>` element on line 1 is missing a closing tag. Add a `</bot>` closing tag and try again.",
+        },
+        {
+            name: "nested message",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<bot name="Assistant">
+
+Nested.
+
+</bot>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t open a new `<bot>` element on line 3. " +
+                "There\u2019s already an open `<human>` element and you can\u2019t nest message elements.",
+        },
+        {
+            name: "close message without open tag",
+            pageLink: null,
+            markdown: `\
+</human>
+`,
+            parseError:
+                "Can\u2019t close `</human>` element on line 1. " +
+                "There isn\u2019t a matching `<human>` open tag.",
+        },
+        {
+            name: "close mismatched message tag",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+</bot>
+`,
+            parseError:
+                "Can\u2019t close `</bot>` element on line 3. " +
+                "There isn\u2019t a matching `<bot>` open tag.",
         },
         {
             name: "blockquote outside message",
@@ -242,7 +289,157 @@ Hello.
 </blockquote>
 `,
             parseError:
-                "Reply previews must be inside a `<human>` or `<bot>` message. Move the `<blockquote>` into a message or remove it.",
+                "Can\u2019t add `<blockquote>` element on line 1. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+        },
+        {
+            name: "blockquote after message content",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+Message first.
+
+<blockquote cite="Bob">
+
+Late reply.
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t add `<blockquote>` element on line 5. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+        },
+        {
+            name: "second blockquote after reply preview",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+First reply.
+
+</blockquote>
+
+<blockquote cite="Carol">
+
+Second reply.
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t add `<blockquote>` element on line 9. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+        },
+        {
+            name: "nested blockquote",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+<blockquote cite="Carol">
+
+Nested reply.
+
+</blockquote>
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t open a new `<blockquote>` element on line 5. " +
+                "There\u2019s already an open `<blockquote>` element and you can\u2019t nest `<blockquote>` elements. " +
+                "If you\u2019re trying to reply to a message that itself is replying to another message then just include the content of the message you\u2019re replying to and omit the extra `<blockquote>` element.",
+        },
+        {
+            name: "unclosed blockquote",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+Quoted.
+
+</human>
+`,
+            parseError:
+                "`<blockquote>` element on line 3 is missing a closing tag. Add a `</blockquote>` closing tag and try again.",
+        },
+        {
+            name: "blockquote without cite attribute",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote>
+
+Quoted.
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include the name of the message author you\u2019re replying to.",
+        },
+        {
+            name: "close blockquote without open tag",
+            pageLink: null,
+            markdown: `\
+</blockquote>
+`,
+            parseError:
+                "Can\u2019t close `</blockquote>` element on line 1. " +
+                "There isn\u2019t a matching `<blockquote>` open tag.",
+        },
+        {
+            name: "close blockquote without reply preview",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t close `</blockquote>` element on line 3. " +
+                "There isn\u2019t a matching `<blockquote>` open tag.",
+        },
+        {
+            name: "close blockquote twice",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+Quoted.
+
+</blockquote>
+
+</blockquote>
+
+</human>
+`,
+            parseError:
+                "Can\u2019t close `</blockquote>` element on line 9. " +
+                "There isn\u2019t a matching `<blockquote>` open tag.",
+        },
+        {
+            name: "message with inline html content",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">Hello.</human>
+`,
+            parseError:
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements.",
         },
     ],
 });

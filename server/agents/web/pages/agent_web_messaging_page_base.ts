@@ -1,6 +1,6 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {Root, RootContent, Node} from "mdast";
+import {Node, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -244,7 +244,7 @@ export async function parseAgentWebMessagingPageBase(
                                     throw new InvalidArgumentError(
                                         "Invalid message element open tag",
                                         {
-                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` element at line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${state.tagName}>\` element and you can\u2019t nest \`<${state.tagName}>\` elements.`,
+                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${state.tagName}>\` element and you can\u2019t nest ${messageNouns.noun} elements.`,
                                         },
                                     );
                                 }
@@ -271,7 +271,7 @@ export async function parseAgentWebMessagingPageBase(
                                     throw new InvalidArgumentError(
                                         "Invalid parent element open tag (another parent tag was already opened)",
                                         {
-                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<blockquote>\` element at line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<blockquote>\` element and you can\u2019t nest \`<blockquote>\` elements. If you\u2019re trying to reply to a ${messageNouns.noun} that itself is replying to another ${messageNouns.noun} then just include the content of the ${messageNouns.noun} you\u2019re replying to and omit the extra \`<blockquote>\` element.`,
+                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<blockquote>\` element and you can\u2019t nest \`<blockquote>\` elements. If you\u2019re trying to reply to a ${messageNouns.noun} that itself is replying to another ${messageNouns.noun} then just include the content of the ${messageNouns.noun} you\u2019re replying to and omit the extra \`<blockquote>\` element.`,
                                         },
                                     );
                                 }
@@ -280,7 +280,7 @@ export async function parseAgentWebMessagingPageBase(
                                     throw new InvalidArgumentError(
                                         "Invalid parent element open tag",
                                         {
-                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"} isn\u2019t allowed. \`<blockquote>\` elements may only be used at the beginning of a \`<human>\` or \`<bot>\` ${messageNouns.noun} element to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
+                                            displayMessage: errorDisplayMessage`Can\u2019t add \`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. \`<blockquote>\` elements can only be used at the beginning of a \`<human>\` or \`<bot>\` ${messageNouns.noun} element to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
                                         },
                                     );
                                 }
@@ -324,7 +324,7 @@ export async function parseAgentWebMessagingPageBase(
                                     throw new InvalidArgumentError(
                                         "Invalid message element close tag",
                                         {
-                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` element at line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
+                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
                                         },
                                     );
                                 }
@@ -426,7 +426,7 @@ export async function parseAgentWebMessagingPageBase(
                                     throw new InvalidArgumentError(
                                         "Invalid parent element close tag",
                                         {
-                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` element at line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
+                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
                                         },
                                     );
                                 }
@@ -628,6 +628,6 @@ function createUnexpectedMarkdownError(
     position: Node["position"],
 ) {
     return new InvalidArgumentError("Unexpected markdown node type", {
-        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentenceNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
+        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
     });
 }
