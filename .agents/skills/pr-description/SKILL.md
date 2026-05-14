@@ -16,11 +16,11 @@ is compared against the parent branch (determined via Graphite) and copied to th
 ### Step 1: Identify the parent branch
 
 ```bash
-# Get the parent branch name — look for the "Parent:" line in the output
-gt info
+# Get the parent branch name (returns just the branch name, e.g. "main")
+gt parent
 ```
 
-Parse the parent branch from the `Parent:` line in the output. This is the base for the diff.
+Use the output directly as the parent branch name. This is the base for the diff.
 
 ### Step 2: Gather the diff
 

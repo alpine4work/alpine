@@ -14,15 +14,11 @@ Run a parallel, multi-agent review of the current branch's diff against its Grap
 Use Graphite to find the parent branch:
 
 ```bash
-gt log short
+# Returns just the parent branch name (e.g. "main")
+gt parent
 ```
 
-Identify the current branch and its parent. The parent is the branch directly below the current one
-in the stack. If not using Graphite, fall back to:
-
-```bash
-git merge-base HEAD main
-```
+If Graphite is not available, fall back to `main`.
 
 ## Step 2: Determine the branch name and create the output directory
 
