@@ -967,6 +967,7 @@ function DatabaseGridViewCell({
     const provider = getDatabaseFieldComponentProvider(field.config.type);
     const EditorOverlay = provider.GridViewCellEditorOverlay;
     const cellRef = useRef<HTMLDivElement>(null);
+    const [cellBoxElement, setCellBoxElement] = useState<HTMLDivElement | null>(null);
     const [optimisticValue, setOptimisticValue] = useOptimistic(value);
 
     useEffect(() => {
@@ -987,8 +988,6 @@ function DatabaseGridViewCell({
         });
     });
 
-    const shouldShowBorder = isSelected && !isEditing;
-
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
             config={field.config}
@@ -1004,33 +1003,53 @@ function DatabaseGridViewCell({
     );
 
     return (
-        <Overlay
-            isVisible={isEditing && EditorOverlay != null}
-            placement="cover-top"
-            fallbackPlacements={[]}
-            preventOverflow={false}
-            sameWidth
-            overlay={editorOverlay}
-        >
-            <Box
-                border={shouldShowBorder ? "theme-40-const" : "transparent"}
-                style={{
-                    ...field.columnStyle,
-                    marginTop: isFirstRow ? undefined : -1,
-                    marginBottom: -1,
-                    ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
-                }}
-                onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
+        <>
+            <Overlay
+                isVisible={isEditing && EditorOverlay != null}
+                placement="cover-top"
+                fallbackPlacements={[]}
+                preventOverflow={false}
+                sameWidth
+                overlay={editorOverlay}
             >
-                <provider.GridViewCellContent
-                    ref={cellRef}
-                    config={field.config}
-                    value={optimisticValue as DatabaseCellValue}
-                    commitValue={commitValue}
-                    onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
+                <Box
+                    ref={setCellBoxElement}
+                    border="transparent"
+                    style={{
+                        ...field.columnStyle,
+                        marginTop: isFirstRow ? undefined : -1,
+                        marginBottom: -1,
+                    }}
+                    onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
+                >
+                    <provider.GridViewCellContent
+                        ref={cellRef}
+                        config={field.config}
+                        value={optimisticValue as DatabaseCellValue}
+                        commitValue={commitValue}
+                        onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
+                    />
+                </Box>
+            </Overlay>
+            {cellBoxElement && (
+                <Overlay
+                    isVisible={isSelected && !isEditing}
+                    placement="cover-top"
+                    fallbackPlacements={[]}
+                    preventOverflow={false}
+                    sameWidth
+                    sameHeight
+                    targetElement={cellBoxElement}
+                    overlay={<DatabaseGridViewCellSelectionOverlay />}
                 />
-            </Box>
-        </Overlay>
+            )}
+        </>
+    );
+}
+
+function DatabaseGridViewCellSelectionOverlay({ref}: {ref?: React.Ref<HTMLElement>}) {
+    return (
+        <Box ref={ref as React.Ref<HTMLDivElement>} border="theme-40-const" pointerEvents="none" />
     );
 }
 
