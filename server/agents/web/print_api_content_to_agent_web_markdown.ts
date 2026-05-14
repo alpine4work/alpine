@@ -1,6 +1,6 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {Html, RootContent} from "mdast";
+import {Html, Root, RootContent} from "mdast";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
@@ -31,7 +31,7 @@ export async function printApiContentToAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
     options?: {documentId?: DocumentId | null},
-) {
+): Promise<string> {
     const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, options);
     return printMarkdownTree(markdownTree);
 }
@@ -40,7 +40,7 @@ export async function printApiContentToAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
     content: ApiContentResponse,
     {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
-) {
+): Promise<Root> {
     const state: ApiContentAgentWebMarkdownPrinterState = {
         documentId,
         lastDocumentCommentThreadNumber: null,

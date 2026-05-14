@@ -50,5 +50,5 @@ export function parseAgentWebBytes(string: string): number {
 }
 
 function createErrorDisplayMessage(string: string) {
-    return errorDisplayMessage`Couldn’t parse byte count from: ${quoteMarkdown([{type: "text", value: string}])}. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are “b” (bytes), “kb” (kilobytes), “mb” (megabytes), or “gb” (gigabytes).`;
+    return errorDisplayMessage`Couldn\u2019t parse byte count from: ${quoteMarkdown([{type: "text", value: string}])}. Byte count must be formatted as a number followed by a unit (e.g. 2.4kb) where the acceptable units are \u201Cb\u201D (bytes), \u201Ckb\u201D (kilobytes), \u201Cmb\u201D (megabytes), or \u201Cgb\u201D (gigabytes).`;
 }

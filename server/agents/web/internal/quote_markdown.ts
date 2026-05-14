@@ -39,5 +39,5 @@ export function quoteMarkdown(markdown: Array<PhrasingContent>) {
         markdownString = newMarkdownString;
     }
 
-    return `“${markdownString}”`;
+    return `\u201C${markdownString}\u201D`;
 }

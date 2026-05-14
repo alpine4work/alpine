@@ -3,6 +3,8 @@ import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_inter
 
 export type AgentWebPageWithMetadata = AgentWebDocumentPageWithMetadata;
 
+// NOCOMMIT: Formalize what is metadata? What is a page? What are these things?
+// Leave a big comment.
 export type AgentWebPageMetadata = {
     [Type in AgentWebPageWithMetadata["type"]]: MergeObjectIntersection<
         {readonly type: Type} & Extract<AgentWebPageWithMetadata, {readonly type: Type}>["metadata"]

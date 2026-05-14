@@ -3336,10 +3336,7 @@ test("streams link formatting correctly for truncated link that looks like menti
             },
             {documentId: null},
         ),
-    ).toEqual(
-        // eslint-disable-next-line cyberworlds/string-quotes
-        `<a href="${truncatedUrl}">brown fox jumps over the</a>\n`,
-    );
+    ).toEqual(`<a href="${truncatedUrl}">brown fox jumps over the</a>\n`);
 
     const message = new AgentWebMarkdownStreamParser({
         storage,
