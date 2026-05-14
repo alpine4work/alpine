@@ -99,6 +99,22 @@ SCALABLE_DEMOS_REPOSITORIES = {
         "url": "https://drive.google.com/file/d/1xPwGEWBWjpVbfaE8Pzx7-t7S92bj8z7O/view?usp=drive_link",
         "integrity": "sha256-kwZ5frmd1BOpzXh/zpAQdcmdtANBQXTKvpkv8hLBP4c=",
     },
+    "023_home_feed_created_and_shared_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1R2bW6yUzsvWCAbYejhzyHyCUA0XvKuFW/view?usp=drive_link",
+        "integrity": "sha256-86A0lAkxty1n2lgskO+Sxs93f/u9V1FqzydDumIHYfE=",
+    },
+    "024_chatgpt_cursor_bug_fix_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1HwwxRMrkAJu78MYALEjKR4RS2tZDbHU1/view?usp=drive_link",
+        "integrity": "sha256-u4ezAhHJTF+X+aFGmev+zJUtRGEsqCZoejfRf9quukw=",
+    },
+    "025_inbox_action_persistence_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1HfiQekHoE2MDVT67zTTa35pXIcsTOoOU/view?usp=drive_link",
+        "integrity": "sha256-w+f2EF6NuBPfMGSjPrP2t+Bdb8WAuYMRFdtni/TiMsA=",
+    },
+    "026_code_block_editor_keyboard_shortcuts_demo_recording_01.mov": {
+        "url": "https://drive.google.com/file/d/1oYgVHeGmtNMwkqWp69zjFHjyhkQgefsP/view?usp=drive_link",
+        "integrity": "sha256-B/wVC7YkPI1eGuNyPVg/Mn1k//g/mk2/02n2Xh/vXJU=",
+    },
     "rachel_date_background_01.jpeg": {
         "url": "https://drive.google.com/file/d/1AJpgkEwTEBXq9sc_Bvil31I7rfqKCG6s/view?usp=drive_link",
         "integrity": "sha256-kFfKiGfkNtqisvfIs06n+yi5JW32dC8N50xyceMArn0=",

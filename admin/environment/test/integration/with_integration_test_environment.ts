@@ -110,6 +110,11 @@ export type TestServices = {
     getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
 
     /**
+     * Get the local unscoped API key for the mock Cursor bot.
+     */
+    getMockCursorLocalUnscopedApiKey(): Promise<ApiKey>;
+
+    /**
      * Sign a session in to the test browser context by setting the appropriate
      * cookies.
      */
@@ -363,6 +368,7 @@ export function actuallyCreateIntegrationTestEnvironment(
     let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide> | null = null;
     let jobQueueServiceTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | null = null;
     let mockChatGptUnscopedApiKeyPath: string | null = null;
+    let mockCursorUnscopedApiKeyPath: string | null = null;
 
     let appServiceSubprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream> | undefined;
     let edgeServiceSubprocess:
@@ -474,6 +480,8 @@ export function actuallyCreateIntegrationTestEnvironment(
             keysDirectoryPath,
             "mock_chat_gpt_unscoped_api_key",
         );
+
+        mockCursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_cursor_unscoped_api_key");
 
         const [
             edgeServicePort,
@@ -843,6 +851,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--d1LocalDataPath=${agentsD1LocalDataPath}`,
                 `--apiServiceUrl=http://localhost:${apiServicePort}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
+                `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
                 // We have an empty D1 database prebuilt with all migrations applied so we
                 // shouldn't need to run them again.
                 "--withoutD1Migrations",
@@ -974,6 +983,13 @@ export function actuallyCreateIntegrationTestEnvironment(
                     throw new InternalError("Test services haven’t initialized");
 
                 const apiKey = await fs.readFile(mockChatGptUnscopedApiKeyPath, "utf8");
+                return assertApiKey(apiKey.trim());
+            },
+            getMockCursorLocalUnscopedApiKey: async () => {
+                if (mockCursorUnscopedApiKeyPath === null)
+                    throw new InternalError("Test services haven\u2019t initialized");
+
+                const apiKey = await fs.readFile(mockCursorUnscopedApiKeyPath, "utf8");
                 return assertApiKey(apiKey.trim());
             },
             signIn,

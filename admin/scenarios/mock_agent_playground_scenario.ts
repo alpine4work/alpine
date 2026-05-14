@@ -36,7 +36,7 @@ export async function createMockAgentPlaygroundScenario(context: TestContext) {
     const channel = await TestChannel.create(session, {name: "Playground"});
     const post = await channel.createPost(session, "King Kong");
 
-    await putMockAgentRecording(botAccount, `/posts/${post.id}`, recording);
+    await putMockAgentRecording("chat-gpt", botAccount, `/posts/${post.id}`, recording);
 
     return {
         log: cast<JsonObjectValue>({

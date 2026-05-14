@@ -38,7 +38,8 @@ const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUs
 // in CI, so we have to use ts-ignore.
 const mockEnv: AgentServiceEnv = {
     ChatGptAgentDurableObjectNamespace: {} as any,
-    MockAgentDurableObjectNamespace: {} as any,
+    MockChatGptAgentDurableObjectNamespace: {} as any,
+    MockCursorAgentDurableObjectNamespace: {} as any,
     CursorAgentDurableObjectNamespace: {} as any,
     AgentUsageDatabase: {} as any,
     API_SERVICE_URL: "https://api.test.cyberworlds.dev",
@@ -46,6 +47,7 @@ const mockEnv: AgentServiceEnv = {
     CHAT_GPT_API_SERVICE_KEY: "test-chat-gpt-key",
     CURSOR_API_SERVICE_KEY: "test-cursor-key",
     MOCK_CHAT_GPT_API_SERVICE_KEY: "test-mock-key",
+    MOCK_CURSOR_API_SERVICE_KEY: "test-mock-key",
     OPEN_AI_API_KEY: "test-openai-key",
     HONEYCOMB_API_KEY: "test-honeycomb-key",
 };

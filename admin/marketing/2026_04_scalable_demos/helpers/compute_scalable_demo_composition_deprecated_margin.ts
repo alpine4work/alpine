@@ -1,6 +1,10 @@
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
-export function computeScalableDemoCompositionMargin(width: number, height: number): number {
+/** @deprecated */
+export function computeScalableDemoCompositionDeprecatedMargin(
+    width: number,
+    height: number,
+): number {
     const w = width;
     const h = height;
     const r = goldenRatio;

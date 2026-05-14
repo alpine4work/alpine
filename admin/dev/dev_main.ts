@@ -177,6 +177,7 @@ const chatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_unscoped
 const chatGptScopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_scoped_api_key");
 const cursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "cursor_unscoped_api_key");
 const mockChatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_chat_gpt_unscoped_api_key");
+const mockCursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_cursor_unscoped_api_key");
 
 const apnsCertificatePath = joinPath(
     runfilesPath,
@@ -678,6 +679,7 @@ async function createArtifacts() {
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
                 `--cursorApiServiceKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
+                `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),

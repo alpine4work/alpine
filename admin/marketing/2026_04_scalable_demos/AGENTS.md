@@ -31,7 +31,7 @@ demo` subcommands:
 - `dev demo studio` — launch Remotion Studio
 - `dev demo assets` — build the `:public` filegroup (run after adding a real URL + integrity to
   `scalable_demo_repositories.bzl`)
-- `dev demo content` — generate X/LinkedIn post text via the interactive helper
+- `dev demo content-prompt` — generate X/LinkedIn post text via the interactive helper
 - `dev demo run <number-or-name>` — run the recorder for an existing demo. Accepts a bare number
   (`5`), zero-padded (`005`), or the full leading slug (`005_export_table_to_markdown`). Shorthand
   for `bazel run //admin/marketing/2026_04_scalable_demos:{NNN}_{name}_demo_recorder`.
@@ -174,7 +174,7 @@ configured on the Remotion composition:
 ```tsx
 <ScalableDemoCompositionLayout
     reaction={{character: {type: "Tree", variant: "Green"}, emotion: "Shock"}}
-    ...
+    // ...
 />
 ```
 

@@ -67,6 +67,7 @@ export class ScalableDemoRecorder {
         session,
         path,
         viewport,
+        fixedTime,
         prepare,
         actions,
         collaborators,
@@ -75,6 +76,7 @@ export class ScalableDemoRecorder {
         session: TestSpaceSession | TestSession | null;
         path: string;
         viewport?: {width: number; height?: number};
+        fixedTime?: Date;
         prepare?: (page: Page) => Promise<void>;
         /**
          * Playwright actions to run automatically in the primary (headed) browser window
@@ -130,6 +132,10 @@ export class ScalableDemoRecorder {
                 "window.localStorage.setItem('disableSpellCheck', 'true')",
             );
 
+            if (fixedTime !== undefined) {
+                await setPageFixedTime(page, fixedTime);
+            }
+
             await page.goto(new URL(path, this._baseUrl).toString());
 
             // Waits for our JavaScript to run and React to finish its initial render.
@@ -142,7 +148,7 @@ export class ScalableDemoRecorder {
             // Chromium context doesn\u2019t happen while the human is screen recording. The
             // page is blank until the first action navigates it.
             const collaboratorPages = collaborators
-                ? await this._openCollaboratorPages(collaborators)
+                ? await this._openCollaboratorPages(collaborators, fixedTime)
                 : new Map<string, Page>();
 
             // eslint-disable-next-line no-console
@@ -222,6 +228,7 @@ export class ScalableDemoRecorder {
 
     private async _openCollaboratorPages(
         collaborators: Record<string, ScalableDemoRecorderCollaborator>,
+        fixedTime: Date | undefined,
     ): Promise<Map<string, Page>> {
         // Launch one headless Chromium for all collaborators \u2014 cheaper than one per
         // collaborator, and since they\u2019re invisible there\u2019s no reason to isolate
@@ -249,11 +256,23 @@ export class ScalableDemoRecorder {
                 await this._services.signIn(browserContext, config.session);
 
                 const collaboratorPage = await browserContext.newPage();
+                if (fixedTime !== undefined) {
+                    await setPageFixedTime(collaboratorPage, fixedTime);
+                }
                 collaboratorPages.set(id, collaboratorPage);
             }),
         );
         return collaboratorPages;
     }
+}
+
+async function setPageFixedTime(page: Page, fixedTime: Date) {
+    // Match screenshot tests: freeze browser Date APIs and pass the same timestamp
+    // through the request header used by server-rendered time hooks.
+    await page.clock.setFixedTime(fixedTime);
+    await page.setExtraHTTPHeaders({
+        "cyberworlds-fixed-time-for-test": fixedTime.toISOString(),
+    });
 }
 
 /**

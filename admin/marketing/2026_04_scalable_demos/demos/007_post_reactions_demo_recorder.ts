@@ -5,7 +5,7 @@ import {
     postReactionsDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/007_post_reactions_demo_shared.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";

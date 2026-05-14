@@ -1,18 +1,15 @@
-import {
-    SpacingScale,
-    mediumSpacingScaleMinWindowWidth,
-} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
-export const scalableDemoDefaultViewportWidth = 1280;
+/**
+ * The smallest possible viewport width that's still the `desktop` platform.
+ */
+export const scalableDemoDefaultViewportWidth = mobilePlatformMaxWindowWidth + 1;
 
 export const scalableDemoDefaultViewport = {
-    width: 1280,
+    width: scalableDemoDefaultViewportWidth,
     height: Math.round(scalableDemoDefaultViewportWidth / goldenRatio),
 };
 
-// Double check that we're using a medium spacing scale for our demo videos.
-assert(scalableDemoDefaultViewportWidth >= mediumSpacingScaleMinWindowWidth);
-
-export const scalableDemoDefaultViewportSpacingScale: SpacingScale = "medium";
+export const scalableDemoNarrowViewportSpacingScale: SpacingScale = "small";

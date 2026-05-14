@@ -104,5 +104,13 @@ export default function HomeRoute() {
 
     const {affinitySearch, feed} = useLoaderDataWithSchema(LoaderSchema);
 
-    return <FeedView initialAffinitySearch={affinitySearch} initialFeed={feed} />;
+    return (
+        <FeedView
+            initialAffinitySearch={affinitySearch}
+            initialFeed={feed}
+            // Add margin bottom to the dev feed route since it won't have the welcome feed
+            // entry to end the view.
+            withMarginBottom
+        />
+    );
 }

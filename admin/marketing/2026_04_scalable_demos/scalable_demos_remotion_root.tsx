@@ -88,163 +88,228 @@ import {DocumentCommentHighlightsDemoComposition} from "~/admin/marketing/2026_0
 import {documentCommentHighlightsDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/021_document_comment_highlights_demo_shared.js";
 import {DocumentFileFloatDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/022_document_file_float_demo_composition.js";
 import {documentFileFloatDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/022_document_file_float_demo_shared.js";
-import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
-import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {HomeFeedCreatedAndSharedDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/023_home_feed_created_and_shared_demo_composition.js";
+import {homeFeedCreatedAndSharedDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/023_home_feed_created_and_shared_demo_shared.js";
+import {ChatgptCursorBugFixDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/024_chatgpt_cursor_bug_fix_demo_composition.js";
+import {chatgptCursorBugFixDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/024_chatgpt_cursor_bug_fix_demo_shared.js";
+import {InboxActionPersistenceDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/025_inbox_action_persistence_demo_composition.js";
+import {
+    inboxActionPersistenceDemoDurationInFrames,
+    inboxActionPersistenceDemoRecordingHeight,
+    inboxActionPersistenceDemoRecordingWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/025_inbox_action_persistence_demo_shared.js";
+import {CodeBlockEditorKeyboardShortcutsDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/026_code_block_editor_keyboard_shortcuts_demo_composition.js";
+import {codeBlockEditorKeyboardShortcutsDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/026_code_block_editor_keyboard_shortcuts_demo_shared.js";
+import {computeScalableDemoCompositionDeprecatedMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_deprecated_margin.js";
+import {
+    scalableDemoDefaultViewport,
+    scalableDemoDefaultViewportWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoWideViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export function ScalableDemosRemotionRoot() {
     return (
         <>
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="001-share-switch-demo"
                 component={ShareSwitchDemoComposition}
-                recordingWidth={scalableDemoNarrowViewportWidth}
+                recordingWidth={scalableDemoDefaultViewportWidth}
                 durationInFrames={shareSwitchDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="002-image-gallery-demo"
                 component={ImageGalleryDemoComposition}
                 recordingWidth={imageGalleryDemoRecordingWidth}
                 recordingHeight={imageGalleryDemoRecordingHeight}
                 durationInFrames={imageGalleryDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="003-task-progress-wheel-demo"
                 component={TaskProgressWheelDemoComposition}
                 recordingWidth={taskProgressWheelDemoRecordingWidth}
                 recordingHeight={taskProgressWheelDemoRecordingHeight}
                 durationInFrames={taskProgressWheelDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="004-reply-to-chat-message-range-demo"
                 component={ReplyToChatMessageRangeDemoComposition}
                 recordingWidth={replyToChatMessageRangeDemoRecordingWidth}
                 recordingHeight={replyToChatMessageRangeDemoRecordingHeight}
                 durationInFrames={replyToChatMessageRangeDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="005-export-table-to-markdown-demo"
                 component={ExportTableToMarkdownDemoComposition}
                 recordingWidth={exportTableToMarkdownDemoRecordingWidth}
                 recordingHeight={exportTableToMarkdownDemoRecordingHeight}
                 durationInFrames={exportTableToMarkdownDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="006-channel-and-chat-room-file-preview-demo"
                 component={ChannelAndChatRoomFilePreviewDemoComposition}
                 recordingWidth={channelAndChatRoomFilePreviewDemoRecordingWidth}
                 recordingHeight={channelAndChatRoomFilePreviewDemoRecordingHeight}
                 durationInFrames={channelAndChatRoomFilePreviewDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="007-post-reactions-demo"
                 component={PostReactionsDemoComposition}
                 recordingWidth={postReactionsDemoRecordingWidth}
                 recordingHeight={postReactionsDemoRecordingHeight}
                 durationInFrames={postReactionsDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="008-document-agent-collaboration-demo"
                 component={DocumentAgentCollaborationDemoComposition}
                 recordingWidth={documentAgentCollaborationDemoRecordingWidth}
                 recordingHeight={documentAgentCollaborationDemoRecordingHeight}
                 durationInFrames={documentAgentCollaborationDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="009-task-templates-demo"
                 component={TaskTemplatesDemoComposition}
                 recordingWidth={taskTemplatesDemoRecordingWidth}
                 recordingHeight={taskTemplatesDemoRecordingHeight}
                 durationInFrames={taskTemplatesDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="010-paste-bullet-list-into-tasks-demo"
                 component={PasteBulletListIntoTasksDemoComposition}
                 recordingWidth={pasteBulletListIntoTasksDemoRecordingWidth}
                 recordingHeight={pasteBulletListIntoTasksDemoRecordingHeight}
                 durationInFrames={pasteBulletListIntoTasksDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="011-search-project-preview-demo"
                 component={SearchProjectPreviewDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={searchProjectPreviewDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="012-chat-message-paragraph-reactions-demo"
                 component={ChatMessageParagraphReactionsDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={chatMessageParagraphReactionsDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="013-inbox-triage-demo"
                 component={InboxTriageDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={inboxTriageDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="014-feed-post-with-collection-preview-demo"
                 component={FeedPostWithCollectionPreviewDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={feedPostWithCollectionPreviewDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="015-summarize-viewed-post-demo"
                 component={SummarizeViewedPostDemoComposition}
                 recordingWidth={summarizeViewedPostDemoRecordingWidth}
                 recordingHeight={summarizeViewedPostDemoRecordingHeight}
                 durationInFrames={summarizeViewedPostDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="016-my-tasks-overview-demo"
                 component={MyTasksOverviewDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={myTasksOverviewDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="017-active-tasks-in-suggested-demo"
                 component={ActiveTasksInSuggestedDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={activeTasksInSuggestedDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="018-drag-to-set-task-due-date-demo"
                 component={DragToSetTaskDueDateDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={dragToSetTaskDueDateDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="019-document-mention-in-chat-demo"
                 component={DocumentMentionInChatDemoComposition}
                 recordingWidth={documentMentionInChatDemoRecordingWidth}
                 recordingHeight={documentMentionInChatDemoRecordingHeight}
                 durationInFrames={documentMentionInChatDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="020-cursor-mention-in-task-demo"
                 component={CursorMentionInTaskDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={cursorMentionInTaskDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="021-document-comment-highlights-demo"
                 component={DocumentCommentHighlightsDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={documentCommentHighlightsDemoDurationInFrames}
             />
-            <Composition
+            <CompositionWithDeprecatedMargin
                 id="022-document-file-float-demo"
                 component={DocumentFileFloatDemoComposition}
-                recordingWidth={scalableDemoDefaultViewportWidth}
+                recordingWidth={scalableDemoWideViewportWidth}
                 durationInFrames={documentFileFloatDemoDurationInFrames}
+            />
+            <Composition
+                id="023-home-feed-created-and-shared-demo"
+                component={HomeFeedCreatedAndSharedDemoComposition}
+                durationInFrames={homeFeedCreatedAndSharedDemoDurationInFrames}
+            />
+            <Composition
+                id="024-chatgpt-cursor-bug-fix-demo"
+                component={ChatgptCursorBugFixDemoComposition}
+                width={scalableDemoDefaultViewport.width}
+                height={scalableDemoDefaultViewport.width}
+                durationInFrames={chatgptCursorBugFixDemoDurationInFrames}
+            />
+            <Composition
+                id="025-inbox-action-persistence-demo"
+                component={InboxActionPersistenceDemoComposition}
+                width={inboxActionPersistenceDemoRecordingWidth}
+                height={inboxActionPersistenceDemoRecordingHeight}
+                durationInFrames={inboxActionPersistenceDemoDurationInFrames}
+            />
+            <Composition
+                id="026-code-block-editor-keyboard-shortcuts-demo"
+                component={CodeBlockEditorKeyboardShortcutsDemoComposition}
+                durationInFrames={codeBlockEditorKeyboardShortcutsDemoDurationInFrames}
             />
         </>
     );
 }
 
 function Composition({
+    id,
+    component,
+    width = scalableDemoDefaultViewportWidth,
+    height = Math.round(width / goldenRatio),
+    durationInFrames,
+}: {
+    id: string;
+    component: ComponentType<{}>;
+    width?: number;
+    height?: number;
+    durationInFrames: number;
+}) {
+    return (
+        <ActualComposition
+            id={id}
+            component={component}
+            fps={scalableDemoFps}
+            durationInFrames={durationInFrames}
+            width={width * 2}
+            height={height * 2}
+        />
+    );
+}
+
+/** @deprecated */
+function CompositionWithDeprecatedMargin({
     id,
     component,
     recordingWidth,
@@ -259,7 +324,7 @@ function Composition({
 }) {
     const w = recordingWidth;
     const h = recordingHeight;
-    const m = computeScalableDemoCompositionMargin(w, h);
+    const m = computeScalableDemoCompositionDeprecatedMargin(w, h);
 
     return (
         <ActualComposition

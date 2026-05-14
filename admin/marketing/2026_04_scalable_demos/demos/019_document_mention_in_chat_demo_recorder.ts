@@ -1,6 +1,6 @@
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
@@ -148,7 +148,7 @@ You are logged in as Matt. The chat with Mason is pre-loaded with a short backlo
         path: `/s/${space.id}/chat/${chat.id}`,
         // Add 35px so the height of the viewport is tall enough to display the mention
         // floater with 2 people, the email spec doc, and the insert menu.
-        viewport: {width: scalableDemoNarrowViewportWidth + 35},
+        viewport: {width: scalableDemoDefaultViewportWidth + 35},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
         },

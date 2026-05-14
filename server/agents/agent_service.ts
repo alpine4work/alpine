@@ -18,8 +18,8 @@ type AgentServiceRoute =
     | {type: "ChatGptConversationState"}
     | {type: "CursorWebhook"}
     | {type: "CursorCloudAgentsWebhook"; durableObjectId: string; agentId: string}
-    | {type: "MockWebhook"}
-    | {type: "MockRecording"}
+    | {type: "MockWebhook"; bot: "ChatGpt" | "Cursor"}
+    | {type: "MockRecording"; bot: "ChatGpt" | "Cursor"}
     | {type: "RefreshAccountEntitlements"}
     | {type: "NotFound"};
 
@@ -64,14 +64,24 @@ async function handleFetch(
                 route = {type: "CursorWebhook"};
                 break;
             }
-            case "/mock/webhook": {
-                routeString = "/mock/webhook";
-                route = {type: "MockWebhook"};
+            case "/mock/chat-gpt/webhook": {
+                routeString = "/mock/chat-gpt/webhook";
+                route = {type: "MockWebhook", bot: "ChatGpt"};
                 break;
             }
-            case "/mock/recording": {
-                routeString = "/mock/recording";
-                route = {type: "MockRecording"};
+            case "/mock/chat-gpt/recording": {
+                routeString = "/mock/chat-gpt/recording";
+                route = {type: "MockRecording", bot: "ChatGpt"};
+                break;
+            }
+            case "/mock/cursor/webhook": {
+                routeString = "/mock/cursor/webhook";
+                route = {type: "MockWebhook", bot: "Cursor"};
+                break;
+            }
+            case "/mock/cursor/recording": {
+                routeString = "/mock/cursor/recording";
+                route = {type: "MockRecording", bot: "Cursor"};
                 break;
             }
             case "/refresh-account-entitlements": {
@@ -180,14 +190,38 @@ async function handleFetch(
                     );
                 }
                 case "MockWebhook": {
+                    let durableObjectNamespace: DurableObjectNamespace;
+                    switch (route.bot) {
+                        case "ChatGpt":
+                            durableObjectNamespace = env.MockChatGptAgentDurableObjectNamespace;
+                            break;
+                        case "Cursor":
+                            durableObjectNamespace = env.MockCursorAgentDurableObjectNamespace;
+                            break;
+                        default:
+                            throw exhaustive(route.bot);
+                    }
+
                     return handleDurableObjectPostRequest(
                         span,
-                        env.MockAgentDurableObjectNamespace,
+                        durableObjectNamespace,
                         request,
                         "/webhook",
                     );
                 }
                 case "MockRecording": {
+                    let durableObjectNamespace: DurableObjectNamespace;
+                    switch (route.bot) {
+                        case "ChatGpt":
+                            durableObjectNamespace = env.MockChatGptAgentDurableObjectNamespace;
+                            break;
+                        case "Cursor":
+                            durableObjectNamespace = env.MockCursorAgentDurableObjectNamespace;
+                            break;
+                        default:
+                            throw exhaustive(route.bot);
+                    }
+
                     const accountId = url.searchParams.get("accountId");
                     const roomPath = url.searchParams.get("roomPath");
 
@@ -201,7 +235,7 @@ async function handleFetch(
 
                     return fetchFromDurableObject(
                         span,
-                        env.MockAgentDurableObjectNamespace,
+                        durableObjectNamespace,
                         `${accountId}:${roomPath}`,
                         new Request(newUrl, {
                             method: request.method,
@@ -320,5 +354,8 @@ function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestB
 export default {fetch: handleFetch};
 
 export {ChatGptAgentDurableObject} from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
-export {MockAgentDurableObject} from "~/server/agents/internal/mock_agent_durable_object.js";
+export {
+    MockChatGptAgentDurableObject,
+    MockCursorAgentDurableObject,
+} from "~/server/agents/internal/mock_agent_durable_object.js";
 export {CursorAgentDurableObject} from "~/server/agents/internal/cursor/cursor_agent_durable_object.js";

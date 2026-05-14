@@ -10,9 +10,9 @@ import {
     taskProgressWheelDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/003_task_progress_wheel_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
-import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
-import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
+import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
@@ -20,7 +20,7 @@ export function TaskProgressWheelDemoComposition() {
     const currentFrame = useCurrentFrame();
 
     return (
-        <ScalableDemoCompositionLayout
+        <ScalableDemoCompositionDeprecatedLayout
             spacingScale={scalableDemoNarrowViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_003.jpeg")}
             reactionBottom="-9"
@@ -76,7 +76,7 @@ export function TaskProgressWheelDemoComposition() {
                         style={{
                             position: "absolute",
                             top:
-                                -scalableDemoMacOsTopBarAndChromeTopBarHeight * 2 -
+                                -scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight * 2 -
                                 309 * 2 +
                                 taskProgressWheelDemoRecordingMarginY * 2,
                             left:
@@ -89,6 +89,6 @@ export function TaskProgressWheelDemoComposition() {
                     />
                 </Freeze>
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

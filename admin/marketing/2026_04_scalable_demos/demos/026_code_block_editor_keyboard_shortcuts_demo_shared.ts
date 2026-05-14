@@ -1,0 +1,13 @@
+import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
+
+const codeBlockEditorKeyboardShortcutsDemoRecording01FirstFrameWithoutPadding = 151;
+const codeBlockEditorKeyboardShortcutsDemoRecording01LastFrameWithoutPadding = 1402;
+
+export const codeBlockEditorKeyboardShortcutsDemoRecording01FirstFrame =
+    codeBlockEditorKeyboardShortcutsDemoRecording01FirstFrameWithoutPadding;
+export const codeBlockEditorKeyboardShortcutsDemoRecording01LastFrame =
+    codeBlockEditorKeyboardShortcutsDemoRecording01LastFrameWithoutPadding + scalableDemoFps * 1.5;
+
+export const codeBlockEditorKeyboardShortcutsDemoDurationInFrames =
+    codeBlockEditorKeyboardShortcutsDemoRecording01LastFrame -
+    codeBlockEditorKeyboardShortcutsDemoRecording01FirstFrame;

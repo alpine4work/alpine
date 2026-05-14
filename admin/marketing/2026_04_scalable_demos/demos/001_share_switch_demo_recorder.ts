@@ -1,5 +1,5 @@
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -27,7 +27,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         `,
         session,
         path: `/s/${space.id}/documents/${document.id}`,
-        viewport: {width: scalableDemoNarrowViewportWidth},
+        viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
         },

@@ -31,19 +31,12 @@ const MockAgentRecordingCollection = new DurableObjectStorageCollection<"", Mock
     "Zz",
 );
 
-export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRoute, never> {
+abstract class MockAgentDurableObjectBase extends AgentDurableObjectBase<MockAgentRoute, never> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("MockAgentService", state, env);
 
         // Can only run this durable object in test or development environments.
         assert(process.env.NODE_ENV !== "production");
-    }
-
-    protected override _getApiKey() {
-        return assertExists(
-            this._env.MOCK_CHAT_GPT_API_SERVICE_KEY,
-            "Missing `MOCK_CHAT_GPT_API_SERVICE_KEY` environment variable",
-        );
     }
 
     protected override _parseRoute(url: URL): [string, MockAgentRoute] {
@@ -176,5 +169,23 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         }
 
         await completeApiMessageStream(tracer, request.apiClient, request.room, message.index);
+    }
+}
+
+export class MockChatGptAgentDurableObject extends MockAgentDurableObjectBase {
+    protected override _getApiKey() {
+        return assertExists(
+            this._env.MOCK_CHAT_GPT_API_SERVICE_KEY,
+            "Missing `MOCK_CHAT_GPT_API_SERVICE_KEY` environment variable",
+        );
+    }
+}
+
+export class MockCursorAgentDurableObject extends MockAgentDurableObjectBase {
+    protected override _getApiKey() {
+        return assertExists(
+            this._env.MOCK_CURSOR_API_SERVICE_KEY,
+            "Missing `MOCK_CURSOR_API_SERVICE_KEY` environment variable",
+        );
     }
 }

@@ -1,17 +1,17 @@
 import {Video} from "@remotion/media";
 import {inboxTriageDemoRecording01FirstFrame} from "~/admin/marketing/2026_04_scalable_demos/demos/013_inbox_triage_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
 import {
-    scalableDemoDefaultViewportSpacingScale,
-    scalableDemoDefaultViewportWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+    scalableDemoWideViewportSpacingScale,
+    scalableDemoWideViewportWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export function InboxTriageDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
-            spacingScale={scalableDemoDefaultViewportSpacingScale}
+        <ScalableDemoCompositionDeprecatedLayout
+            spacingScale={scalableDemoWideViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_016.jpeg")}
             reaction={{character: {type: "Tree", variant: "Green"}, emotion: "Heart"}}
             reactionBottom="-6"
@@ -21,8 +21,8 @@ export function InboxTriageDemoComposition() {
                 style={{
                     position: "relative",
                     overflow: "hidden",
-                    width: scalableDemoDefaultViewportWidth * 2,
-                    height: Math.round(scalableDemoDefaultViewportWidth / goldenRatio) * 2 - 20,
+                    width: scalableDemoWideViewportWidth * 2,
+                    height: Math.round(scalableDemoWideViewportWidth / goldenRatio) * 2 - 20,
                 }}
             >
                 <Video
@@ -37,6 +37,6 @@ export function InboxTriageDemoComposition() {
                     }}
                 />
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

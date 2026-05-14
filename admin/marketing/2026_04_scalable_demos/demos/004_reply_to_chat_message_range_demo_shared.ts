@@ -1,18 +1,18 @@
-import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {
+    scalableDemoDefaultViewportWidth,
     scalableDemoNarrowViewportSpacingScale,
-    scalableDemoNarrowViewportWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export const replyToChatMessageRangeDemoRecordingWidth =
-    scalableDemoNarrowViewportWidth -
+    scalableDemoDefaultViewportWidth -
     convertRemLengthToPx(scalableDemoSpaceSideBarWidth, scalableDemoNarrowViewportSpacingScale);
 
 export const replyToChatMessageRangeDemoRecordingHeight =
-    Math.round(scalableDemoNarrowViewportWidth / goldenRatio) - 9;
+    Math.round(scalableDemoDefaultViewportWidth / goldenRatio) - 9;
 
 const replyToChatMessageRangeDemoRecording01FirstFrameWithoutPadding = 265;
 const replyToChatMessageRangeDemoRecording01LastFrameWithoutPadding = 868;

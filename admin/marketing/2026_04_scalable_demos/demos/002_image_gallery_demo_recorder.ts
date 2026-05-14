@@ -1,6 +1,6 @@
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -27,7 +27,10 @@ runScalableDemoRecorder(async (context, services, recorder) => {
    row of three to the row of two.
         `,
         session: accounts.cassCade,
-        viewport: {width: scalableDemoNarrowViewportWidth, height: scalableDemoNarrowViewportWidth},
+        viewport: {
+            width: scalableDemoDefaultViewportWidth,
+            height: scalableDemoDefaultViewportWidth,
+        },
         path: `/s/${space.id}/posts/new/${generateChronologicalId()}?channel=${channel.id}`,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

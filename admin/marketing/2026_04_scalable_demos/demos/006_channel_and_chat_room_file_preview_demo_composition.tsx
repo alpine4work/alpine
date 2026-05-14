@@ -6,14 +6,14 @@ import {
     channelAndChatRoomFilePreviewDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/006_channel_and_chat_room_file_preview_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
-import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
-import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
+import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
 import {VideoWithJumpCuts} from "~/admin/marketing/2026_04_scalable_demos/helpers/video_with_jump_cuts.js";
 
 export function ChannelAndChatRoomFilePreviewDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
+        <ScalableDemoCompositionDeprecatedLayout
             spacingScale={scalableDemoNarrowViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_006.jpeg")}
             reactionBottom="-12"
@@ -49,12 +49,12 @@ export function ChannelAndChatRoomFilePreviewDemoComposition() {
                     volume={0}
                     style={{
                         position: "absolute",
-                        top: -(scalableDemoMacOsTopBarAndChromeTopBarHeight * 2),
+                        top: -(scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight * 2),
                         left: 0,
                         pointerEvents: "none",
                     }}
                 />
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

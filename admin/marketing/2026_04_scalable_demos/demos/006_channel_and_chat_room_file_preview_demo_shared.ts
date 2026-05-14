@@ -1,7 +1,7 @@
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 
-export const channelAndChatRoomFilePreviewDemoRecordingWidth = scalableDemoNarrowViewportWidth;
+export const channelAndChatRoomFilePreviewDemoRecordingWidth = scalableDemoDefaultViewportWidth;
 
 export const channelAndChatRoomFilePreviewDemoRecordingHeight =
     Math.round(channelAndChatRoomFilePreviewDemoRecordingWidth * (3 / 4)) - 8;

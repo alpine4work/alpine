@@ -738,7 +738,12 @@ field when they receive them. Comment on ideas you like!
                 },
             });
 
-            await putMockAgentRecording(chatGpt, `/posts/${brainstormPost.id}`, recording);
+            await putMockAgentRecording(
+                "chat-gpt",
+                chatGpt,
+                `/posts/${brainstormPost.id}`,
+                recording,
+            );
         }
     }
 

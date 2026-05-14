@@ -4,18 +4,18 @@ import {
     searchProjectPreviewDemoRecording01LastFrame,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/011_search_project_preview_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
 import {
-    scalableDemoDefaultViewportSpacingScale,
-    scalableDemoDefaultViewportWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+    scalableDemoWideViewportSpacingScale,
+    scalableDemoWideViewportWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {VideoWithJumpCuts} from "~/admin/marketing/2026_04_scalable_demos/helpers/video_with_jump_cuts.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export function SearchProjectPreviewDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
-            spacingScale={scalableDemoDefaultViewportSpacingScale}
+        <ScalableDemoCompositionDeprecatedLayout
+            spacingScale={scalableDemoWideViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_013.jpeg")}
             reaction={{character: {type: "Cat", variant: "Pink"}, emotion: "Happy"}}
             reactionBottom="-6"
@@ -25,8 +25,8 @@ export function SearchProjectPreviewDemoComposition() {
                 style={{
                     position: "relative",
                     overflow: "hidden",
-                    width: scalableDemoDefaultViewportWidth * 2,
-                    height: Math.round(scalableDemoDefaultViewportWidth / goldenRatio) * 2,
+                    width: scalableDemoWideViewportWidth * 2,
+                    height: Math.round(scalableDemoWideViewportWidth / goldenRatio) * 2,
                 }}
             >
                 <VideoWithJumpCuts
@@ -44,6 +44,6 @@ export function SearchProjectPreviewDemoComposition() {
                     }}
                 />
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

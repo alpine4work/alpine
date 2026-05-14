@@ -1,7 +1,7 @@
 import {ReactNode} from "react";
 import {AbsoluteFill, Img, useVideoConfig} from "remotion";
-import {computeScalableDemoCompositionMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_margin.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {computeScalableDemoCompositionDeprecatedMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_deprecated_margin.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {ParsableRemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -9,7 +9,8 @@ import {LogoWordmarkBase} from "~/shared/design/logo_wordmark_base.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 
-export function ScalableDemoCompositionLayout({
+/** @deprecated */
+export function ScalableDemoCompositionDeprecatedLayout({
     spacingScale,
     backgroundImageSrc,
     withoutCardBackgroundColor,
@@ -39,10 +40,10 @@ export function ScalableDemoCompositionLayout({
     // `scalableDemoDefaultViewport` instead of `scalableDemoNarrowViewportWidth`) then
     // we need to scale up all our elements.
     const expectedWidth = Math.round(
-        (scalableDemoNarrowViewportWidth +
-            computeScalableDemoCompositionMargin(
-                scalableDemoNarrowViewportWidth,
-                Math.round(scalableDemoNarrowViewportWidth / goldenRatio),
+        (scalableDemoDefaultViewportWidth +
+            computeScalableDemoCompositionDeprecatedMargin(
+                scalableDemoDefaultViewportWidth,
+                Math.round(scalableDemoDefaultViewportWidth / goldenRatio),
             ) *
                 2) *
             2,

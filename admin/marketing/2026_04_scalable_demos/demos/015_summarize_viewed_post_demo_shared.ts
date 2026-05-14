@@ -1,8 +1,8 @@
-import {scalableDemoDefaultViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
+import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 
-export const summarizeViewedPostDemoRecordingWidth = scalableDemoDefaultViewport.width;
-export const summarizeViewedPostDemoRecordingHeight = scalableDemoDefaultViewport.height;
+export const summarizeViewedPostDemoRecordingWidth = scalableDemoWideViewport.width;
+export const summarizeViewedPostDemoRecordingHeight = scalableDemoWideViewport.height;
 
 // Fill these in after recording: the frame of the first usable moment of take 1
 // (Rose landing on the post) and the last usable moment of take 2 (Rose’s reply

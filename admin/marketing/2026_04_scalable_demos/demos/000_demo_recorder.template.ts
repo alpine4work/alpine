@@ -1,5 +1,4 @@
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
@@ -13,6 +12,5 @@ TODO: describe the demo steps here.
         `,
         session,
         path: `/s/${space.id}/`,
-        viewport: {width: scalableDemoNarrowViewportWidth},
     });
 });

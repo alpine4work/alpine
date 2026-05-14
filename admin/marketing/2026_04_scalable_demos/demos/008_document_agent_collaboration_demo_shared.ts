@@ -1,9 +1,9 @@
-import {scalableDemoDefaultViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
+import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 
-export const documentAgentCollaborationDemoRecordingWidth = scalableDemoDefaultViewport.width;
+export const documentAgentCollaborationDemoRecordingWidth = scalableDemoWideViewport.width;
 
-export const documentAgentCollaborationDemoRecordingHeight = scalableDemoDefaultViewport.height - 9;
+export const documentAgentCollaborationDemoRecordingHeight = scalableDemoWideViewport.height - 9;
 
 const documentAgentCollaborationDemoRecordingFirstFrameWithoutPadding = 75;
 const documentAgentCollaborationDemoRecordingLastFrameWithoutPadding = 3658;

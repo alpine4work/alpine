@@ -1,6 +1,6 @@
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
@@ -54,7 +54,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         `,
         session: accounts.mattRHorn,
         path: `/s/${space.id}/chat/${chat.id}`,
-        viewport: {width: scalableDemoNarrowViewportWidth},
+        viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
         },

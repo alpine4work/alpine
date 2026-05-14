@@ -101,6 +101,7 @@ forth. You also don\u2019t have to make updates to the document yourself.
     );
 
     await putMockAgentRecording(
+        "chat-gpt",
         chatGpt,
         `/documents/${document.id}/threads/${commentThreadId}`,
         createMockAgentRecording(
@@ -179,10 +180,10 @@ forth. You also don\u2019t have to make updates to the document yourself.
 
             await fetchWithTracer(
                 context.tracer.getTracer(),
-                `http://localhost:${services.getAgentServicePort()}/mock/webhook`,
+                `http://localhost:${services.getAgentServicePort()}/mock/chat-gpt/webhook`,
                 {
                     serviceName: "AgentService",
-                    route: "/mock/webhook",
+                    route: "/mock/chat-gpt/webhook",
                     method: "POST",
                     headers: {"content-type": "application/json"},
                     body: JSON.stringify(requestBody),

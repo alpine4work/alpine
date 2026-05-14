@@ -28,6 +28,7 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 export function FeedView({
     initialAffinitySearch,
     initialFeed,
+    withMarginBottom,
 }: {
     initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
     initialFeed: {
@@ -35,6 +36,7 @@ export function FeedView({
         hasMoreEntries: boolean;
         entries: ReadonlyArray<FeedEntryModel>;
     };
+    withMarginBottom?: boolean;
 }) {
     const context = useAppContext();
     const clientInfo = useClientInfo();
@@ -102,6 +104,10 @@ export function FeedView({
                     () => ({type: "FeedCreateSection", initialAffinitySearch}),
                     [initialAffinitySearch],
                 )}
+                footer={useMemo(() => {
+                    if (!withMarginBottom) return;
+                    return {type: "MarginBottom"};
+                }, [withMarginBottom])}
                 posts={feed}
                 onTogglePostComments={useCallback(
                     postId => {

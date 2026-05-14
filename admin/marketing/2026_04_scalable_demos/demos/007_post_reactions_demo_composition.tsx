@@ -7,15 +7,15 @@ import {
     postReactionsDemoRecordingWidth,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/007_post_reactions_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
-import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
-import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
+import {scalableDemoNarrowViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
 export function PostReactionsDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
+        <ScalableDemoCompositionDeprecatedLayout
             spacingScale={scalableDemoNarrowViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_007.jpeg")}
             reactionBottom="-8"
@@ -39,7 +39,7 @@ export function PostReactionsDemoComposition() {
                         volume={0}
                         style={{
                             position: "absolute",
-                            top: -scalableDemoMacOsTopBarAndChromeTopBarHeight * 2,
+                            top: -scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight * 2,
                             left:
                                 -convertRemLengthToPx(
                                     scalableDemoSpaceSideBarWidth,
@@ -50,6 +50,6 @@ export function PostReactionsDemoComposition() {
                     />
                 </div>
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

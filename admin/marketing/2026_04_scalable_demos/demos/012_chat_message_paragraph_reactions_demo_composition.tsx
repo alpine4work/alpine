@@ -5,18 +5,18 @@ import {
     chatMessageParagraphReactionsDemoRecording01Zoom,
 } from "~/admin/marketing/2026_04_scalable_demos/demos/012_chat_message_paragraph_reactions_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
 import {
-    scalableDemoDefaultViewportSpacingScale,
-    scalableDemoDefaultViewportWidth,
-} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+    scalableDemoWideViewportSpacingScale,
+    scalableDemoWideViewportWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {VideoWithJumpCuts} from "~/admin/marketing/2026_04_scalable_demos/helpers/video_with_jump_cuts.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export function ChatMessageParagraphReactionsDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
-            spacingScale={scalableDemoDefaultViewportSpacingScale}
+        <ScalableDemoCompositionDeprecatedLayout
+            spacingScale={scalableDemoWideViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_014.jpeg")}
             reaction={{character: {type: "Yeti", variant: "Blue"}, emotion: "Celebrate"}}
             reactionBottom="-6"
@@ -26,8 +26,8 @@ export function ChatMessageParagraphReactionsDemoComposition() {
                 style={{
                     position: "relative",
                     overflow: "hidden",
-                    width: scalableDemoDefaultViewportWidth * 2,
-                    height: Math.round(scalableDemoDefaultViewportWidth / goldenRatio) * 2,
+                    width: scalableDemoWideViewportWidth * 2,
+                    height: Math.round(scalableDemoWideViewportWidth / goldenRatio) * 2,
                 }}
             >
                 <VideoWithJumpCuts
@@ -42,7 +42,7 @@ export function ChatMessageParagraphReactionsDemoComposition() {
                         position: "absolute",
                         bottom: 40,
                         left:
-                            (-1 * scalableDemoDefaultViewportWidth) /
+                            (-1 * scalableDemoWideViewportWidth) /
                             (4 / chatMessageParagraphReactionsDemoRecording01Zoom),
                         pointerEvents: "none",
                         zoom: chatMessageParagraphReactionsDemoRecording01Zoom,
@@ -59,6 +59,6 @@ export function ChatMessageParagraphReactionsDemoComposition() {
                     }}
                 ></div>
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }

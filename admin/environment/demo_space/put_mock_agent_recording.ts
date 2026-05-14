@@ -6,13 +6,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export async function putMockAgentRecording(
+    bot: "chat-gpt" | "cursor",
     botAccount: TestBotAccount,
     roomPath: ApiMessageRoomPath,
     recording: MockAgentRecording,
 ) {
     const botItem = await botAccount.bot.getItem();
 
-    const url = new URL("/mock/recording", assertExists(botItem.webhookUrl));
+    const url = new URL(`/mock/${bot}/recording`, assertExists(botItem.webhookUrl));
 
     url.searchParams.set("accountId", botAccount.id);
     url.searchParams.set("roomPath", roomPath);
@@ -22,7 +23,7 @@ export async function putMockAgentRecording(
         url,
         {
             serviceName: "AgentService",
-            route: "/mock/recording",
+            route: `/mock/${bot}/recording`,
             method: "PUT",
             headers: {"content-type": "application/json"},
             body: JSON.stringify(recording),

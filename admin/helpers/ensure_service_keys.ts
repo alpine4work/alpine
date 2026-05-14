@@ -44,6 +44,7 @@ export async function ensureServiceKeys(directoryPath: string) {
                 "chat_gpt_scoped_api_key",
                 "cursor_unscoped_api_key",
                 "mock_chat_gpt_unscoped_api_key",
+                "mock_cursor_unscoped_api_key",
             ].map(async apiKeyName => {
                 if (await fs.pathExists(joinPath(directoryPath, apiKeyName))) return;
 

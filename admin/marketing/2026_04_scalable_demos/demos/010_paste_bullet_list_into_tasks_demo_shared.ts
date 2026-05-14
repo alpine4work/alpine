@@ -1,9 +1,9 @@
-import {
-    scalableDemoDefaultViewport,
-    scalableDemoDefaultViewportSpacingScale,
-} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {scalableDemoSpaceSideBarWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_space_side_bar_width.js";
+import {
+    scalableDemoWideViewport,
+    scalableDemoWideViewportSpacingScale,
+} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
@@ -11,12 +11,12 @@ export const pasteBulletListIntoTasksDemoRecordingPaddingTop = 48;
 export const pasteBulletListIntoTasksDemoRecordingPaddingX = 48;
 
 export const pasteBulletListIntoTasksDemoRecordingWidth =
-    scalableDemoDefaultViewport.width -
-    convertRemLengthToPx(scalableDemoSpaceSideBarWidth, scalableDemoDefaultViewportSpacingScale) +
+    scalableDemoWideViewport.width -
+    convertRemLengthToPx(scalableDemoSpaceSideBarWidth, scalableDemoWideViewportSpacingScale) +
     pasteBulletListIntoTasksDemoRecordingPaddingX * 2;
 
 export const pasteBulletListIntoTasksDemoRecordingHeight =
-    Math.round(scalableDemoDefaultViewport.width / goldenRatio) +
+    Math.round(scalableDemoWideViewport.width / goldenRatio) +
     pasteBulletListIntoTasksDemoRecordingPaddingTop -
     2;
 

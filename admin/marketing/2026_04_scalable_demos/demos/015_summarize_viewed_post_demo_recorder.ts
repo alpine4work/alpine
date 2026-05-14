@@ -298,6 +298,7 @@ questions here so we can resolve them in-thread instead of another meeting.
     const chat = await TestChat.get(accounts.roseCompas, chatGpt);
 
     await putMockAgentRecording(
+        "chat-gpt",
         chatGpt,
         `/chats/${chat.id}`,
         createMockAgentRecording(

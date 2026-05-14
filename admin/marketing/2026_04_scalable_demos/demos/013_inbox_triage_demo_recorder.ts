@@ -1,7 +1,7 @@
 import {CalendarDateTime, today} from "@internationalized/date";
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoDefaultViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -411,6 +411,6 @@ after.
         `,
         session: accounts.cassCade,
         path: `/s/${space.id}/documents/${q3PlanningDoc.id}`,
-        viewport: scalableDemoDefaultViewport,
+        viewport: scalableDemoWideViewport,
     });
 });

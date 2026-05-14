@@ -1,5 +1,5 @@
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoDefaultViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
@@ -57,8 +57,8 @@ how the bullet list could come from anywhere.
         session,
         path: `/s/${space.id}/tasks`,
         viewport: {
-            width: scalableDemoDefaultViewport.width,
-            height: scalableDemoDefaultViewport.width / goldenRatio,
+            width: scalableDemoWideViewport.width,
+            height: scalableDemoWideViewport.width / goldenRatio,
         },
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

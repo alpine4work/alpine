@@ -199,7 +199,7 @@ export async function seedTestMockChatGptBot(
                 botId: mockChatGptBotId,
             },
             item => {
-                const webhookUrl = `http://localhost:${agentServiceLocalPort}/mock/webhook`;
+                const webhookUrl = `http://localhost:${agentServiceLocalPort}/mock/chat-gpt/webhook`;
 
                 // Noop if the webhook URL is correct.
                 if (item?.webhookUrl === webhookUrl) return item;

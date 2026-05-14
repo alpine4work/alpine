@@ -14,11 +14,12 @@ export async function createDemoMockBots(
     services?: {
         getAgentServicePort(): number;
         getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
+        getMockCursorLocalUnscopedApiKey(): Promise<ApiKey>;
     },
 ) {
     const [{chatGpt}, {cursor}] = await runAllPromises([
         createDemoMockChatGptBot(session, tokenAgent, services),
-        createDemoMockCursorBot(session, tokenAgent),
+        createDemoMockCursorBot(session, tokenAgent, services),
     ]);
 
     return {chatGpt, cursor};
@@ -37,7 +38,7 @@ export async function createDemoMockChatGptBot(
     const bot = await TestBot.create(session.context, {
         name: "ChatGPT",
         webhookUrl: services
-            ? `http://localhost:${services.getAgentServicePort()}/mock/webhook`
+            ? `http://localhost:${services.getAgentServicePort()}/mock/chat-gpt/webhook`
             : undefined,
     });
 
@@ -60,7 +61,7 @@ export async function createDemoMockCursorBot(
     tokenAgent: TokenAgent,
     services?: {
         getAgentServicePort(): number;
-        getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
+        getMockCursorLocalUnscopedApiKey(): Promise<ApiKey>;
     },
 ) {
     debug("Creating mock Cursor bot");
@@ -68,17 +69,12 @@ export async function createDemoMockCursorBot(
     const bot = await TestBot.create(session.context, {
         name: "Cursor",
         webhookUrl: services
-            ? `http://localhost:${services.getAgentServicePort()}/mock/webhook`
+            ? `http://localhost:${services.getAgentServicePort()}/mock/cursor/webhook`
             : undefined,
     });
 
     if (services) {
-        // TODO (rmtobin, 05/03/2026): Currently `MockAgentDurableObject` service uses
-        // `MOCK_CHAT_GPT_API_SERVICE_KEY` to make calls to the API, so even though this is
-        // a mock Cursor bot, we have to use the mock ChatGPT api key. This should be
-        // updated to use a more generic pattern for mock bots as creating both a mock
-        // ChatGPT and Cursor bot that can both make calls to the API will not work.
-        const apiKey = await services.getMockChatGptLocalUnscopedApiKey();
+        const apiKey = await services.getMockCursorLocalUnscopedApiKey();
         await bot.createUnscopedApiKey(apiKey);
     }
 

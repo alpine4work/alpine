@@ -40,6 +40,7 @@ async function main() {
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
             cursorApiServiceKey: cursorApiServiceKeyPath,
             mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
+            mockCursorApiServiceKey: mockCursorApiServiceKeyPath,
             honeycombApiKey,
             openAiDevApiKey,
             cursorAgentSmeeWebhookUrl,
@@ -57,6 +58,7 @@ async function main() {
             chatGptApiServiceKey: {type: "string"},
             cursorApiServiceKey: {type: "string"},
             mockChatGptApiServiceKey: {type: "string"},
+            mockCursorApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
             openAiDevApiKey: {type: "string"},
             cursorAgentSmeeWebhookUrl: {type: "string"},
@@ -75,6 +77,7 @@ async function main() {
     if (!d1LocalDataPath) throw new Error("Missing `d1LocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
     if (!mockChatGptApiServiceKeyPath) throw new Error("Missing `mockChatGptApiServiceKey` option");
+    if (!mockCursorApiServiceKeyPath) throw new Error("Missing `mockCursorApiServiceKey` option");
 
     const chatGptApiServiceKey = chatGptApiServiceKeyPath
         ? (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim()
@@ -85,6 +88,7 @@ async function main() {
     const mockChatGptApiServiceKey = (
         await fs.readFile(mockChatGptApiServiceKeyPath, "utf8")
     ).trim();
+    const mockCursorApiServiceKey = (await fs.readFile(mockCursorApiServiceKeyPath, "utf8")).trim();
 
     if (!portString) throw new Error("Missing `port` option");
     const port = parseInt(portString, 10);
@@ -121,6 +125,7 @@ async function main() {
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
             CURSOR_API_SERVICE_KEY: cursorApiServiceKey,
             MOCK_CHAT_GPT_API_SERVICE_KEY: mockChatGptApiServiceKey,
+            MOCK_CURSOR_API_SERVICE_KEY: mockCursorApiServiceKey,
             OPEN_AI_API_KEY: openAiDevApiKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
             CURSOR_AGENT_SMEE_WEBHOOK_URL: cursorAgentSmeeWebhookUrl,

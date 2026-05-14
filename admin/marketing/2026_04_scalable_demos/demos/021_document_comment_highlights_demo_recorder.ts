@@ -1,6 +1,6 @@
 import {createDemoSpace} from "~/admin/environment/demo_space/create_demo_space.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoWideViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
@@ -179,7 +179,7 @@ across it.
         `,
         session: accounts.cassCade,
         path: `/s/${space.id}/documents/${doc.id}`,
-        viewport: {width: scalableDemoDefaultViewportWidth},
+        viewport: {width: scalableDemoWideViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
         },

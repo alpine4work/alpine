@@ -4,7 +4,7 @@ import {createMockAgentRecording} from "~/admin/environment/demo_space/create_mo
 import {putMockAgentRecording} from "~/admin/environment/demo_space/put_mock_agent_recording.js";
 import {createDemoCursor} from "~/admin/marketing/2026_04_scalable_demos/helpers/demo_cursor.js";
 import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/helpers/run_scalable_demo_recorder.js";
-import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoWideViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -58,10 +58,11 @@ Due date appears one day earlier than expected.
         "Just got a customer report on this one \u2014 they\u2019re seeing the wrong day on due dates across their whole board. Might be a timezone offset issue.",
     );
 
-    // Pre-register Cursor\u2019s reply so it\u2019s ready to stream the moment the
-    // webhook fires. Holly\u2019s comment is index 0; Elle\u2019s @Cursor comment
-    // (sent from the browser) is index 1.
+    // Pre-register Cursor's reply so it's ready to stream the moment the webhook
+    // fires. Holly's comment is index 0; Elle's @Cursor comment (sent from the
+    // browser) is index 1.
     await putMockAgentRecording(
+        "cursor",
         cursor,
         `/tasks/${dueDateTask.id}`,
         createMockAgentRecording(
@@ -128,7 +129,7 @@ and sends it.
         `,
         session: accounts.elleKappaTan,
         path: `/s/${space.id}/tasks/collections/${bugsCollection.id}`,
-        viewport: {width: scalableDemoDefaultViewportWidth},
+        viewport: {width: scalableDemoWideViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
             await page.evaluate("dev.taskFloatingCreateButton.toggleVisibility()");
@@ -226,7 +227,7 @@ and sends it.
                 // triggers the pre-recorded reply to stream.
                 await wait(800);
 
-                // Hold until Cursor\u2019s reply has finished streaming.
+                // Hold until Cursor's reply has finished streaming.
                 await wait(4000);
             },
         ],

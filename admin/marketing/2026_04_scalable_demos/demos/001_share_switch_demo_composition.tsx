@@ -1,16 +1,16 @@
 import {Video} from "@remotion/media";
 import {shareSwitchDemoRecording01FirstFrame} from "~/admin/marketing/2026_04_scalable_demos/demos/001_share_switch_demo_shared.js";
 import {remotionFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/remotion_file.js";
-import {ScalableDemoCompositionLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_layout.js";
-import {scalableDemoDefaultViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
-import {scalableDemoMacOsTopBarAndChromeTopBarHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
-import {scalableDemoNarrowViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_narrow_viewport_width.js";
+import {ScalableDemoCompositionDeprecatedLayout} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_composition_deprecated_layout.js";
+import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
+import {scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_mac_os_top_bar_and_chrome_top_bar_height.js";
+import {scalableDemoWideViewportSpacingScale} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_wide_viewport.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 export function ShareSwitchDemoComposition() {
     return (
-        <ScalableDemoCompositionLayout
-            spacingScale={scalableDemoDefaultViewportSpacingScale}
+        <ScalableDemoCompositionDeprecatedLayout
+            spacingScale={scalableDemoWideViewportSpacingScale}
             backgroundImageSrc={remotionFile("rachel_date_background_001.jpeg")}
             reactionBottom="-12"
             reactionLeft="5"
@@ -20,8 +20,8 @@ export function ShareSwitchDemoComposition() {
                 style={{
                     position: "relative",
                     overflow: "hidden",
-                    width: scalableDemoNarrowViewportWidth * 2,
-                    height: Math.round(scalableDemoNarrowViewportWidth / goldenRatio) * 2,
+                    width: scalableDemoDefaultViewportWidth * 2,
+                    height: Math.round(scalableDemoDefaultViewportWidth / goldenRatio) * 2,
                 }}
             >
                 <Video
@@ -30,12 +30,12 @@ export function ShareSwitchDemoComposition() {
                     trimBefore={shareSwitchDemoRecording01FirstFrame}
                     style={{
                         position: "absolute",
-                        top: -(scalableDemoMacOsTopBarAndChromeTopBarHeight * 2),
+                        top: -(scalableDemoMacOsTopBarAndChromeTopBarDeprecatedHeight * 2),
                         left: 0,
                         pointerEvents: "none",
                     }}
                 />
             </div>
-        </ScalableDemoCompositionLayout>
+        </ScalableDemoCompositionDeprecatedLayout>
     );
 }
