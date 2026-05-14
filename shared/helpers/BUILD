@@ -55,6 +55,7 @@ ts_project(
         "//:node_modules/functional-red-black-tree",
         "//:node_modules/grapheme-splitter",
         "//:node_modules/html-tags",
+        "//:node_modules/htmlparser2",
         "//:node_modules/tough-cookie",
         "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/remove-accents",

@@ -2,27 +2,27 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {noop} from "~/shared/helpers/control/noop.js";
 
 /**
- * Does the provided string contain an HTML open tag with the specified name? Runs
+ * Does the provided string contain an HTML close tag with the specified name? Runs
  * an HTML tokenizer instead of a regular expression to handle HTML syntax
  * correctly.
  *
  * `tagName` is lower cased before being passed to `predicate`.
  */
-export function hasHtmlOpenTag(string: string, predicate: (tagName: string) => boolean): boolean {
-    let hasOpenTag = false;
+export function hasHtmlCloseTag(string: string, predicate: (tagName: string) => boolean): boolean {
+    let hasCloseTag = false;
 
     const tokenizer = new HtmlTokenizer(
         {},
         {
-            onopentagname: (start, end) => {
+            onclosetag: (start, end) => {
                 const tagName = string.slice(start, end).toLowerCase();
-                if (predicate(tagName)) hasOpenTag = true;
+                if (predicate(tagName)) hasCloseTag = true;
             },
 
             ontext: noop,
             ontextentity: noop,
+            onopentagname: noop,
             onopentagend: noop,
-            onclosetag: noop,
             onattribname: noop,
             onattribdata: noop,
             onattribentity: noop,
@@ -39,5 +39,5 @@ export function hasHtmlOpenTag(string: string, predicate: (tagName: string) => b
     tokenizer.write(string);
     tokenizer.end();
 
-    return hasOpenTag;
+    return hasCloseTag;
 }

@@ -1,11 +1,22 @@
 import escapeHtml from "escape-html";
-import {Root, RootContent} from "mdast";
+import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {Root, RootContent, Node} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
+import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 
 export type AgentWebMessagingPageBase = {
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
@@ -23,17 +34,39 @@ export type AgentWebMessagingPageTimeBlock = {
 export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
     readonly tagName: "human" | "bot";
-    readonly authorName: string;
+    readonly nameAttribute: string;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
     readonly parent: {
-        readonly authorName: string;
+        readonly nameAttribute: string;
         readonly previewContent: ApiContentResponse;
     } | null;
     readonly content: ApiContentResponse;
 };
 
+type AgentWebMessagingPageNouns = {
+    readonly noun: string;
+    readonly pluralNoun: string;
+    readonly startOfSentenceNoun: string;
+    readonly startOfSentencePluralNoun: string;
+};
+
+export const agentWebMessagingPageMessageNouns: AgentWebMessagingPageNouns = {
+    noun: "message",
+    pluralNoun: "messages",
+    startOfSentenceNoun: "Message",
+    startOfSentencePluralNoun: "Messages",
+};
+
+export const agentWebMessagingPageCommentNouns: AgentWebMessagingPageNouns = {
+    noun: "comment",
+    pluralNoun: "comments",
+    startOfSentenceNoun: "Comment",
+    startOfSentencePluralNoun: "Comments",
+};
+
 export async function printAgentWebMessagingPageBase(
+    messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
     pageLink: null,
     page: AgentWebMessagingPageBase,
@@ -71,7 +104,7 @@ export async function printAgentWebMessagingPageBase(
                 break;
             }
             case "Message": {
-                let openTag = `<${block.tagName} name="${escapeHtml(block.authorName)}"`;
+                let openTag = `<${block.tagName} name="${escapeHtml(block.nameAttribute)}"`;
 
                 if (block.timeAttribute !== null) {
                     openTag += ` time="${escapeHtml(block.timeAttribute)}"`;
@@ -91,7 +124,7 @@ export async function printAgentWebMessagingPageBase(
                 if (block.parent !== null) {
                     children.push({
                         type: "html",
-                        value: `<blockquote cite="${escapeHtml(block.parent.authorName)}">`,
+                        value: `<blockquote cite="${escapeHtml(block.parent.nameAttribute)}">`,
                     });
 
                     for (const childNode of block.parent.previewContentTree.children) {
@@ -123,11 +156,478 @@ export async function printAgentWebMessagingPageBase(
 }
 
 export async function parseAgentWebMessagingPageBase(
+    messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
     pageLink: null,
     root: Root,
 ): Promise<AgentWebMessagingPageBase> {
-    const blocks: Array<AgentWebMessagingPageBlock> = [];
+    const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>> = [];
 
-    return {blocks};
+    let state: {
+        tagName: "human" | "bot";
+        openTagPosition: Node["position"];
+        hasEndedOpenTag: boolean;
+        startedAttribute: "name" | "time" | "timezone" | null;
+        nameAttribute: string | null;
+        timeAttribute: string | null;
+        timeZoneAttribute: string | null;
+        parent: {
+            openTagPosition: Node["position"];
+            hasEndedOpenTag: boolean;
+            hasCloseTag: boolean;
+            startedAttribute: "cite" | null;
+            nameAttribute: string | null;
+            children: Array<RootContent>;
+        } | null;
+        children: Array<RootContent>;
+    } | null = null;
+
+    let nextIndex = 0;
+    while (nextIndex < root.children.length) {
+        // Annoyingly, TypeScript doesn't understand that `state` can be assigned inside a
+        // callback that runs synchronously. This hack gets TypeScript to treat `state` as
+        // possibly non-null.
+        state = state as any;
+
+        const index = nextIndex;
+        nextIndex++;
+
+        const node = root.children[index]!;
+
+        if (node.type === "paragraph") {
+            const timeBlock: AgentWebMessagingPageTimeBlock | null = (() => {
+                if (state) return null;
+
+                if (node.children.length < 2) return null;
+
+                const firstChildNode = node.children[0]!;
+                const lastChildNode = node.children[node.children.length - 1]!;
+
+                if (firstChildNode.type !== "html") return null;
+                if (lastChildNode.type !== "html") return null;
+
+                // The Markdown parsing library we use parses open and close HTML tags as separate
+                // nodes even when they're adjacent to each other which is nice.
+                if (!hasHtmlOpenTag(firstChildNode.value, tagName => tagName === "time"))
+                    return null;
+                if (!hasHtmlCloseTag(lastChildNode.value, tagName => tagName === "time"))
+                    return null;
+
+                const otherChildNodes = node.children.slice(1, -1);
+
+                return {
+                    type: "Time",
+                    timeContent: printMarkdownPhrasingContentText(otherChildNodes),
+                };
+            })();
+
+            if (timeBlock) {
+                blockPromises.push(timeBlock);
+                continue;
+            }
+        }
+
+        if (node.type === "html") {
+            let hasUnknownHtml = false;
+            let hasHandledHtml = false;
+
+            const tokenizer = new HtmlTokenizer(
+                {},
+                {
+                    onopentagname: (start, end) => {
+                        const tagName = node.value.slice(start, end).toLowerCase();
+
+                        switch (tagName) {
+                            case "human":
+                            case "bot": {
+                                if (state) {
+                                    throw new InvalidArgumentError(
+                                        "Invalid message element open tag",
+                                        {
+                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` element at line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${state.tagName}>\` element and you can\u2019t nest \`<${state.tagName}>\` elements.`,
+                                        },
+                                    );
+                                }
+
+                                state = {
+                                    tagName,
+                                    openTagPosition: node.position,
+                                    hasEndedOpenTag: false,
+                                    startedAttribute: null,
+                                    nameAttribute: null,
+                                    timeAttribute: null,
+                                    timeZoneAttribute: null,
+                                    parent: null,
+                                    children: [],
+                                };
+
+                                hasHandledHtml = true;
+                                break;
+                            }
+                            case "blockquote": {
+                                // Special case error for nested `<blockquote>`s with a more specific error
+                                // message.
+                                if (state?.parent && !state.parent.hasCloseTag) {
+                                    throw new InvalidArgumentError(
+                                        "Invalid parent element open tag (another parent tag was already opened)",
+                                        {
+                                            displayMessage: errorDisplayMessage`Can\u2019t open a new \`<blockquote>\` element at line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<blockquote>\` element and you can\u2019t nest \`<blockquote>\` elements. If you\u2019re trying to reply to a ${messageNouns.noun} that itself is replying to another ${messageNouns.noun} then just include the content of the ${messageNouns.noun} you\u2019re replying to and omit the extra \`<blockquote>\` element.`,
+                                        },
+                                    );
+                                }
+
+                                if (!state || state.parent || state.children.length > 0) {
+                                    throw new InvalidArgumentError(
+                                        "Invalid parent element open tag",
+                                        {
+                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"} isn\u2019t allowed. \`<blockquote>\` elements may only be used at the beginning of a \`<human>\` or \`<bot>\` ${messageNouns.noun} element to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
+                                        },
+                                    );
+                                }
+
+                                state.parent = {
+                                    openTagPosition: node.position,
+                                    hasEndedOpenTag: false,
+                                    hasCloseTag: false,
+                                    startedAttribute: null,
+                                    nameAttribute: null,
+                                    children: [],
+                                };
+
+                                hasHandledHtml = true;
+                                break;
+                            }
+                            default: {
+                                hasUnknownHtml = true;
+                                break;
+                            }
+                        }
+                    },
+                    onopentagend: () => {
+                        if (state) {
+                            if (!state.hasEndedOpenTag) {
+                                assert(!state.startedAttribute);
+                                state.hasEndedOpenTag = true;
+                            } else if (state.parent && !state.parent.hasEndedOpenTag) {
+                                assert(!state.parent.startedAttribute);
+                                state.parent.hasEndedOpenTag = true;
+                            }
+                        }
+                    },
+                    onclosetag: (start, end) => {
+                        const tagName = node.value.slice(start, end).toLowerCase();
+
+                        switch (tagName) {
+                            case "human":
+                            case "bot": {
+                                if (!state || state.tagName !== tagName) {
+                                    throw new InvalidArgumentError(
+                                        "Invalid message element close tag",
+                                        {
+                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` element at line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
+                                        },
+                                    );
+                                }
+
+                                if (!state.hasEndedOpenTag || state.startedAttribute) {
+                                    throw createUnexpectedMarkdownError(
+                                        messageNouns,
+                                        node.position,
+                                    );
+                                }
+
+                                if (typeof state.nameAttribute !== "string") {
+                                    throw new InvalidArgumentError(
+                                        "Message element is missing author name",
+                                        {
+                                            displayMessage: errorDisplayMessage`\`<${state.tagName}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`name\` attribute. All ${messageNouns.pluralNoun} must include the name of the author.`,
+                                        },
+                                    );
+                                }
+
+                                if (state.parent && !state.parent.hasCloseTag) {
+                                    throw new InvalidArgumentError(
+                                        "Missing parent element close tag",
+                                        {
+                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.parent.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</blockquote>\` closing tag and try again.`,
+                                        },
+                                    );
+                                }
+
+                                const block: Replace<
+                                    Omit<AgentWebMessagingPageMessageBlock, "content">,
+                                    {
+                                        parent: Omit<
+                                            NonNullable<
+                                                AgentWebMessagingPageMessageBlock["parent"]
+                                            >,
+                                            "previewContent"
+                                        > | null;
+                                    }
+                                > = {
+                                    type: "Message",
+                                    tagName: state.tagName,
+                                    nameAttribute: state.nameAttribute,
+                                    timeAttribute: state.timeAttribute,
+                                    timeZoneAttribute: state.timeZoneAttribute,
+                                    parent: null,
+                                };
+
+                                if (state.parent) {
+                                    if (typeof state.parent.nameAttribute !== "string") {
+                                        throw new InvalidArgumentError(
+                                            "Parent element is missing author name",
+                                            {
+                                                displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include the name of the ${messageNouns.noun} author you\u2019re replying to.`,
+                                            },
+                                        );
+                                    }
+
+                                    block.parent = {
+                                        nameAttribute: state.parent.nameAttribute,
+                                    };
+                                }
+
+                                const contentPromise = parseApiContentFromAgentWebMarkdownTree(
+                                    storage,
+                                    {type: "root", children: state.children},
+                                );
+
+                                const parentPreviewContentPromise = state.parent
+                                    ? parseApiContentFromAgentWebMarkdownTree(storage, {
+                                          type: "root",
+                                          children: state.parent.children,
+                                      })
+                                    : null;
+
+                                blockPromises.push(
+                                    runAllPromises([
+                                        contentPromise,
+                                        parentPreviewContentPromise,
+                                    ]).then(([content, parentPreviewContent]) => ({
+                                        ...block,
+                                        content,
+                                        parent: block.parent
+                                            ? {
+                                                  ...block.parent,
+                                                  previewContent:
+                                                      assertExists(parentPreviewContent),
+                                              }
+                                            : null,
+                                    })),
+                                );
+
+                                state = null;
+                                hasHandledHtml = true;
+                                break;
+                            }
+                            case "blockquote": {
+                                if (!state?.parent || state.parent.hasCloseTag) {
+                                    throw new InvalidArgumentError(
+                                        "Invalid parent element close tag",
+                                        {
+                                            displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` element at line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
+                                        },
+                                    );
+                                }
+
+                                if (
+                                    !state.parent.hasEndedOpenTag ||
+                                    state.parent.startedAttribute
+                                ) {
+                                    throw createUnexpectedMarkdownError(
+                                        messageNouns,
+                                        node.position,
+                                    );
+                                }
+
+                                state.parent.hasCloseTag = true;
+                                hasHandledHtml = true;
+                                break;
+                            }
+                            default: {
+                                hasUnknownHtml = true;
+                                break;
+                            }
+                        }
+                    },
+                    onselfclosingtag: () => {
+                        hasUnknownHtml = true;
+                    },
+
+                    onattribname: (start, end) => {
+                        if (state) {
+                            const attributeName = node.value.slice(start, end).toLowerCase();
+
+                            switch (attributeName) {
+                                case "name": {
+                                    if (!state.hasEndedOpenTag) {
+                                        state.startedAttribute = "name";
+                                        state.nameAttribute = "";
+                                    }
+                                    break;
+                                }
+                                case "time": {
+                                    if (!state.hasEndedOpenTag) {
+                                        state.startedAttribute = "time";
+                                        state.timeAttribute = "";
+                                    }
+                                    break;
+                                }
+                                case "timezone": {
+                                    if (!state.hasEndedOpenTag) {
+                                        state.startedAttribute = "timezone";
+                                        state.timeZoneAttribute = "";
+                                    }
+                                    break;
+                                }
+                                case "cite": {
+                                    if (state.parent && !state.parent.hasEndedOpenTag) {
+                                        state.parent.startedAttribute = "cite";
+                                        state.parent.nameAttribute = "";
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    },
+                    onattribdata: (start, end) => {
+                        if (state) {
+                            const attributeData = node.value.slice(start, end);
+
+                            if (!state.hasEndedOpenTag) {
+                                switch (state.startedAttribute) {
+                                    case "name": {
+                                        state.nameAttribute += attributeData;
+                                        break;
+                                    }
+                                    case "time": {
+                                        state.timeAttribute += attributeData;
+                                        break;
+                                    }
+                                    case "timezone": {
+                                        state.timeZoneAttribute += attributeData;
+                                        break;
+                                    }
+                                }
+                            } else if (state.parent && !state.parent.hasEndedOpenTag) {
+                                switch (state.parent.startedAttribute) {
+                                    case "cite": {
+                                        state.parent.nameAttribute += attributeData;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onattribentity: codepoint => {
+                        if (state) {
+                            const attributeData = String.fromCodePoint(codepoint);
+
+                            if (!state.hasEndedOpenTag) {
+                                switch (state.startedAttribute) {
+                                    case "name": {
+                                        state.nameAttribute += attributeData;
+                                        break;
+                                    }
+                                    case "time": {
+                                        state.timeAttribute += attributeData;
+                                        break;
+                                    }
+                                    case "timezone": {
+                                        state.timeZoneAttribute += attributeData;
+                                        break;
+                                    }
+                                }
+                            } else if (state.parent && !state.parent.hasEndedOpenTag) {
+                                switch (state.parent.startedAttribute) {
+                                    case "cite": {
+                                        state.parent.nameAttribute += attributeData;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onattribend: () => {
+                        if (state) {
+                            if (!state.hasEndedOpenTag && state.startedAttribute) {
+                                state.startedAttribute = null;
+                            } else if (
+                                state.parent &&
+                                !state.parent.hasEndedOpenTag &&
+                                state.parent.startedAttribute
+                            ) {
+                                state.parent.startedAttribute = null;
+                            }
+                        }
+                    },
+
+                    // NOCOMMIT: Maybe a custom error here stating you should have a newline between
+                    // `<bot>` tags and such.
+                    //
+                    // NOCOMMIT: Generative test!
+                    ontext: () => {
+                        hasUnknownHtml = true;
+                    },
+                    ontextentity: () => {
+                        hasUnknownHtml = true;
+                    },
+
+                    oncdata: noop,
+                    oncomment: noop,
+                    ondeclaration: noop,
+                    onprocessinginstruction: noop,
+                    onend: noop,
+                },
+            );
+
+            tokenizer.write(node.value);
+            tokenizer.end();
+
+            // If this tokenizer state machine handled our HTML then don't add it to state
+            // children. If there was any unknown HTML then we throw an error since we won't
+            // have handled that unknown HTML.
+            if (hasHandledHtml) {
+                if (hasUnknownHtml) {
+                    throw createUnexpectedMarkdownError(messageNouns, node.position);
+                }
+                continue;
+            }
+        }
+
+        if (!state || !state.hasEndedOpenTag || state.startedAttribute) {
+            throw createUnexpectedMarkdownError(messageNouns, node.position);
+        }
+
+        // If we're parsing a parent reply snippet (`<blockquote>`) then add our node to
+        // the snippet's children array.
+        if (state.parent && !state.parent.hasCloseTag) {
+            if (!state.parent.hasEndedOpenTag || state.parent.startedAttribute) {
+                throw createUnexpectedMarkdownError(messageNouns, node.position);
+            }
+
+            state.parent.children.push(node);
+            continue;
+        }
+
+        state.children.push(node);
+    }
+
+    if (state) {
+        throw new InvalidArgumentError("Missing message element close tag", {
+            displayMessage: errorDisplayMessage`\`<${state.tagName}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${state.tagName}>\` closing tag and try again.`,
+        });
+    }
+
+    return {blocks: await runAllPromises(blockPromises)};
+}
+
+function createUnexpectedMarkdownError(
+    messageNouns: AgentWebMessagingPageNouns,
+    position: Node["position"],
+) {
+    return new InvalidArgumentError("Unexpected markdown node type", {
+        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentenceNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
+    });
 }
