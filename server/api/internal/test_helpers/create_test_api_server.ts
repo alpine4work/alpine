@@ -32,6 +32,7 @@ export type TestApiServer = {
     readonly GET: TestApiServerRequest;
     readonly POST: TestApiServerRequest;
     readonly PUT: TestApiServerRequest;
+    readonly PATCH: TestApiServerRequest;
     readonly jobQueueTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide>;
     readonly apiTokenAgent: TokenAgent;
 };
@@ -76,7 +77,7 @@ export function createTestApiServer(
     });
 
     async function testRequest(
-        method: "GET" | "POST" | "PUT",
+        method: "GET" | "POST" | "PUT" | "PATCH",
         path: string,
         options?: TestApiServerRequestOptions,
     ): Promise<TestApiServerResponse> {
@@ -93,6 +94,9 @@ export function createTestApiServer(
                 break;
             case "PUT":
                 request = supertest(server).put(path);
+                break;
+            case "PATCH":
+                request = supertest(server).patch(path);
                 break;
         }
 
@@ -124,6 +128,7 @@ export function createTestApiServer(
         GET: (path, options) => testRequest("GET", path, options),
         POST: (path, options) => testRequest("POST", path, options),
         PUT: (path, options) => testRequest("PUT", path, options),
+        PATCH: (path, options) => testRequest("PATCH", path, options),
 
         get jobQueueTokenAgent() {
             if (jobQueueTokenAgent === undefined)

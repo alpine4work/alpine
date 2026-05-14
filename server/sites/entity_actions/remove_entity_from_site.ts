@@ -104,7 +104,7 @@ export async function removeEntityFromSite(
             // 1. Constructing a `DocAttrStep` that updates the doc's `accessPolicy` attribute
             //    back to the site's local policy.
             // 2. Sending the step to the document's collaboration durable object via the
-            //    `/put-content-without-optimistic-broadcast` HTTP route, which persists the
+            //    `/update-content-without-optimistic-broadcast` HTTP route, which persists the
             //    document write before broadcasting steps to connected clients.
             // 3. Setting `intentionallyUpdateAccessPolicy` so `updateDocumentContent`
             //    recognizes this as an intentional access policy change and clears the site
@@ -119,9 +119,13 @@ export async function removeEntityFromSite(
             const {eventTransactionForSite} =
                 DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.deserialize(
                     await context.edge.sendRequestToDurableObject(
+                        // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
+                        // durable object has been deployed.
                         `/api/durable-objects/documents/${entity.documentId}/put-content-without-optimistic-broadcast`,
                         {
                             serviceName: "DocumentCollaborationService",
+                            // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
+                            // durable object has been deployed.
                             route: "/api/durable-objects/documents/:documentId/put-content-without-optimistic-broadcast",
                             body: DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.inputSchema.serialize(
                                 {

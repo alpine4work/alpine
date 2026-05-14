@@ -22,8 +22,8 @@ import {
 } from "~/shared/access/access_policy.js";
 import {
     DocumentCollaborationProtocol,
-    DocumentCollaborationPutContentRequestBodySchema,
-    DocumentCollaborationPutContentResponseBodySchema,
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContent,
@@ -64,8 +64,8 @@ type DocumentCollaborationDurableObjectRoute =
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
-    | {type: "PutContent"}
-    | {type: "PutContentWithoutOptimisticBroadcast"};
+    | {type: "UpdateContentWithDiff"}
+    | {type: "UpdateContentWithoutOptimisticBroadcast"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -274,14 +274,23 @@ class DocumentCollaborationDurableObject {
             }
         }
 
-        if (url.pathname === "/put-content") {
-            return ["/put-content", {type: "PutContent"}];
+        if (url.pathname === "/update-content-with-diff") {
+            return ["/update-content-with-diff", {type: "UpdateContentWithDiff"}];
         }
 
+        if (url.pathname === "/update-content-without-optimistic-broadcast") {
+            return [
+                "/update-content-without-optimistic-broadcast",
+                {type: "UpdateContentWithoutOptimisticBroadcast"},
+            ];
+        }
+
+        // TODO(#sites): Remove this after deploy that removes all calls to
+        // `/put-content-without-optimistic-broadcast`.
         if (url.pathname === "/put-content-without-optimistic-broadcast") {
             return [
                 "/put-content-without-optimistic-broadcast",
-                {type: "PutContentWithoutOptimisticBroadcast"},
+                {type: "UpdateContentWithoutOptimisticBroadcast"},
             ];
         }
 
@@ -422,7 +431,7 @@ class DocumentCollaborationDurableObject {
 
                 return new Response();
             }
-            case "PutContent": {
+            case "UpdateContentWithDiff": {
                 if (request.method !== "POST") {
                     return new Response("405 Method Not Allowed", {
                         status: 405,
@@ -434,7 +443,7 @@ class DocumentCollaborationDurableObject {
                     const accountContext = context.actor.authorizeAccount();
 
                     const requestBody =
-                        DocumentCollaborationPutContentRequestBodySchema.deserialize(
+                        DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
                             await request.json(),
                         );
 
@@ -468,7 +477,7 @@ class DocumentCollaborationDurableObject {
 
                     return new Response(
                         JSON.stringify(
-                            DocumentCollaborationPutContentResponseBodySchema.serialize({
+                            DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
                                 ok: true,
                                 spaceId: this.spaceId,
                                 creatorId: this._creatorId,
@@ -486,7 +495,7 @@ class DocumentCollaborationDurableObject {
 
                     return new Response(
                         JSON.stringify(
-                            DocumentCollaborationPutContentResponseBodySchema.serialize({
+                            DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
                                 ok: false,
                                 error,
                             }),
@@ -498,7 +507,7 @@ class DocumentCollaborationDurableObject {
                     );
                 }
             }
-            case "PutContentWithoutOptimisticBroadcast": {
+            case "UpdateContentWithoutOptimisticBroadcast": {
                 if (request.method !== "POST") {
                     return new Response("405 Method Not Allowed", {
                         status: 405,

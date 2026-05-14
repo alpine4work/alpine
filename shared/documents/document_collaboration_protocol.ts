@@ -463,12 +463,12 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
     },
 });
 
-export const DocumentCollaborationPutContentRequestBodySchema = Schema.object({
+export const DocumentCollaborationUpdateContentWithDiffRequestBodySchema = Schema.object({
     version: Schema.integer,
     content: Schema.array(DocumentContentNodeSchema),
 });
 
-export const DocumentCollaborationPutContentResponseBodySchema = Schema.result(
+export const DocumentCollaborationUpdateContentWithDiffResponseBodySchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
         spaceId: Schema.id<SpaceId>(),

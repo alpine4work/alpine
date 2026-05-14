@@ -32,8 +32,8 @@ import {
 } from "~/shared/content/message_content_schema.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
-    DocumentCollaborationPutContentRequestBodySchema,
-    DocumentCollaborationPutContentResponseBodySchema,
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -145,26 +145,29 @@ export const apiDocumentsPaths: Pick<
             };
         },
 
-        put: async (context, {pathParameters, requestBody}) => {
+        patch: async (context, {pathParameters, requestBody}) => {
             const requestContent = fromApiContentForPutDocument(
                 DocumentContentProsemirrorSchema,
                 requestBody.document.title,
                 requestBody.document.content,
             );
 
-            const responseBody = DocumentCollaborationPutContentResponseBodySchema.deserialize(
-                await context.edge.sendRequestToDurableObject(
-                    `/api/durable-objects/documents/${pathParameters.id}/put-content`,
-                    {
-                        serviceName: "DocumentCollaborationService",
-                        route: "/api/durable-objects/documents/:documentId/put-content",
-                        body: DocumentCollaborationPutContentRequestBodySchema.serialize({
-                            version: requestBody.document.version,
-                            content: requestContent,
-                        }),
-                    },
-                ),
-            );
+            const responseBody =
+                DocumentCollaborationUpdateContentWithDiffResponseBodySchema.deserialize(
+                    await context.edge.sendRequestToDurableObject(
+                        `/api/durable-objects/documents/${pathParameters.id}/update-content-with-diff`,
+                        {
+                            serviceName: "DocumentCollaborationService",
+                            route: "/api/durable-objects/documents/:documentId/update-content-with-diff",
+                            body: DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize(
+                                {
+                                    version: requestBody.document.version,
+                                    content: requestContent,
+                                },
+                            ),
+                        },
+                    ),
+                );
 
             if (!responseBody.ok) throw responseBody.error;
 
