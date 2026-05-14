@@ -95,6 +95,10 @@ export function runAgentWebPageTests<PageLink, Page>({
 
             test("parses page from markdown", async () => {
                 if (testCase.page) {
+                    // We must print the page first before we parse it so that any references are
+                    // written to storage.
+                    await print(storage, testCase.pageLink, testCase.page);
+
                     expect(
                         normalizePage(
                             await parse(

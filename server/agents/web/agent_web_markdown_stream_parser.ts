@@ -375,6 +375,7 @@ async function parseTextIntoMarkdownParts(
             );
 
             tokenizer.write(incompleteHtmlTagText);
+            tokenizer.end();
 
             if (!hasError) {
                 text = newText;
@@ -851,6 +852,7 @@ async function traverseMarkdownHtmlNode(
     );
 
     tokenizer.write(node.value);
+    tokenizer.end();
 
     const actualReplacements = await runAllPromises(
         replacements

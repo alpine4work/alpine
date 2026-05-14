@@ -8,6 +8,7 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebDocumentPage = {
@@ -140,6 +141,16 @@ export async function parseAgentWebDocumentPage(
             if (childNode.type === "heading" && childNode.depth === 1) {
                 throw new InvalidArgumentError("Documents can only have a single heading level 1", {
                     displayMessage: errorDisplayMessage`A document can only have one Markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the start of the document. You added an additional Markdown h1 ${quoteMarkdown(childNode.children)}. Try again but remove the additional Markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
+                });
+            }
+
+            if (
+                id === null &&
+                childNode.type === "html" &&
+                hasHtmlOpenTag(childNode.value, tagName => tagName === "comment")
+            ) {
+                throw new InvalidArgumentError("Can\u2019t add comments when creating a document", {
+                    displayMessage: errorDisplayMessage`Can\u2019t create \`<comment>\`s while creating a document. First create the document without comments and then add the \`<comment>\`s in after.`,
                 });
             }
         }

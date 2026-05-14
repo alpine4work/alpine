@@ -587,6 +587,7 @@ async function traverseApiContentMarkdownHtmlNode(
     );
 
     tokenizer.write(node.value);
+    tokenizer.end();
 
     const actualReplacements = await runAllPromises(
         replacements
