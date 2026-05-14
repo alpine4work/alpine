@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/no-model-initial-data */
+
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";

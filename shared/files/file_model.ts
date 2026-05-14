@@ -60,6 +60,10 @@ export class FileModel {
     }
 
     public static readonly schema = FileModelDataSchema.transform<FileModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         serialize: account => account.initialData,
         deserialize: account => new FileModel(account),
     });
@@ -72,6 +76,11 @@ export class FileModel {
      * to access it without going through `FileRegistry` or `initialData`.
      */
     public get hasPreview(): FileHasPreview | null {
+        // We're ok ignoring the `initialData` lint rule for this function because the
+        // result of `hasPreview` should be immutable, no matter how the file changes it'll
+        // stay the same.
+        /* eslint-disable cyberworlds/no-model-initial-data */
+
         if (this.initialData.preview === null) return null;
 
         if (this._hasPreview === undefined) {
@@ -95,13 +104,20 @@ export class FileModel {
         }
 
         return this._hasPreview;
+
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 
     public static minLoadingCount(file1: FileModel, file2: FileModel): FileModel {
+        // Used when merging `FileModel`s to reconcile to files and get the latest data. So
+        // accessing `initialData` is required to do that. (This is the mechanism that
+        // helps keeps `FileRegistry` up-to-date.)
+        /* eslint-disable cyberworlds/no-model-initial-data */
         const fileData = minFileModelDataLoadingCount(file1.initialData, file2.initialData);
         if (fileData === file1.initialData) return file1;
         if (fileData === file2.initialData) return file2;
         return new FileModel(fileData);
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 }
 

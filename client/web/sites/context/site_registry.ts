@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/no-model-initial-data */
+
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";

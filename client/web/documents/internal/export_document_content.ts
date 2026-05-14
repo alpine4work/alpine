@@ -14,6 +14,7 @@ import * as htmlPrettierPlugin from "prettier/plugins/html";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";
+import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
@@ -67,13 +68,24 @@ export async function exportDocumentContent({
                 return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
             }
 
-            return prepareApiMentionTitle(entityId, entityResult.entity.initialData);
+            const entityData = getSearchEntityRegistry(spaceId)
+                .getEntityStore(entityResult.entity)
+                .getSnapshot();
+
+            return prepareApiMentionTitle(entityId, entityData, account =>
+                getAccountRegistry(spaceId).getAccountStore(account).getSnapshot(),
+            );
         },
         getSearchTaskEntityDisplayStatusIfExists: taskId => {
             const entity = content.references.searchEntityById.get(`Task:${taskId}`);
             if (!entity || entity.isPrivate) return;
-            if (entity.entity.initialData.media?.type !== "TaskDisplayStatus") return;
-            return entity.entity.initialData.media.displayStatus;
+
+            const entityData = getSearchEntityRegistry(spaceId)
+                .getEntityStore(entity.entity)
+                .getSnapshot();
+
+            if (entityData.media?.type !== "TaskDisplayStatus") return;
+            return entityData.media.displayStatus;
         },
     });
 

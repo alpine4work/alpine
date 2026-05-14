@@ -1,5 +1,6 @@
 import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut, Star} from "phosphor-react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
+import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -169,6 +170,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
     const rootNavigate = useRootNavigate();
     const context = useAppContext();
     const {space} = useSpaceContextAndRequireSpaceAccess();
+    const currentAccountData = useAccountModel(currentAccount);
 
     return (
         <MenuButton
@@ -181,7 +183,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                         pressErrorTitle: "Couldn\u2019t open settings",
                         onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
                     },
-                    ...(currentAccount.initialData.plan !== "LifetimeAccess"
+                    ...(currentAccountData.plan !== "LifetimeAccess"
                         ? [
                               {
                                   icon: ({isPressed}: {isPressed: boolean}) => (

@@ -110,8 +110,6 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 
     return [
         {
-            // Account name in title won't update when account changes without reload because
-            // we're using `initialData`.
             title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
                 commentThread.firstCommentAuthor.initialData,
             )}`,

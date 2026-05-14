@@ -102,6 +102,10 @@ export class AccountModel implements AccountModelWithoutSpace {
     }
 
     public static readonly schema = AccountModelDataSchema.transform<AccountModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         serialize: account => account.initialData,
         deserialize: account => new AccountModel(account),
     });
@@ -111,6 +115,10 @@ export class AccountModel implements AccountModelWithoutSpace {
      * instead of indirectly with `account.initialData.botId`.
      */
     public get botId() {
+        // `botId` for an account is immutable so it's ok to access it directly with
+        // `account.botId` instead of going through `AccountRegistry`.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         return this.initialData.botId;
     }
 
@@ -182,40 +190,63 @@ export class AccountModel implements AccountModelWithoutSpace {
     }
 
     public merge(otherAccount: AccountModel): AccountModel {
+        // Used when merging `AccountModel`s to reconcile to models and get the latest
+        // data. So accessing `initialData` is required to do that. (This is the mechanism
+        // that helps keeps `AccountRegistry` up-to-date.)
+        /* eslint-disable cyberworlds/no-model-initial-data */
         const data = AccountModel.mergeData(this.initialData, otherAccount.initialData);
         if (data === this.initialData) return this;
         if (data === otherAccount.initialData) return otherAccount;
         return new AccountModel(data);
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 
     public mergeWithoutSpace(otherAccount: AccountModelWithoutSpace): AccountModel {
+        // Used when merging `AccountModel`s to reconcile to models and get the latest
+        // data. So accessing `initialData` is required to do that. (This is the mechanism
+        // that helps keeps `AccountRegistry` up-to-date.)
+        /* eslint-disable cyberworlds/no-model-initial-data */
         const data = AccountModel.mergeDataWithoutSpace(this.initialData, otherAccount.initialData);
         if (data === this.initialData) return this;
         return new AccountModel(data);
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 
     private static _unknown: AccountModel | null = null;
+    private static _unknownData: AccountModelData | null = null;
 
     /**
      * Get the model for an unknown account. If we need an account model but we have no
      * account available then you may use this model to render an unknown account.
      */
     public static getUnknown(): AccountModel {
-        const addedTime = new Date(0);
-
-        this._unknown ??= new AccountModel({
-            ...AccountModelWithoutSpace.getUnknown().initialData,
-            space: {
-                version: 0,
-                addedTime,
-                state: {
-                    type: "Active",
-                    activatedTime: addedTime,
-                },
-                role: "Member",
-            },
-        });
-
+        this._unknown ??= new AccountModel(this.getUnknownData());
         return this._unknown;
+    }
+
+    /**
+     * Get the model data for an unknown account. If we need an account model data but
+     * we have no account available then you may use this model data to render an
+     * unknown account.
+     */
+    public static getUnknownData(): AccountModelData {
+        if (this._unknownData === null) {
+            const addedTime = new Date(0);
+
+            this._unknownData = {
+                ...AccountModelWithoutSpace.getUnknownData(),
+                space: {
+                    version: 0,
+                    addedTime,
+                    state: {
+                        type: "Active",
+                        activatedTime: addedTime,
+                    },
+                    role: "Member",
+                },
+            };
+        }
+
+        return this._unknownData;
     }
 }

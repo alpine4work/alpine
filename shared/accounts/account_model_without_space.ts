@@ -68,17 +68,26 @@ export class AccountModelWithoutSpace {
 
     public static readonly schema =
         AccountModelWithoutSpaceDataSchema.transform<AccountModelWithoutSpace>({
+            // Serializing the model over the network is fine. Generally only the
+            // server serializes data over the network for the client.
+            //
+            // eslint-disable-next-line cyberworlds/no-model-initial-data
             serialize: account => account.initialData,
             deserialize: account => new AccountModelWithoutSpace(account),
         });
 
     private static _unknown: AccountModelWithoutSpace | null = null;
+    private static _unknownData: AccountModelWithoutSpaceData | null = null;
 
     /**
      * `botId` is immutable so it's ok to access it directly with `account.botId`
      * instead of indirectly with `account.initialData.botId`.
      */
     public get botId() {
+        // `botId` for an account is immutable so it's ok to access it directly with
+        // `account.botId` instead of going through `AccountRegistry`.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         return this.initialData.botId;
     }
 
@@ -87,15 +96,25 @@ export class AccountModelWithoutSpace {
      * account available then you may use this model to render an unknown account.
      */
     public static getUnknown(): AccountModelWithoutSpace {
-        this._unknown ??= new AccountModelWithoutSpace({
+        this._unknown ??= new AccountModelWithoutSpace(this.getUnknownData());
+        return this._unknown;
+    }
+
+    /**
+     * Get the model data for an unknown account. If we need an account model data but
+     * we have no account available then you may use this model data to render an
+     * unknown account.
+     */
+    public static getUnknownData(): AccountModelWithoutSpaceData {
+        this._unknownData ??= {
             id: unknownAccountId,
             version: 0,
             name: "Unknown",
             nameVersion: 0,
             avatar: null,
             reactionCharacter: {type: "Yeti", variant: "Blue"},
-        });
+        };
 
-        return this._unknown;
+        return this._unknownData;
     }
 }

@@ -85,6 +85,8 @@ export function createHeadMetaForRoomChat(room: {
             hasUrlGrant = room.accessPolicy.data.urlGrant !== null;
             break;
         case "Site":
+            // We don't bother trying to keep the `<head>` up-to-date in realtime.
+            // eslint-disable-next-line cyberworlds/no-model-initial-data
             hasUrlGrant = room.accessPolicy.data.site.initialData.accessPolicy.urlGrant !== null;
             break;
         default:

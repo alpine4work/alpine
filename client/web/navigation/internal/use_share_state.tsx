@@ -138,7 +138,7 @@ export function useShareState(
                                       iterableFirst(action.accountGrantById)![0],
                                   )
                                   ?.getSnapshot()
-                            : null) ?? AccountModel.getUnknown().initialData,
+                            : null) ?? AccountModel.getUnknownData(),
                     );
                 }
 
@@ -151,7 +151,7 @@ export function useShareState(
                 changedAccountName = getAccountShortNameWithoutFullNameTooltip(
                     accountRegistry
                         .weakGetAccountStoreByIdIfExists(action.accountId)
-                        ?.getSnapshot() ?? AccountModel.getUnknown().initialData,
+                        ?.getSnapshot() ?? AccountModel.getUnknownData(),
                 );
 
                 changeDescription = `remove ${
@@ -163,7 +163,7 @@ export function useShareState(
                 changedAccountName = getAccountShortNameWithoutFullNameTooltip(
                     accountRegistry
                         .weakGetAccountStoreByIdIfExists(action.accountId)
-                        ?.getSnapshot() ?? AccountModel.getUnknown().initialData,
+                        ?.getSnapshot() ?? AccountModel.getUnknownData(),
                 );
 
                 changeDescription = `change ${

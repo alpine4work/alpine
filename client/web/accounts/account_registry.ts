@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/no-model-initial-data */
+
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";

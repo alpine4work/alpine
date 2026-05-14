@@ -554,5 +554,23 @@ module.exports = {
             files: ["admin/marketing/**/*.{ts,tsx}"],
             extends: ["plugin:@remotion/recommended"],
         },
+        {
+            files: [
+                "client/**/*.{js,jsx,ts,tsx}",
+                // Also warn in `shared` so that sneaky utility functions called by the client
+                // can't use `initialData`.
+                "shared/**/*.{js,jsx,ts,tsx}",
+                // The `app` directory mixes both client code and server code together.
+                // `initialData` use in a `loader()` is fine but not in a React component. Warn so
+                // we don't see sneaky `initialData` usage in client code through `app`.
+                "app/**/*.{js,jsx,ts,tsx}",
+            ],
+            excludedFiles: ["**/*.test.*"],
+            rules: {
+                // Discourage use of `initialData` in client code. It's fine on the server, but on
+                // the client you should use a `Store` from the corresponding registry instead.
+                "cyberworlds/no-model-initial-data": "warn",
+            },
+        },
     ],
 };

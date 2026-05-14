@@ -331,6 +331,10 @@ async function actuallyUploadFile(
             uploadProgressStore,
         });
 
+        // Using `initialData` here since we're specifically interested in the data
+        // returned by the RPC we just called.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         if (getFileModelDataAttachReadiness(fileReference.file.initialData) === "Ready") {
             processProgressStore.set(1);
             onAttach(fileReference);

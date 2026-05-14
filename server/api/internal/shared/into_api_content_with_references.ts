@@ -153,7 +153,11 @@ export async function intoApiContentWithReferencesAndReturnReferences(
                 return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
             }
 
-            return prepareApiMentionTitle(entityId, entityResult.entity.initialData);
+            return prepareApiMentionTitle(
+                entityId,
+                entityResult.entity.initialData,
+                account => account.initialData,
+            );
         },
         getSearchTaskEntityDisplayStatusIfExists: taskId => {
             const entity = searchEntityById.get(`Task:${taskId}`);
@@ -182,7 +186,7 @@ export async function getApiMentionTitleWithStrongConsistency(
     const entity = await getSearchEntityWithStrongConsistency(context, spaceId, entityId);
 
     return {
-        title: prepareApiMentionTitle(entityId, entity),
+        title: prepareApiMentionTitle(entityId, entity, account => account.initialData),
         media: entity.media,
     };
 }

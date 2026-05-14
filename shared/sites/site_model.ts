@@ -54,6 +54,10 @@ export class SitePreviewModel {
     }
 
     public static readonly schema = SitePreviewModelDataSchema.transform<SitePreviewModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         serialize: site => site.initialData,
         deserialize: site => new SitePreviewModel(site),
     });
@@ -67,10 +71,15 @@ export class SitePreviewModel {
     }
 
     public merge(other: SitePreviewModel) {
+        // Used when merging `SitePreviewModel`s to reconcile to models and get the latest
+        // data. So accessing `initialData` is required to do that. (This is the mechanism
+        // that helps keeps `SiteRegistry` up-to-date.)
+        /* eslint-disable cyberworlds/no-model-initial-data */
         const data = SitePreviewModel.mergeData(this.initialData, other.initialData);
         if (data === this.initialData) return this;
         if (data === other.initialData) return other;
         return new SitePreviewModel(data);
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 }
 

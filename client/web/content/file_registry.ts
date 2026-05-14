@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/no-model-initial-data */
+
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {

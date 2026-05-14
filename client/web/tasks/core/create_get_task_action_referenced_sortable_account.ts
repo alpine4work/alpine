@@ -88,12 +88,12 @@ export function createGetTaskActionReferencedSortableAccount(
         // `collectReferencedAccountIdsFromTaskModelData()`, and
         // `collectReferencedAccountIdsFromTaskAction()`.
         if (accountId === unknownAccountId) {
-            const unknownAccount = AccountModel.getUnknown();
+            const unknownAccount = AccountModel.getUnknownData();
 
             return {
                 accountId: unknownAccount.id,
-                workingAccountName: unknownAccount.initialData.name,
-                workingAccountNameVersion: unknownAccount.initialData.nameVersion,
+                workingAccountName: unknownAccount.name,
+                workingAccountNameVersion: unknownAccount.nameVersion,
             };
         }
 

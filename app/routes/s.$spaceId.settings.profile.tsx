@@ -1,7 +1,10 @@
 import {CaretDown, Star} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
-import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {
+    useAccountModel,
+    useAccountRegistry,
+} from "~/client/web/accounts/account_registry_context.js";
 import {AvatarUploader, avatarUploaderSize} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -19,7 +22,7 @@ import {
 import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {searchFavoriteEntityIconColor} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -34,8 +37,8 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export default function SpaceProfileSettingsRoute() {
     const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
-    const account = assertExists(currentAccount);
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const currentAccountData = useAccountModel(currentAccount);
     const accountRegistry = useAccountRegistry();
     const rootNavigate = useRootNavigate();
 
@@ -48,7 +51,7 @@ export default function SpaceProfileSettingsRoute() {
     const [name, setName] = useState<string | null>(null);
     const [shouldShowConfirmSaveNameDialog, setShouldShowConfirmSaveNameDialog] = useState(false);
 
-    const hasLifetimeAccess = account.initialData.plan === "LifetimeAccess";
+    const hasLifetimeAccess = currentAccountData.plan === "LifetimeAccess";
 
     const {colorScheme, isSystemPreference} = useColorScheme();
 
@@ -92,7 +95,7 @@ export default function SpaceProfileSettingsRoute() {
     const handleUploadAvatar = async (file: File) => {
         const response = await fetchWithTracer(
             context.tracer.getTracer(),
-            new URL(`/api/avatar/account/${account.id}`, window.location.href),
+            new URL(`/api/avatar/account/${currentAccountData.id}`, window.location.href),
             {
                 serviceName: "EdgeService",
                 route: "/api/avatar/account/:accountId",
@@ -150,9 +153,9 @@ export default function SpaceProfileSettingsRoute() {
                             ref={inputRef}
                             fontSize="100"
                             id={nameTextInputId}
-                            value={name ?? account.initialData.name}
+                            value={name ?? currentAccountData.name}
                             onChange={setName}
-                            placeholder={account.initialData.name}
+                            placeholder={currentAccountData.name}
                             onEnter={() => assertExists(nameInlineEditorToolbarRef.current).save()}
                             onEscape={handleCancelNameEditing}
                             isFocusRingVisible={name !== null}
@@ -190,7 +193,7 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     </Box>
                     <AvatarUploader onUploadAvatar={handleUploadAvatar} borderRadius="full">
-                        <AccountAvatar account={account} size={avatarUploaderSize} />
+                        <AccountAvatar account={currentAccountData} size={avatarUploaderSize} />
                     </AvatarUploader>
                 </Box>
                 <Box display="flex" gap="6" alignItems="flex-start" justifyContent="space-between">

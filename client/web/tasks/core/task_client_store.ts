@@ -1797,6 +1797,7 @@ export class TaskClientStoreInternal {
                 account => account.id === action.accountId,
             );
             assert(
+                // eslint-disable-next-line cyberworlds/no-model-initial-data
                 account && account.initialData.nameVersion >= action.accountNameVersion,
                 "Server expected to include updated `AccountModel` in `referencedAccounts` for `UpdateTaskName` actions",
             );

@@ -10,10 +10,12 @@ import {
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function prepareApiMentionTitle(
     entityId: SearchMentionEntityId,
     entity: {title: string | null; media: SearchEntityMediaModel | null},
+    getAccountSnapshot: (account: AccountModel) => AccountModelData,
 ) {
     // If `title` is null then we assume the entity was deleted. Otherwise, all
     // mentionable entities should have a non-null title.
@@ -33,7 +35,7 @@ export function prepareApiMentionTitle(
     // the post author name to the start of the title.
     if (entity.media?.type === "Account" && entityId.startsWith("Post:")) {
         entityTitle = `${getAccountShortNameWithoutFullNameTooltip(
-            entity.media.account.initialData,
+            getAccountSnapshot(entity.media.account),
         )} ${entityTitle}`;
     }
 

@@ -58,6 +58,9 @@ export function getOpenGraphContent(
 }
 
 function getReferencesForPrintSingleLineTextSnippet(references: ContentReferences) {
+    // This function is mostly for the server. We're ok ignoring realtime updates in
+    // Open Graph metadata.
+    /* eslint-disable cyberworlds/no-model-initial-data */
     return {
         getAccountIfExists: (accountId: AccountId) => {
             const account = references.accountById.get(accountId);
@@ -88,4 +91,5 @@ function getReferencesForPrintSingleLineTextSnippet(references: ContentReference
         getFileIfExists: (fileId: FileId) =>
             references.fileById?.get(fileId)?.file.initialData ?? null,
     };
+    /* eslint-enable cyberworlds/no-model-initial-data */
 }

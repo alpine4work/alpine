@@ -147,7 +147,7 @@ function ReactionTooltipContent({
                     accountNames.length < maxAccountNameCount &&
                     reactionAccountIds.size > accountNames.length
                 ) {
-                    accountNames.push(AccountModel.getUnknown().initialData.name);
+                    accountNames.push(AccountModel.getUnknownData().name);
                 }
 
                 if (reactionAccountIds.size > accountNames.length) {

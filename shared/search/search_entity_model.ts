@@ -70,6 +70,10 @@ export class SearchEntityModel {
     }
 
     public static readonly schema = SearchEntityModelDataSchema.transform<SearchEntityModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         serialize: entity => entity.initialData,
         deserialize: entity => new SearchEntityModel(entity),
     });
@@ -122,10 +126,15 @@ export class SearchEntityModel {
     }
 
     public merge(otherEntity: SearchEntityModel): SearchEntityModel {
+        // Used when merging `SearchEntityModel`s to reconcile to models and get the latest
+        // data. So accessing `initialData` is required to do that. (This is the mechanism
+        // that helps keeps `SearchEntityRegistry` up-to-date.)
+        /* eslint-disable cyberworlds/no-model-initial-data */
         const data = SearchEntityModel.mergeData(this.initialData, otherEntity.initialData);
         if (data === this.initialData) return this;
         if (data === otherEntity.initialData) return otherEntity;
         return new SearchEntityModel(data);
+        /* eslint-enable cyberworlds/no-model-initial-data */
     }
 }
 

@@ -4463,7 +4463,13 @@ export function testTaskActionPermutations({
 }) {
     nextAccountNameVersion = Math.max(
         nextAccountNameVersion,
+        // This is a test, we're ok to use `initialData` here
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         account1.initialData.nameVersion + 1,
+        // This is a test, we're ok to use `initialData` here
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         account2.initialData.nameVersion + 1,
     );
 

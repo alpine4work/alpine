@@ -42,6 +42,8 @@ async function getInternalAccountsPlanResponse(
 
     // If you're adding any data here, be very certain this is safe to return here!
     const response: InternalAccountsPlanResponse = {
+        // This is only called on the server where `initialData` access is fine.
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
         plan: account.initialData.plan,
     };
 
