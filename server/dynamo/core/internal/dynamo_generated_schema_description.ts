@@ -14588,6 +14588,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
+                                                                                        "defaultTypeValue": "Local",
                                                                                         "referenceId": "bc9960ed"
                                                                                     },
                                                                                     "optional": false

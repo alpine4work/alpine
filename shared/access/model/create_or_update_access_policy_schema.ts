@@ -19,6 +19,6 @@ export const CreateOrUpdateAccessPolicySchema = Schema.union({
             }),
         }),
     ),
-});
+}).defaultVariant("Local");
 
 assertAssignableTypes<CreateOrUpdateAccessPolicy, AccessPolicy>();
