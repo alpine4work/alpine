@@ -438,8 +438,189 @@ Quoted.
             markdown: `\
 <human name="Alice">Hello.</human>
 `,
+            printMarkdown: `\
+<human name="Alice">
+
+Hello.
+
+</human>
+`,
+            page: {
+                blocks: [
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "message without newline between tags",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+Hello there.
+</human>
+`,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements.",
+                "Must add an empty new line between the `<human>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 2 will be parsed as HTML instead of Markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+        },
+        {
+            name: "message without newline between tags (attached to open tag)",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+foo
+
+bar
+
+</human>
+`,
+            parseError:
+                "Must add an empty new line between the `<human>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 2 will be parsed as HTML instead of Markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+        },
+        {
+            name: "message without newline between tags (attached to closed tag)",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+foo
+
+bar
+</human>
+`,
+            printMarkdown: `\
+<human name="Alice">
+
+foo
+
+bar&#x20;
+
+</human>
+`,
+            page: {
+                blocks: [
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("foo")]), paragraph([text("bar ")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "parent on one line",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">Hello, world!</blockquote>
+
+Hello there.
+
+</human>
+`,
+            parseError:
+                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 3 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+        },
+        {
+            name: "parent without newline between tags",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+Hello, world!
+</blockquote>
+
+Hello there.
+
+</human>
+`,
+            parseError:
+                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 4 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+        },
+        {
+            name: "parent without newline between tags (attached to open tag)",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+foo
+
+bar
+
+</blockquote>
+
+Hello there.
+
+</human>
+`,
+            parseError:
+                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 4 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+        },
+        {
+            name: "parent without newline between tags (attached to closed tag)",
+            pageLink: null,
+            markdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+foo
+
+bar
+</blockquote>
+
+Hello there.
+
+</human>
+`,
+            printMarkdown: `\
+<human name="Alice">
+
+<blockquote cite="Bob">
+
+foo
+
+bar
+
+</blockquote>
+
+Hello there.
+
+</human>
+`,
+            page: {
+                blocks: [
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: {
+                            nameAttribute: "Bob",
+                            previewContent: content([
+                                paragraph([text("foo")]),
+                                paragraph([text("bar")]),
+                            ]),
+                        },
+                        content: content([paragraph([text("Hello there.")])]),
+                    },
+                ],
+            },
         },
     ],
 });

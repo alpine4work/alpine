@@ -34,6 +34,7 @@ export function runAgentWebPageTests<PageLink, Page>({
             name: string;
             pageLink: PageLink;
             markdown: string;
+            printMarkdown?: string;
             createParseError?: string;
         } & (
             | {
@@ -83,13 +84,19 @@ export function runAgentWebPageTests<PageLink, Page>({
         const describe = testCase.only ? globalThis.describe.only : globalThis.describe;
 
         describe(testCase.name, () => {
+            if (typeof testCase.printMarkdown === "string") {
+                test("print markdown doesn\u2019t equal markdown", () => {
+                    expect(testCase.printMarkdown).not.toEqual(testCase.markdown);
+                });
+            }
+
             if (testCase.page) {
                 const testCasePage = testCase.page;
 
                 test("prints page to markdown", async () => {
                     expect(
                         printMarkdownTree(await print(storage, testCase.pageLink, testCasePage)),
-                    ).toEqual(testCase.markdown);
+                    ).toEqual(testCase.printMarkdown ?? testCase.markdown);
                 });
             }
 
