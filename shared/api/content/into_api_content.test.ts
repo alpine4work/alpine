@@ -2,23 +2,35 @@
 
 import {Mark, Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {intoApiContent} from "~/shared/api/content/into_api_content.js";
+import {
+    ApiContentMarkdownIntoOptions,
+    intoApiContent,
+} from "~/shared/api/content/into_api_content.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+
+const spaceId = generateId<SpaceId>();
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
@@ -51,6 +63,11 @@ const tableCell = (...content: Array<Node>) => schema.nodes.tableCell.create(nul
 const heading = (level: number, ...content: Array<Node>) =>
     schema.nodes.heading.create({level}, content);
 const divider = () => schema.nodes.divider.create();
+const fileRow = (...content: Array<Node>) => schema.nodes.fileRow!.create(null, content);
+const file = (attrs: {fileId: string | null}) => schema.nodes.file!.create(attrs);
+const fileFloat = (attrs: {direction: string}, ...content: Array<Node>) =>
+    schema.nodes.fileFloat!.create(attrs, content);
+const fileRowTable = (...content: Array<Node>) => schema.nodes.fileRowTable!.create(null, content);
 
 // Mark builders
 const bold = () => schema.marks.bold.create();
@@ -86,6 +103,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
                 getAccountMentionTitleIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+                getFileIfExists: () => undefined,
             }),
         ).toJSON(),
     ).toEqual(normalizeNode(node).toJSON());
@@ -95,6 +113,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+            getFileIfExists: () => undefined,
         }),
     ).toEqual(content);
 }
@@ -107,6 +126,7 @@ function testIntoApiContentOnly(node: Node, content: ApiContentResponse) {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+            getFileIfExists: () => undefined,
         }),
     ).toEqual(content);
 }
@@ -1986,6 +2006,7 @@ test("code mark is not allowed in code blocks", () => {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+            getFileIfExists: () => undefined,
         }),
     ).toThrow("`Code` mark isn\u2019t supported in `Code` block element");
 });
@@ -4168,4 +4189,656 @@ test("converts ordered list with second item having different orderStart", () =>
             ],
         },
     );
+});
+
+describe("file block elements", () => {
+    const fileId1 = generateChronologicalId<FileId>();
+    const fileId2 = generateChronologicalId<FileId>();
+    const testDocumentId = generateId<DocumentId>();
+    const testChannelId = generateId<ChannelId>();
+    const documentEntityId = `Document:${testDocumentId}` as const;
+    const channelEntityId = `Channel:${testChannelId}` as const;
+
+    const fileOptions: ApiContentMarkdownIntoOptions = {
+        getAccountMentionTitleIfExists: () => undefined,
+        getSearchEntityMentionTitleIfExists: entityId => {
+            if (entityId === documentEntityId) return "My Document";
+            if (entityId === channelEntityId) return "General";
+            return undefined;
+        },
+        getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+        getFileIfExists: () => ({
+            contentType: "image/png",
+            contentLength: 1024,
+        }),
+    };
+
+    function testFileIntoApiContent(node: Node, content: ApiContentResponse) {
+        expect(
+            fromApiContent(node.type.schema, intoApiContent(node, fileOptions)).toJSON(),
+        ).toEqual(normalizeNode(node).toJSON());
+
+        expect(intoApiContent(node, fileOptions)).toEqual(content);
+    }
+
+    function testFileIntoApiContentOnly(node: Node, content: ApiContentResponse) {
+        expect(intoApiContent(node, fileOptions)).toEqual(content);
+    }
+
+    test("single file in a fileRow converts to File element", () => {
+        testFileIntoApiContent(doc(fileRow(file({fileId: fileId1}))), {
+            elements: [
+                {
+                    type: "File",
+                    id: fileId1,
+                    contentType: "image/png",
+                    contentLength: 1024,
+                },
+            ],
+        });
+    });
+
+    test("fileFloat left converts to FileFloat element", () => {
+        testFileIntoApiContent(doc(fileFloat({direction: "left"}, file({fileId: fileId1}))), {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "File",
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
+                },
+            ],
+        });
+    });
+
+    test("fileFloat right converts to FileFloat element", () => {
+        testFileIntoApiContent(doc(fileFloat({direction: "right"}, file({fileId: fileId1}))), {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Right",
+                    element: {
+                        type: "File",
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
+                },
+            ],
+        });
+    });
+
+    test("fileRow with two files converts to FileGallery", () => {
+        testFileIntoApiContent(doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))), {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: fileId1,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: fileId2,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("fileRow with entity preview converts to Preview element", () => {
+        testFileIntoApiContentOnly(doc(fileRow(file({fileId: documentEntityId}))), {
+            elements: [
+                {
+                    type: "Preview",
+                    target: {type: "Document", id: testDocumentId},
+                    title: "My Document",
+                },
+            ],
+        });
+    });
+
+    test("fileFloat with entity preview converts to FileFloat with Preview", () => {
+        testFileIntoApiContentOnly(
+            doc(fileFloat({direction: "left"}, file({fileId: channelEntityId}))),
+            {
+                elements: [
+                    {
+                        type: "FileFloat",
+                        side: "Left",
+                        element: {
+                            type: "Preview",
+                            target: {type: "Channel", id: testChannelId},
+                            title: "General",
+                        },
+                    },
+                ],
+            },
+        );
+    });
+
+    test("fileRow with mixed files and previews converts to FileGallery", () => {
+        testFileIntoApiContentOnly(
+            doc(fileRow(file({fileId: fileId1}), file({fileId: documentEntityId}))),
+            {
+                elements: [
+                    {
+                        type: "FileGallery",
+                        rows: [
+                            {
+                                items: [
+                                    {
+                                        width: 0.337838,
+                                        element: {
+                                            type: "File",
+                                            id: fileId1,
+                                            contentType: "image/png",
+                                            contentLength: 1024,
+                                        },
+                                    },
+                                    {
+                                        width: 0.662162,
+                                        element: {
+                                            type: "Preview",
+                                            target: {
+                                                type: "Document",
+                                                id: testDocumentId,
+                                            },
+                                            title: "My Document",
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("null fileId in fileRow produces File with unknownFileId", () => {
+        testFileIntoApiContent(doc(fileRow(file({fileId: null}))), {
+            elements: [
+                {
+                    type: "File",
+                    id: unknownFileId,
+                    contentType: "application/octet-stream",
+                    contentLength: 0,
+                },
+            ],
+        });
+    });
+
+    test("null fileId in fileFloat produces FileFloat with unknownFileId", () => {
+        testFileIntoApiContent(doc(fileFloat({direction: "left"}, file({fileId: null}))), {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "File",
+                        id: unknownFileId,
+                        contentType: "application/octet-stream",
+                        contentLength: 0,
+                    },
+                },
+            ],
+        });
+    });
+
+    test("fileRowTable converts to File element in table cell", () => {
+        expect(
+            intoApiContent(
+                doc(
+                    table(
+                        {columnWidths: [1, 1]},
+                        tableRow(
+                            tableCell(paragraph(text("text"))),
+                            tableCell(fileRowTable(file({fileId: fileId1}))),
+                        ),
+                    ),
+                ),
+                fileOptions,
+            ),
+        ).toMatchObject({
+            elements: [
+                {
+                    type: "Table",
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "text"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "File",
+                                            id: fileId1,
+                                            contentType: "image/png",
+                                            contentLength: 1024,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    describe("gallery row width computation", () => {
+        test("two square files without dimensions default to 50/50", () => {
+            // fileOptions doesn't provide width/height, so files assume square.
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                fileOptions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+            expect(widths).toEqual([0.5, 0.5]);
+        });
+
+        test("proportional to aspect ratios", () => {
+            const fileId3 = generateChronologicalId<FileId>();
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // Wide landscape photo
+                    if (fileId === fileId1) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 2000, height: 1000},
+                        };
+                    }
+                    // Square photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 1000, height: 1000},
+                        };
+                    }
+                    // Tall portrait photo
+                    if (fileId === fileId3) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 500, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(
+                    fileRow(
+                        file({fileId: fileId1}),
+                        file({fileId: fileId2}),
+                        file({fileId: fileId3}),
+                    ),
+                ),
+                fileOptionsWithDimensions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            expect(widths).toEqual([0.571429, 0.285714, 0.142857]);
+        });
+
+        test("same height but different widths", () => {
+            const fileId3 = generateChronologicalId<FileId>();
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // Wide photo
+                    if (fileId === fileId1) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 3000, height: 1000},
+                        };
+                    }
+                    // Medium photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 1500, height: 1000},
+                        };
+                    }
+                    // Narrow photo
+                    if (fileId === fileId3) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 800, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(
+                    fileRow(
+                        file({fileId: fileId1}),
+                        file({fileId: fileId2}),
+                        file({fileId: fileId3}),
+                    ),
+                ),
+                fileOptionsWithDimensions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Wider files get more space, proportional to their aspect ratios.
+            expect(widths).toEqual([0.508647, 0.320448, 0.170905]);
+        });
+
+        test("all different widths and heights", () => {
+            const fileId3 = generateChronologicalId<FileId>();
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // Large landscape photo
+                    if (fileId === fileId1) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 4000, height: 2000},
+                        };
+                    }
+                    // Standard photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 1200, height: 800},
+                        };
+                    }
+                    // Phone screenshot
+                    if (fileId === fileId3) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 828, height: 1792},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(
+                    fileRow(
+                        file({fileId: fileId1}),
+                        file({fileId: fileId2}),
+                        file({fileId: fileId3}),
+                    ),
+                ),
+                fileOptionsWithDimensions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Landscape photo gets the most space, phone screenshot the least.
+            expect(widths).toEqual([0.497065, 0.372798, 0.130137]);
+        });
+
+        test("audio file next to image", () => {
+            const opts: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // Audio file (no image dimensions)
+                    if (fileId === fileId1) {
+                        return {contentType: "audio/mpeg", contentLength: 5000};
+                    }
+                    // Standard photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 1000, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                opts,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Audio files are wide and short so they take more horizontal space than a square
+            // image.
+            expect(widths).toEqual([0.704225, 0.295775]);
+        });
+
+        test("code file next to image", () => {
+            const opts: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // JavaScript code file
+                    if (fileId === fileId1) {
+                        return {contentType: "text/javascript", contentLength: 2000};
+                    }
+                    // Standard photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 1000, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                opts,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Code files have a wide aspect ratio (63:32) so they take more horizontal space
+            // than a square image.
+            expect(widths).toEqual([0.663158, 0.336842]);
+        });
+
+        test("audio, code, and image together", () => {
+            const fileId3 = generateChronologicalId<FileId>();
+            const opts: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    if (fileId === fileId1) {
+                        return {contentType: "audio/wav", contentLength: 10000};
+                    }
+                    if (fileId === fileId2) {
+                        return {contentType: "application/json", contentLength: 500};
+                    }
+                    if (fileId === fileId3) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 800, height: 600},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(
+                    fileRow(
+                        file({fileId: fileId1}),
+                        file({fileId: fileId2}),
+                        file({fileId: fileId3}),
+                    ),
+                ),
+                opts,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Audio is widest (very short), code is medium (63:32), image is narrowest (4:3).
+            expect(widths).toEqual([0.418958, 0.346426, 0.234616]);
+        });
+
+        test("binary file next to image", () => {
+            const opts: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    // Binary file with no preview
+                    if (fileId === fileId1) {
+                        return {contentType: "application/octet-stream", contentLength: 50000};
+                    }
+                    // Wide landscape photo
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 2000, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                opts,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            // Binary files use the small fallback (200x133, 3:2). The landscape photo (2:1)
+            // has the same aspect ratio after clamping so they split evenly.
+            expect(widths).toEqual([0.5, 0.5]);
+        });
+
+        test("mixed known and unknown dimensions", () => {
+            const fileOptionsWithPartialDimensions: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    if (fileId === fileId1) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 3000, height: 1000},
+                        };
+                    }
+                    // No dimensions for fileId2 (e.g. a non-image file).
+                    if (fileId === fileId2) {
+                        return {contentType: "application/pdf", contentLength: 100};
+                    }
+                    return undefined;
+                },
+            };
+
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                fileOptionsWithPartialDimensions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            expect(widths).toEqual([0.662162, 0.337838]);
+        });
+
+        test("file without dimensions next to preview", () => {
+            const result = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: documentEntityId}))),
+                fileOptions,
+            );
+            const widths = (result.elements[0] as any).rows[0].items.map(
+                (i: any) => i.width,
+            ) as Array<number>;
+
+            expect(widths).toEqual([0.337838, 0.662162]);
+        });
+
+        test("single file has no widths (unwrapped to standalone)", () => {
+            const result = intoApiContent(doc(fileRow(file({fileId: fileId1}))), fileOptions);
+            // Single-item gallery is unwrapped to standalone File.
+            expect(result.elements[0]).toMatchObject({type: "File", id: fileId1});
+        });
+
+        test("widths survive markdown round trip", () => {
+            const fileOptionsWithDimensions: ApiContentMarkdownIntoOptions = {
+                ...fileOptions,
+                getFileIfExists: fileId => {
+                    if (fileId === fileId1) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 2000, height: 1000},
+                        };
+                    }
+                    if (fileId === fileId2) {
+                        return {
+                            contentType: "image/png",
+                            contentLength: 100,
+                            size: {width: 500, height: 1000},
+                        };
+                    }
+                    return undefined;
+                },
+            };
+
+            const apiContent = intoApiContent(
+                doc(fileRow(file({fileId: fileId1}), file({fileId: fileId2}))),
+                fileOptionsWithDimensions,
+            );
+
+            const markdown = printApiContentToMarkdown(apiContent, {spaceId});
+            const parsed = parseApiContentFromMarkdown(markdown, {spaceId});
+
+            // Widths are response-only metadata and don't survive the round-trip (they'll be
+            // recomputed on the next response). The parsed content should have the right
+            // elements without widths.
+            expect(normalizeApiContent(parsed)).toEqual(normalizeApiContent(apiContent));
+        });
+    });
 });

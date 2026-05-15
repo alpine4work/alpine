@@ -14,7 +14,6 @@ import {
     appendSelectionBoundaryHtml,
 } from "~/client/web/content/internal/content_file_preview.js";
 import {handleContentLinkClick} from "~/client/web/content/internal/handle_content_link_click.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
@@ -23,6 +22,7 @@ import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

@@ -11,7 +11,6 @@ import {
 } from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
@@ -25,6 +24,7 @@ import {
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

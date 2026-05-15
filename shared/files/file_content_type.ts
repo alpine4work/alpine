@@ -253,30 +253,36 @@ const fileMicrosoftOfficeDocumentContentTypes: {
  * [8]: https://caniuse.com/ogg-vorbis
  */
 export type FileVideoContentType =
-    | FileWebmVideoContentType
+    | FileWebSafeVideoContentType
     | FileMp4VideoContentType
     | FileWebUnsafeVideoContentType;
 
-export type FileWebmVideoContentType = "video/webm";
+export type FileWebSafeVideoContentType = "video/webm";
 
 export type FileMp4VideoContentType = "video/mp4";
 
 export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
 
 const fileVideoContentTypes: {
-    [Key in FileVideoContentType]: true;
+    [Key in FileVideoContentType]: Key extends FileWebSafeVideoContentType ? true : false;
 } = {
     "video/webm": true,
-    "video/mp4": true,
-    "video/quicktime": true,
-    "video/mpeg": true,
-    "video/x-matroska": true,
+    "video/mp4": false,
+    "video/quicktime": false,
+    "video/mpeg": false,
+    "video/x-matroska": false,
 };
 
 export function isFileVideoContentType(
     contentType: FileContentType,
 ): contentType is FileVideoContentType {
     return contentType in fileVideoContentTypes;
+}
+
+export function isFileWebSafeVideoContentType(
+    contentType: FileContentType,
+): contentType is FileWebSafeVideoContentType {
+    return isFileVideoContentType(contentType) && fileVideoContentTypes[contentType];
 }
 
 export function getFileMicrosoftOfficeContentTypes(): ReadonlyArray<FileMicrosoftOfficeDocumentContentType> {

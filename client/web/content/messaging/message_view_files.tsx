@@ -21,10 +21,7 @@ import {
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
-import {
-    ContentFileLayout,
-    computeContentFileRowLikeLayout,
-} from "~/client/web/content/state/content_file_layout_computations.js";
+import {computeContentFileRowLikeLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -40,6 +37,7 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -112,7 +110,7 @@ export function MessageViewFiles({
                 const fileRows: Array<{
                     files: Array<MessageContentPayloadModelFile>;
                     fileDatas: Array<FileModelRegistryData | FileEntityId | null>;
-                    fileLayouts: Array<ContentFileLayout>;
+                    fileLayouts: ReadonlyArray<ContentFileLayout>;
                 }> = [];
                 let nextFileRow: Array<MessageContentPayloadModelFile> = [];
 

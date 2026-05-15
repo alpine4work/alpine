@@ -13,11 +13,14 @@ import {
     ApiContentBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    ChannelId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
     SpaceId,
     TaskCollectionId,
@@ -66,6 +69,8 @@ const printTestFixtureTaskId = generateId<TaskId>();
 const printTestFixtureDocumentId = generateId<DocumentId>();
 const printTestFixtureTaskCollectionId = generateId<TaskCollectionId>();
 const printTestFixturePostId = generateId<PostId>();
+const printTestFixtureFileId = generateChronologicalId<FileId>();
+const printTestFixtureChannelId = generateId<ChannelId>();
 
 const printTestCommentMarkTextThreadId = generateId<DocumentCommentThreadId>();
 const printTestCommentMarkHighlightThreadId = generateId<DocumentCommentThreadId>();
@@ -9937,6 +9942,839 @@ a
         },
 
         {
+            contentType: "files and previews",
+            cases: [
+                {
+                    description: "standalone image file",
+                    content: {
+                        elements: [{type: "File", id: printTestFixtureFileId}],
+                    },
+                    expectedMarkdown: `\
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+`,
+                },
+                {
+                    description: "standalone image file with explicit content type",
+
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: printTestFixtureFileId,
+                                contentType: "image/png",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+`,
+                },
+                {
+                    description: "standalone video file",
+
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: printTestFixtureFileId,
+                                contentType: "video/mp4",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<video controls><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+`,
+                },
+                {
+                    description: "standalone audio file",
+
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: printTestFixtureFileId,
+                                contentType: "audio/mpeg",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<audio controls><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
+`,
+                },
+                {
+                    description: "standalone pdf file",
+
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: printTestFixtureFileId,
+                                contentType: "application/pdf",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/>
+`,
+                },
+                {
+                    description: "preview with document target",
+                    content: {
+                        elements: [
+                            {
+                                type: "Preview",
+                                target: {type: "Document", id: printTestFixtureDocumentId},
+                                title: "My Document",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![My Document](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview)
+`,
+                },
+                {
+                    description: "preview with channel target",
+                    content: {
+                        elements: [
+                            {
+                                type: "Preview",
+                                target: {type: "Channel", id: printTestFixtureChannelId},
+                                title: "General",
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![General](https://alpine.inc/s/${spaceId}/channels/${printTestFixtureChannelId}/preview)
+`,
+                },
+                {
+                    description: "file gallery with two files",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with multiple rows, second row is standalone",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        items: [
+                                            {element: {type: "File", id: printTestFixtureFileId}},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+`,
+                },
+                {
+                    description: "file gallery with one row and one item renders as standalone",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {element: {type: "File", id: printTestFixtureFileId}},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+`,
+                },
+                {
+                    description: "file float left",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Left",
+                                element: {
+                                    type: "File",
+                                    id: printTestFixtureFileId,
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: left; clear: both"><img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></div>
+`,
+                },
+                {
+                    description: "file float right",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Right",
+                                element: {
+                                    type: "File",
+                                    id: printTestFixtureFileId,
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="float: right; clear: both"><img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></div>
+`,
+                },
+                {
+                    description: "preview inside gallery with one item renders as standalone",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                element: {
+                                                    type: "Preview",
+                                                    target: {
+                                                        type: "Document",
+                                                        id: printTestFixtureDocumentId,
+                                                    },
+                                                    title: "My Document",
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![My Document](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview)
+`,
+                },
+                {
+                    description: "file gallery with three rows, last row is standalone",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.33,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.33,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.34,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        items: [
+                                            {element: {type: "File", id: printTestFixtureFileId}},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+</div>
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+`,
+                },
+                {
+                    description: "file gallery with one row and one preview renders as standalone",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                element: {
+                                                    type: "Preview",
+                                                    target: {
+                                                        type: "Document",
+                                                        id: printTestFixtureDocumentId,
+                                                    },
+                                                    title: "Design Spec",
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![Design Spec](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview)
+`,
+                },
+                {
+                    description: "file in table cell alone",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 2,
+                                columns: [{width: 1}, {width: 1}],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "description"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-width="2">
+<tbody>
+<tr>
+<td>
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+</td>
+<td>
+
+description
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "multiple files in table cell",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 2,
+                                columns: [{width: 1}, {width: 1}],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                ],
+                                            },
+                                            {elements: []},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-width="2">
+<tbody>
+<tr>
+<td>
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "file with text in table cell",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 2,
+                                columns: [{width: 1}, {width: 1}],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "caption"}],
+                                                    },
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                ],
+                                            },
+                                            {elements: []},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-width="2">
+<tbody>
+<tr>
+<td>
+
+caption
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "preview in table cell",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 2,
+                                columns: [{width: 1}, {width: 1}],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Preview",
+                                                        target: {
+                                                            type: "Document",
+                                                            id: printTestFixtureDocumentId,
+                                                        },
+                                                        title: "My Document",
+                                                    },
+                                                ],
+                                            },
+                                            {elements: []},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-width="2">
+<tbody>
+<tr>
+<td>
+
+![My Document](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview)
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "preview inside gallery with multiple items",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "Preview",
+                                                    target: {
+                                                        type: "Document",
+                                                        id: printTestFixtureDocumentId,
+                                                    },
+                                                    title: "My Document",
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with widths",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.67,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.33,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 67%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with video file",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "video/mp4",
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<video controls style="flex: 0 0 50%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with audio file",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "audio/mpeg",
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with PDF file",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "application/pdf",
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with widths and mixed content types",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.4,
+                                                element: {
+                                                    type: "Preview",
+                                                    target: {
+                                                        type: "Document",
+                                                        id: printTestFixtureDocumentId,
+                                                    },
+                                                    title: "My Document",
+                                                },
+                                            },
+                                            {
+                                                width: 0.6,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "video/mp4",
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%"/>
+<video controls style="flex: 0 0 60%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with images of different widths",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.3,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                            {
+                                                width: 0.2,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 30%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 20%"/>
+</div>
+`,
+                },
+                {
+                    description: "file gallery with mixed audio, video, and image",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.33,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "audio/mpeg",
+                                                },
+                                            },
+                                            {
+                                                width: 0.33,
+                                                element: {
+                                                    type: "File",
+                                                    id: printTestFixtureFileId,
+                                                    contentType: "video/mp4",
+                                                },
+                                            },
+                                            {
+                                                width: 0.34,
+                                                element: {type: "File", id: printTestFixtureFileId},
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<audio controls style="flex: 0 0 33%"><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
+<video controls style="flex: 0 0 33%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+</div>
+`,
+                },
+            ],
+        },
+
+        {
             contentType: "miscellaneous",
             cases: [
                 {
@@ -9984,10 +10822,11 @@ Use \`\` \`backticks\` \`\` for inline code
                     spaceId,
                 });
 
-                // We expect `parseApiContentFromMarkdown()` to return normalized `ApiContent`.
-                expect(parseApiContentFromMarkdown(actualMarkdown, {spaceId})).toEqual(
-                    normalizeApiContent(content),
-                );
+                // The parser may include response-only fields (e.g. Preview title from alt text)
+                // that normalization strips. Normalize both sides so we compare canonical forms.
+                expect(
+                    normalizeApiContent(parseApiContentFromMarkdown(actualMarkdown, {spaceId})),
+                ).toEqual(normalizeApiContent(content));
             });
 
             test(`can be parsed by AgentMessageStream`, async () => {

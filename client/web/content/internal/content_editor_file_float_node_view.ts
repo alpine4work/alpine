@@ -4,7 +4,6 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/web/content/internal/content_editor_file_node_view.js";
 import {getContentEditorReferences} from "~/client/web/content/state/content_editor_state.js";
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {
     getPlatformWithoutListening,
     subscribeToPlatformChange,
@@ -14,6 +13,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {
     fileFloatLeftClassName,
     fileFloatRightClassName,

@@ -16,6 +16,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {
     fileAdditionalContentTypesAndExtensionsByContentType,
     fileContentTypeByCodeBlockLanguageId,
+    fileContentTypes,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -44,6 +45,7 @@ async function main() {
             integerRegExp: "(?:[0-9]|[1-9][0-9]+)",
             maxLabelStringLength,
             codeBlockLanguageIds: JSON.stringify(contentCodeBlockLanguageIds),
+            fileContentTypes: JSON.stringify(Array.from(fileContentTypes).sort()),
         },
         undefined,
         {escape: string => string},
@@ -76,6 +78,7 @@ async function main() {
         "ChatId",
         "DocumentId",
         "DocumentThreadId",
+        "FileId",
         "PostId",
         "SpaceId",
         "TaskId",

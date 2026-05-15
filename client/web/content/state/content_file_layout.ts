@@ -1,10 +1,10 @@
 import {Node} from "prosemirror-model";
 import {
-    ContentFileLayout,
     computeContentFileFloatLayout,
     computeContentFileRowLikeLayout,
 } from "~/client/web/content/state/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/web/content/state/internal/create_cached_function.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";

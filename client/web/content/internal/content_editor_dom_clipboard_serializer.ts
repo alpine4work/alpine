@@ -7,6 +7,7 @@ import {isHtmlElementBlockLevel} from "~/client/web/helpers/elements/is_node_blo
 import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {fileRowBlockWidthPxForServerAndClipboard} from "~/shared/content/compute_file_row_widths.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
@@ -223,8 +224,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const spacingScale: SpacingScale = "small";
 
             const layouts = layoutContentFileParent(node, {
-                blockWidth:
-                    contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+                blockWidth: fileRowBlockWidthPxForServerAndClipboard,
                 platform,
                 spacingScale,
                 getFile: fileId => {

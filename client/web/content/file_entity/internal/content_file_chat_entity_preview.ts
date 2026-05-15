@@ -10,7 +10,6 @@ import {
     renderContentFileEntitySubscribeButton,
 } from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
@@ -29,6 +28,7 @@ import {
     FileChatEntityModel,
     FileChatEntityModelSchema,
 } from "~/shared/chat/file_chat_entity_model_schema.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";

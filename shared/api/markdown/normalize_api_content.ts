@@ -3,6 +3,7 @@ import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_a
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -41,6 +42,19 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
             element.items.length === 0
         ) {
             elements.splice(index, 1);
+
+            // After removing an element, the previous element may now be adjacent to a
+            // file-like element it should merge with. Back up so we re-check.
+            if (index > 0) {
+                const prev = elements[index - 1]!;
+                if (
+                    prev.type === "File" ||
+                    prev.type === "Preview" ||
+                    prev.type === "FileGallery"
+                ) {
+                    index--;
+                }
+            }
             continue;
         }
 
@@ -89,7 +103,88 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
             }
         }
 
-        normalizeApiContentBlockElement(element);
+        // Unwrap FileGallery with a single row containing a single element. This runs
+        // before merging so that two adjacent single-item galleries become two standalone
+        // elements rather than a merged two-row gallery. The printer already unwraps these
+        // when printing, so the parser never produces single-item galleries from printed
+        // content.
+        if (
+            element.type === "FileGallery" &&
+            element.rows.length === 1 &&
+            element.rows[0]!.items.length === 1
+        ) {
+            const unwrapped = element.rows[0]!.items[0]!.element;
+            elements.splice(index, 1, castDraft(unwrapped));
+            // Don't increment index, re-process the unwrapped element.
+            continue;
+        }
+
+        // Merge adjacent file-like elements into a single FileGallery.
+        //
+        // `FileGallery` is an API-only concept. In ProseMirror, each row is an independent
+        // `fileRow` node, and there's no wrapper node that groups rows into a "gallery".
+        // We introduced `FileGallery` in the API to give consumers a structured way to
+        // represent multi-file layouts (rows of files displayed side by side). Since
+        // `fileRow` nodes are independent in ProseMirror, adjacent `fileRow` nodes always
+        // belong to the same visual gallery, so we merge their API representations here.
+        //
+        // We also absorb standalone File/Preview elements that follow a gallery. This
+        // happens because the printer unwraps single-item gallery rows into standalone
+        // elements for cleaner markdown. When the parser reads this back, those rows
+        // become standalone elements. Absorbing them restores the original multi-row
+        // structure.
+        //
+        // Example: `FileGallery([A, B], [C])` prints as: `<div>A B</div>` + `![C](url)` (C
+        // unwrapped by printer) Parser produces: `FileGallery([A, B])` + `File(C)`
+        // Normalization absorbs C back: `FileGallery([A, B], [C])` Also handle adjacent
+        // standalone File/Preview elements that should be merged into a gallery. This
+        // happens when the printer unwraps all single-item rows from a multi-row gallery
+        // into standalone elements.
+        if (
+            (element.type === "File" || element.type === "Preview") &&
+            index < elements.length - 1
+        ) {
+            const nextElement = elements[index + 1]!;
+            if (
+                nextElement.type === "File" ||
+                nextElement.type === "Preview" ||
+                nextElement.type === "FileGallery"
+            ) {
+                // Replace the current element with a FileGallery wrapping it, then fall through to
+                // the FileGallery merge logic below.
+                const gallery = castDraft<ApiContentFileGalleryBlockElement>({
+                    type: "FileGallery",
+                    rows: [{items: [{element}]}],
+                });
+                elements.splice(index, 1, gallery);
+            }
+        }
+
+        // Re-read element since we may have replaced it above.
+        const mergeElement = elements[index]!;
+        if (mergeElement.type === "FileGallery") {
+            while (index < elements.length - 1) {
+                const nextElement = elements[index + 1]!;
+
+                if (nextElement.type === "FileGallery") {
+                    for (const row of nextElement.rows) {
+                        mergeElement.rows.push(row);
+                    }
+                    elements.splice(index + 1, 1);
+                    continue;
+                }
+
+                if (nextElement.type === "File" || nextElement.type === "Preview") {
+                    mergeElement.rows.push({items: [{element: nextElement}]});
+                    elements.splice(index + 1, 1);
+                    continue;
+                }
+
+                break;
+            }
+        }
+
+        normalizeApiContentBlockElement(elements[index]!);
         index++;
     }
 }
@@ -185,12 +280,14 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 for (const cell of row.cells) {
                     normalizeApiContentBlockElements(cell.elements);
 
+                    // A single empty paragraph is the default for empty cells. Remove it since the
+                    // parser will recreate it.
                     if (
                         cell.elements.length === 1 &&
                         cell.elements[0]!.type === "Paragraph" &&
                         cell.elements[0]!.elements.length === 0
                     ) {
-                        cell.elements.pop();
+                        cell.elements.splice(0, 1);
                     }
                 }
             }
@@ -207,6 +304,41 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
 
             while (element.columns.length > columnCount) {
                 element.columns.pop();
+            }
+            break;
+        }
+        case "File": {
+            // `contentType` and `contentLength` are response-only metadata that don't survive
+            // the markdown round trip. Strip them so that content with and without metadata
+            // normalizes to the same form.
+            if (hasOwnProperty(element, "contentType")) delete element.contentType;
+            if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+            break;
+        }
+        case "Preview": {
+            // The preview title is only sometimes included as a convenience. It isn't
+            // essential to the preview element.
+            if (hasOwnProperty(element, "title")) {
+                delete element.title;
+            }
+            break;
+        }
+        case "FileFloat": {
+            normalizeApiContentBlockElement(element.element);
+            break;
+        }
+        case "FileGallery": {
+            // FileGallery with a single row containing a single element should be unwrapped to
+            // the bare File/Preview element. This is handled in
+            // `normalizeApiContentBlockElements` above.
+            //
+            // Normalize elements inside each row and strip response-only metadata (`width` on
+            // items, `contentType` on File elements).
+            for (const row of element.rows) {
+                for (const item of row.items) {
+                    if (hasOwnProperty(item, "width")) delete item.width;
+                    normalizeApiContentBlockElement(item.element);
+                }
             }
             break;
         }

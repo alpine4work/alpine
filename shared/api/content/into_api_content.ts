@@ -1,20 +1,29 @@
 import {Mark, Node} from "prosemirror-model";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
+    ApiContentFileBlockElementResponse,
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
+    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
     ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
+    ApiPreviewTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    computeFileRowWidths,
+    fileRowBlockWidthPxForServerAndClipboard,
+    fileRowDefaultPreviewHeightPx,
+} from "~/shared/content/compute_file_row_widths.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentBlockNodeTypeName,
@@ -23,13 +32,19 @@ import {
     ContentMarkTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
+import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
+import {getFilePreviewSizeForLayout} from "~/shared/content/get_file_preview_size.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,
@@ -47,6 +62,13 @@ export type ApiContentMarkdownIntoOptions = {
     readonly getSearchTaskEntityDisplayStatusIfExists: (
         taskId: TaskId,
     ) => TaskDisplayStatus | undefined;
+    readonly getFileIfExists: (fileId: FileId) =>
+        | {
+              contentType: FileContentType;
+              contentLength: number;
+              size?: {width: number | null; height: number};
+          }
+        | undefined;
 };
 
 /**
@@ -115,6 +137,55 @@ function* intoApiContentBlockElements(
                 }
 
                 yield* intoApiContentListBlockElements(items, options);
+                break;
+            }
+            case "fileRow": {
+                // Merge adjacent fileRow nodes into a single FileGallery.
+                const rows: Array<{
+                    items: Array<{
+                        width: number;
+                        element:
+                            | ApiContentFileBlockElementResponse
+                            | ApiContentPreviewBlockElementResponse;
+                    }>;
+                }> = [];
+
+                // Back up to include the current node.
+                nodeIndex--;
+
+                while (nodeIndex < nodes.length) {
+                    const fileRowNode = nodes[nodeIndex]!;
+                    if (fileRowNode.type.name !== "fileRow") break;
+                    nodeIndex++;
+
+                    const rowElements = fileRowNode.content.content.map(child =>
+                        intoApiContentFileOrPreviewElement(child, options),
+                    );
+
+                    if (rowElements.length > 0) {
+                        const widths = computeGalleryRowWidths(rowElements, options);
+                        rows.push({
+                            items: rowElements.map((element, i) => ({
+                                width: widths[i]!,
+                                element,
+                            })),
+                        });
+                    }
+                }
+
+                if (rows.length === 0) {
+                    throw new InternalError("File row must contain at least one file");
+                }
+
+                // Single row with single element unwraps to a standalone element.
+                if (rows.length === 1 && rows[0]!.items.length === 1) {
+                    yield assertExists(rows[0]!.items[0]).element;
+                } else {
+                    yield {
+                        type: "FileGallery",
+                        rows,
+                    };
+                }
                 break;
             }
             default:
@@ -240,7 +311,7 @@ function* intoApiContentListBlockElements(
 function intoApiContentBlockElement(
     typeName: Exclude<
         ContentBlockNodeTypeName,
-        "unorderedListItem" | "orderedListItem" | "checkListItem"
+        "unorderedListItem" | "orderedListItem" | "checkListItem" | "fileRow"
     >,
     node: Node,
     options: ApiContentMarkdownIntoOptions,
@@ -269,7 +340,11 @@ function intoApiContentBlockElement(
                             case "Heading":
                             case "Divider":
                             case "Table":
-                            case "Code": {
+                            case "Code":
+                            case "File":
+                            case "FileGallery":
+                            case "FileFloat":
+                            case "Preview": {
                                 throw new InternalError(
                                     quote`${element.type} block element isn\u2019t supported in \`Quote\` block element`,
                                 );
@@ -318,12 +393,16 @@ function intoApiContentBlockElement(
                                                 case "OrderedList":
                                                 case "Quote":
                                                 case "CheckList":
-                                                case "Code": {
+                                                case "Code":
+                                                case "File":
+                                                case "Preview": {
                                                     return element;
                                                 }
                                                 case "Table":
                                                 case "Heading":
-                                                case "Divider": {
+                                                case "Divider":
+                                                case "FileGallery":
+                                                case "FileFloat": {
                                                     throw new InternalError(
                                                         quote`${element.type} block element isn\u2019t supported in \`Table\` block element`,
                                                     );
@@ -383,34 +462,136 @@ function intoApiContentBlockElement(
                 }),
             };
         }
-        case "fileRow":
-        case "fileFloat":
-        case "fileRowTable": {
-            // TODO(ifitzsimmons, #ai): Add support for file attachments. Currently, the agent
-            // has no way to actually read file attachments, so there's no need to spend time
-            // implementing this conversion right now. My primary concern is that I don't want
-            // the agent to fail any time it reads content with attachments.
-            //
-            // If we were to publish our API, we'd also need to make sure that this is
-            // implemented.
-            //
-            // In any case, I'm deprioritizing this work for launch. I'll get back to this if I
-            // have time.
-            //
-            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/55rd1cnzfvcqeq21qceb4pzpfw
+        case "fileFloat": {
+            const fileChild = assertExists(node.content.content[0]);
+            const element = intoApiContentFileOrPreviewElement(fileChild, options);
+            const direction = node.attrs.direction;
+            assert(typeof direction === "string");
             return {
-                type: "Paragraph",
-                elements: [
-                    {
-                        type: "Text",
-                        text: "(There\u2019s a file attachment here but ChatGPT can\u2019t currently see files in Alpine.)",
-                    },
-                ],
+                type: "FileFloat",
+                side: direction === "left" ? "Left" : "Right",
+                element,
             };
+        }
+        case "fileRowTable": {
+            const fileChild = assertExists(node.content.content[0]);
+            return intoApiContentFileOrPreviewElement(fileChild, options);
         }
         default:
             throw exhaustive(typeName);
     }
+}
+
+function intoApiContentFileOrPreviewElement(
+    fileNode: Node,
+    options: ApiContentMarkdownIntoOptions,
+): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
+    const fileId: string | null = fileNode.attrs.fileId;
+    if (fileId === null) {
+        return {
+            type: "File",
+            id: unknownFileId,
+            contentType: "application/octet-stream",
+            contentLength: 0,
+        };
+    }
+
+    if (isFileEntityId(fileId)) {
+        const entityIdObject = parseFileEntityId(fileId);
+
+        // TODO(#sites): Add support for Site previews.
+        if (entityIdObject.type === "Site") {
+            throw new UnimplementedError("Site previews aren\u2019t supported yet");
+        }
+
+        const target = fileEntityIdObjectToPreviewTarget(entityIdObject, options);
+
+        const title =
+            options.getSearchEntityMentionTitleIfExists(fileId) ??
+            `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
+
+        return {type: "Preview", target, title};
+    }
+
+    assert(isId<FileId>(fileId));
+    const file = options.getFileIfExists(fileId);
+    return {
+        type: "File",
+        id: fileId,
+        contentType: file?.contentType ?? "application/octet-stream",
+        contentLength: file?.contentLength ?? 0,
+    };
+}
+
+function fileEntityIdObjectToPreviewTarget(
+    entityIdObject: Exclude<ReturnType<typeof parseFileEntityId>, {type: "Site"}>,
+    options: ApiContentMarkdownIntoOptions,
+): ApiPreviewTargetResponse {
+    switch (entityIdObject.type) {
+        case "Channel":
+            return {type: "Channel", id: entityIdObject.channelId};
+        case "Chat":
+            return {type: "Chat", id: entityIdObject.chatId};
+        case "Document":
+            return {type: "Document", id: entityIdObject.documentId};
+        case "Post":
+            return {type: "Post", id: entityIdObject.postId};
+        case "Task":
+            return {
+                type: "Task",
+                id: entityIdObject.taskId,
+                status: intoApiTaskStatus(
+                    options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
+                        "Closed",
+                ),
+            };
+        case "TaskCollection":
+            return {type: "TaskCollection", id: entityIdObject.collectionId};
+        default:
+            throw exhaustive(entityIdObject);
+    }
+}
+
+/**
+ * Compute fractional widths (0 to 1) for a gallery row using the Cassowary
+ * constraint solver. Uses `getFilePreviewSizeForLayout` so that audio, code, and
+ * image files get content-type-appropriate aspect ratios matching the client-side
+ * renderer.
+ */
+function computeGalleryRowWidths(
+    elements: ReadonlyArray<
+        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+    >,
+    options: ApiContentMarkdownIntoOptions,
+): Array<number> {
+    const files = elements.map(element => {
+        if (element.type === "File" && element.id !== null) {
+            const file = options.getFileIfExists(element.id);
+            if (file) {
+                return getFilePreviewSizeForLayout({
+                    contentType: file.contentType,
+                    size: file.size,
+                });
+            }
+        }
+        // File entity previews and files without data have flexible width. Use null width
+        // so the layout solver treats them as flexible, with a height that varies by how
+        // many items are in the row (matching client-side
+        // `getFileOrFileEntityPreviewSize`).
+        return {
+            width: null,
+            height: getFileEntityPreviewHeight({
+                fileCount: elements.length,
+                maxFileCount: 3,
+                blockWidth: fileRowBlockWidthPxForServerAndClipboard,
+                defaultPreviewHeight: fileRowDefaultPreviewHeightPx,
+            }),
+        };
+    });
+
+    return computeFileRowWidths(files, {
+        containerWidth: fileRowBlockWidthPxForServerAndClipboard,
+    });
 }
 
 function intoApiContentInlineElements(

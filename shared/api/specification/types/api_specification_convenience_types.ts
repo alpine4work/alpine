@@ -110,6 +110,47 @@ export type ApiContentCodeBlockElementTextInlineElement =
 export type ApiContentCodeBlockElementTextInlineElementMark =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementTextInlineElementMark"];
 
+export type ApiContentFileBlockElement =
+    ApiSpecification.components["schemas"]["ContentFileBlockElement"];
+
+export type ApiContentFileBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentFileBlockElement_Response"];
+
+export type ApiContentPreviewBlockElement =
+    ApiSpecification.components["schemas"]["ContentPreviewBlockElement"];
+
+export type ApiContentPreviewBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentPreviewBlockElement_Response"];
+
+export type ApiContentFileGalleryBlockElement =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement"];
+
+export type ApiContentFileGalleryBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_Response"];
+
+export type ApiContentFileGalleryBlockElementRow =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow"];
+
+export type ApiContentFileGalleryBlockElementRowResponse =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_Response"];
+
+export type ApiContentFileGalleryBlockElementRowItem =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem"];
+
+export type ApiContentFileGalleryBlockElementRowItemResponse =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"];
+
+export type ApiContentFileFloatBlockElement =
+    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement"];
+
+export type ApiContentFileFloatBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Response"];
+
+export type ApiPreviewTarget = ApiSpecification.components["schemas"]["PreviewTarget"];
+
+export type ApiPreviewTargetResponse =
+    ApiSpecification.components["schemas"]["PreviewTarget_Response"];
+
 export type ApiContentInlineElement =
     ApiSpecification.components["schemas"]["ContentInlineElement"];
 

@@ -2,6 +2,8 @@ import {
     computeContentFileFloatLayout,
     computeContentFileRowLikeLayout,
 } from "~/client/web/content/state/content_file_layout_computations.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
+import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shared_styles.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -951,4 +953,10 @@ test("floats file entity", () => {
         widthFr: 1,
         height: 258.7,
     });
+});
+
+test("contentLargeFallbackFileWidthPx matches mobile block max width at large spacing scale", () => {
+    expect(contentLargeFallbackFileWidthPx).toEqual(
+        contentStyles.blockMaxWidthRem.mobile * remPxBySpacingScale.large,
+    );
 });

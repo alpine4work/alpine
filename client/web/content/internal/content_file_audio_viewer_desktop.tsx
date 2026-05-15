@@ -16,7 +16,6 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/web/content/internal/content_file_viewer_shared_styles.js";
 import {getContentFileViewerSrc} from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {minAspectRatioIfNotSingleFileRow} from "~/client/web/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/web/design/box.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -29,6 +28,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
+import {minAspectRatioIfNotSingleFileRow} from "~/shared/content/compute_file_row_widths.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";

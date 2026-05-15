@@ -1,11 +1,13 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {
+    intoApiContentParagraphBlockElement,
     parseApiContentFromMarkdown,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 
@@ -3647,4 +3649,524 @@ test("escaped newlines are turned into a break", () => {
             },
         ],
     });
+});
+
+test("FileGallery with multi-item rows throws in table cells", () => {
+    const fileId1 = generateChronologicalId<FileId>();
+    const fileId2 = generateChronologicalId<FileId>();
+    expect(() =>
+        Array.from(
+            intoApiContentParagraphBlockElement({
+                type: "FileGallery",
+                rows: [
+                    {
+                        items: [
+                            {element: {type: "File", id: fileId1}},
+                            {element: {type: "File", id: fileId2}},
+                        ],
+                    },
+                ],
+            }),
+        ),
+    ).toThrow("File gallery rows with multiple items aren\u2019t supported in table cells");
+});
+
+test("FileGallery with single-item rows is allowed in table cells via fromApiContent", () => {
+    const fileId1 = generateChronologicalId<FileId>();
+    const fileId2 = generateChronologicalId<FileId>();
+    // FileGallery with single-item rows in a table cell should round-trip through
+    // fromApiContent without throwing. The gallery rows get unwrapped to standalone
+    // File elements (matching `fileRowTable` in ProseMirror).
+    expect(() =>
+        parseApiContentFromMarkdown(
+            `<table><tr><td>` +
+                `<img src="https://alpine.inc/s/${spaceId}/files/${fileId1}"/>` +
+                `<img src="https://alpine.inc/s/${spaceId}/files/${fileId2}"/>` +
+                `</td></tr></table>`,
+            {spaceId},
+        ),
+    ).not.toThrow();
+});
+
+test("gallery row div with style after other attributes still parses", () => {
+    const fileId = generateChronologicalId<FileId>();
+    // Style is the second attribute, not the first. The parser should still recognize
+    // this as a gallery row.
+    const html = `<div id="foo" style="display: flex"><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/></div>`;
+    expect(parseApiContentFromMarkdown(html, {spaceId})).toEqual({
+        elements: [
+            {
+                type: "FileGallery",
+                rows: [
+                    {
+                        items: [
+                            {element: {type: "File", id: fileId}},
+                            {element: {type: "File", id: fileId}},
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("gallery row div with style before other attributes still parses", () => {
+    const fileId = generateChronologicalId<FileId>();
+    // Style is the first attribute, followed by an unrelated attribute.
+    const html = `<div style="display: flex" id="bar"><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/><img src="https://alpine.inc/s/${spaceId}/files/${fileId}"/></div>`;
+    expect(parseApiContentFromMarkdown(html, {spaceId})).toEqual({
+        elements: [
+            {
+                type: "FileGallery",
+                rows: [
+                    {
+                        items: [
+                            {element: {type: "File", id: fileId}},
+                            {element: {type: "File", id: fileId}},
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("FileFloat throws when used in table cells", () => {
+    expect(() =>
+        Array.from(
+            intoApiContentParagraphBlockElement({
+                type: "FileFloat",
+                side: "Right",
+                element: {type: "File", id: generateChronologicalId<FileId>()},
+            }),
+        ),
+    ).toThrow("File floats aren\u2019t supported in table cells");
+});
+
+describe("inline HTML media elements", () => {
+    function fileUrl(fileId: FileId): string {
+        return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+    }
+
+    test("standalone video", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("standalone audio", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("standalone object (PDF)", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<object type="application/pdf" data="${fileUrl(fileId)}"/>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("standalone image still parses as markdown image", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `![](${fileUrl(fileId)})\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("video with text before", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `Here is a video: <video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Here is a video: "}],
+                },
+                {type: "File", id: fileId},
+            ],
+        });
+    });
+
+    test("video with text after", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video> and some text\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {type: "File", id: fileId},
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: " and some text"}],
+                },
+            ],
+        });
+    });
+
+    test("video between paragraphs", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `First paragraph.\n\n<video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video>\n\nSecond paragraph.\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "First paragraph."}],
+                },
+                {type: "File", id: fileId},
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Second paragraph."}],
+                },
+            ],
+        });
+    });
+
+    test("video with src attribute instead of source child", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<video controls src="${fileUrl(fileId)}"></video>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("video wrapped in div still works", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<div><video controls><source type="video/mp4" src="${fileUrl(fileId)}"/></video></div>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("audio wrapped in div still works", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<div><audio controls><source type="audio/mpeg" src="${fileUrl(fileId)}"/></audio></div>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("object wrapped in div still works", () => {
+        const fileId = generateChronologicalId<FileId>();
+        const md = `<div><object type="application/pdf" data="${fileUrl(fileId)}"/></div>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [{type: "File", id: fileId}],
+        });
+    });
+
+    test("two videos as separate paragraphs merge into a gallery", () => {
+        const fileId1 = generateChronologicalId<FileId>();
+        const fileId2 = generateChronologicalId<FileId>();
+        const md =
+            `<video controls><source type="video/mp4" src="${fileUrl(fileId1)}"/></video>\n\n` +
+            `<video controls><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {items: [{element: {type: "File", id: fileId1}}]},
+                        {items: [{element: {type: "File", id: fileId2}}]},
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("image followed by video merge into a gallery", () => {
+        const fileId1 = generateChronologicalId<FileId>();
+        const fileId2 = generateChronologicalId<FileId>();
+        const md =
+            `![](${fileUrl(fileId1)})\n\n` +
+            `<video controls><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {items: [{element: {type: "File", id: fileId1}}]},
+                        {items: [{element: {type: "File", id: fileId2}}]},
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("gallery row div with mixed image and video", () => {
+        const fileId1 = generateChronologicalId<FileId>();
+        const fileId2 = generateChronologicalId<FileId>();
+        const md =
+            `<div style="display: flex; align-items: stretch">\n` +
+            `<img alt="" src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>\n` +
+            `<video controls style="flex: 0 0 50%"><source type="video/mp4" src="${fileUrl(fileId2)}"/></video>\n` +
+            `</div>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {element: {type: "File", id: fileId1}},
+                                {element: {type: "File", id: fileId2}},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("gallery row div with mixed image and audio", () => {
+        const fileId1 = generateChronologicalId<FileId>();
+        const fileId2 = generateChronologicalId<FileId>();
+        const md =
+            `<div style="display: flex; align-items: stretch">\n` +
+            `<img alt="" src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>\n` +
+            `<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="${fileUrl(fileId2)}"/></audio>\n` +
+            `</div>\n`;
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {element: {type: "File", id: fileId1}},
+                                {element: {type: "File", id: fileId2}},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("complex document with mixed content types", () => {
+        const f1 = generateChronologicalId<FileId>();
+        const f2 = generateChronologicalId<FileId>();
+        const f3 = generateChronologicalId<FileId>();
+        const f4 = generateChronologicalId<FileId>();
+        const f5 = generateChronologicalId<FileId>();
+        const f6 = generateChronologicalId<FileId>();
+        const f7 = generateChronologicalId<FileId>();
+        const f8 = generateChronologicalId<FileId>();
+        const f9 = generateChronologicalId<FileId>();
+
+        const md = [
+            // 1. Text paragraph
+            `Opening paragraph.`,
+            ``,
+            // 2. Inline markdown image (sole child, becomes File)
+            `![](${fileUrl(f1)})`,
+            ``,
+            // 3. Text paragraph
+            `Some context between files.`,
+            ``,
+            // 4. HTML image (block-level because <img> starts the line)
+            `<img src="${fileUrl(f2)}"/>`,
+            ``,
+            // 5. Text paragraph
+            `More text here.`,
+            ``,
+            // 6. Inline HTML video followed by inline HTML image in the same paragraph. The
+            //    video is detected as a media tag and extracted; the <img> after it becomes
+            //    trailing paragraph content.
+            `<video controls><source type="video/mp4" src="${fileUrl(f3)}"/></video><img src="${fileUrl(f4)}"/>`,
+            ``,
+            // 7. Text paragraph
+            `Almost done.`,
+            ``,
+            // 8. Standalone inline HTML audio
+            `<audio controls><source type="audio/mpeg" src="${fileUrl(f8)}"/></audio>`,
+            ``,
+            // 9. Standalone inline HTML object (PDF)
+            `<object type="application/pdf" data="${fileUrl(f9)}"/>`,
+            ``,
+            // 10. Text paragraph
+            `Between media and gallery.`,
+            ``,
+            // 11. Div gallery row with three objects
+            `<div style="display: flex; align-items: stretch">`,
+            `<object type="application/pdf" data="${fileUrl(f5)}" style="flex: 0 0 34%"/>`,
+            `<object type="application/pdf" data="${fileUrl(f6)}" style="flex: 0 0 33%"/>`,
+            `<object type="application/pdf" data="${fileUrl(f7)}" style="flex: 0 0 33%"/>`,
+            `</div>`,
+            ``,
+            // 12. Div with one image (standalone, absorbed into gallery above)
+            `<div><img src="${fileUrl(f1)}"/></div>`,
+            ``,
+            // 13. Text paragraph
+            `Final paragraph.`,
+            ``,
+        ].join("\n");
+
+        expect(parseApiContentFromMarkdown(md, {spaceId})).toEqual({
+            elements: [
+                // 1. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Opening paragraph."}],
+                },
+                // 2. Markdown image
+                {type: "File", id: f1},
+                // 3. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Some context between files."}],
+                },
+                // 4. Block-level HTML image
+                {type: "File", id: f2},
+                // 5. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "More text here."}],
+                },
+                // 6. Video extracted from inline HTML, trailing <img> parsed as a separate
+                //    element. Adjacent File elements merge into a gallery.
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {items: [{element: {type: "File", id: f3}}]},
+                        {items: [{element: {type: "File", id: f4}}]},
+                    ],
+                },
+                // 7. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Almost done."}],
+                },
+                // 8-9. Adjacent audio and object merge into a gallery.
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {items: [{element: {type: "File", id: f8}}]},
+                        {items: [{element: {type: "File", id: f9}}]},
+                    ],
+                },
+                // 10. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Between media and gallery."}],
+                },
+                // 11-12. Gallery row with three objects + standalone div image merge into one
+                // gallery.
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {element: {type: "File", id: f5}},
+                                {element: {type: "File", id: f6}},
+                                {element: {type: "File", id: f7}},
+                            ],
+                        },
+                        {items: [{element: {type: "File", id: f1}}]},
+                    ],
+                },
+                // 13. Text
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Final paragraph."}],
+                },
+            ],
+        });
+    });
+});
+
+test("File throws when used in quote blocks", () => {
+    expect(() =>
+        Array.from(
+            intoApiContentParagraphBlockElement({
+                type: "File",
+                id: generateChronologicalId<FileId>(),
+            }),
+        ),
+    ).toThrow("Files aren\u2019t supported in quote blocks");
+});
+
+// Agents may write previews as markdown links instead of images. We parse these
+// into Preview elements but don't print them back as links (we always use image
+// syntax), so these are parse-only tests with no roundtrip.
+test("link to document preview URL parses as Preview", () => {
+    const documentId = generateId<DocumentId>();
+    expect(
+        parseApiContentFromMarkdown(
+            `[My Document](https://alpine.inc/s/${spaceId}/documents/${documentId}/preview)`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                target: {type: "Document", id: documentId},
+            },
+        ],
+    });
+});
+
+test("link to channel preview URL parses as Preview", () => {
+    const channelId = generateId<ChannelId>();
+    expect(
+        parseApiContentFromMarkdown(
+            `[General](https://alpine.inc/s/${spaceId}/channels/${channelId}/preview)`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                target: {type: "Channel", id: channelId},
+            },
+        ],
+    });
+});
+
+test("HTML <a> tag inside <div> with preview URL parses as Preview", () => {
+    const documentId = generateId<DocumentId>();
+    expect(
+        parseApiContentFromMarkdown(
+            `<div><a href="https://alpine.inc/s/${spaceId}/documents/${documentId}/preview">My Document</a></div>`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                target: {type: "Document", id: documentId},
+            },
+        ],
+    });
+});
+
+test("link to non-preview URL parses as Paragraph with Link mark", () => {
+    expect(parseApiContentFromMarkdown(`[click here](https://example.com)`, {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Text",
+                        text: "click here",
+                        marks: [{type: "Link", url: "https://example.com"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("Preview throws when used in quote blocks", () => {
+    expect(() =>
+        Array.from(
+            intoApiContentParagraphBlockElement({
+                type: "Preview",
+                target: {type: "Document", id: generateId<DocumentId>()},
+            }),
+        ),
+    ).toThrow("Previews aren\u2019t supported in quote blocks");
 });

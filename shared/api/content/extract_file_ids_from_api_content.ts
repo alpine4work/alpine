@@ -1,21 +1,17 @@
-import {ApiContentExtended} from "~/shared/api/content/from_api_content.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 /**
- * Extract all file IDs from API content by visiting FileRow and FileRowTable
- * elements.
+ * Extract all file IDs from API content by visiting File, FileGallery, and
+ * FileFloat elements.
  */
-export function extractFileIdsFromApiContent(content: ApiContentExtended): Set<FileId> {
+export function extractFileIdsFromApiContent(content: ApiContent): Set<FileId> {
     const fileIds = new Set<FileId>();
     visitApiContent(content, {
-        visitFileRow: element => {
-            if (element.type === "FileRow") {
-                for (const file of element.files) {
-                    fileIds.add(file.fileId);
-                }
-            } else {
-                fileIds.add(element.fileId);
+        visitBlockElement: element => {
+            if (element.type === "File" && element.id !== null) {
+                fileIds.add(element.id);
             }
         },
     });

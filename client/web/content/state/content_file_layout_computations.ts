@@ -1,68 +1,24 @@
 import * as kiwi from "@lume/kiwi";
 import {documentCommentThreadPreviewHeight} from "~/client/web/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {
+    type ContentFileLayout,
+    computeFileRowLayout,
+    minAspectRatioIfNotSingleFileRow,
+} from "~/shared/content/compute_file_row_widths.js";
+import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
+
 import {Platform} from "~/shared/design/core/platform.js";
-import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-
-/**
- * The fallback file aspect ratio we use when we don't have a way to preview the
- * file. For example binary files or files with an error message.
- */
-const fallbackFileAspectRatio = 3 / 2;
-
-// Use the larger `remPx` size (mobile) and the larger block max width (mobile).
-// The file will be scaled down as necessary.
-const largeFallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxBySpacingScale.large;
-const largeFallbackFileHeight = largeFallbackFileWidth / fallbackFileAspectRatio;
-const largeFallbackFileSize = {width: largeFallbackFileWidth, height: largeFallbackFileHeight};
-
-const smallFallbackFileWidth = 200;
-const smallFallbackFileHeight = smallFallbackFileWidth / fallbackFileAspectRatio;
-const smallFallbackFileSize = {width: smallFallbackFileWidth, height: smallFallbackFileHeight};
 
 // Aspect ratio of letter paper. https://en.wikipedia.org/wiki/Letter_(paper_size)
 const letterPaperAspectRatio = 17 / 22;
-
-/**
- * The minimum width:height aspect ratio we support when rendering images. Images
- * with a taller aspect ratio will be cropped. Super tall images start to look bad
- * with our layout engine since either they take over the page (forcing you to
- * scroll) or if we want to keep images to a max height we'd have to start
- * shrinking the image until there's barely any visible width remaining. So instead
- * we limit how tall images can get before we start cropping.
- *
- * Three tall aspect ratios we want to support without cropping:
- *
- * 1. Large phones. The [largest iPhone is 9:19.5][1] (~0.46) which is greater than
- *    21:50 (0.42). We don't want to crop iPhone screenshots.
- *
- * 2. [Ultrawide 21:9 (~0.43) monitors][2]. In case a user has turned their monitor
- *    vertically and took a screenshot. We don't want to crop that screenshot.
- *
- * 3. The [standard for "Big Screen Cinema" (Cinemascope) is 2.35:1][3] (1:2.35 is
- *    ~0.43). While it's unlikely someone would rotate a cinema shot vertically, we
- *    use the inverse of our minimum aspect ratio as our maximum aspect ratio. So
- *    we want to make sure a cinema shot works horizontally without being cropped.
- *
- * 4. Paper print outs. [Letter paper aspect ratio is 17:22][4] (~0.77) which is
- *    greater than 0.42 so letter paper doesn't crop.
- *
- * We picked 21:50 to just barely include Ultrawide monitors. We could do 2:5 which
- * is simpler but we may already be pushing the limits of what can look good
- * visually with 21:50.
- *
- * [1]: https://iosref.com/res#iphone
- * [2]: https://en.wikipedia.org/wiki/Ultrawide_formats
- * [3]: https://elitescreens.com/understanding-aspect-ratio
- * [4]: https://en.wikipedia.org/wiki/Letter_(paper_size)
- */
-export const minAspectRatioIfNotSingleFileRow = 21 / 50;
 
 /**
  * The maximum width:height aspect ratio we support when rendering images. Images
@@ -81,16 +37,6 @@ const maxAspectRatioIfNotSingleFileRow = minAspectRatioIfNotSingleFileRow ** -1;
 function round3(n: number) {
     return Math.round(n * 10 ** 3) / 10 ** 3;
 }
-
-function round6(n: number) {
-    return Math.round(n * 10 ** 6) / 10 ** 6;
-}
-
-export type ContentFileLayout = {
-    readonly width: number;
-    readonly widthFr: number;
-    readonly height: number;
-};
 
 /**
  * Layout the files in a file row. Uses the [Cassowary algorithm][1] (specifically
@@ -115,10 +61,8 @@ export type ContentFileLayout = {
  * [3]:
  *     https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function computeContentFileRowLikeLayout<
-    Files extends Array<FileModelData | FileEntityId | null>,
->(
-    files: Files,
+export function computeContentFileRowLikeLayout(
+    files: Array<FileModelData | FileEntityId | null>,
     options: {
         maxFileCount: number;
         blockWidth: number;
@@ -126,286 +70,24 @@ export function computeContentFileRowLikeLayout<
         spacingScale: SpacingScale;
         maxHeight?: RemLength;
     },
-): {[Key in keyof Files]: ContentFileLayout} {
+): ReadonlyArray<ContentFileLayout> {
     assert(files.length >= 1);
     assert(files.length <= 3);
 
-    const {
-        maxFileCount,
-        blockWidth,
+    const {blockWidth, spacingScale} = options;
+
+    // Resolve file dimensions from FileModelData/FileEntityId.
+    const fileSizes = files.map(file =>
+        getFileOrFileEntityPreviewSize(files.length, file, options),
+    );
+
+    return computeFileRowLayout(fileSizes, {
+        containerWidth: blockWidth,
         spacingScale,
-        maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
-    } = options;
-
-    const remPx = remPxBySpacingScale[spacingScale];
-    const minWidth = contentStyles.fileMinSizeRem * remPx;
-    const fairlySplitBlockWidth =
-        (blockWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1)) / files.length;
-
-    const solver = new kiwi.Solver();
-
-    const sizeVariables: Array<{width: kiwi.Variable; height: kiwi.Variable; actualSize: number}> =
-        [];
-    let firstHeightVariable: kiwi.Variable | null = null;
-
-    for (const file of files) {
-        const {width, height} = getFileOrFileEntityPreviewSize(files.length, file, options);
-
-        const widthVariable = new kiwi.Variable();
-        const heightVariable = new kiwi.Variable();
-
-        sizeVariables.push({
-            width: widthVariable,
-            height: heightVariable,
-            // If `width` isn't set then assume `width` as close is an even share of the
-            // `blockWidth`.
-            actualSize: (width ?? fairlySplitBlockWidth) * height,
-        });
-
-        // All files in a row must have the same height.
-        if (firstHeightVariable === null) {
-            firstHeightVariable = heightVariable;
-        } else {
-            solver.addConstraint(
-                new kiwi.Constraint(
-                    heightVariable,
-                    kiwi.Operator.Eq,
-                    firstHeightVariable,
-                    kiwi.Strength.required,
-                ),
-            );
-        }
-
-        // If there's only one file then we want the file to fill the entire row width.
-        // We'll use a letterboxed design to make sure the entire file is visible.
-        if (files.length === 1) {
-            solver.addConstraint(
-                new kiwi.Constraint(
-                    widthVariable,
-                    kiwi.Operator.Eq,
-                    blockWidth,
-                    kiwi.Strength.required,
-                ),
-            );
-        }
-        // Add `width` bounds. `width` should be larger than our min file size and less
-        // than the file's original width (since making a small file larger will start to
-        // add resize artifacts).
-        //
-        // The maximum width is also implicitly bound by the constraint we add below this
-        // loop adding up all `widthVariables` and requiring that they're less than our
-        // file row's width.
-        else {
-            solver.addConstraint(
-                new kiwi.Constraint(
-                    widthVariable,
-                    kiwi.Operator.Ge,
-                    minWidth,
-                    kiwi.Strength.required,
-                ),
-            );
-
-            if (width === null) {
-                // If there's no `maxWidth` (because there's no `width`) then we want the file to
-                // be close to a fair share of the block width. But it's perfectly fine to break
-                // this constraint.
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        widthVariable,
-                        kiwi.Operator.Eq,
-                        fairlySplitBlockWidth,
-                        kiwi.Strength.weak,
-                    ),
-                );
-            }
-        }
-
-        // Add `height` bounds. `height` should be larger than our min file size and less
-        // than both the file's original height (since making a small file larger will
-        // start to add resize artifacts) and the file row's maximum height.
-        {
-            const minHeight = contentStyles.fileMinSizeRem * remPx;
-            const maxHeight = clamp(
-                minHeight,
-                height,
-                convertRemLengthToPx(rowMaxHeight, spacingScale),
-            );
-
-            if (minHeight === maxHeight) {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        heightVariable,
-                        kiwi.Operator.Eq,
-                        minHeight,
-                        kiwi.Strength.required,
-                    ),
-                );
-            } else {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        heightVariable,
-                        kiwi.Operator.Ge,
-                        minHeight,
-                        kiwi.Strength.required,
-                    ),
-                );
-
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        heightVariable,
-                        kiwi.Operator.Le,
-                        maxHeight,
-                        kiwi.Strength.required,
-                    ),
-                );
-            }
-
-            // If there's no width then we want the file's height to be as close to the
-            // declared height as possible.
-            if (width === null) {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        heightVariable,
-                        kiwi.Operator.Eq,
-                        height,
-                        kiwi.Strength.strong,
-                    ),
-                );
-            }
-        }
-
-        const aspectRatio = (width ?? fairlySplitBlockWidth) / height;
-
-        // Maintain the aspect ratio of the file as best we can. This constraint isn't
-        // required, the solver may break it if necessary.
-        //
-        // If there's no `width` then the aspect ratio is flexible. But we still add this
-        // constraint with a `>=` operator to make sure the file doesn't get squished next
-        // to other files.
-        solver.addConstraint(
-            new kiwi.Constraint(
-                widthVariable.minus(
-                    heightVariable.multiply(
-                        // If there's only one file in the row then we try to reach its aspect ratio since
-                        // it won't cause other files in the row to be squished. This is mostly for very
-                        // wide files allowing them to be fully visible without letterboxing.
-                        files.length === 1
-                            ? aspectRatio
-                            : clamp(
-                                  minAspectRatioIfNotSingleFileRow,
-                                  aspectRatio,
-                                  maxAspectRatioIfNotSingleFileRow,
-                              ),
-                    ),
-                ),
-                width !== null ? kiwi.Operator.Eq : kiwi.Operator.Ge,
-                0,
-                kiwi.Strength.strong,
-            ),
-        );
-    }
-
-    // When we add up all our widths it must be less than the total `fileRowWidth`.
-    // Ideally the width is exactly equal to `fileRowWidth` but that's not possible if
-    // we have smaller files.
-    //
-    // `fileRowWidth` is best case. We don't rerun our layout function whenever the
-    // file row's width changes. Instead we hope we're taking up the full block max
-    // width or we're taking the full screen on smaller devices. If the file row width
-    // isn't exactly what we expect then we'll have to start cropping content in the
-    // file.
-    if (files.length > 1) {
-        let widthExpression: kiwi.Variable | kiwi.Expression = sizeVariables[0]!.width;
-
-        for (let i = 1; i < sizeVariables.length; i++) {
-            const widthVariable = sizeVariables[i]!.width;
-            widthExpression = widthExpression
-                .plus(contentStyles.fileRowGapWidthRem * remPx)
-                .plus(widthVariable);
-        }
-
-        // Strength that's stronger than `kiwi.Strength.strong` but still isn't required.
-        const strongerStrength = kiwi.Strength.create(2.0, 0.0, 0.0);
-
-        // We think it's most aesthetically pleasing when files fill our row's full width.
-        //
-        // If all the files in the row were `minWidth` and still wouldn't fit in
-        // `blockWidth` then we remove the constraint that our widths must sum up to
-        // `blockWidth`. This only kicks in for recursive document file entities which end
-        // up rendering documents at a very small size.
-        solver.addConstraint(
-            new kiwi.Constraint(
-                widthExpression,
-                kiwi.Operator.Eq,
-                blockWidth,
-                blockWidth >=
-                    minWidth * maxFileCount +
-                        contentStyles.fileRowGapWidthRem * remPx * (maxFileCount - 1)
-                    ? kiwi.Strength.required
-                    : strongerStrength,
-            ),
-        );
-    }
-
-    // Helps in tie-breaking scenarios. Try to preserve the size of each file relative
-    // to each other.
-    const weakerStrength = kiwi.Strength.create(0.0, 0.0, 0.5);
-
-    for (let i = 0; i < sizeVariables.length; i++) {
-        for (let j = i + 1; j < sizeVariables.length; j++) {
-            const sizeVariable1 = sizeVariables[i]!;
-            const sizeVariable2 = sizeVariables[j]!;
-
-            if (sizeVariable1.actualSize < sizeVariable2.actualSize) {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        sizeVariable1.width,
-                        kiwi.Operator.Le,
-                        sizeVariable2.width,
-                        weakerStrength,
-                    ),
-                );
-            } else if (sizeVariable1.actualSize > sizeVariable2.actualSize) {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        sizeVariable1.width,
-                        kiwi.Operator.Ge,
-                        sizeVariable2.width,
-                        weakerStrength,
-                    ),
-                );
-            } else {
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        sizeVariable1.width,
-                        kiwi.Operator.Eq,
-                        sizeVariable2.width,
-                        weakerStrength,
-                    ),
-                );
-            }
-        }
-    }
-
-    solver.updateVariables();
-
-    return sizeVariables.map(({width: widthVariable, height: heightVariable}) => {
-        const width = widthVariable.value();
-        const height = heightVariable.value();
-
-        // Width in fractional units. How much should the file take as a share of the
-        // entire file row's width? For more information about the `fr` unit see:
-        // https://www.digitalocean.com/community/tutorials/css-css-grid-layout-fr-unit
-        const widthFr =
-            width / (blockWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1));
-
-        return {
-            width: round3(width),
-            // More decimal places for `widthFr` since it's always between 0 and 1.
-            widthFr: round6(widthFr),
-            height: round3(height),
-        };
-    }) as any;
+        maxHeight: options.maxHeight
+            ? convertRemLengthToPx(options.maxHeight, spacingScale)
+            : undefined,
+    });
 }
 
 /**
@@ -686,85 +368,29 @@ function getFileOrFileEntityPreviewSize(
             blockWidth /
             (contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale]);
 
-        const startHeight = convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale);
-
-        if (
-            fileCount <= 1 &&
-            // To better support tables, we only permit this short height if the block width is
-            // at least half of the max block width.
-            maxBlockWidthPercent > 1 / 2
-        ) {
-            return {width: null, height: startHeight};
+        // To better support tables, when the block width is narrow we skip the shorter
+        // 1-file/2-file heights and fall through to the compact 3-file height instead.
+        let effectiveFileCount = fileCount;
+        if (maxBlockWidthPercent <= 1 / 2) {
+            effectiveFileCount = Math.max(effectiveFileCount, 2);
+        }
+        if (maxBlockWidthPercent <= 1 / 3) {
+            effectiveFileCount = Math.max(effectiveFileCount, 3);
         }
 
-        const endHeight = blockWidth / maxFileCount / fileEntityPreviewSmallAspectRatio;
+        const height = getFileEntityPreviewHeight({
+            fileCount: effectiveFileCount,
+            maxFileCount,
+            blockWidth,
+            defaultPreviewHeight: convertRemLengthToPx(
+                documentCommentThreadPreviewHeight,
+                spacingScale,
+            ),
+            aspectRatio: fileEntityPreviewSmallAspectRatio,
+        });
 
-        if (
-            fileCount <= 2 &&
-            // To better support tables, we only permit this medium height if the block width
-            // is at least a third of the max block width.
-            maxBlockWidthPercent > 1 / 3
-        ) {
-            const middleHeight = startHeight + (endHeight - startHeight) / 2;
-            return {width: null, height: middleHeight};
-        }
-
-        return {width: null, height: endHeight};
+        return {width: null, height};
     }
 
     return getFilePreviewSize(file);
-}
-
-/**
- * Get the original size of the file's preview in pixels. When laying out files
- * we'll try to preserve the width/height aspect ratio from this function. We also
- * won't grow the file to a size larger than the width/height returned by this
- * function but we will shrink files to fit in our available space if necessary.
- */
-export function getFilePreviewSize(file: FileModelData | null): {
-    width: number;
-    height: number;
-} {
-    if (!file?.preview) {
-        return smallFallbackFileSize;
-    }
-
-    switch (file.preview.type) {
-        case "Audio": {
-            // Use the larger `remPx` size (mobile). The file will be scaled down as necessary.
-            const width = largeFallbackFileWidth;
-            const height = width / maxAspectRatioIfNotSingleFileRow;
-            return {width, height};
-        }
-        case "Code": {
-            // Pick an aspect ratio that shows all 16 lines of code and a line width of almost
-            // exactly 80 characters (at font size 75).
-            const aspectRatio = 63 / 32;
-
-            // Use the larger `remPx` size (mobile) and the larger block max width (mobile).
-            // The file will be scaled down as necessary.
-            const width = largeFallbackFileWidth;
-            const height = largeFallbackFileWidth / aspectRatio;
-            return {width, height};
-        }
-        case "Image": {
-            if (file.preview.size === "Processing") return largeFallbackFileSize;
-            if (file.preview.size === "Error") return smallFallbackFileSize;
-
-            return {
-                width:
-                    file.preview.size.width /
-                    // We render PDFs at 2x their actual width/height so they look good on retina
-                    // displays at their proper size.
-                    Math.max(1, file.preview.size.scale),
-                height:
-                    file.preview.size.height /
-                    // We render PDFs at 2x their actual width/height so they look good on retina
-                    // displays at their proper size.
-                    Math.max(1, file.preview.size.scale),
-            };
-        }
-        default:
-            throw exhaustive(file.preview);
-    }
 }

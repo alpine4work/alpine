@@ -19,10 +19,6 @@ import {
 import {handoffContentFilePreviewState} from "~/client/web/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/web/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {
-    ContentFileLayout,
-    getFilePreviewSize,
-} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
@@ -49,7 +45,9 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -58,6 +56,7 @@ import {
     fileClassName,
     greyElevated2ClassName,
 } from "~/shared/design/core/constant_class_names.js";
+
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";

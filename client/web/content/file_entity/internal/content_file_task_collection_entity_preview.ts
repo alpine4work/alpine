@@ -1,5 +1,4 @@
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
@@ -7,6 +6,7 @@ import {
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";

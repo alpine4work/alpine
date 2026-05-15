@@ -2013,6 +2013,7 @@ export namespace ApiSpecification {
             readonly ChatId: IdTypes.ChatId;
             readonly DocumentId: IdTypes.DocumentId;
             readonly DocumentThreadId: IdTypes.DocumentCommentThreadId;
+            readonly FileId: IdTypes.FileId;
             readonly PostId: IdTypes.PostId;
             readonly SpaceId: IdTypes.SpaceId;
             readonly TaskId: IdTypes.TaskId;
@@ -2090,6 +2091,13 @@ export namespace ApiSpecification {
                 | components["schemas"]["PostMentionTarget"]
                 | components["schemas"]["TaskMentionTarget"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
+            readonly PreviewTarget:
+                | components["schemas"]["ChannelMentionTarget"]
+                | components["schemas"]["ChatMentionTarget"]
+                | components["schemas"]["DocumentMentionTarget"]
+                | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["TaskMentionTarget"]
+                | components["schemas"]["TaskCollectionMentionTarget"];
             readonly Content: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement"][];
             };
@@ -2102,7 +2110,11 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentHeadingBlockElement"]
                 | components["schemas"]["ContentDividerBlockElement"]
                 | components["schemas"]["ContentTableBlockElement"]
-                | components["schemas"]["ContentCodeBlockElement"];
+                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentFileBlockElement"]
+                | components["schemas"]["ContentFileGalleryBlockElement"]
+                | components["schemas"]["ContentFileFloatBlockElement"]
+                | components["schemas"]["ContentPreviewBlockElement"];
             readonly ContentParagraphBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -2204,7 +2216,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentOrderedListBlockElement"]
                 | components["schemas"]["ContentCheckListBlockElement"]
                 | components["schemas"]["ContentQuoteBlockElement"]
-                | components["schemas"]["ContentCodeBlockElement"];
+                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentFileBlockElement"]
+                | components["schemas"]["ContentPreviewBlockElement"];
             readonly ContentCodeBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -2254,6 +2268,213 @@ export namespace ApiSpecification {
             };
             readonly ContentCodeBlockElementLine: {
                 readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
+            };
+            readonly ContentFileBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                /** @enum {string} */
+                readonly contentType?:
+                    | "application/json"
+                    | "application/msword"
+                    | "application/octet-stream"
+                    | "application/pdf"
+                    | "application/sql"
+                    | "application/vnd.dart"
+                    | "application/vnd.ms-excel"
+                    | "application/vnd.ms-powerpoint"
+                    | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    | "application/wasm"
+                    | "application/x-httpd-php"
+                    | "application/x-powershell"
+                    | "application/x-ruby"
+                    | "application/x-sh"
+                    | "application/xml"
+                    | "application/yaml"
+                    | "audio/mp4"
+                    | "audio/mpeg"
+                    | "audio/ogg"
+                    | "audio/wav"
+                    | "audio/webm"
+                    | "image/apng"
+                    | "image/avif"
+                    | "image/bmp"
+                    | "image/gif"
+                    | "image/heif"
+                    | "image/ico"
+                    | "image/jpeg"
+                    | "image/png"
+                    | "image/svg+xml"
+                    | "image/tiff"
+                    | "image/webp"
+                    | "text/css"
+                    | "text/html"
+                    | "text/javascript"
+                    | "text/markdown"
+                    | "text/plain"
+                    | "text/rust"
+                    | "text/x-asm"
+                    | "text/x-c++src"
+                    | "text/x-clojure"
+                    | "text/x-csharp"
+                    | "text/x-csrc"
+                    | "text/x-elixir"
+                    | "text/x-erlang"
+                    | "text/x-go"
+                    | "text/x-haskell"
+                    | "text/x-java"
+                    | "text/x-kotlin"
+                    | "text/x-lua"
+                    | "text/x-objcsrc"
+                    | "text/x-ocaml"
+                    | "text/x-perl"
+                    | "text/x-python"
+                    | "text/x-r"
+                    | "text/x-scala"
+                    | "text/x-solidity"
+                    | "text/x-swift"
+                    | "text/x-typescript"
+                    | "video/mp4"
+                    | "video/mpeg"
+                    | "video/quicktime"
+                    | "video/webm"
+                    | "video/x-matroska";
+                readonly contentLength?: number;
+            };
+            readonly ContentFileBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "File";
+                readonly id: components["schemas"]["FileId"];
+                /** @enum {string} */
+                readonly contentType:
+                    | "application/json"
+                    | "application/msword"
+                    | "application/octet-stream"
+                    | "application/pdf"
+                    | "application/sql"
+                    | "application/vnd.dart"
+                    | "application/vnd.ms-excel"
+                    | "application/vnd.ms-powerpoint"
+                    | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    | "application/wasm"
+                    | "application/x-httpd-php"
+                    | "application/x-powershell"
+                    | "application/x-ruby"
+                    | "application/x-sh"
+                    | "application/xml"
+                    | "application/yaml"
+                    | "audio/mp4"
+                    | "audio/mpeg"
+                    | "audio/ogg"
+                    | "audio/wav"
+                    | "audio/webm"
+                    | "image/apng"
+                    | "image/avif"
+                    | "image/bmp"
+                    | "image/gif"
+                    | "image/heif"
+                    | "image/ico"
+                    | "image/jpeg"
+                    | "image/png"
+                    | "image/svg+xml"
+                    | "image/tiff"
+                    | "image/webp"
+                    | "text/css"
+                    | "text/html"
+                    | "text/javascript"
+                    | "text/markdown"
+                    | "text/plain"
+                    | "text/rust"
+                    | "text/x-asm"
+                    | "text/x-c++src"
+                    | "text/x-clojure"
+                    | "text/x-csharp"
+                    | "text/x-csrc"
+                    | "text/x-elixir"
+                    | "text/x-erlang"
+                    | "text/x-go"
+                    | "text/x-haskell"
+                    | "text/x-java"
+                    | "text/x-kotlin"
+                    | "text/x-lua"
+                    | "text/x-objcsrc"
+                    | "text/x-ocaml"
+                    | "text/x-perl"
+                    | "text/x-python"
+                    | "text/x-r"
+                    | "text/x-scala"
+                    | "text/x-solidity"
+                    | "text/x-swift"
+                    | "text/x-typescript"
+                    | "video/mp4"
+                    | "video/mpeg"
+                    | "video/quicktime"
+                    | "video/webm"
+                    | "video/x-matroska";
+                readonly contentLength: number;
+            };
+            readonly ContentPreviewBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly target: components["schemas"]["PreviewTarget"];
+                readonly title?: string;
+            };
+            readonly ContentPreviewBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly target: components["schemas"]["PreviewTarget_Response"];
+                readonly title: string;
+            };
+            readonly ContentFileGalleryBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileGallery";
+                readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow"][];
+            };
+            readonly ContentFileGalleryBlockElementRow: {
+                readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem"][];
+            };
+            readonly ContentFileGalleryBlockElementRowItem: {
+                readonly width?: number;
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement"]
+                    | components["schemas"]["ContentPreviewBlockElement"];
+            };
+            readonly ContentFileGalleryBlockElementRowItem_Response: {
+                readonly width: number;
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement_Response"]
+                    | components["schemas"]["ContentPreviewBlockElement_Response"];
+            };
+            readonly ContentFileFloatBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileFloat";
+                /** @enum {string} */
+                readonly side: "Left" | "Right";
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement"]
+                    | components["schemas"]["ContentPreviewBlockElement"];
             };
             readonly ContentInlineElement:
                 | components["schemas"]["ContentTextInlineElement"]
@@ -2929,6 +3150,51 @@ export namespace ApiSpecification {
                 | components["schemas"]["PostMentionTarget"]
                 | components["schemas"]["TaskMentionTarget_Response"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
+            readonly PreviewTarget_Response:
+                | components["schemas"]["ChannelMentionTarget"]
+                | components["schemas"]["ChatMentionTarget"]
+                | components["schemas"]["DocumentMentionTarget"]
+                | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["TaskMentionTarget_Response"]
+                | components["schemas"]["TaskCollectionMentionTarget"];
+            readonly ContentBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"]
+                | components["schemas"]["ContentQuoteBlockElement_Response"]
+                | components["schemas"]["ContentHeadingBlockElement_Response"]
+                | components["schemas"]["ContentDividerBlockElement"]
+                | components["schemas"]["ContentTableBlockElement_Response"]
+                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentFileBlockElement_Response"]
+                | components["schemas"]["ContentFileGalleryBlockElement_Response"]
+                | components["schemas"]["ContentFileFloatBlockElement_Response"]
+                | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly ContentTableBlockElementCellBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"]
+                | components["schemas"]["ContentQuoteBlockElement_Response"]
+                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentFileBlockElement_Response"]
+                | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly ContentFileGalleryBlockElementRow_Response: {
+                readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
+            };
+            readonly ContentFileFloatBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileFloat";
+                /** @enum {string} */
+                readonly side: "Left" | "Right";
+                readonly element:
+                    | components["schemas"]["ContentFileBlockElement_Response"]
+                    | components["schemas"]["ContentPreviewBlockElement_Response"];
+            };
             readonly ContentInlineElement_Response:
                 | components["schemas"]["ContentTextInlineElement"]
                 | components["schemas"]["ContentBreakInlineElement"]
@@ -2941,6 +3207,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["PostMentionTarget"]
                 | components["schemas"]["TaskMentionTarget_Response"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
+            readonly Content_Response: {
+                readonly elements: readonly components["schemas"]["ContentBlockElement_Response"][];
+            };
             readonly ContentParagraphBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -2957,6 +3226,17 @@ export namespace ApiSpecification {
                 readonly type: "Heading";
                 readonly level: number;
                 readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
+            };
+            readonly ContentTableBlockElementCell_Response: {
+                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
+            };
+            readonly ContentFileGalleryBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "FileGallery";
+                readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow_Response"][];
             };
             readonly MessageContentPayload_Response: {
                 /**
@@ -2997,16 +3277,6 @@ export namespace ApiSpecification {
                 readonly viewingTarget?: components["schemas"]["MentionTarget_Response"];
                 readonly parent?: components["schemas"]["BotWebhookNewMessageEventParent"];
             };
-            readonly ContentBlockElement_Response:
-                | components["schemas"]["ContentParagraphBlockElement_Response"]
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"]
-                | components["schemas"]["ContentQuoteBlockElement_Response"]
-                | components["schemas"]["ContentHeadingBlockElement_Response"]
-                | components["schemas"]["ContentDividerBlockElement"]
-                | components["schemas"]["ContentTableBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"];
             readonly ContentListBlockElementItem_Response: {
                 readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
                 readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
@@ -3018,81 +3288,6 @@ export namespace ApiSpecification {
             };
             readonly ContentQuoteBlockElementBlockElement_Response:
                 | components["schemas"]["ContentParagraphBlockElement_Response"]
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"];
-            readonly ContentTableBlockElementCellBlockElement_Response:
-                | components["schemas"]["ContentParagraphBlockElement_Response"]
-                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"]
-                | components["schemas"]["ContentCheckListBlockElement_Response"]
-                | components["schemas"]["ContentQuoteBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"];
-            readonly MessagePayload_Response:
-                | components["schemas"]["MessageContentPayload_Response"]
-                | components["schemas"]["MessageDeletedPayload"];
-            readonly MessageStreamToolCallPartPayloadCall_Response:
-                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
-            readonly BotWebhookEvent_Response:
-                | components["schemas"]["BotWebhookNewMessageEvent_Response"]
-                | components["schemas"]["BotWebhookNewPostEvent"];
-            readonly Content_Response: {
-                readonly elements: readonly components["schemas"]["ContentBlockElement_Response"][];
-            };
-            readonly ContentUnorderedListBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "UnorderedList";
-                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
-            };
-            readonly ContentOrderedListBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "OrderedList";
-                readonly orderStart?: number;
-                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
-            };
-            readonly ContentCheckListBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "CheckList";
-                readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem_Response"][];
-            };
-            readonly ContentQuoteBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Quote";
-                readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response"][];
-            };
-            readonly ContentTableBlockElementCell_Response: {
-                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
-            };
-            readonly Message_Response: {
-                readonly index: number;
-                readonly author: components["schemas"]["Account"];
-                readonly createdTime: components["schemas"]["DateTime"];
-                readonly createdTimeZone: components["schemas"]["TimeZone"];
-                readonly payload: components["schemas"]["MessagePayload_Response"];
-            };
-            readonly MessageStreamToolCallPartPayload_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "ToolCall";
-                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-            };
-            readonly ContentListBlockElement_Response:
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
                 | components["schemas"]["ContentOrderedListBlockElement_Response"]
                 | components["schemas"]["ContentCheckListBlockElement_Response"];
@@ -3143,10 +3338,9 @@ export namespace ApiSpecification {
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
                 readonly content: components["schemas"]["Content_Response"];
             };
-            readonly MessageStreamPartPayload_Response:
-                | components["schemas"]["MessageStreamContentPartPayload_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
-                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
+            readonly MessagePayload_Response:
+                | components["schemas"]["MessageContentPayload_Response"]
+                | components["schemas"]["MessageDeletedPayload"];
             readonly MessageStreamContentPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3163,6 +3357,46 @@ export namespace ApiSpecification {
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
             };
+            readonly MessageStreamToolCallPartPayloadCall_Response:
+                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
+                | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
+            readonly BotWebhookEvent_Response:
+                | components["schemas"]["BotWebhookNewMessageEvent_Response"]
+                | components["schemas"]["BotWebhookNewPostEvent"];
+            readonly ContentUnorderedListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "UnorderedList";
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
+            };
+            readonly ContentOrderedListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "OrderedList";
+                readonly orderStart?: number;
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
+            };
+            readonly ContentCheckListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CheckList";
+                readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem_Response"][];
+            };
+            readonly ContentQuoteBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Quote";
+                readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response"][];
+            };
             readonly ContentTableBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3177,6 +3411,29 @@ export namespace ApiSpecification {
                 }[];
                 readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response"][];
             };
+            readonly Message_Response: {
+                readonly index: number;
+                readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly payload: components["schemas"]["MessagePayload_Response"];
+            };
+            readonly MessageStreamPartPayload_Response:
+                | components["schemas"]["MessageStreamContentPartPayload_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
+                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
+            readonly MessageStreamToolCallPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ToolCall";
+                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
+            };
+            readonly ContentListBlockElement_Response:
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"];
             readonly MessageStreamPart_Response: {
                 readonly index: number;
                 readonly version: number;

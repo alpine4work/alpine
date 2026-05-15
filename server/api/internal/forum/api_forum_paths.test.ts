@@ -2,6 +2,7 @@ import {apiForumPaths} from "~/server/api/internal/forum/api_forum_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
@@ -982,5 +983,42 @@ describe("post comment parents", () => {
             },
             author: expect.objectContaining({id: session.account.id}),
         });
+    });
+});
+
+test("can read post with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+
+    const file = await TestFile.create(session);
+    const post = await channel.createPost(session, "Post with file", {
+        files: [file],
+    });
+
+    const response = await server.GET(`/posts/${post.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            post: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                            contentType: "image/png",
+                            contentLength: 5232,
+                        }),
+                    ]),
+                }),
+            }),
+        },
     });
 });

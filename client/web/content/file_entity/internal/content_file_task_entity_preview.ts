@@ -2,7 +2,6 @@ import {CalendarDate} from "@internationalized/date";
 import {renderAccountAvatar} from "~/client/web/accounts/account_avatar_html.js";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
 import {calendarBlankIconSvg} from "~/client/web/icons/calendar_blank_icon_svg.js";
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
@@ -24,6 +23,7 @@ import {renderTaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_t
 import {renderTaskCollectionChipBase} from "~/client/web/tasks/task_collection_chip_base_html.js";
 import {renderTaskMissingAccountAvatar} from "~/client/web/tasks/task_missing_account_avatar_html.js";
 import {renderTaskPriorityIcon} from "~/client/web/tasks/task_priority_icon_html.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";

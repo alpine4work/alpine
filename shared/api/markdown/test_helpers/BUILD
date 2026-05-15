@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/fast-check",
+        "//shared/api/content",
         "//shared/api/markdown",
         "//shared/api/specification",
         "//shared/helpers",

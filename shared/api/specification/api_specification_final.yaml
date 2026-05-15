@@ -1601,6 +1601,9 @@ components:
         DocumentThreadId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        FileId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
         PostId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
@@ -1723,6 +1726,23 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        PreviewTarget:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/ChatMentionTarget"
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Chat: "#/components/schemas/ChatMentionTarget"
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         Content:
             type: object
             additionalProperties: false
@@ -1744,6 +1764,10 @@ components:
                 - $ref: "#/components/schemas/ContentDividerBlockElement"
                 - $ref: "#/components/schemas/ContentTableBlockElement"
                 - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement"
+                - $ref: "#/components/schemas/ContentFileGalleryBlockElement"
+                - $ref: "#/components/schemas/ContentFileFloatBlockElement"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
@@ -1756,6 +1780,10 @@ components:
                     Divider: "#/components/schemas/ContentDividerBlockElement"
                     Table: "#/components/schemas/ContentTableBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement"
+                    FileGallery: "#/components/schemas/ContentFileGalleryBlockElement"
+                    FileFloat: "#/components/schemas/ContentFileFloatBlockElement"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement"
         ContentParagraphBlockElement:
             type: object
             required:
@@ -1971,6 +1999,8 @@ components:
                 - $ref: "#/components/schemas/ContentCheckListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
                 - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
@@ -1980,6 +2010,8 @@ components:
                     CheckList: "#/components/schemas/ContentCheckListBlockElement"
                     Quote: "#/components/schemas/ContentQuoteBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement"
         ContentCodeBlockElement:
             type: object
             required:
@@ -2045,6 +2077,291 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+        ContentFileBlockElement:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    type: string
+                    enum:
+                        - application/json
+                        - application/msword
+                        - application/octet-stream
+                        - application/pdf
+                        - application/sql
+                        - application/vnd.dart
+                        - application/vnd.ms-excel
+                        - application/vnd.ms-powerpoint
+                        - application/vnd.openxmlformats-officedocument.presentationml.presentation
+                        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+                        - application/wasm
+                        - application/x-httpd-php
+                        - application/x-powershell
+                        - application/x-ruby
+                        - application/x-sh
+                        - application/xml
+                        - application/yaml
+                        - audio/mp4
+                        - audio/mpeg
+                        - audio/ogg
+                        - audio/wav
+                        - audio/webm
+                        - image/apng
+                        - image/avif
+                        - image/bmp
+                        - image/gif
+                        - image/heif
+                        - image/ico
+                        - image/jpeg
+                        - image/png
+                        - image/svg+xml
+                        - image/tiff
+                        - image/webp
+                        - text/css
+                        - text/html
+                        - text/javascript
+                        - text/markdown
+                        - text/plain
+                        - text/rust
+                        - text/x-asm
+                        - text/x-c++src
+                        - text/x-clojure
+                        - text/x-csharp
+                        - text/x-csrc
+                        - text/x-elixir
+                        - text/x-erlang
+                        - text/x-go
+                        - text/x-haskell
+                        - text/x-java
+                        - text/x-kotlin
+                        - text/x-lua
+                        - text/x-objcsrc
+                        - text/x-ocaml
+                        - text/x-perl
+                        - text/x-python
+                        - text/x-r
+                        - text/x-scala
+                        - text/x-solidity
+                        - text/x-swift
+                        - text/x-typescript
+                        - video/mp4
+                        - video/mpeg
+                        - video/quicktime
+                        - video/webm
+                        - video/x-matroska
+                contentLength:
+                    type: integer
+                    minimum: 0
+        ContentFileBlockElement_Response:
+            type: object
+            required:
+                - type
+                - id
+                - contentType
+                - contentLength
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    type: string
+                    enum:
+                        - application/json
+                        - application/msword
+                        - application/octet-stream
+                        - application/pdf
+                        - application/sql
+                        - application/vnd.dart
+                        - application/vnd.ms-excel
+                        - application/vnd.ms-powerpoint
+                        - application/vnd.openxmlformats-officedocument.presentationml.presentation
+                        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+                        - application/wasm
+                        - application/x-httpd-php
+                        - application/x-powershell
+                        - application/x-ruby
+                        - application/x-sh
+                        - application/xml
+                        - application/yaml
+                        - audio/mp4
+                        - audio/mpeg
+                        - audio/ogg
+                        - audio/wav
+                        - audio/webm
+                        - image/apng
+                        - image/avif
+                        - image/bmp
+                        - image/gif
+                        - image/heif
+                        - image/ico
+                        - image/jpeg
+                        - image/png
+                        - image/svg+xml
+                        - image/tiff
+                        - image/webp
+                        - text/css
+                        - text/html
+                        - text/javascript
+                        - text/markdown
+                        - text/plain
+                        - text/rust
+                        - text/x-asm
+                        - text/x-c++src
+                        - text/x-clojure
+                        - text/x-csharp
+                        - text/x-csrc
+                        - text/x-elixir
+                        - text/x-erlang
+                        - text/x-go
+                        - text/x-haskell
+                        - text/x-java
+                        - text/x-kotlin
+                        - text/x-lua
+                        - text/x-objcsrc
+                        - text/x-ocaml
+                        - text/x-perl
+                        - text/x-python
+                        - text/x-r
+                        - text/x-scala
+                        - text/x-solidity
+                        - text/x-swift
+                        - text/x-typescript
+                        - video/mp4
+                        - video/mpeg
+                        - video/quicktime
+                        - video/webm
+                        - video/x-matroska
+                contentLength:
+                    type: integer
+                    minimum: 0
+        ContentPreviewBlockElement:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget"
+                title:
+                    type: string
+        ContentPreviewBlockElement_Response:
+            type: object
+            required:
+                - type
+                - target
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget_Response"
+                title:
+                    type: string
+                    minLength: 1
+        ContentFileGalleryBlockElement:
+            type: object
+            required:
+                - type
+                - rows
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileGallery
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRow"
+        ContentFileGalleryBlockElementRow:
+            type: object
+            required:
+                - items
+            additionalProperties: false
+            properties:
+                items:
+                    type: array
+                    minItems: 1
+                    maxItems: 3
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem"
+        ContentFileGalleryBlockElementRowItem:
+            type: object
+            required:
+                - element
+            additionalProperties: false
+            properties:
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+        ContentFileGalleryBlockElementRowItem_Response:
+            type: object
+            required:
+                - width
+                - element
+            additionalProperties: false
+            properties:
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentFileFloatBlockElement:
+            type: object
+            required:
+                - type
+                - side
+                - element
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileFloat
+                side:
+                    type: string
+                    enum:
+                        - Left
+                        - Right
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
         ContentInlineElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentTextInlineElement"
@@ -3399,6 +3716,111 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        PreviewTarget_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/ChatMentionTarget"
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Chat: "#/components/schemas/ChatMentionTarget"
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        ContentBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
+                - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
+                - $ref: "#/components/schemas/ContentDividerBlockElement"
+                - $ref: "#/components/schemas/ContentTableBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                - $ref: "#/components/schemas/ContentFileGalleryBlockElement_Response"
+                - $ref: "#/components/schemas/ContentFileFloatBlockElement_Response"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
+                    Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
+                    Divider: "#/components/schemas/ContentDividerBlockElement"
+                    Table: "#/components/schemas/ContentTableBlockElement_Response"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement_Response"
+                    FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
+                    FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentTableBlockElementCellBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement_Response"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentFileGalleryBlockElementRow_Response:
+            type: object
+            required:
+                - items
+            additionalProperties: false
+            properties:
+                items:
+                    type: array
+                    minItems: 1
+                    maxItems: 3
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem_Response"
+        ContentFileFloatBlockElement_Response:
+            type: object
+            required:
+                - type
+                - side
+                - element
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileFloat
+                side:
+                    type: string
+                    enum:
+                        - Left
+                        - Right
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
         ContentInlineElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentTextInlineElement"
@@ -3432,6 +3854,16 @@ components:
                     Post: "#/components/schemas/PostMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+        Content_Response:
+            type: object
+            additionalProperties: false
+            required:
+                - elements
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentBlockElement_Response"
         ContentParagraphBlockElement_Response:
             type: object
             required:
@@ -3463,6 +3895,30 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement_Response"
+        ContentTableBlockElementCell_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        ContentFileGalleryBlockElement_Response:
+            type: object
+            required:
+                - type
+                - rows
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileGallery
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response"
         MessageContentPayload_Response:
             type: object
             required:
@@ -3525,29 +3981,6 @@ components:
                     $ref: "#/components/schemas/MentionTarget_Response"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
-        ContentBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
-                - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
-                - $ref: "#/components/schemas/ContentDividerBlockElement"
-                - $ref: "#/components/schemas/ContentTableBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
-                    Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
-                    Divider: "#/components/schemas/ContentDividerBlockElement"
-                    Table: "#/components/schemas/ContentTableBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
         ContentListBlockElementItem_Response:
             type: object
             required:
@@ -3589,175 +4022,6 @@ components:
                 propertyName: type
                 mapping:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-        ContentTableBlockElementCellBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
-                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
-        MessagePayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageContentPayload_Response"
-                    Deleted: "#/components/schemas/MessageDeletedPayload"
-        MessageStreamToolCallPartPayloadCall_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
-                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Respon\
-                        se"
-        BotWebhookEvent_Response:
-            oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
-                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
-            discriminator:
-                propertyName: type
-                mapping:
-                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
-                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
-        Content_Response:
-            type: object
-            additionalProperties: false
-            required:
-                - elements
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentBlockElement_Response"
-        ContentUnorderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: UnorderedList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentOrderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: OrderedList
-                orderStart:
-                    type: integer
-                    minimum: 1
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentCheckListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: CheckList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
-        ContentQuoteBlockElement_Response:
-            type: object
-            required:
-                - type
-                - elements
-            additionalProperties: false
-            properties:
-                type:
-                    const: Quote
-                elements:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
-        ContentTableBlockElementCell_Response:
-            type: object
-            required:
-                - elements
-            additionalProperties: false
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
-        Message_Response:
-            type: object
-            required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
-        MessageStreamToolCallPartPayload_Response:
-            type: object
-            required:
-                - type
-                - call
-            additionalProperties: false
-            properties:
-                type:
-                    const: ToolCall
-                call:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
-        ContentListBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
@@ -3898,17 +4162,15 @@ components:
                         - Urgent
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        MessageStreamPartPayload_Response:
+        MessagePayload_Response:
             oneOf:
-                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
             discriminator:
                 propertyName: type
                 mapping:
-                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
-                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
-                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -3931,6 +4193,86 @@ components:
                     const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content_Response"
+        MessageStreamToolCallPartPayloadCall_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
+                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Respon\
+                        se"
+        BotWebhookEvent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
+                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
+                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+        ContentUnorderedListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: UnorderedList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentOrderedListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: OrderedList
+                orderStart:
+                    type: integer
+                    minimum: 1
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentCheckListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
+        ContentQuoteBlockElement_Response:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -3964,6 +4306,60 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
+        Message_Response:
+            type: object
+            required:
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
+        MessageStreamPartPayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
+        MessageStreamToolCallPartPayload_Response:
+            type: object
+            required:
+                - type
+                - call
+            additionalProperties: false
+            properties:
+                type:
+                    const: ToolCall
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
+        ContentListBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         MessageStreamPart_Response:
             type: object
             required:

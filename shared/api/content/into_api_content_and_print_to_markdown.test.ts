@@ -1,13 +1,22 @@
+/* eslint-disable cyberworlds/string-quotes */
+
 import {Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {intoApiContent} from "~/shared/api/content/into_api_content.js";
+import {
+    ApiContentMarkdownIntoOptions,
+    intoApiContent,
+} from "~/shared/api/content/into_api_content.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiContentResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -26,6 +35,7 @@ function testIntoApiContentAndPrintToMarkdown(
         getAccountMentionTitleIfExists: () => undefined,
         getSearchEntityMentionTitleIfExists: () => undefined,
         getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+        getFileIfExists: () => undefined,
     });
 
     expect(actualApiContent).toEqual(expectedApiContent);
@@ -322,4 +332,416 @@ test("second ordered list item with order start 2", () => {
 4. boozy
 `,
     );
+});
+
+// =========================================================================== //
+// File block elements //
+// =========================================================================== //
+
+// File block elements use HTML syntax in markdown (`<div data-file="..."/>` etc.).
+// The markdown round-trip loses server-populated fields (contentType,
+// contentLength) so we test ProseMirror -> API content and API content -> markdown
+// separately.
+
+const fileId1 = generateId<DocumentId>() as string as FileId;
+const fileId2 = generateId<DocumentId>() as string as FileId;
+const fileId3 = generateId<DocumentId>() as string as FileId;
+const testDocumentId = generateId<DocumentId>();
+const testChannelId = generateId<ChannelId>();
+const documentEntityId = `Document:${testDocumentId}` as const;
+const channelEntityId = `Channel:${testChannelId}` as const;
+
+const fileOptions: ApiContentMarkdownIntoOptions = {
+    getAccountMentionTitleIfExists: () => undefined,
+    getSearchEntityMentionTitleIfExists: entityId => {
+        if (entityId === documentEntityId) return "My Document";
+        if (entityId === channelEntityId) return "General";
+        return undefined;
+    },
+    getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+    getFileIfExists: () => ({
+        contentType: "image/png",
+        contentLength: 1024,
+    }),
+};
+
+function fileUrl(fileId: FileId) {
+    return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+}
+
+function previewUrl(entityPath: string) {
+    return `https://alpine.inc/s/${spaceId}/${entityPath}/preview`;
+}
+
+function testFileIntoApiContentAndPrintToMarkdown(
+    prosemirrorNode: Node,
+    expectedApiContent: ApiContentResponse,
+    expectedMarkdown: string,
+) {
+    prosemirrorNode.check();
+
+    const actualApiContent = intoApiContent(prosemirrorNode, fileOptions);
+    expect(actualApiContent).toEqual(expectedApiContent);
+
+    const actualMarkdown = printApiContentToMarkdown(actualApiContent, {spaceId});
+    expect(actualMarkdown).toEqual(expectedMarkdown);
+}
+
+test("single file in a fileRow", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileRow!.create(null, [schema.nodes.file!.create({fileId: fileId1})]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "File",
+                    id: fileId1,
+                    contentType: "image/png",
+                    contentLength: 1024,
+                },
+            ],
+        },
+        `\
+![](${fileUrl(fileId1)})
+`,
+    );
+});
+
+test("fileFloat with left direction", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileFloat.create({direction: "left"}, [
+                schema.nodes.file!.create({fileId: fileId1}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "File",
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
+                },
+            ],
+        },
+        `\
+<div style="float: left; clear: both"><img src="${fileUrl(fileId1)}"/></div>
+`,
+    );
+});
+
+test("fileFloat with right direction", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileFloat.create({direction: "right"}, [
+                schema.nodes.file!.create({fileId: fileId1}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Right",
+                    element: {
+                        type: "File",
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                    },
+                },
+            ],
+        },
+        `\
+<div style="float: right; clear: both"><img src="${fileUrl(fileId1)}"/></div>
+`,
+    );
+});
+
+test("file gallery with multiple files", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileRow!.create(null, [
+                schema.nodes.file!.create({fileId: fileId1}),
+                schema.nodes.file!.create({fileId: fileId2}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: fileId1,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: fileId2,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<div style="display: flex; align-items: stretch">
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 50%"/>
+<img src="${fileUrl(fileId2)}" style="flex: 0 0 50%"/>
+</div>
+`,
+    );
+});
+
+test("file gallery with three files", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileRow!.create(null, [
+                schema.nodes.file!.create({fileId: fileId1}),
+                schema.nodes.file!.create({fileId: fileId2}),
+                schema.nodes.file!.create({fileId: fileId3}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.333333,
+                                    element: {
+                                        type: "File",
+                                        id: fileId1,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                                {
+                                    width: 0.333333,
+                                    element: {
+                                        type: "File",
+                                        id: fileId2,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                                {
+                                    width: 0.333334,
+                                    element: {
+                                        type: "File",
+                                        id: fileId3,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<div style="display: flex; align-items: stretch">
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 33%"/>
+<img src="${fileUrl(fileId2)}" style="flex: 0 0 33%"/>
+<img src="${fileUrl(fileId3)}" style="flex: 0 0 34%"/>
+</div>
+`,
+    );
+});
+
+test("preview of a document entity", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileRow!.create(null, [
+                schema.nodes.file!.create({fileId: documentEntityId}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "Preview",
+                    target: {type: "Document", id: testDocumentId},
+                    title: "My Document",
+                },
+            ],
+        },
+        `\
+![My Document](${previewUrl(`documents/${testDocumentId}`)})
+`,
+    );
+});
+
+test("fileFloat with preview entity", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileFloat.create({direction: "left"}, [
+                schema.nodes.file!.create({fileId: channelEntityId}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "Preview",
+                        target: {type: "Channel", id: testChannelId},
+                        title: "General",
+                    },
+                },
+            ],
+        },
+        `\
+<div style="float: left; clear: both"><img alt="General" src="${previewUrl(`channels/${testChannelId}`)}"/></div>
+`,
+    );
+});
+
+test("file gallery with mixed files and previews", () => {
+    testFileIntoApiContentAndPrintToMarkdown(
+        schema.nodes.doc.create(null, [
+            schema.nodes.fileRow!.create(null, [
+                schema.nodes.file!.create({fileId: fileId1}),
+                schema.nodes.file!.create({fileId: documentEntityId}),
+            ]),
+        ]),
+        {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.337838,
+                                    element: {
+                                        type: "File",
+                                        id: fileId1,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                },
+                                {
+                                    width: 0.662162,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Document",
+                                            id: testDocumentId,
+                                        },
+                                        title: "My Document",
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<div style="display: flex; align-items: stretch">
+<img src="${fileUrl(fileId1)}" style="flex: 0 0 34%"/>
+<img alt="My Document" src="${previewUrl(`documents/${testDocumentId}`)}" style="flex: 0 0 66%"/>
+</div>
+`,
+    );
+});
+
+test("null fileId round-trips through ApiContent as unknownFileId", () => {
+    const prosemirrorNode = schema.nodes.doc.create(null, [
+        schema.nodes.fileRow!.create(null, [schema.nodes.file!.create({fileId: null})]),
+    ]);
+
+    prosemirrorNode.check();
+
+    const apiContent = intoApiContent(prosemirrorNode, fileOptions);
+
+    // null fileId in ProseMirror should produce unknownFileId in the API.
+    expect(apiContent).toEqual({
+        elements: [
+            {
+                type: "File",
+                id: unknownFileId,
+                contentType: "application/octet-stream",
+                contentLength: 0,
+            },
+        ],
+    });
+
+    // Round-trip back to ProseMirror and verify the null fileId is preserved.
+    // fromApiContent converts unknownFileId back to null.
+    const roundTripped = fromApiContent(schema, apiContent);
+    const fileRow = roundTripped.content.content[0]!;
+    const fileNode = fileRow.content.content[0]!;
+    expect(fileNode.attrs.fileId).toBeNull();
+});
+
+test("fileRowTable in a table cell", () => {
+    const prosemirrorNode = schema.nodes.doc.create(null, [
+        schema.nodes.table.create({tableWidth: 2, columnWidths: [1, 1]}, [
+            schema.nodes.tableRow.create(null, [
+                schema.nodes.tableCell.create(null, [
+                    schema.nodes.paragraph.create(null, [schema.text("text")]),
+                ]),
+                schema.nodes.tableCell.create(null, [
+                    schema.nodes.fileRowTable!.create(null, [
+                        schema.nodes.file!.create({fileId: fileId1}),
+                    ]),
+                ]),
+            ]),
+        ]),
+    ]);
+
+    prosemirrorNode.check();
+
+    const actualApiContent = intoApiContent(prosemirrorNode, fileOptions);
+
+    expect(actualApiContent).toMatchObject({
+        elements: [
+            {
+                type: "Table",
+                rows: [
+                    {
+                        cells: [
+                            {
+                                elements: [
+                                    {type: "Paragraph", elements: [{type: "Text", text: "text"}]},
+                                ],
+                            },
+                            {
+                                elements: [
+                                    {
+                                        type: "File",
+                                        id: fileId1,
+                                        contentType: "image/png",
+                                        contentLength: 1024,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
 });

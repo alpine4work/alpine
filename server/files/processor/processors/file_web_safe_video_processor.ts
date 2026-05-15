@@ -24,7 +24,7 @@ import {getFileContentTypeName} from "~/shared/content/code/get_file_content_typ
 import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {
     FileMp4VideoContentType,
-    FileWebmVideoContentType,
+    FileWebSafeVideoContentType,
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
@@ -44,7 +44,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
  * [1]: https://caniuse.com/webm
  */
 export function createFileWebSafeVideoProcessor(
-    contentType: FileWebmVideoContentType,
+    contentType: FileWebSafeVideoContentType,
 ): FileProcessor {
     return {
         type: "WebSafeVideo",
@@ -86,7 +86,7 @@ export async function processFileWebSafeVideo(
         temporaryDirectoryPath,
     }: {
         signal: AbortSignal;
-        contentType: FileWebmVideoContentType | FileMp4VideoContentType;
+        contentType: FileWebSafeVideoContentType | FileMp4VideoContentType;
         contentLength: number;
         temporaryDirectoryPath: string;
     },
@@ -163,7 +163,7 @@ export async function processFileWebSafeVideo(
                         // TODO: We should parse the pixel format out of stderr and check if the pixel
                         // format has an alpha channel.
                         cast<{
-                            [Key in FileWebmVideoContentType | FileMp4VideoContentType]: boolean;
+                            [Key in FileWebSafeVideoContentType | FileMp4VideoContentType]: boolean;
                         }>({
                             "video/webm": true,
                             "video/mp4": false,

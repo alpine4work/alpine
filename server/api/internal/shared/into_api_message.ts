@@ -48,11 +48,12 @@ export async function intoApiMessage(
     // Only content messages can have a stream.
     assert(payload.type === "Content");
 
+    const firstElement = payload.content.elements[0];
     const contentElements =
         // If the original message has empty content then ignore it.
         payload.content.elements.length === 1 &&
-        payload.content.elements[0]!.type === "Paragraph" &&
-        payload.content.elements[0]!.elements.length === 0
+        firstElement?.type === "Paragraph" &&
+        firstElement.elements.length === 0
             ? []
             : [...payload.content.elements];
 

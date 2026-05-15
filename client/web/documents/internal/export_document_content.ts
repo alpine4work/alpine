@@ -13,6 +13,7 @@ import * as prettier from "prettier";
 import * as htmlPrettierPlugin from "prettier/plugins/html";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {DocumentContentExportFormat} from "~/client/web/documents/internal/document_content_export_modal.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
@@ -87,6 +88,28 @@ export async function exportDocumentContent({
             if (entityData.media?.type !== "TaskDisplayStatus") return;
             return entityData.media.displayStatus;
         },
+        getFileIfExists: fileId => {
+            const fileRef = content.references.fileById?.get(fileId);
+            if (!fileRef) return undefined;
+
+            const file = getFileRegistry(spaceId).getFileStore(fileRef).getSnapshot();
+            const preview = file.preview;
+
+            const size =
+                preview !== null &&
+                preview.type === "Image" &&
+                preview.size !== "Error" &&
+                preview.size !== "Processing" &&
+                preview.size !== undefined
+                    ? preview.size
+                    : undefined;
+
+            return {
+                contentType: file.contentType,
+                contentLength: file.contentLength,
+                size,
+            };
+        },
     });
 
     apiContent = visitAndProduceApiContent(apiContent, {
@@ -141,6 +164,9 @@ export async function exportDocumentContent({
 
     if (format === "HTML") {
         string = micromark(string, "utf-8", {
+            // Allow raw HTML blocks (e.g. file gallery `<div>`, `<video>`, `<audio>`,
+            // `<object>` tags) to pass through to the HTML output instead of being escaped.
+            allowDangerousHtml: true,
             extensions: [
                 gfmStrikethrough({singleTilde: false}),
                 gfmTable(),

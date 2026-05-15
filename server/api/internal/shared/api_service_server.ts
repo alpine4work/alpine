@@ -38,6 +38,7 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {isFileContentType} from "~/shared/files/file_content_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -496,8 +497,28 @@ export async function createApiServiceRequestListener(
             process.env.NODE_ENV !== "production" && openApiOperation?.responses
                 ? mapObjectValues(openApiOperation.responses, response => {
                       response = resolveReference(response);
-                      assert(response.content?.["application/json"]?.schema);
-                      return compileWithAjv(response.content?.["application/json"]?.schema);
+                      const jsonSchema = response.content?.["application/json"]?.schema;
+
+                      if (!jsonSchema) {
+                          // Verify non-JSON responses have a known content type or no content at all (like a
+                          // redirect).
+                          const contentTypes = response.content
+                              ? Object.keys(response.content)
+                              : [];
+
+                          assert(
+                              contentTypes.length === 0 ||
+                                  contentTypes.every(
+                                      contentType =>
+                                          contentType !== "application/json" &&
+                                          isFileContentType(contentType),
+                                  ),
+                          );
+
+                          return null;
+                      }
+
+                      return compileWithAjv(jsonSchema);
                   })
                 : null;
 

@@ -1,12 +1,12 @@
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {ContentFileProcessorError} from "~/client/web/content/internal/content_file_processor_error.js";
 import {getContentFileViewerSrc} from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {getFilePreviewSize} from "~/client/web/content/state/content_file_layout_computations.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 
 // TODO(calebmer): Currently we render PDFs using the browser's built in
 // `<iframe>`. This is not the best user experience (e.g. the `<iframe>` traps

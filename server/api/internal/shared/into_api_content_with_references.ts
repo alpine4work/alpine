@@ -124,8 +124,6 @@ export async function intoApiContentWithReferencesAndReturnReferences(
         }),
     );
 
-    // NOTE(calebmer): `intoApiContent()` doesn't currently use `fileById` but it will
-    // eventually.
     const fileById = new Map(
         filterMapIterable(fileReferences, fileReference => {
             if (!fileReference) return;
@@ -165,6 +163,26 @@ export async function intoApiContentWithReferencesAndReturnReferences(
             if (entity.isPrivate) return;
             if (entity.entity.initialData.media?.type !== "TaskDisplayStatus") return;
             return entity.entity.initialData.media.displayStatus;
+        },
+        getFileIfExists: fileId => {
+            const fileRef = fileById.get(fileId);
+            if (!fileRef) return undefined;
+
+            const preview = fileRef.file.initialData.preview;
+            const size =
+                preview !== null &&
+                preview.type === "Image" &&
+                preview.size !== "Error" &&
+                preview.size !== "Processing" &&
+                preview.size !== undefined
+                    ? preview.size
+                    : undefined;
+
+            return {
+                contentType: fileRef.file.initialData.contentType,
+                contentLength: fileRef.file.initialData.contentLength,
+                size,
+            };
         },
     });
 

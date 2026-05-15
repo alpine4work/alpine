@@ -21,6 +21,7 @@ ts_project(
         "//:node_modules/escape-html",
         "//:node_modules/htmlparser2",
         "//:node_modules/immer",
+        "//:node_modules/inline-style-parser",
         "//:node_modules/mdast-util-from-markdown",
         "//:node_modules/mdast-util-frontmatter",
         "//:node_modules/mdast-util-gfm-strikethrough",

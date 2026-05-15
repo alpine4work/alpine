@@ -6,9 +6,12 @@ import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/not
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentBlockElementWithFileRow} from "~/shared/api/content/api_content_block_element_with_file_row.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {ApiContentExtended, fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {
+    ApiContent,
+    ApiContentBlockElement,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
@@ -72,7 +75,7 @@ export async function createNotionImportCsvDatabaseDocument(
     const csvDir = csvPath.includes("/") ? csvPath.slice(0, csvPath.lastIndexOf("/")) : "";
 
     // Build API content directly
-    const elements: Array<ApiContentBlockElementWithFileRow> = [];
+    const elements: Array<ApiContentBlockElement> = [];
 
     // Add parent document link as a paragraph with mention
     elements.push({
@@ -83,8 +86,8 @@ export async function createNotionImportCsvDatabaseDocument(
         ],
     });
 
-    // Convert CSV to API table with cell mentions The table may contain FileRowTable
-    // elements for file paths
+    // Convert CSV to API table with cell mentions. The table may contain File elements
+    // for file paths.
     const childTitleToDocumentId =
         inlineDatabaseChildren.get(csvPath) ?? new Map<string, DocumentId>();
     const tableContent = notionImportCsvToApiContent(csvContent, childTitleToDocumentId, {
@@ -92,15 +95,13 @@ export async function createNotionImportCsvDatabaseDocument(
         csvDir,
     });
     if (tableContent) {
-        // Cast the extended table to the base block element type fromApiContent handles
-        // the extended types during conversion
-        elements.push(tableContent as unknown as ApiContentBlockElementWithFileRow);
+        elements.push(tableContent);
     }
 
     // Note: We don't add a "Child documents" section for databases. The children are
     // database rows and they already appear as cell mentions in the table.
 
-    const apiContent: ApiContentExtended = {elements};
+    const apiContent: ApiContent = {elements};
 
     // Convert API content to ProseMirror document
     const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, apiContent);
@@ -140,7 +141,7 @@ export async function createNotionImportCsvDatabaseDocument(
     );
 
     // Attach files to the document so they can be accessed via the document. Files in
-    // CSV tables (FileRowTable elements) need attachment records.
+    // CSV tables need attachment records.
     const fileIds = extractFileIdsFromApiContent(apiContent);
     await runAllPromises(
         [...fileIds].map(fileId => attachFileToDocumentAsSystem(context, fileId, documentId)),

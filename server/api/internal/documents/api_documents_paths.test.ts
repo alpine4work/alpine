@@ -14,6 +14,7 @@ import {
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -1351,5 +1352,43 @@ describe("PUT /documents/{id}", () => {
                 }),
             },
         });
+    });
+});
+
+test("can read document with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session, {
+        title: "Document with File",
+        access: "Private",
+    });
+
+    const file = await TestFile.create(session);
+    await document.attachFile(session, file);
+
+    const response = await server.GET(`/documents/${document.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                            contentType: "image/png",
+                            contentLength: 5232,
+                        }),
+                    ]),
+                }),
+            }),
+        },
     });
 });

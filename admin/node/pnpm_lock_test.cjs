@@ -25,6 +25,11 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["retry", ["0.12.0", "0.13.1"]],
     ["eventemitter3", ["4.0.7", "5.0.4"]],
 
+    // NOTE(imjoshin, 2026-04-27): `inline-style-parser@0.1.1` is a transitive
+    // dependency of `style-to-object` (used by rehype/hast). We directly depend on
+    // `inline-style-parser@0.2.7` for parsing CSS in the markdown parser.
+    ["inline-style-parser", ["0.1.1", "0.2.7"]],
+
     // Our `wrangler` dependency has an old version of `esbuild` we allow since we
     // should be bundling our code with a newer version of `esbuild` before it gets to
     // `wrangler`.

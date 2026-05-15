@@ -75,6 +75,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "html-tags/void.js",
     "htmlparser2",
     "immer",
+    "inline-style-parser",
     "js-cookie",
     "json-stable-stringify",
     "lezer-elixir",

@@ -33,9 +33,11 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentTableBlockElement,
     ApiMentionTarget,
+    ApiPreviewTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -333,6 +335,168 @@ function* printApiContentBlockElementToMarkdown(
         case "Table": {
             yield* printApiContentTableBlockElementToMarkdown(element, options);
             break;
+        }
+        case "File": {
+            const fileUrl = printFileUrl(options.spaceId, element.id);
+            if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
+                // Web safe images (and files with unknown content type) use markdown image syntax.
+                yield {
+                    type: "paragraph",
+                    children: [{type: "image", url: fileUrl, alt: null}],
+                };
+            } else {
+                // Video, audio, PDF, etc. use their HTML representations so they render correctly
+                // when exported to HTML. CommonMark treats `<video>`, `<audio>`, and `<object>` as
+                // inline HTML (not block-level), so the parser handles extracting them from
+                // paragraphs into block-level file elements.
+                yield {
+                    type: "html",
+                    value: fileToHtml(fileUrl, element.contentType),
+                };
+            }
+
+            break;
+        }
+        case "Preview": {
+            const previewUrl = printPreviewTargetUrl(options.spaceId, element.target);
+            const title = element.title?.trim() ? element.title : "";
+            yield {
+                type: "paragraph",
+                children: [{type: "image", url: previewUrl, alt: title}],
+            };
+            break;
+        }
+        case "FileGallery": {
+            // A gallery with a single row containing a single element renders the same as a
+            // standalone File/Preview (normalization would unwrap it).
+            if (element.rows.length === 1 && element.rows[0]!.items.length === 1) {
+                yield* printApiContentBlockElementToMarkdown(
+                    element.rows[0]!.items[0]!.element,
+                    options,
+                );
+                break;
+            }
+
+            for (const row of element.rows) {
+                // Single-element rows render as standalone File/Preview elements, matching how
+                // normalization unwraps them.
+                if (row.items.length === 1) {
+                    yield* printApiContentBlockElementToMarkdown(row.items[0]!.element, options);
+                    continue;
+                }
+
+                const lines = [`<div style="display: flex; align-items: stretch">`];
+
+                // Round widths to the nearest integer percent. Derive the last from 100 -
+                // sum(previous) so they sum to exactly 100.
+                const widthPercents: Array<number> = [];
+                let widthPercentSum = 0;
+                for (let i = 0; i < row.items.length; i++) {
+                    const item = assertExists(row.items[i]);
+                    // Width is required in the Response type but optional in the request type. Both go
+                    // through this code path, so default to equal widths when not provided. This means
+                    // we can't assertExists here.
+                    const width = item.width ?? 1 / row.items.length;
+
+                    const widthPercent =
+                        i < row.items.length - 1 ? Math.round(width * 100) : 100 - widthPercentSum;
+
+                    widthPercentSum += widthPercent;
+                    widthPercents.push(widthPercent);
+                }
+
+                for (let i = 0; i < row.items.length; i++) {
+                    const item = assertExists(row.items[i]);
+                    const widthPercent = assertExists(widthPercents[i]);
+
+                    lines.push(
+                        fileOrPreviewToHtml(
+                            item.element,
+                            options.spaceId,
+                            `flex: 0 0 ${widthPercent}%`,
+                        ),
+                    );
+                }
+                lines.push(`</div>`);
+                yield {type: "html", value: lines.join("\n")};
+            }
+            break;
+        }
+        case "FileFloat": {
+            const side = element.side === "Right" ? "right" : "left";
+            const style = `float: ${side}; clear: both`;
+            yield {
+                type: "html",
+                // eslint-disable-next-line cyberworlds/string-quotes
+                value: `<div style="${style}">${fileOrPreviewToHtml(element.element, options.spaceId)}</div>`,
+            };
+            break;
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+/**
+ * Render a file URL as an HTML element string. Uses the same content type checks
+ * as `content_editor_dom_clipboard_serializer.ts` to make sure we only put
+ * web-safe content types in `<img>`, `<video>`, and `<audio>` tags. Everything
+ * else falls back to `<object>`.
+ */
+function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr = ""): string {
+    const escapedUrl = escapeHtml(fileUrl);
+
+    // If the file is a web safe image then use an `<img>` element. Files with unknown
+    // content type also use `<img>` as the default.
+    if (!contentType || isWebSafeImageContentType(contentType)) {
+        // eslint-disable-next-line cyberworlds/string-quotes
+        return `<img src="${escapedUrl}"${styleAttr}/>`;
+    }
+
+    // If the file is web safe video then use a `<video>` element. `video/mp4` is not
+    // strictly web safe since it depends on the codecs used, but it's a common format
+    // for sharing video on the web so we treat it as web safe here.
+    //
+    // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+    if (isWebSafeVideoContentType(contentType) || contentType === "video/mp4") {
+        // eslint-disable-next-line cyberworlds/string-quotes
+        return `<video controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></video>`;
+    }
+
+    // If the file is web safe audio then use an `<audio>` element. `audio/mp4` is not
+    // strictly web safe since it depends on the codecs used, but it's a common format
+    // for sharing audio on the web so we treat it as web safe here.
+    //
+    // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
+    if (isWebSafeAudioContentType(contentType) || contentType === "audio/mp4") {
+        // eslint-disable-next-line cyberworlds/string-quotes
+        return `<audio controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></audio>`;
+    }
+
+    // Otherwise, fallback to an `<object>` element.
+    // eslint-disable-next-line cyberworlds/string-quotes
+    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}/>`;
+}
+
+function fileOrPreviewToHtml(
+    element:
+        | {readonly type: "File"; readonly id: string; readonly contentType?: string}
+        | {readonly type: "Preview"; readonly target: ApiPreviewTarget; readonly title?: string},
+    spaceId: SpaceId,
+    style?: string,
+): string {
+    // eslint-disable-next-line cyberworlds/string-quotes
+    const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
+    switch (element.type) {
+        case "File": {
+            const fileUrl = printFileUrl(spaceId, element.id);
+            return fileToHtml(fileUrl, element.contentType, styleAttr);
+        }
+        case "Preview": {
+            const previewUrl = printPreviewTargetUrl(spaceId, element.target);
+            const title = element.title?.trim() ? element.title : "";
+            // eslint-disable-next-line cyberworlds/string-quotes
+            return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr}/>`;
         }
         default:
             throw exhaustive(element);
@@ -713,21 +877,23 @@ function* printApiContentTableBlockElementToMarkdown(
                 pendingHtml += "\n<td>";
             }
 
-            yield {type: "html", value: pendingHtml};
-            pendingHtml = "";
+            {
+                yield {type: "html", value: pendingHtml};
+                pendingHtml = "";
 
-            if (
-                cell.elements.length === 0 ||
-                (cell.elements.length === 1 &&
-                    cell.elements[0]!.type === "Paragraph" &&
-                    cell.elements[0]!.elements.every(
-                        element => element.type === "Text" && element.text.length === 0,
-                    ))
-            ) {
-                // Noop. We'll be able to parse an empty table cell as containing a single empty
-                // paragraph. We don't need to add `<p></p>` too.
-            } else {
-                yield* printApiContentBlockElementsToMarkdown(cell.elements, options);
+                if (
+                    cell.elements.length === 0 ||
+                    (cell.elements.length === 1 &&
+                        cell.elements[0]!.type === "Paragraph" &&
+                        cell.elements[0]!.elements.every(
+                            element => element.type === "Text" && element.text.length === 0,
+                        ))
+                ) {
+                    // Noop. We'll be able to parse an empty table cell as containing a single empty
+                    // paragraph. We don't need to add `<p></p>` too.
+                } else {
+                    yield* printApiContentBlockElementsToMarkdown(cell.elements, options);
+                }
             }
 
             if (
@@ -1190,6 +1356,86 @@ export function printApiMentionPathToMentionLinkUrl(
         default:
             throw exhaustive(target);
     }
+}
+
+// TODO: Implement this endpoint to serve the actual file content. The current URL
+// points to our app which would render a custom previewer, but `<img>`, `<video>`,
+// `<audio>`, and `<object>` tags need the raw file content to work. This should
+// serve the file bytes directly (or redirect to a signed URL).
+function printFileUrl(spaceId: SpaceId, fileId: string): string {
+    return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+}
+
+function printPreviewTargetUrl(spaceId: SpaceId, target: ApiPreviewTarget): string {
+    // TODO(#sites): Add Site to PreviewTarget.
+    switch (target.type) {
+        case "Channel":
+            // TODO: Implement /preview endpoints that generate a PNG or similar image for each
+            // previewable entity. Can also serve as OpenGraph images.
+            return `https://alpine.inc/s/${spaceId}/channels/${target.id}/preview`;
+        case "Chat":
+            return `https://alpine.inc/s/${spaceId}/chats/${target.id}/preview`;
+        case "Document":
+            return `https://alpine.inc/s/${spaceId}/documents/${target.id}/preview`;
+        case "Post":
+            return `https://alpine.inc/s/${spaceId}/posts/${target.id}/preview`;
+        case "Task":
+            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}/preview`;
+        case "TaskCollection":
+            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}/preview`;
+        default:
+            throw exhaustive(target);
+    }
+}
+
+/**
+ * Web safe image content types that can be rendered in an `<img>` tag across all
+ * major browsers. Based on MDN's "[Common image file types][1]."
+ *
+ * Duplicated from `shared/files/file_content_type.ts` to avoid a dependency on
+ * `//shared/files` (we intend to open source this package).
+ *
+ * [1]:
+ *     https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
+ */
+function isWebSafeImageContentType(contentType: string): boolean {
+    return (
+        contentType === "image/apng" ||
+        contentType === "image/avif" ||
+        contentType === "image/gif" ||
+        contentType === "image/jpeg" ||
+        contentType === "image/png" ||
+        contentType === "image/svg+xml" ||
+        contentType === "image/webp"
+    );
+}
+
+/**
+ * Web safe audio content types that can be rendered in an `<audio>` tag across all
+ * major browsers.
+ *
+ * Duplicated from `shared/files/file_content_type.ts` to avoid a dependency on
+ * `//shared/files` (we intend to open source this package).
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
+ */
+function isWebSafeAudioContentType(contentType: string): boolean {
+    return (
+        contentType === "audio/mpeg" || contentType === "audio/wav" || contentType === "audio/webm"
+    );
+}
+
+/**
+ * Web safe video content types that can be rendered in a `<video>` tag across all
+ * major browsers.
+ *
+ * Duplicated from `shared/files/file_content_type.ts` to avoid a dependency on
+ * `//shared/files` (we intend to open source this package).
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+ */
+function isWebSafeVideoContentType(contentType: string): boolean {
+    return contentType === "video/webm";
 }
 
 export function printAppUrlFromApiNotMentionPath(

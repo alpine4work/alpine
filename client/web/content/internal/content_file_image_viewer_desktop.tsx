@@ -22,7 +22,6 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/web/content/internal/content_file_viewer_shared_styles.js";
 import {ContentFileViewerLoaderData} from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {getFilePreviewSize} from "~/client/web/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuActions} from "~/client/web/design/context_menu.js";
 import {MenuAction} from "~/client/web/design/menu.js";
@@ -32,6 +31,7 @@ import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

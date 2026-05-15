@@ -1,15 +1,19 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {ApiContentBlockElementWithFileRow} from "~/shared/api/content/api_content_block_element_with_file_row.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {intoApiContentParagraphBlockElement} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiContent,
+    ApiContentBlockElement,
     ApiContentCheckListBlockElementItem,
+    ApiContentFileBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
     ApiContentMentionInlineElement,
+    ApiContentPreviewBlockElement,
+    ApiContentTableBlockElementCellBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
@@ -23,24 +27,9 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * Extended content type that includes FileRow elements.
- */
-export interface ApiContentExtended {
-    readonly elements: ReadonlyArray<ApiContentBlockElementWithFileRow>;
-}
-
-/**
  * Convert content from the API back into ProseMirror nodes.
- *
- * We pass a generic in order to support the extended content type for imports.
- * This allows us to use the extended content type for certain cases (like imports)
- * without having to support this for the base content type. TODO(#public-api):
- * Remove this generic once we support files in the public API
  */
-export function fromApiContent<ApiContentType extends ApiContent | ApiContentExtended = ApiContent>(
-    schema: ProsemirrorSchema,
-    content: ApiContentType,
-): Node {
+export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
 
     return schema.nodes.doc!.create(
@@ -74,7 +63,7 @@ export function fromApiContentForPutDocument(
 
 export function* fromApiContentBlockElements(
     schema: ProsemirrorSchema,
-    elements: Iterable<ApiContentBlockElementWithFileRow>,
+    elements: Iterable<ApiContentBlockElement>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
@@ -208,7 +197,7 @@ export function* fromApiContentBlockElements(
                             null,
                             row.cells.map(cell => {
                                 const cellContent = Array.from(
-                                    fromApiContentBlockElements(schema, cell.elements),
+                                    fromApiContentTableCellBlockElements(schema, cell.elements),
                                 );
 
                                 // Table cells require at least one block element (tableBlock+) If the cell is
@@ -236,30 +225,92 @@ export function* fromApiContentBlockElements(
                 );
                 break;
             }
-            case "FileRow": {
-                // TODO(#public-api): Remove this assertion once we support files in the public API
-                // and decide if we want to automatically split rows into multiple rows if there
-                // are more than 3 files.
-                assert(element.files.length <= 3, "FileRow must have at most 3 files");
-
-                // Create file nodes for each file in the row (max 3)
-                const fileNodes = element.files.map(file =>
-                    schema.nodes.file!.create({fileId: file.fileId}),
-                );
-
-                yield schema.nodes.fileRow!.create(null, fileNodes);
+            case "File":
+            case "Preview": {
+                yield schema.nodes.fileRow!.create(null, [
+                    fromApiContentFileOrPreviewElement(schema, element),
+                ]);
                 break;
             }
-            case "FileRowTable": {
-                // FileRowTable is for files in table cells - uses fileRowTable node type
-                yield schema.nodes.fileRowTable!.create(null, [
-                    schema.nodes.file!.create({fileId: element.fileId}),
-                ]);
+            case "FileGallery": {
+                for (const row of element.rows) {
+                    const fileNodes = row.items.map(item =>
+                        fromApiContentFileOrPreviewElement(schema, item.element),
+                    );
+                    yield schema.nodes.fileRow!.create(null, fileNodes);
+                }
+                break;
+            }
+            case "FileFloat": {
+                const fileNode = fromApiContentFileOrPreviewElement(schema, element.element);
+                yield schema.nodes.fileFloat!.create(
+                    {direction: element.side === "Left" ? "left" : "right"},
+                    [fileNode],
+                );
                 break;
             }
             default:
                 throw exhaustive(element);
         }
+    }
+}
+
+/**
+ * Convert table cell block elements to ProseMirror nodes. File and Preview
+ * elements inside table cells use the `fileRowTable` node type instead of the
+ * top-level `fileRow` node type.
+ */
+function* fromApiContentTableCellBlockElements(
+    schema: ProsemirrorSchema,
+    elements: Iterable<ApiContentTableBlockElementCellBlockElement>,
+): IterableIterator<Node> {
+    for (const element of elements) {
+        switch (element.type) {
+            case "File":
+            case "Preview": {
+                yield schema.nodes.fileRowTable!.create(null, [
+                    fromApiContentFileOrPreviewElement(schema, element),
+                ]);
+                break;
+            }
+            default:
+                yield* fromApiContentBlockElements(schema, [element]);
+                break;
+        }
+    }
+}
+
+function fromApiContentFileOrPreviewElement(
+    schema: ProsemirrorSchema,
+    element: ApiContentFileBlockElement | ApiContentPreviewBlockElement,
+): Node {
+    switch (element.type) {
+        case "File":
+            return schema.nodes.file!.create({
+                fileId: element.id === unknownFileId ? null : element.id,
+            });
+        case "Preview":
+            return schema.nodes.file!.create({
+                fileId: previewTargetToFileEntityId(element.target),
+            });
+        default:
+            throw exhaustive(element);
+    }
+}
+
+function previewTargetToFileEntityId(target: {readonly type: string; readonly id: string}): string {
+    // Construct a FileEntityId (`Type:id`) from the preview target.
+    switch (target.type) {
+        case "Channel":
+        case "Chat":
+        case "Document":
+        case "Post":
+        case "Task":
+        case "TaskCollection":
+            return `${target.type}:${target.id}`;
+        // TODO(#sites): Add support for Site previews.
+        default:
+            throw new InternalError(`Unknown preview target type: ${target.type}`);
     }
 }
 

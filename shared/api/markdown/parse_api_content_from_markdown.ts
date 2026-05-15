@@ -1,4 +1,5 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
@@ -19,6 +20,10 @@ import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
+import {
+    ApiContentFileOrPreviewBlockElement,
+    parseApiContentFileOrPreviewBlockElementFromUrl,
+} from "~/shared/api/markdown/internal/parse_api_content_file_or_preview_block_element_from_url.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
@@ -40,7 +45,7 @@ import {
     ApiContentTableBlockElementCellBlockElement,
     ApiMentionTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -203,6 +208,57 @@ function parseApiContentFromMarkdown(
     };
 }
 
+/**
+ * Merge adjacent standalone File/Preview elements into a FileGallery in-place.
+ * Each merged element becomes a single-item row.
+ */
+function mergeAdjacentFileElements(elements: Array<ApiContentBlockElement>) {
+    let i = 0;
+
+    while (i < elements.length - 1) {
+        const element = elements[i]!;
+        const next = elements[i + 1]!;
+
+        if (
+            (element.type === "File" || element.type === "Preview") &&
+            (next.type === "File" || next.type === "Preview" || next.type === "FileGallery")
+        ) {
+            const gallery: ApiContentBlockElement =
+                next.type === "FileGallery"
+                    ? {type: "FileGallery", rows: [{items: [{element}]}, ...next.rows]}
+                    : {
+                          type: "FileGallery",
+                          rows: [{items: [{element}]}, {items: [{element: next}]}],
+                      };
+
+            elements.splice(i, 2, gallery);
+            continue;
+        }
+
+        if (element.type === "FileGallery") {
+            if (next.type === "FileGallery") {
+                elements.splice(i, 2, {
+                    type: "FileGallery",
+                    rows: [...element.rows, ...next.rows],
+                });
+
+                continue;
+            }
+
+            if (next.type === "File" || next.type === "Preview") {
+                elements.splice(i, 2, {
+                    type: "FileGallery",
+                    rows: [...element.rows, {items: [{element: next}]}],
+                });
+
+                continue;
+            }
+        }
+
+        i++;
+    }
+}
+
 function* parseApiContentBlockElementsFromMarkdown(
     contents: Array<BlockContent | DefinitionContent>,
     definitions: ApiContentMarkdownParserDefinitions,
@@ -213,6 +269,74 @@ function* parseApiContentBlockElementsFromMarkdown(
 ): IterableIterator<ApiContentBlockElement> {
     const tableState = withTableHtml ? new ApiContentBlockElementsMarkdownTableState() : null;
 
+    // Buffer the last yielded element so we can merge adjacent FileGalleries that span
+    // separate mdast blocks (e.g. two HTML divs separated by a blank line in the
+    // markdown output).
+    let pending: ApiContentBlockElement | null = null;
+
+    function* emit(element: ApiContentBlockElement): IterableIterator<ApiContentBlockElement> {
+        if (pending?.type === "FileGallery") {
+            // Merge adjacent FileGalleries.
+            if (element.type === "FileGallery") {
+                pending = {
+                    type: "FileGallery",
+                    rows: [...pending.rows, ...element.rows],
+                };
+                return;
+            }
+
+            // Absorb adjacent standalone File/Preview as a new gallery row. This can produce
+            // single-element rows (e.g. from a bare `<img>` between two
+            // `<div style="display:flex">` rows in user-uploaded markdown). That's fine;
+            // `normalizeApiContent` handles canonicalization of gallery structure.
+            if (element.type === "File" || element.type === "Preview") {
+                pending = {
+                    type: "FileGallery",
+                    rows: [...pending.rows, {items: [{element}]}],
+                };
+                return;
+            }
+        }
+
+        // Merge adjacent standalone File/Preview elements into a new FileGallery. This
+        // happens when the printer unwraps all single-item rows from a multi-row gallery
+        // into standalone elements.
+        if (
+            (pending?.type === "File" || pending?.type === "Preview") &&
+            (element.type === "File" ||
+                element.type === "Preview" ||
+                element.type === "FileGallery")
+        ) {
+            if (element.type === "FileGallery") {
+                pending = {
+                    type: "FileGallery",
+                    rows: [{items: [{element: pending}]}, ...element.rows],
+                };
+            } else {
+                pending = {
+                    type: "FileGallery",
+                    rows: [{items: [{element: pending}]}, {items: [{element}]}],
+                };
+            }
+            return;
+        }
+
+        // Flush the pending element before processing the new one.
+        if (pending !== null) {
+            yield* flush();
+        }
+
+        pending = element;
+    }
+
+    function* flush(): IterableIterator<ApiContentBlockElement> {
+        if (pending === null) return;
+
+        const element = pending;
+        pending = null;
+        yield element;
+    }
+
     for (const content of contents) {
         for (const element of parseApiContentBlockElementFromMarkdown(
             content,
@@ -222,9 +346,12 @@ function* parseApiContentBlockElementsFromMarkdown(
         )) {
             if (tableState !== null && tableState.onBlockElement(element)) continue;
 
-            yield element;
+            yield* emit(element);
         }
     }
+
+    // Flush the final buffered element.
+    yield* flush();
 }
 
 const apiContentCodeBlockLanguageByName = new Map<string, ApiContentCodeBlockElement["language"]>();
@@ -239,14 +366,144 @@ for (const [language, extensions] of getObjectEntriesWithKeyofType(
     apiContentCodeBlockLanguageByName.set(language, language);
 }
 
+// Matches inline HTML children that contain `<video`, `<audio`, or `<object` tags.
+// CommonMark treats these as inline HTML instead of block-level HTML. When found
+// inside a paragraph, we extract them and re-parse as block HTML to produce
+// block-level file elements.
+const inlineHtmlMediaTagPattern = /^<(video|audio|object)\b/i;
+
 function* parseApiContentBlockElementFromMarkdown(
     content: BlockContent | DefinitionContent,
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
     options: ApiContentMarkdownParserOptions,
 ): IterableIterator<ApiContentBlockElement> {
+    // TODO: Support inline images that appear in the middle of paragraph text, e.g.
+    // `Check out this diagram: ![](https://alpine.inc/s/.../files/abc123)`. Today we
+    // only recognize a file URL when it's the sole child of a paragraph. Ideally we'd
+    // split the paragraph into: a paragraph with the preceding text, the File/Preview
+    // block element, and a paragraph with the trailing text. This would let agents
+    // write more natural markdown with embedded files without losing the file
+    // reference.
     switch (content.type) {
         case "paragraph": {
+            // A paragraph with a single image child may represent a File or Preview block
+            // element if the URL matches our alpine.inc patterns.
+            const firstChild = content.children[0];
+            if (
+                content.children.length === 1 &&
+                firstChild?.type === "image" &&
+                options.spaceId !== null
+            ) {
+                const imageNode = firstChild;
+
+                const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
+                    options.spaceId,
+                    imageNode.url,
+                );
+
+                if (fileOrPreview !== null) {
+                    yield fileOrPreview;
+                    break;
+                }
+            }
+
+            // A paragraph with a single link child may represent a Preview block element if
+            // the URL matches our alpine.inc preview patterns. We don't print previews as
+            // links (we use image syntax), but an agent might write markdown like
+            // `[My Document](https://alpine.inc/s/.../documents/...)` and we want to handle
+            // that gracefully.
+            if (
+                content.children.length === 1 &&
+                firstChild?.type === "link" &&
+                options.spaceId !== null
+            ) {
+                const linkNode = firstChild;
+                const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
+                    options.spaceId,
+                    linkNode.url,
+                );
+
+                if (fileOrPreview !== null && fileOrPreview.type === "Preview") {
+                    yield fileOrPreview;
+                    break;
+                }
+            }
+
+            // CommonMark treats `<video>`, `<audio>`, and `<object>` as inline HTML rather
+            // than block-level HTML. When these appear in a paragraph, each HTML tag becomes a
+            // separate `html` phrasing content child (e.g. `<video>`, `<source .../>`,
+            // `</video>` are three separate children). We detect a media tag, find the span of
+            // adjacent `html` children that form the complete element, concatenate them, and
+            // re-parse as block HTML to extract the file element. Any surrounding text is
+            // preserved as separate paragraphs.
+            if (options.spaceId !== null) {
+                const mediaStartIndex = content.children.findIndex(
+                    child => child.type === "html" && inlineHtmlMediaTagPattern.test(child.value),
+                );
+
+                if (mediaStartIndex !== -1) {
+                    // Find the extent of adjacent html children starting from the media tag.
+                    let mediaEndIndex = mediaStartIndex;
+                    while (
+                        mediaEndIndex + 1 < content.children.length &&
+                        content.children[mediaEndIndex + 1]!.type === "html"
+                    ) {
+                        mediaEndIndex++;
+                    }
+
+                    // Concatenate all adjacent html children into a single string for the block HTML
+                    // parser.
+                    let combinedHtml = "";
+                    for (let i = mediaStartIndex; i <= mediaEndIndex; i++) {
+                        const child = content.children[i]!;
+                        if (child.type === "html") {
+                            combinedHtml += child.value;
+                        }
+                    }
+
+                    // Yield a paragraph for any children before the media tag.
+                    const before = content.children.slice(0, mediaStartIndex);
+                    if (before.length > 0) {
+                        yield {
+                            type: "Paragraph",
+                            elements: Array.from(
+                                parseAndMergeApiContentInlineElementsFromMarkdown(
+                                    before,
+                                    definitions,
+                                    options,
+                                ),
+                            ),
+                        };
+                    }
+
+                    // Parse the combined inline HTML as block-level HTML to extract the media element.
+                    yield* parseApiContentBlockElementFromMarkdown(
+                        {type: "html", value: combinedHtml},
+                        definitions,
+                        tableState,
+                        options,
+                    );
+
+                    // Yield a paragraph for any children after the media tags.
+                    const after = content.children.slice(mediaEndIndex + 1);
+                    if (after.length > 0) {
+                        yield {
+                            type: "Paragraph",
+                            elements: Array.from(
+                                parseAndMergeApiContentInlineElementsFromMarkdown(
+                                    after,
+                                    definitions,
+                                    options,
+                                ),
+                            ),
+                        };
+                    }
+
+                    break;
+                }
+            }
+
             yield {
                 type: "Paragraph",
                 elements: Array.from(
@@ -267,9 +524,10 @@ function* parseApiContentBlockElementFromMarkdown(
             // unordered lists into our API content, we need to split them based on the list
             // items.
             if (content.ordered) {
+                const orderStart = getOrderStartIfExists(content);
                 yield {
                     type: "OrderedList",
-                    orderStart: getOrderStartIfExists(content),
+                    ...(orderStart !== undefined ? {orderStart} : {}),
                     items: parseContentListBlockElementItems(
                         content.children,
                         definitions,
@@ -397,6 +655,27 @@ function* parseApiContentBlockElementFromMarkdown(
                 dataComment: string | null;
             } | null = null;
 
+            // Media tag states are split by tag type so that each only carries the fields
+            // relevant to that tag. `<img>` has `alt`; `<object>` uses `data` instead of
+            // `src`; `<video>`/`<audio>` can receive their URL from a child `<source>`
+            // element.
+            let mediaTagState:
+                | // `<img>` gets its URL from `src` and carries `alt` text (used as the preview
+                // title).
+                ((
+                      | {tagName: "img"; src: string | null; alt: string | null}
+                      // `<object>` uses `data` instead of `src` for its URL.
+                      | {tagName: "object"; data: string | null}
+                      // `<video>`/`<audio>` get their URL from `src` on the tag itself or from a child
+                      // `<source>` element.
+                      | {tagName: "video" | "audio"; src: string | null}
+                  ) & {
+                      style: string | null;
+                      phase: "open" | "attr-name" | "attr-value";
+                      attrName: string;
+                  })
+                | null = null;
+
             let codeTagState: {
                 phase: "<pre>" | "<pre>..." | "<code>" | "<code class>" | "<code>..." | "</code>";
                 class: string | null;
@@ -407,10 +686,53 @@ function* parseApiContentBlockElementFromMarkdown(
                 }>;
             } | null = null;
 
+            let divFileState:
+                | ({
+                      phase: "open" | "attr-name" | "attr-value";
+                      attrName: string;
+                      attrValue: string;
+                  } &
+                      // Style hasn't been parsed yet, so we don't know what kind of container this div
+                      // is (if any).
+                      (| {containerType: null}
+                          // A `display: flex` row inside a file gallery. Collects elements as the row is
+                          // parsed.
+                          | {
+                                containerType: "file-gallery-row";
+                                currentItems: Array<{
+                                    element: ApiContentFileOrPreviewBlockElement;
+                                }>;
+                            }
+                          // A `float: left` or `float: right` container for a single floating file.
+                          // `currentRow` starts null and is set to a single-element array when the first
+                          // media element is found.
+                          | {
+                                containerType: "file-float";
+                                floatSide: "Left" | "Right";
+                                currentRow: Array<ApiContentFileOrPreviewBlockElement> | null;
+                            }
+                      ))
+                | null = null;
+
+            // Tracks `<a>` tags inside gallery/float containers that may represent Preview
+            // elements. When an `<a>` tag with a preview URL href is found inside a
+            // `divFileState`, we capture it here instead of pushing a Link mark.
+            let previewAnchorState: {
+                phase: "<a>" | "<a href>";
+                href: string;
+                title: string;
+            } | null = null;
+
             const markStack = new ApiContentInlineElementsMarkdownParserMarkStack();
 
             const handleText = (text: string) => {
                 if (text.length === 0) return;
+
+                // Capture text inside preview anchor tags as the title.
+                if (previewAnchorState !== null) {
+                    previewAnchorState.title += text;
+                    return;
+                }
 
                 // Perform HTML space crushing. Any consecutive whitespace in HTML is collapsed to
                 // a single space. If we're in `<pre><code>` then we must preserve whitespace.
@@ -441,10 +763,80 @@ function* parseApiContentBlockElementFromMarkdown(
             };
 
             const handleElement = (element: ApiContentBlockElement) => {
-                if (!tableState?.onBlockElement(element)) {
-                    elements ??= [];
-                    elements.push(element);
+                if (tableState?.onBlockElement(element)) return;
+
+                elements ??= [];
+
+                // FileGallery merge and unwrap is handled at the top level of the parser (in
+                // `emit`) so it works across mdast block boundaries. Don't do it here.
+                elements.push(element);
+            };
+
+            // Append attribute data to the correct field on the current media tag state.
+            const appendMediaTagAttribute = (
+                state: NonNullable<typeof mediaTagState>,
+                data: string,
+            ) => {
+                switch (state.attrName) {
+                    case "src":
+                        assert(state.tagName !== "object");
+                        state.src += data;
+                        break;
+                    case "data":
+                        assert(state.tagName === "object");
+                        state.data += data;
+                        break;
+                    case "alt":
+                        assert(state.tagName === "img");
+                        state.alt += data;
+                        break;
+                    case "style":
+                        state.style += data;
+                        break;
                 }
+            };
+
+            // Resolve the current media tag (<img>, <video>, <audio>, <object>) into a File or
+            // Preview block element and route it to the correct destination (standalone,
+            // gallery row, or float container).
+            //
+            // `force` should be true when called from a close tag (e.g. `</video>`). When
+            // false (from onopentagend/onselfclosingtag), video tags without a src are kept
+            // alive so `<source>` children can provide the URL.
+            const handleMediaTagEnd = (force = false) => {
+                if (mediaTagState === null) return;
+
+                const mediaUrl =
+                    mediaTagState.tagName === "object" ? mediaTagState.data : mediaTagState.src;
+
+                // For `<video>`/`<audio>` with `<source>` children, the src comes from the child.
+                // Don't clear state on the open tag end if no URL is found yet.
+                if (
+                    !force &&
+                    (mediaTagState.tagName === "video" || mediaTagState.tagName === "audio") &&
+                    !mediaUrl
+                ) {
+                    return;
+                }
+
+                if (mediaUrl && options.spaceId !== null) {
+                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
+                        options.spaceId,
+                        mediaUrl,
+                    );
+                    if (element !== null) {
+                        if (divFileState?.containerType === "file-gallery-row") {
+                            // Widths are response-only metadata computed by the server. We don't need to parse
+                            // them from the HTML since they'll be recomputed on the next response.
+                            divFileState.currentItems.push({element});
+                        } else if (divFileState?.containerType === "file-float") {
+                            divFileState.currentRow = [element];
+                        } else {
+                            handleElement(element);
+                        }
+                    }
+                }
+                mediaTagState = null;
             };
 
             const tokenizer = new HtmlTokenizer(
@@ -453,6 +845,15 @@ function* parseApiContentBlockElementFromMarkdown(
                     ontext: (start, end) => {
                         const text = content.value.slice(start, end);
                         if (tableState?.onText()) return;
+                        // Ignore whitespace-only text inside gallery/float containers. Newlines between
+                        // tags (e.g. between `<div>` and `<img>`) are meaningless and would otherwise
+                        // produce spurious paragraph elements.
+                        if (
+                            divFileState !== null &&
+                            divFileState.containerType !== null &&
+                            text.trim() === ""
+                        )
+                            return;
                         handleText(text);
                     },
                     ontextentity: codepoint => {
@@ -513,7 +914,16 @@ function* parseApiContentBlockElementFromMarkdown(
                                 break;
                             }
                             case "a": {
-                                anchorTagState = {phase: "<a>", href: null};
+                                if (divFileState !== null) {
+                                    // Inside a gallery/float container, track `<a>` as a potential preview anchor
+                                    // instead of an inline link mark. We don't print previews as `<a>` tags (we use
+                                    // `<img>`), but an agent might write
+                                    // `<a href="https://alpine.inc/s/.../documents/...">Title</a>` inside a gallery
+                                    // div to create a preview element.
+                                    previewAnchorState = {phase: "<a>", href: "", title: ""};
+                                } else {
+                                    anchorTagState = {phase: "<a>", href: null};
+                                }
                                 break;
                             }
                             case "mark": {
@@ -564,6 +974,88 @@ function* parseApiContentBlockElementFromMarkdown(
                                 tableState.onOpenTagName(tagName);
                                 break;
                             }
+                            case "img": {
+                                mediaTagState = {
+                                    tagName,
+                                    src: null,
+                                    alt: null,
+                                    style: null,
+                                    phase: "open",
+                                    attrName: "",
+                                };
+                                break;
+                            }
+                            case "video":
+                            case "audio": {
+                                mediaTagState = {
+                                    tagName,
+                                    src: null,
+                                    style: null,
+                                    phase: "open",
+                                    attrName: "",
+                                };
+                                break;
+                            }
+                            case "object": {
+                                mediaTagState = {
+                                    tagName,
+                                    data: null,
+                                    style: null,
+                                    phase: "open",
+                                    attrName: "",
+                                };
+                                break;
+                            }
+                            case "source": {
+                                // `<source>` children of `<video>`/`<audio>` provide the src. We don't change the
+                                // media tag's identity here, just re-enter attribute parsing. This means a `src`
+                                // on both the parent tag and a `<source>` child both write to the same
+                                // `mediaTagState.src` field (the last one wins). That's intentional: agents may
+                                // put `src` directly on `<video>` or use `<source>` children, and we accept either
+                                // form.
+                                if (
+                                    mediaTagState !== null &&
+                                    (mediaTagState.tagName === "video" ||
+                                        mediaTagState.tagName === "audio")
+                                ) {
+                                    mediaTagState.phase = "open";
+                                    mediaTagState.attrName = "";
+                                }
+
+                                break;
+                            }
+                            case "div": {
+                                // Nested divs inherit the parent's container context (gallery row, float) so that
+                                // media tags inside them route correctly. By the time htmlparser2 fires
+                                // `onopentagname` for a child element, the parent's `onopentagend` has already
+                                // fired, so the parent div's attribute phase is complete. We always start fresh in
+                                // the "open" phase here.
+                                {
+                                    const base = {
+                                        phase: "open" as const,
+                                        attrName: "",
+                                        attrValue: "",
+                                    };
+
+                                    if (divFileState?.containerType === "file-gallery-row") {
+                                        divFileState = {
+                                            ...base,
+                                            containerType: "file-gallery-row",
+                                            currentItems: divFileState.currentItems,
+                                        };
+                                    } else if (divFileState?.containerType === "file-float") {
+                                        divFileState = {
+                                            ...base,
+                                            containerType: "file-float",
+                                            floatSide: divFileState.floatSide,
+                                            currentRow: divFileState.currentRow,
+                                        };
+                                    } else {
+                                        divFileState = {...base, containerType: null};
+                                    }
+                                }
+                                break;
+                            }
                         }
                     },
                     onopentagend: () => {
@@ -572,6 +1064,7 @@ function* parseApiContentBlockElementFromMarkdown(
                                 type: "Link",
                                 url: anchorTagState.href ?? "",
                             });
+
                             anchorTagState = null;
                         }
 
@@ -617,6 +1110,21 @@ function* parseApiContentBlockElementFromMarkdown(
                             codeTagState.phase = "<code>...";
                         }
 
+                        // Handle non-self-closing media tags (<img>, <audio>, <object>).
+                        handleMediaTagEnd();
+
+                        // Div attributes are processed in `onattribend` as each attribute completes. Reset
+                        // phase here for any trailing boolean attribute that didn't get an `onattribend`
+                        // call.
+                        if (
+                            divFileState?.phase === "attr-name" ||
+                            divFileState?.phase === "attr-value"
+                        ) {
+                            divFileState.phase = "open";
+                            divFileState.attrName = "";
+                            divFileState.attrValue = "";
+                        }
+
                         tableState?.onOpenTagEnd();
                     },
                     onclosetag: (start, end) => {
@@ -642,9 +1150,35 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "em":
                             case "i":
                             case "del":
-                            case "a":
                             case "mark": {
                                 markStack.popForHtmlTag(tagName);
+                                break;
+                            }
+                            case "a": {
+                                // Resolve a preview anchor tag into a Preview element. We don't print previews as
+                                // `<a>` tags, but an agent might use anchor syntax to reference a preview URL.
+                                if (previewAnchorState !== null && options.spaceId !== null) {
+                                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
+                                        options.spaceId,
+                                        previewAnchorState.href,
+                                    );
+                                    if (element !== null && element.type === "Preview") {
+                                        const preview: ApiContentFileOrPreviewBlockElement =
+                                            element;
+                                        if (divFileState?.containerType === "file-gallery-row") {
+                                            divFileState.currentItems.push({
+                                                element: preview,
+                                            });
+                                        } else if (divFileState?.containerType === "file-float") {
+                                            divFileState.currentRow = [preview];
+                                        } else {
+                                            handleElement(preview);
+                                        }
+                                    }
+                                    previewAnchorState = null;
+                                } else {
+                                    markStack.popForHtmlTag(tagName);
+                                }
                                 break;
                             }
                             case "code": {
@@ -775,20 +1309,96 @@ function* parseApiContentBlockElementFromMarkdown(
                                 }
 
                                 const element = tableState.onCloseTagName(tagName);
+
                                 if (element !== null) {
                                     handleElement(element);
+                                }
+
+                                break;
+                            }
+                            case "video":
+                            case "audio": {
+                                // Force-end the media tag when the closing tag is reached. This handles
+                                // `<video><source src="..."/></video>`.
+                                handleMediaTagEnd(true);
+                                break;
+                            }
+                            case "source": {
+                                // `<source/>` is self-closing but htmlparser2 may emit a close event for it as
+                                // well. Ignore it.
+                                break;
+                            }
+                            case "div": {
+                                if (divFileState === null) break;
+
+                                if (
+                                    divFileState.containerType === "file-float" &&
+                                    divFileState.currentRow !== null &&
+                                    divFileState.currentRow.length > 0
+                                ) {
+                                    // Close the float container.
+                                    handleElement({
+                                        type: "FileFloat",
+                                        side: divFileState.floatSide,
+                                        element: divFileState.currentRow[0]!,
+                                    });
+
+                                    divFileState = null;
+                                } else if (
+                                    divFileState.containerType === "file-gallery-row" &&
+                                    divFileState.currentItems.length > 0
+                                ) {
+                                    // Close a gallery row div. Widths are not parsed; they're response-only metadata
+                                    // that will be recomputed by the server.
+                                    handleElement({
+                                        type: "FileGallery",
+                                        rows: [{items: divFileState.currentItems}],
+                                    });
+
+                                    divFileState = null;
+                                } else {
+                                    divFileState = null;
                                 }
                                 break;
                             }
                         }
                     },
+                    onselfclosingtag: () => {
+                        // Handle self-closing media tags (<img/>, <audio/>, <object/>).
+                        handleMediaTagEnd();
 
+                        if (divFileState === null) return;
+
+                        // This fires for self-closing child tags inside the div (e.g. `<img/>` inside
+                        // `<div style="display:flex">`), NOT for the div itself. If we're inside a
+                        // container, the child was already handled by `handleMediaTagEnd()` above; just
+                        // reset attribute parsing state for the next child. If there's no container, this
+                        // was a bare `<div/>` which is meaningless, so clear state.
+                        divFileState =
+                            divFileState.containerType !== null
+                                ? {
+                                      ...divFileState,
+                                      phase: "open",
+                                      attrName: "",
+                                      attrValue: "",
+                                  }
+                                : null;
+                    },
                     onattribname: (start, end) => {
                         const attributeName = content.value.slice(start, end).toLowerCase();
 
                         if (anchorTagState?.phase === "<a>" && attributeName === "href") {
                             anchorTagState.phase = "<a href>";
                             anchorTagState.href = "";
+                        }
+
+                        if (previewAnchorState !== null) {
+                            if (attributeName === "href") {
+                                previewAnchorState.phase = "<a href>";
+                                previewAnchorState.href = "";
+                            } else {
+                                previewAnchorState.phase = "<a>";
+                            }
                         }
 
                         if (markTagState?.phase === "<mark>") {
@@ -806,6 +1416,41 @@ function* parseApiContentBlockElementFromMarkdown(
                             codeTagState.class = "";
                         }
 
+                        if (mediaTagState?.phase === "open") {
+                            let recognized = false;
+
+                            if (attributeName === "style") {
+                                mediaTagState.style = "";
+                                recognized = true;
+                            } else if (
+                                attributeName === "src" &&
+                                mediaTagState.tagName !== "object"
+                            ) {
+                                mediaTagState.src = "";
+                                recognized = true;
+                            } else if (
+                                attributeName === "data" &&
+                                mediaTagState.tagName === "object"
+                            ) {
+                                mediaTagState.data = "";
+                                recognized = true;
+                            } else if (attributeName === "alt" && mediaTagState.tagName === "img") {
+                                mediaTagState.alt = "";
+                                recognized = true;
+                            }
+
+                            if (recognized) {
+                                mediaTagState.phase = "attr-name";
+                                mediaTagState.attrName = attributeName;
+                            }
+                        }
+
+                        if (divFileState?.phase === "open") {
+                            divFileState.phase = "attr-name";
+                            divFileState.attrName = attributeName;
+                            divFileState.attrValue = "";
+                        }
+
                         tableState?.onAttributeName(attributeName);
                     },
                     onattribdata: (start, end) => {
@@ -813,6 +1458,10 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (anchorTagState?.phase === "<a href>") {
                             anchorTagState.href += attributeData;
+                        }
+
+                        if (previewAnchorState?.phase === "<a href>") {
+                            previewAnchorState.href += attributeData;
                         }
 
                         if (markTagState?.phase === "<mark class>") {
@@ -825,6 +1474,22 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
+                        }
+
+                        if (
+                            mediaTagState?.phase === "attr-name" ||
+                            mediaTagState?.phase === "attr-value"
+                        ) {
+                            mediaTagState.phase = "attr-value";
+                            appendMediaTagAttribute(mediaTagState, attributeData);
+                        }
+
+                        if (
+                            divFileState?.phase === "attr-name" ||
+                            divFileState?.phase === "attr-value"
+                        ) {
+                            divFileState.phase = "attr-value";
+                            divFileState.attrValue += attributeData;
                         }
 
                         tableState?.onAttributeData(attributeData);
@@ -836,6 +1501,10 @@ function* parseApiContentBlockElementFromMarkdown(
                             anchorTagState.href += attributeData;
                         }
 
+                        if (previewAnchorState?.phase === "<a href>") {
+                            previewAnchorState.href += attributeData;
+                        }
+
                         if (markTagState?.phase === "<mark class>") {
                             markTagState.class += attributeData;
                         }
@@ -846,6 +1515,22 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
+                        }
+
+                        if (
+                            mediaTagState?.phase === "attr-name" ||
+                            mediaTagState?.phase === "attr-value"
+                        ) {
+                            mediaTagState.phase = "attr-value";
+                            appendMediaTagAttribute(mediaTagState, attributeData);
+                        }
+
+                        if (
+                            divFileState?.phase === "attr-name" ||
+                            divFileState?.phase === "attr-value"
+                        ) {
+                            divFileState.phase = "attr-value";
+                            divFileState.attrValue += attributeData;
                         }
 
                         tableState?.onAttributeData(attributeData);
@@ -867,6 +1552,53 @@ function* parseApiContentBlockElementFromMarkdown(
                             codeTagState.phase = "<code>";
                         }
 
+                        if (mediaTagState?.phase === "attr-value") {
+                            mediaTagState.phase = "open";
+                        }
+
+                        // Process div attributes as each one completes so we handle multiple attributes
+                        // (e.g. `<div id="foo" style="display:flex">`).
+                        if (
+                            divFileState?.phase === "attr-name" ||
+                            divFileState?.phase === "attr-value"
+                        ) {
+                            if (divFileState.attrName === "style") {
+                                const declarations = parseInlineStyle(divFileState.attrValue);
+
+                                for (const decl of declarations) {
+                                    if (decl.type !== "declaration") continue;
+                                    const prop = decl.property.toLowerCase();
+                                    const value = decl.value.toLowerCase().trim();
+
+                                    // Gallery rows: `display: flex`
+                                    if (prop === "display" && value === "flex") {
+                                        divFileState = {
+                                            ...divFileState,
+                                            containerType: "file-gallery-row",
+                                            currentItems: [],
+                                        };
+                                    }
+
+                                    // Float containers: `float: left` or `float: right`
+                                    if (
+                                        prop === "float" &&
+                                        (value === "left" || value === "right")
+                                    ) {
+                                        divFileState = {
+                                            ...divFileState,
+                                            containerType: "file-float",
+                                            floatSide: value === "right" ? "Right" : "Left",
+                                            currentRow: null,
+                                        };
+                                    }
+                                }
+                            }
+
+                            divFileState.phase = "open";
+                            divFileState.attrName = "";
+                            divFileState.attrValue = "";
+                        }
+
                         tableState?.onAttributeEnd();
                     },
 
@@ -875,11 +1607,11 @@ function* parseApiContentBlockElementFromMarkdown(
                     ondeclaration: noop,
                     onend: noop,
                     onprocessinginstruction: noop,
-                    onselfclosingtag: noop,
                 },
             );
 
             tokenizer.write(content.value);
+            tokenizer.end();
 
             if (elements !== undefined) {
                 yield* elements;
@@ -1179,6 +1911,8 @@ class ApiContentBlockElementsMarkdownTableState {
                             ) {
                                 elements.pop();
                             }
+
+                            mergeAdjacentFileElements(elements);
 
                             return {elements};
                         }),
@@ -2023,6 +2757,7 @@ function* parseApiContentInlineElementFromMarkdown(
             );
 
             tokenizer.write(content.value);
+            tokenizer.end();
 
             if (elements !== undefined) {
                 yield* elements;
@@ -2258,6 +2993,33 @@ function* intoApiContentTableBlockElementCellElement(
             }
             break;
         }
+        case "File":
+        case "Preview": {
+            yield element;
+            break;
+        }
+        case "FileGallery": {
+            // Tables support single-file rows (rendered as `fileRowTable` in ProseMirror).
+            // Unwrap each single-item row to a standalone File/Preview element. Multi-item
+            // rows aren't supported in tables.
+            for (const row of element.rows) {
+                if (row.items.length !== 1) {
+                    throw new InvalidArgumentError(
+                        "File gallery rows with multiple items aren\u2019t supported in table cells",
+                        {
+                            displayMessage: errorDisplayMessage`File gallery rows with multiple items aren\u2019t supported in table cells.`,
+                        },
+                    );
+                }
+                yield row.items[0]!.element;
+            }
+            break;
+        }
+        case "FileFloat": {
+            throw new InvalidArgumentError("File floats aren\u2019t supported in table cells", {
+                displayMessage: errorDisplayMessage`File floats aren\u2019t supported in table cells.`,
+            });
+        }
         default:
             throw exhaustive(element);
     }
@@ -2293,6 +3055,16 @@ function* intoApiContentQuoteBlockElementBlockElement(
                     };
                 }
                 break;
+            }
+            case "File": {
+                throw new InvalidArgumentError("Files aren\u2019t supported in quote blocks", {
+                    displayMessage: errorDisplayMessage`Files aren\u2019t supported in quote blocks.`,
+                });
+            }
+            case "Preview": {
+                throw new InvalidArgumentError("Previews aren\u2019t supported in quote blocks", {
+                    displayMessage: errorDisplayMessage`Previews aren\u2019t supported in quote blocks.`,
+                });
             }
             default:
                 throw exhaustive(element);

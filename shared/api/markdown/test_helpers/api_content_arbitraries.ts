@@ -1,4 +1,5 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
@@ -16,6 +17,12 @@ import {
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentDividerBlockElement,
+    ApiContentFileBlockElement,
+    ApiContentFileBlockElementResponse,
+    ApiContentFileFloatBlockElement,
+    ApiContentFileFloatBlockElementResponse,
+    ApiContentFileGalleryBlockElement,
+    ApiContentFileGalleryBlockElementResponse,
     ApiContentHeadingBlockElement,
     ApiContentHeadingBlockElementResponse,
     ApiContentInlineElement,
@@ -34,6 +41,8 @@ import {
     ApiContentOrderedListBlockElementResponse,
     ApiContentParagraphBlockElement,
     ApiContentParagraphBlockElementResponse,
+    ApiContentPreviewBlockElement,
+    ApiContentPreviewBlockElementResponse,
     ApiContentQuoteBlockElement,
     ApiContentQuoteBlockElementBlockElement,
     ApiContentQuoteBlockElementBlockElementResponse,
@@ -48,6 +57,8 @@ import {
     ApiContentUnorderedListBlockElementResponse,
     ApiMentionTarget,
     ApiMentionTargetResponse,
+    ApiPreviewTarget,
+    ApiPreviewTargetResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -60,6 +71,7 @@ import {
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
     SpaceId,
     TaskCollectionId,
@@ -83,15 +95,26 @@ function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
         .map(bytes => encodeId<Value>(bytes));
 }
 
+const ApiPreviewAndMentionTargets = {
+    Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel" as const, id})),
+    Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat" as const, id})),
+    Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document" as const, id})),
+    Post: createIdArbitrary<PostId>().map(id => ({type: "Post" as const, id})),
+    Task: createIdArbitrary<TaskId>().map(id => ({type: "Task" as const, id})),
+    TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({
+        type: "TaskCollection" as const,
+        id,
+    })),
+};
+
 const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTarget>({
     Account: createIdArbitrary<AccountId>().map(id => ({type: "Account", id})),
-    Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel", id})),
-    Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat", id})),
-    Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document", id})),
-    Post: createIdArbitrary<PostId>().map(id => ({type: "Post", id})),
-    Task: createIdArbitrary<TaskId>().map(id => ({type: "Task", id})),
-    TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({type: "TaskCollection", id})),
+    ...ApiPreviewAndMentionTargets,
 });
+
+const ApiPreviewTargetArbitrary = createUnionArbitrary<ApiPreviewTarget>(
+    ApiPreviewAndMentionTargets,
+);
 
 const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
     fc.record({
@@ -359,6 +382,46 @@ const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement>
     ),
 });
 
+const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElement> = fc.record({
+    type: fc.constant("File"),
+    id: fc.oneof(createIdArbitrary<FileId>(), fc.constant(unknownFileId)),
+});
+
+const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElement> = fc.record({
+    type: fc.constant("Preview"),
+    target: ApiPreviewTargetArbitrary,
+    title: fc.string({minLength: 1, maxLength: 20}),
+});
+
+const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElement> =
+    fc.record({
+        type: fc.constant("FileGallery"),
+        rows: fc.array(
+            fc
+                .array(
+                    fc.oneof(
+                        ApiContentFileBlockElementArbitrary,
+                        ApiContentPreviewBlockElementArbitrary,
+                    ),
+                    {minLength: 1, maxLength: 3},
+                )
+                // Widths are response-only metadata computed by the server, so we omit them from
+                // the input arbitrary.
+                .map(elements => ({items: elements.map(element => ({element}))})),
+            {minLength: 1},
+        ),
+    });
+
+const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlockElement> =
+    fc.record({
+        type: fc.constant("FileFloat"),
+        side: fc.oneof(fc.constant("Left"), fc.constant("Right")),
+        element: fc.oneof(
+            ApiContentFileBlockElementArbitrary,
+            ApiContentPreviewBlockElementArbitrary,
+        ),
+    });
+
 // Schema requires tableCell{2,} so tables must have at least 2 columns
 const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElement> = fc.oneof(
     // Simple table that should be formatted as a GFM table.
@@ -412,6 +475,8 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                                 Quote: ApiContentQuoteBlockElementArbitrary,
                                 Code: ApiContentCodeBlockElementArbitrary,
                                 CheckList: ApiContentCheckListBlockElementArbitrary,
+                                File: ApiContentFileBlockElementArbitrary,
+                                Preview: ApiContentPreviewBlockElementArbitrary,
                             }),
                         ),
                     }),
@@ -432,6 +497,10 @@ const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElem
     Divider: ApiContentDividerBlockElementArbitrary,
     Code: ApiContentCodeBlockElementArbitrary,
     Table: ApiContentTableBlockElementArbitrary,
+    File: ApiContentFileBlockElementArbitrary,
+    FileGallery: ApiContentFileGalleryBlockElementArbitrary,
+    FileFloat: ApiContentFileFloatBlockElementArbitrary,
+    Preview: ApiContentPreviewBlockElementArbitrary,
 });
 
 export const ApiContentArbitrary: Arbitrary<ApiContent> = fc.record({
@@ -444,22 +513,96 @@ export const ApiContentArbitrary: Arbitrary<ApiContent> = fc.record({
 
 const ApiTaskStatusArbitrary: Arbitrary<ApiTaskStatus> = fc.oneof(
     fc.record({type: fc.constant("Open"), isActive: fc.boolean()}),
-    fc.constant({type: "Closed"} as const),
+    fc.constant({type: "Closed"}),
 );
 
-const ApiMentionTargetResponseArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
-    Account: createIdArbitrary<AccountId>().map(id => ({type: "Account", id})),
-    Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel", id})),
-    Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat", id})),
-    Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document", id})),
-    Post: createIdArbitrary<PostId>().map(id => ({type: "Post", id})),
+const ApiPreviewAndMentionTargetResponses = {
+    Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel" as const, id})),
+    Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat" as const, id})),
+    Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document" as const, id})),
+    Post: createIdArbitrary<PostId>().map(id => ({type: "Post" as const, id})),
     Task: fc.record({
-        type: fc.constant("Task"),
+        type: fc.constant("Task" as const),
         id: createIdArbitrary<TaskId>(),
         status: ApiTaskStatusArbitrary,
     }),
-    TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({type: "TaskCollection", id})),
+    TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({
+        type: "TaskCollection" as const,
+        id,
+    })),
+};
+
+const ApiMentionTargetResponseArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
+    Account: createIdArbitrary<AccountId>().map(id => ({type: "Account" as const, id})),
+    ...ApiPreviewAndMentionTargetResponses,
 });
+
+const ApiPreviewTargetResponseArbitrary = createUnionArbitrary<ApiPreviewTargetResponse>(
+    ApiPreviewAndMentionTargetResponses,
+);
+
+const ApiContentFileBlockElementResponseArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
+    fc.record({
+        type: fc.constant("File"),
+        id: fc.oneof(createIdArbitrary<FileId>(), fc.constant(unknownFileId)),
+        contentType: fc.oneof(
+            fc.constant("image/png"),
+            fc.constant("image/jpeg"),
+            fc.constant("video/mp4"),
+            fc.constant("audio/mpeg"),
+            fc.constant("application/pdf"),
+        ),
+        contentLength: fc.integer({min: 0}),
+    });
+
+const ApiContentPreviewBlockElementResponseArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Preview"),
+        target: ApiPreviewTargetResponseArbitrary,
+        title: fc.string({minLength: 1, maxLength: 20}),
+    });
+
+const ApiContentFileGalleryBlockElementResponseArbitrary: Arbitrary<ApiContentFileGalleryBlockElementResponse> =
+    fc.record({
+        type: fc.constant("FileGallery"),
+        rows: fc.array(
+            fc
+                .array(
+                    fc.oneof(
+                        ApiContentFileBlockElementResponseArbitrary,
+                        ApiContentPreviewBlockElementResponseArbitrary,
+                    ),
+                    {minLength: 1, maxLength: 3},
+                )
+                .map(elements => {
+                    // Generate integer-percent-friendly widths that round-trip cleanly through the
+                    // printer (which rounds to integer percents). Derive the last from 100 -
+                    // sum(previous) so they sum to exactly 100, then divide by 100.
+                    let percentSum = 0;
+                    const items = elements.map((element, i) => {
+                        const percent =
+                            i < elements.length - 1
+                                ? Math.round(100 / elements.length)
+                                : 100 - percentSum;
+
+                        percentSum += percent;
+                        return {width: percent / 100, element};
+                    });
+                    return {items};
+                }),
+            {minLength: 1},
+        ),
+    });
+
+const ApiContentFileFloatBlockElementResponseArbitrary: Arbitrary<ApiContentFileFloatBlockElementResponse> =
+    fc.record({
+        type: fc.constant("FileFloat"),
+        side: fc.oneof(fc.constant("Left"), fc.constant("Right")),
+        element: fc.oneof(
+            ApiContentFileBlockElementResponseArbitrary,
+            ApiContentPreviewBlockElementResponseArbitrary,
+        ),
+    });
 
 const ApiContentMentionInlineElementResponseArbitrary: Arbitrary<ApiContentMentionInlineElementResponse> =
     fc.record({
@@ -687,6 +830,8 @@ const ApiContentTableBlockElementResponseArbitrary: Arbitrary<ApiContentTableBlo
                                         Quote: ApiContentQuoteBlockElementResponseArbitrary,
                                         Code: ApiContentCodeBlockElementArbitrary,
                                         CheckList: ApiContentCheckListBlockElementResponseArbitrary,
+                                        File: ApiContentFileBlockElementResponseArbitrary,
+                                        Preview: ApiContentPreviewBlockElementResponseArbitrary,
                                     },
                                 ),
                             ),
@@ -710,6 +855,10 @@ export const ApiContentResponseArbitrary: Arbitrary<ApiContentResponse> = fc.rec
             Divider: ApiContentDividerBlockElementArbitrary,
             Code: ApiContentCodeBlockElementArbitrary,
             Table: ApiContentTableBlockElementResponseArbitrary,
+            File: ApiContentFileBlockElementResponseArbitrary,
+            FileGallery: ApiContentFileGalleryBlockElementResponseArbitrary,
+            FileFloat: ApiContentFileFloatBlockElementResponseArbitrary,
+            Preview: ApiContentPreviewBlockElementResponseArbitrary,
         }),
     ),
 });

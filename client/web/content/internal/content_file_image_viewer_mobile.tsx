@@ -22,13 +22,13 @@ import {
     hammerModulePromise,
     maxContentFileImageViewerMobilePreviewSize,
 } from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {getFilePreviewSize} from "~/client/web/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";

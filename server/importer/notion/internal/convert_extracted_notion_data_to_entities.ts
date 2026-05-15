@@ -19,9 +19,8 @@ import {
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiContentBlockElementWithFileRow} from "~/shared/api/content/api_content_block_element_with_file_row.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {ApiContentExtended, fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
@@ -29,6 +28,7 @@ import {
     ApiContentBlockElement,
     ApiContentInlineElement,
     ApiContentQuoteBlockElement,
+    ApiContentTableBlockElementCellBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -269,7 +269,7 @@ export async function convertExtractedNotionDataToEntities(
                         });
 
                     // Convert API content to ProseMirror document
-                    const bodyContent = fromApiContent<ApiContentExtended>(
+                    const bodyContent = fromApiContent(
                         DocumentContentProsemirrorSchema,
                         finalApiContent,
                     );
@@ -665,8 +665,8 @@ function convertFilePathsToMarkdownImageLines(
  * section removed
  */
 function removeChildLinksSectionFromApiContent(
-    elements: Array<ApiContentBlockElementWithFileRow>,
-): Array<ApiContentBlockElementWithFileRow> {
+    elements: Array<ApiContentBlockElement>,
+): Array<ApiContentBlockElement> {
     const firstDividerIndex = elements.findIndex(element => element.type === "Divider");
     if (firstDividerIndex === -1) {
         // No divider found - return as-is
@@ -687,15 +687,15 @@ function removeChildLinksSectionFromApiContent(
  * properties
  */
 function formatDatabasePropertiesInApiContent(
-    elements: Array<ApiContentBlockElementWithFileRow>,
-): Array<ApiContentBlockElementWithFileRow> {
+    elements: Array<ApiContentBlockElement>,
+): Array<ApiContentBlockElement> {
     if (elements.length === 0) return elements;
 
     // Pattern to match property lines: "Property Name: value"
     const propertyPattern = /^[A-Za-z]+(?:\s[A-Za-z]+)*:\s*.+$/;
 
     // Check if a paragraph contains only a property line
-    function isPropertyParagraph(element: ApiContentBlockElementWithFileRow): string | null {
+    function isPropertyParagraph(element: ApiContentBlockElement): string | null {
         if (element.type !== "Paragraph") return null;
         if (element.elements.length !== 1) return null;
 
@@ -727,7 +727,7 @@ function formatDatabasePropertiesInApiContent(
     if (propertyLines.length === 0) return elements;
 
     // Build the formatted output: Divider, UnorderedList, Divider
-    const formattedElements: Array<ApiContentBlockElementWithFileRow> = [];
+    const formattedElements: Array<ApiContentBlockElement> = [];
 
     formattedElements.push({type: "Divider"});
     formattedElements.push({
@@ -796,7 +796,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Promise<{title: string; content: ApiContentExtended}> {
+): Promise<{title: string; content: ApiContent}> {
     const {
         pathToDocumentId,
         documentIdToPath,
@@ -809,7 +809,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         filesToUpload,
     } = options;
 
-    let elements: Array<ApiContentBlockElementWithFileRow> = [...apiContent.elements];
+    let elements: Array<ApiContentBlockElement> = [...apiContent.elements];
 
     // ----------------------------------------------------------------
     // Extract title from first H1 heading
@@ -888,10 +888,9 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
     // Get the directory of the current document for resolving relative paths
     const currentDir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : "";
 
-    // Transform .csv links to tables (must happen before link transformation) The
-    // result may contain extended types (like FileRowTable) but we cast back to the
-    // base type for intermediate processing. The extended elements will be handled
-    // correctly by fromApiContent at the end.
+    // Transform .csv links to tables (must happen before link transformation). The
+    // result may contain File elements within table cells. These are handled correctly
+    // by fromApiContent at the end.
     const csvTransformedElements = await transformCsvLinksToTables(context, elements, {
         currentDir,
         diskPathToUnzippedFiles,
@@ -902,11 +901,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
 
     // Transform .md links to document mentions using visitor pattern
     const transformedContent = transformMdLinksToMentions(
-        // In order to avoid traversing the entire stack of visitors, we cast to the base
-        // type. This is safe because the only inline elements that are visited are text
-        // elements with link marks. We should not use this as a sample pattern for other
-        // visitors.
-        {elements: elements as Array<ApiContentBlockElement>},
+        {elements},
         {pathToDocumentId, currentDir},
     );
     elements = [...transformedContent.elements];
@@ -920,22 +915,23 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
     }
 
     // ----------------------------------------------------------------
-    // Transform file links to FileRow elements
+    // Transform file links to File/FileGallery elements
     // ---
     //
     // ---
     //
-    // Convert links to uploaded files (images, attachments) into FileRow elements.
-    // Adjacent file references are combined into single rows (max 3 files per row).
+    // Convert links to uploaded files (images, attachments) into File or FileGallery
+    // elements. Adjacent file references are combined into FileGallery rows (max 3
+    // files per row).
     //
     // ---
-    const extendedElements = transformFileLinksToFileRowsIfPossible(elements, {
+    const extendedElements = transformFileLinksToFileElementsIfPossible(elements, {
         currentDir,
         filesToUpload,
     });
 
     // Build the final content
-    const finalElements: Array<ApiContentBlockElementWithFileRow> = [];
+    const finalElements: Array<ApiContentBlockElement> = [];
 
     // Add parent link if exists
     if (parentId && documentIdToPath.has(parentId)) {
@@ -1004,7 +1000,7 @@ function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineE
  * structured "Child documents" section at the end anyway.
  */
 function isApiContentOnlyChildMentions(
-    elements: Array<ApiContentBlockElementWithFileRow>,
+    elements: Array<ApiContentBlockElement>,
     childIds: Set<DocumentId>,
 ): boolean {
     if (childIds.size === 0) return false;
@@ -1056,7 +1052,7 @@ function isApiContentOnlyChildMentions(
     return true;
 }
 
-// Maximum number of files per FileRow
+// Maximum number of files per FileGallery row
 const maxFilesPerRow = 3;
 
 /**
@@ -1078,7 +1074,7 @@ function resolveFileLinkPath(
  * the paragraph contains only file links, or null if it contains other content.
  */
 function convertParagraphToFileRowsIfNeeded(
-    element: ApiContentBlockElementWithFileRow,
+    element: ApiContentBlockElement,
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
 ): Array<{path: string; fileId: FileId}> | null {
@@ -1121,19 +1117,18 @@ function convertParagraphToFileRowsIfNeeded(
 
 /**
  * Extract file-link paragraphs from inside a container block element (lists,
- * blockquotes) and hoist them out as top-level FileRow elements.
+ * blockquotes) and hoist them out as top-level file elements.
  *
  * Our content schema doesn't support file nodes inside list items or blockquotes,
  * so the only option is to pull them out to the top level. When all paragraphs in
  * a container are file-only the container is dropped entirely (remainingElement is
- * null) and only the FileRows are emitted.
+ * null) and only the file elements are emitted.
  *
  * Notion does NOT support files in lists today, but does support them in
  * blockquotes. We handle this here in case they ever do suppport it.
  *
  * Tables are handled separately by {@link transformTableFileLinksToFileRowTables}
- * because our schema DOES support files in table cells via `FileRowTable`
- * elements.
+ * because our schema DOES support files in table cells via `File` elements.
  */
 function extractFilesFromContainerElement(
     element: ApiContentBlockElement & {
@@ -1217,28 +1212,27 @@ function extractFilesFromContainerElement(
 }
 
 /**
- * Convert file-link paragraphs inside table cells to FileRowTable elements
- * in-place.
+ * Convert file-link paragraphs inside table cells to File elements in-place.
  *
  * Unlike lists and blockquotes, our content schema supports files inside table
- * cells via `FileRowTable` elements. So instead of hoisting files out, we replace
- * file-only paragraphs with FileRowTable elements within the cell.
+ * cells via File elements. So instead of hoisting files out, we replace file-only
+ * paragraphs with File elements within the cell.
  *
  * NOTE: Notion doesn't currently export files inside markdown tables, but they
  * might someday. Since table cells can contain paragraphs with file links, we
  * handle it now so it works automatically if Notion adds this.
  */
 function transformTableFileLinksToFileRowTables(
-    element: ApiContentBlockElementWithFileRow & {type: "Table"},
+    element: ApiContentBlockElement & {type: "Table"},
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
-): ApiContentBlockElementWithFileRow {
+): ApiContentBlockElement {
     let changed = false;
 
     const rows = element.rows.map(row => ({
         ...row,
         cells: row.cells.map(cell => {
-            const newElements: Array<ApiContentBlockElementWithFileRow> = [];
+            const newElements: Array<ApiContentTableBlockElementCellBlockElement> = [];
 
             for (const cellElement of cell.elements) {
                 const files = convertParagraphToFileRowsIfNeeded(
@@ -1249,7 +1243,7 @@ function transformTableFileLinksToFileRowTables(
                 if (files) {
                     changed = true;
                     for (const file of files) {
-                        newElements.push({type: "FileRowTable", fileId: file.fileId});
+                        newElements.push({type: "File", id: file.fileId});
                     }
                 } else {
                     newElements.push(cellElement);
@@ -1268,37 +1262,54 @@ function transformTableFileLinksToFileRowTables(
 }
 
 /**
- * Transform file links to FileRow elements.
+ * Transform file links to File and FileGallery elements.
  *
  * Paragraphs containing links to uploaded files (images, PDFs, etc.) are replaced
- * with FileRow elements. Adjacent FileRow elements are combined into single rows
- * (max 3 files per row).
+ * with File or FileGallery elements. Adjacent file references are combined into
+ * FileGallery rows (max 3 files per row), or single File elements.
  *
  * @param elements - Block elements to process @param options - Configuration
- * including file mappings @returns Extended elements with FileRow blocks
+ * including file mappings @returns Elements with file blocks
  */
-function transformFileLinksToFileRowsIfPossible(
-    elements: Array<ApiContentBlockElementWithFileRow>,
+function transformFileLinksToFileElementsIfPossible(
+    elements: Array<ApiContentBlockElement>,
     options: {
         currentDir: string;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Array<ApiContentBlockElementWithFileRow> {
+): Array<ApiContentBlockElement> {
     const {currentDir, filesToUpload} = options;
-    const result: Array<ApiContentBlockElementWithFileRow> = [];
+    const result: Array<ApiContentBlockElement> = [];
 
     // Collect pending files to combine into rows
     let pendingFiles: Array<{fileId: FileId}> = [];
 
-    // Flush pending files as FileRow(s)
+    // Flush pending files as FileGallery rows (max 3 files per row) or single File
+    // elements
     const flushPendingFiles = (): void => {
         while (pendingFiles.length > 0) {
             const batch = pendingFiles.slice(0, maxFilesPerRow);
             pendingFiles = pendingFiles.slice(maxFilesPerRow);
-            result.push({
-                type: "FileRow",
-                files: batch,
-            });
+            if (batch.length === 1) {
+                result.push({
+                    type: "File",
+                    id: assertExists(batch[0]).fileId,
+                });
+            } else {
+                result.push({
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: batch.map(file => ({
+                                element: {
+                                    type: "File" as const,
+                                    id: file.fileId,
+                                },
+                            })),
+                        },
+                    ],
+                });
+            }
         }
     };
 
@@ -1357,11 +1368,13 @@ function transformFileLinksToFileRowsIfPossible(
 
             // These elements won't hold file text links so we can flush pending files and add
             // the element
-            case "FileRow":
-            case "FileRowTable":
             case "Heading":
             case "Divider":
-            case "Code": {
+            case "Code":
+            case "File":
+            case "Preview":
+            case "FileGallery":
+            case "FileFloat": {
                 flushPendingFiles();
                 result.push(element);
                 break;
@@ -1385,21 +1398,21 @@ function transformFileLinksToFileRowsIfPossible(
  */
 async function transformCsvLinksToTables(
     context: {importerService: ImporterServiceContextModuleBase},
-    elements: Array<ApiContentBlockElementWithFileRow>,
+    elements: Array<ApiContentBlockElement>,
     options: {
         currentDir: string;
         diskPathToUnzippedFiles: string;
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Promise<Array<ApiContentBlockElementWithFileRow>> {
+): Promise<Array<ApiContentBlockElement>> {
     const {currentDir, diskPathToUnzippedFiles, inlineDatabaseChildren, filesToUpload} = options;
-    const result: Array<ApiContentBlockElementWithFileRow> = [];
+    const result: Array<ApiContentBlockElement> = [];
 
     for (const element of elements) {
         if (element.type === "Paragraph") {
             // Check if this paragraph contains a CSV link
-            let csvTable: ApiContentBlockElementWithFileRow | null = null;
+            let csvTable: ApiContentBlockElement | null = null;
 
             for (const inlineElement of element.elements) {
                 if (inlineElement.type === "Text" && inlineElement.marks) {
@@ -1459,8 +1472,7 @@ async function transformCsvLinksToTables(
             }
 
             if (csvTable) {
-                // Cast the extended table to the base type since fromApiContentBlockElements
-                // accepts ApiContentBlockElementWithFileRow and handles the extended types
+                // Add the table to the result
                 result.push(csvTable);
             } else {
                 result.push(element);
