@@ -366,10 +366,9 @@ export function useSearchState({
                     newResults.push(
                         new SearchEntityResultModel({
                             model: new SearchEntityModel({
+                                type: "Static",
                                 id: match.item.entityId,
                                 title: match.item.entity.title,
-                                titleVersion: null,
-                                media: match.item.entity.media ?? null,
                             }),
                             score: Infinity,
                             bodyTextSnippet: [],

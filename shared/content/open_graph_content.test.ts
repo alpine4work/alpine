@@ -146,10 +146,12 @@ describe("getOpenGraphContent", () => {
                     {
                         isPrivate: false as const,
                         entity: new SearchEntityModel({
-                            id: `Document:${documentId}`,
+                            type: "Document",
                             title: "Project Roadmap",
-                            titleVersion: null,
-                            media: null,
+                            document: {
+                                id: documentId,
+                                version: 0,
+                            },
                         }),
                     },
                 ],

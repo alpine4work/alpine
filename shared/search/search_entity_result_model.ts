@@ -8,10 +8,18 @@ import {SearchAffinityEntityId, SearchEntityId} from "~/shared/search/search_ent
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-const SearchEntityResultModelSchema = createModelUnionSchema({
-    Account: AccountModel,
-    Default: SearchEntityModel,
-});
+// Use a custom discriminator key for this outer wrapper so it doesn't collide with
+// the inner `type` discriminator on `SearchEntityModelDataSchema`. Without this, a
+// `SearchEntityModel(type=Site)` would serialize as `{type: "Default", ...}`
+// (overwriting the inner `Site`), and on deserialize the inner union would throw
+// `Unknown type` because `"Default"` isn't a valid inner variant.
+const SearchEntityResultModelSchema = createModelUnionSchema(
+    {
+        Account: AccountModel,
+        Default: SearchEntityModel,
+    },
+    {typeKey: "_modelType"},
+);
 
 const SearchAffinityEntityResultModelSchema = SearchEntityResultModelSchema as Schema<
     AccountModel | SearchAffinityEntityModel

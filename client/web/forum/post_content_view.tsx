@@ -174,7 +174,13 @@ export function PostContentView({
             useMemo(() => {
                 return computeStore(get => {
                     return new SearchEntityModel({
-                        id: `Post:${post.id}`,
+                        type: "Post",
+                        post: {
+                            id: post.id,
+                            version: post.version,
+                            channelVersion: post.channel.version,
+                            author: post.author,
+                        },
                         title: createPostSearchEntityTitle(
                             post.channel.name,
                             post.content.doc,
@@ -184,11 +190,6 @@ export function PostContentView({
                                 {accountRegistry, searchEntityRegistry, fileRegistry},
                             ),
                         ),
-                        titleVersion: {
-                            type: "Integers",
-                            versions: [post.version, post.channel.version],
-                        },
-                        media: {type: "Account", account: post.author},
                     });
                 });
             }, [

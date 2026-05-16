@@ -1,7 +1,7 @@
 import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteOrSiteEntryModel} from "~/shared/sites/site_model.js";
 
 /**

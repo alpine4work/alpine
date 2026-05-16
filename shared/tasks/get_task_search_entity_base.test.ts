@@ -1,4 +1,3 @@
-import {assert} from "~/shared/helpers/control/assert.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
@@ -87,14 +86,10 @@ test("returns correct base for a normal task", () => {
     const task = new TaskModel(rawData);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).toBe(addFallbackToTaskTitle(rawData.title.getText()));
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    if (result.titleVersion.type === "TaskTitle") {
-        expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-        expect(result.titleVersion.deletedTime).toBeUndefined();
-    }
-    expect(result.media).toEqual({
-        type: "TaskDisplayStatus",
-        displayStatus: "OpenInactive",
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toBeUndefined();
+    expect(result.displayStatus).toEqual({
+        value: "OpenInactive",
         version:
             rawData.status.version > rawData.assigneeStatus.version
                 ? rawData.status.version
@@ -109,11 +104,8 @@ test("returns null title for deleted task", () => {
     expect(task.isDeleted()).toBe(true);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).toBeNull();
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    if (result.titleVersion.type === "TaskTitle") {
-        expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-        expect(result.titleVersion.deletedTime).toEqual(deletedTime);
-    }
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(deletedTime);
 });
 
 test("title uses fallback for empty or whitespace title", () => {
@@ -125,28 +117,22 @@ test("title uses fallback for empty or whitespace title", () => {
     }
 });
 
-test("`titleVersion.deletedTime` is max of `deletedTime` and `undeletedTime` if present", () => {
+test("`deletedTime` is max of task `deletedTime` and `undeletedTime` if present", () => {
     const deletedTime: [number, number] = [10, 0];
     const undeletedTime: [number, number] = [20, 0];
     const rawData = makeRawData({deletedTime, undeletedTime});
     const task = new TaskModel(rawData);
     const result = getTaskSearchEntityBase(task);
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    if (result.titleVersion.type === "TaskTitle") {
-        expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-        expect(result.titleVersion.deletedTime).toEqual(undeletedTime);
-    }
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(undeletedTime);
 });
 
-test("`titleVersion.deletedTime` is undefined if neither `deletedTime` nor `undeletedTime`", () => {
+test("`deletedTime` is undefined if neither task `deletedTime` nor `undeletedTime`", () => {
     const rawData = makeRawData({deletedTime: null, undeletedTime: null});
     const task = new TaskModel(rawData);
     const result = getTaskSearchEntityBase(task);
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    if (result.titleVersion.type === "TaskTitle") {
-        expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-        expect(result.titleVersion.deletedTime).toBeUndefined();
-    }
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toBeUndefined();
 });
 
 test("`media.displayStatus` and version reflect `status` and `assigneeStatus`", () => {
@@ -173,8 +159,8 @@ test("`media.displayStatus` and version reflect `status` and `assigneeStatus`", 
     });
     const task = new TaskModel(rawData);
     const result = getTaskSearchEntityBase(task);
-    expect(result.media.displayStatus).toBe("OpenActive");
-    expect(result.media.version).toEqual(statusVersion);
+    expect(result.displayStatus.value).toBe("OpenActive");
+    expect(result.displayStatus.version).toEqual(statusVersion);
 });
 
 test("`media.version` is max of `status.version` and `assigneeStatus.version`", () => {
@@ -200,8 +186,8 @@ test("`media.version` is max of `status.version` and `assigneeStatus.version`", 
     });
     const task = new TaskModel(rawData);
     const result = getTaskSearchEntityBase(task);
-    expect(result.media.displayStatus).toBe("OpenActive");
-    expect(result.media.version).toEqual(assigneeStatusVersion);
+    expect(result.displayStatus.value).toBe("OpenActive");
+    expect(result.displayStatus.version).toEqual(assigneeStatusVersion);
 });
 
 test("`isDeleted` is false if `undeletedTime` > `deletedTime`", () => {
@@ -212,10 +198,8 @@ test("`isDeleted` is false if `undeletedTime` > `deletedTime`", () => {
     expect(task.isDeleted()).toBe(false);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).not.toBeNull();
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    assert(result.titleVersion.type === "TaskTitle");
-    expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-    expect(result.titleVersion.deletedTime).toEqual(undeletedTime);
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(undeletedTime);
 });
 
 test("`isDeleted` is true if `deletedTime` > `undeletedTime`", () => {
@@ -226,10 +210,8 @@ test("`isDeleted` is true if `deletedTime` > `undeletedTime`", () => {
     expect(task.isDeleted()).toBe(true);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).toBeNull();
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    assert(result.titleVersion.type === "TaskTitle");
-    expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-    expect(result.titleVersion.deletedTime).toEqual(deletedTime);
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(deletedTime);
 });
 
 test("works with only `undeletedTime` set (not deleted)", () => {
@@ -239,10 +221,8 @@ test("works with only `undeletedTime` set (not deleted)", () => {
     expect(task.isDeleted()).toBe(false);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).not.toBeNull();
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    assert(result.titleVersion.type === "TaskTitle");
-    expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-    expect(result.titleVersion.deletedTime).toEqual(undeletedTime);
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(undeletedTime);
 });
 
 test("works with only `deletedTime` set (is deleted)", () => {
@@ -252,8 +232,6 @@ test("works with only `deletedTime` set (is deleted)", () => {
     expect(task.isDeleted()).toBe(true);
     const result = getTaskSearchEntityBase(task);
     expect(result.title).toBeNull();
-    expect(result.titleVersion.type).toBe("TaskTitle");
-    assert(result.titleVersion.type === "TaskTitle");
-    expect(result.titleVersion.snapshot).toEqual(rawData.title.getSnapshot());
-    expect(result.titleVersion.deletedTime).toEqual(deletedTime);
+    expect(result.titleSnapshot).toEqual(rawData.title.getSnapshot());
+    expect(result.deletedTime).toEqual(deletedTime);
 });

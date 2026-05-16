@@ -160,20 +160,23 @@ export function ChatView({
 
         return searchEntityRegistry.getEntityStore(
             new SearchEntityModel({
-                id: `Chat:${chat.id}`,
+                type: "Chat",
+                chat: {
+                    id: chat.id,
+                    version: chat.version,
+                    media:
+                        chat.definition.previewAccounts.length === 1
+                            ? {
+                                  type: "Account",
+                                  account: chat.definition.previewAccounts[0]!,
+                              }
+                            : {
+                                  type: "AccountPile",
+                                  previewAccounts: chat.definition.previewAccounts,
+                                  accountCount: null,
+                              },
+                },
                 title: chat.definition.name,
-                titleVersion: {type: "Integer", version: chat.version},
-                media:
-                    chat.definition.previewAccounts.length === 1
-                        ? {
-                              type: "Account",
-                              account: chat.definition.previewAccounts[0]!,
-                          }
-                        : {
-                              type: "AccountPile",
-                              previewAccounts: chat.definition.previewAccounts,
-                              accountCount: null,
-                          },
             }),
         );
     }, [chat.definition, chat.id, chat.version, searchEntityRegistry]);

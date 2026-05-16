@@ -56,12 +56,13 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -1560,10 +1561,12 @@ test("search entity mention", async () => {
                 {
                     isPrivate: false,
                     entity: new SearchEntityModel({
-                        id: `Document:${documentId}`,
+                        type: "Document",
                         title: "foobar",
-                        titleVersion: null,
-                        media: null,
+                        document: {
+                            id: documentId,
+                            version: 0,
+                        },
                     }),
                 },
             ],
@@ -1636,6 +1639,106 @@ test("private search entity mention", async () => {
             [cast<SearchMentionEntityId>(`Document:${documentId}`), {isPrivate: true}],
         ]),
     };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+// Verify a Site search entity mention with a `firstEntityId` survives the round
+// trip through clipboard HTML. The `<a>`'s `href` points to the site's first
+// entity (e.g. a Document URL) for navigation, so without a `data-cy-site`
+// attribute carrying the `SiteId` the paste would parse back as a mention of the
+// first entity instead of the site.
+test("site search entity mention with first entity", async () => {
+    const siteId = assertId<SiteId>("ehmwjvr0eqz3akrr16xx5tav8r");
+    const documentId = assertId<DocumentId>("qkanxhj066jh311428tsr0psp4");
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {
+                mention: {type: "SearchEntity", entityId: `Site:${siteId}`},
+            }),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        searchEntityById: new Map([
+            [
+                cast<SearchMentionEntityId>(`Site:${siteId}`),
+                {
+                    isPrivate: false,
+                    entity: new SearchEntityModel({
+                        type: "Site",
+                        title: "Sales",
+                        site: {
+                            id: siteId,
+                            version: 0,
+                            firstEntityId: cast<SiteItemSearchEntityId>(`Document:${documentId}`),
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("site mention with null first entity Id", async () => {
+    const siteId = assertId<SiteId>("qkanxhj066jh311428tsr0psp4");
+    const siteSearchEntity = new SearchEntityModel({
+        type: "Site",
+        title: "Test Site",
+        site: {
+            id: siteId,
+            version: 0,
+            firstEntityId: null,
+        },
+    });
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        searchEntityById: new Map([
+            [
+                cast<SearchMentionEntityId>(`Site:${siteId}`),
+                {isPrivate: false, entity: siteSearchEntity},
+            ],
+        ]),
+    };
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {mention: {type: "SearchEntity", entityId: `Site:${siteId}`}}),
+        ]),
+    ]);
 
     render(
         <TestContextProvider>

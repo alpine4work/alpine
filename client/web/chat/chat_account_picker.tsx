@@ -131,26 +131,28 @@ function createChatAccountPickerSearchUnknownChatItemStore(
 ): ChatAccountPickerItem {
     const entity = get(searchEntityRegistry.getEntityStore(entityModel));
 
+    assert(entity.type === "Chat");
+    const chat = entity.chat;
     return {
         type: "SearchUnknownChat",
-        key: entity.id as `Chat:${ChatId}`,
+        key: `Chat:${chat.id}`,
         textValue: entity.title ?? "Unknown chat",
         media: (() => {
-            if (entity.media?.type === "Account") {
-                const accountData = get(accountRegistry.getAccountStore(entity.media.account));
+            if (chat.media.type === "Account") {
+                const accountData = get(accountRegistry.getAccountStore(chat.media.account));
 
                 return {type: "Account", accountData};
             }
 
-            if (entity.media?.type === "AccountPile") {
-                const previewAccountDatas = entity.media.previewAccounts.map(account =>
+            if (chat.media.type === "AccountPile") {
+                const previewAccountDatas = chat.media.previewAccounts.map(account =>
                     get(accountRegistry.getAccountStore(account)),
                 );
 
                 return {
                     type: "AccountPile",
                     previewAccountDatas,
-                    accountCount: entity.media.accountCount,
+                    accountCount: chat.media.accountCount,
                 };
             }
 

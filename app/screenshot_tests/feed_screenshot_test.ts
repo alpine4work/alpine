@@ -8,6 +8,7 @@ import {
     addSearchAffinityEntityPointsForTest,
     favoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -17,7 +18,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {ChatId, PostId, SiteId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -39,7 +40,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     const [feedEntries, suggestionEntities] = await runAllPromises([
         createFeedEntries(runner.stableRandom, accounts, craftChannel, marketingChannel),
-        createSuggestionEntities(accounts),
+        createSuggestionEntities(accounts, runner.stableRandom),
     ]);
 
     await createSearchAffinity(accounts.cassCade, accounts, suggestionEntities);
@@ -194,9 +195,24 @@ A few notes coming in:
     return document;
 }
 
-async function createSuggestionEntities(accounts: DemoSpaceAccounts) {
+async function createSuggestionEntities(accounts: DemoSpaceAccounts, stableRandom: StableRandom) {
     const collections = await createTaskCollections(accounts.cassCade);
     const {projectTask, featuredProjectTask} = await createTablesProject(accounts, collections);
+
+    // Additional tasks that exercise the remaining `displayStatus` variants in the
+    // sidebar. `featuredProjectTask` / `projectTask` cover `OpenActive`; these add
+    // `OpenInactive` and `Closed`.
+    const [backlogTask, postmortemTask] = await runAllPromises([
+        TestTask.create(accounts.cassCade, {
+            title: "Audit help-doc screenshots before launch",
+        }),
+        TestTask.create(accounts.cassCade, {
+            title: "Postmortem for August sync outage",
+            status: "Closed",
+            assignee: accounts.elleKappaTan,
+            assigneeStatus: "Active",
+        }),
+    ]);
 
     const [
         customerFeedbackDocument,
@@ -211,6 +227,8 @@ async function createSuggestionEntities(accounts: DemoSpaceAccounts) {
         engineeringChannel,
         marketingChannel,
         teamChat,
+        releasesRoomChat,
+        handbookSite,
     ] = await runAllPromises([
         TestDocument.create(accounts.cassCade, {
             title: "Customer Feedback from Sales",
@@ -259,6 +277,26 @@ async function createSuggestionEntities(accounts: DemoSpaceAccounts) {
             await teamChat.sendMessage(accounts.cassCade, "Keeping launch notes here.");
             return teamChat;
         }),
+        // RoomChat that only Cass has posted in. The search entity's media is `Account`
+        // (single contributor) instead of `AccountPile` — different rendering path from
+        // `teamChat`.
+        (async () => {
+            const releasesRoomChat = await TestChat.createRoom(accounts.cassCade, {
+                id: unsafelyGenerateStableId<ChatId>(stableRandom, "releasesRoomChat"),
+                name: "Releases",
+                access: "Public",
+            });
+            await releasesRoomChat.sendMessage(
+                accounts.cassCade,
+                "Posting release notes here as we ship.",
+            );
+            return releasesRoomChat;
+        })(),
+        TestSite.create(accounts.cassCade, {
+            id: unsafelyGenerateStableId<SiteId>(stableRandom, "handbookSite"),
+            name: "Alpine Handbook",
+            access: "Public",
+        }),
     ]);
 
     const documents = {
@@ -279,9 +317,13 @@ async function createSuggestionEntities(accounts: DemoSpaceAccounts) {
         collections,
         projectTask,
         featuredProjectTask,
+        backlogTask,
+        postmortemTask,
         documents,
         channels: {engineering: engineeringChannel, marketing: marketingChannel},
         teamChat,
+        releasesRoomChat,
+        handbookSite,
     };
 }
 
@@ -296,6 +338,11 @@ async function createTaskCollections(session: TestSpaceSession) {
             name: "Tables",
             access: "Public",
             color: "blue",
+        }),
+        // No color set — sidebar renders the collection title without a color swatch.
+        inbox: await TestTaskCollection.create(session, {
+            name: "Inbox",
+            access: "Public",
         }),
     };
 }
@@ -371,15 +418,23 @@ async function createSearchAffinity(
         {entityId: `Account:${accounts.elleKappaTan.account.id}`, points: 997_000_000},
         {entityId: `Account:${accounts.mattRHorn.account.id}`, points: 996_500_000},
         {entityId: `Task:${suggestionEntities.featuredProjectTask.id}`, points: 996_000_000},
+        {entityId: `Task:${suggestionEntities.backlogTask.id}`, points: 995_750_000},
+        {entityId: `Task:${suggestionEntities.postmortemTask.id}`, points: 995_500_000},
         {entityId: `Task:${suggestionEntities.projectTask.id}`, points: 995_000_000},
+        {entityId: `Site:${suggestionEntities.handbookSite.id}`, points: 994_500_000},
         {entityId: `Document:${documents.customerFeedback.id}`, points: 994_000_000},
         {entityId: `Channel:${channels.engineering.id}`, points: 993_000_000},
         {entityId: `Document:${documents.q3Planning.id}`, points: 992_000_000},
         {entityId: `Chat:${suggestionEntities.teamChat.id}`, points: 991_000_000},
+        {entityId: `Chat:${suggestionEntities.releasesRoomChat.id}`, points: 990_500_000},
         {entityId: `Document:${documents.designSpec.id}`, points: 990_000_000},
         {
             entityId: `TaskCollection:${suggestionEntities.collections.sprintOct6.id}`,
             points: 989_000_000,
+        },
+        {
+            entityId: `TaskCollection:${suggestionEntities.collections.inbox.id}`,
+            points: 988_500_000,
         },
         {entityId: `Document:${documents.editorInteractionAudit.id}`, points: 988_000_000},
         {entityId: `Channel:${channels.marketing.id}`, points: 987_000_000},

@@ -19,7 +19,10 @@ import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
-import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {
+    useSearchEntityModel,
+    useSearchEntityRegistry,
+} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -38,6 +41,7 @@ import {
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -361,6 +365,7 @@ function FeedSearchAffinityView({
     const {space} = useSpaceContext();
     const activeContextMenuActions = useContextMenuActions();
     const peekStackContext = usePeekStackContext();
+    const entityData = useSearchEntityModel(result.model);
 
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -370,7 +375,7 @@ function FeedSearchAffinityView({
 
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime: new Date(),
                 routeLayout: "wide",
@@ -439,7 +444,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -455,7 +460,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -563,10 +568,11 @@ function isSearchAffinityResultDirectChatOrAccount(
 
     if (entityType === "Chat" && result.model instanceof SearchEntityModel) {
         const entity = get(searchEntityRegistry.getEntityStore(result.model));
+        assert(entity.type === "Chat");
 
         // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
         // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
-        if (entity.media?.type === "AccountPile" && entity.media.accountCount !== null) {
+        if (entity.chat.media?.type === "AccountPile" && entity.chat.media.accountCount !== null) {
             return true;
         }
     }

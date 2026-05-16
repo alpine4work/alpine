@@ -643,9 +643,14 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                     if (!taskEntry?.task) return null;
                     const {task} = taskEntry;
 
+                    const base = getTaskSearchEntityBase(task);
                     return {
-                        ...getTaskSearchEntityBase(task),
-                        id: `Task:${task.id}`,
+                        type: "Task",
+                        title: base.title,
+                        task: {
+                            id: task.id,
+                            ...base,
+                        },
                     };
                 },
             );
@@ -655,9 +660,16 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                     if (!collectionEntry?.collection) return null;
                     const {collection} = collectionEntry;
 
+                    const {title, titleVersion, color} =
+                        getTaskCollectionSearchEntityBase(collection);
                     return {
-                        ...getTaskCollectionSearchEntityBase(collection),
-                        id: `TaskCollection:${collection.id}`,
+                        type: "TaskCollection",
+                        title,
+                        collection: {
+                            id: collection.id,
+                            titleVersion,
+                            color,
+                        },
                     };
                 },
             );

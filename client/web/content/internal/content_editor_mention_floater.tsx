@@ -53,7 +53,6 @@ import {
     useSearchEntityModel,
     useSearchEntityRegistry,
 } from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/web/search/core/search_entity_type_display.js";
 import {SearchEntityViewTitlePrefix} from "~/client/web/search/core/search_entity_view_title.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {searchEntityViewTitleLineHeightPx} from "~/client/web/styles/search_shared_styles.js";
@@ -83,6 +82,7 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {
@@ -91,7 +91,12 @@ import {
     isSearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
-import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {
+    SearchEntityModel,
+    SearchEntityModelData,
+    SearchEntityModelDataWithAccount,
+    printSearchEntityModelId,
+} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -372,7 +377,8 @@ export function ContentEditorMentionFloater({
             // Prevent double-clicks while loading
             if (pendingEntityId !== null) return;
 
-            assert(isSearchMentionEntityId(entityData.id));
+            const searchEntityId = printSearchEntityModelId(entityData);
+            assert(isSearchMentionEntityId(searchEntityId));
 
             const view = assertExists(viewRef.current);
 
@@ -384,7 +390,7 @@ export function ContentEditorMentionFloater({
             // 3. Range is in an empty paragraph (paragraph only contains `@` + search text)
             // 4. Paragraph is directly in doc or tableCell (not nested in other blocks)
             const insertFileEntityId: (FileEntityId & SearchMentionEntityId) | null = (() => {
-                if (!isFileEntityId(entityData.id)) return null;
+                if (!isFileEntityId(searchEntityId)) return null;
 
                 const $from = view.state.doc.resolve(range.from);
                 const parentNode = $from.parent;
@@ -411,7 +417,7 @@ export function ContentEditorMentionFloater({
                     return null;
                 }
 
-                return entityData.id;
+                return searchEntityId;
             })();
 
             if (
@@ -425,7 +431,7 @@ export function ContentEditorMentionFloater({
             }
 
             // Default: insert inline mention
-            const mention: ContentMention = {type: "SearchEntity", entityId: entityData.id};
+            const mention: ContentMention = {type: "SearchEntity", entityId: searchEntityId};
 
             const transaction = updateContentEditorReferences(
                 view.state.tr.replaceRangeWith(
@@ -435,7 +441,7 @@ export function ContentEditorMentionFloater({
                 ),
                 {
                     type: "SetSearchEntity",
-                    entityId: entityData.id,
+                    entityId: searchEntityId,
                     entity: {
                         isPrivate: false,
                         entity: new SearchEntityModel(entityData),
@@ -1341,8 +1347,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
 
     const entityData = useSearchEntityModel(entity);
 
-    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(entity.id), [entity.id]);
-
     const fontSize = "75";
 
     const lineHeightPx = fontSizesBySpacingScale[fontSize][spacingScale].fontSize * 1.5;
@@ -1365,9 +1369,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
         >
             <Box display="flex" alignItems="flex-start" width="full">
                 <SearchEntityViewTitlePrefix
-                    icon={typeDisplay.icon}
-                    type={typeDisplay.type}
-                    media={entityData.media}
+                    entityData={entityData}
                     isDeleted={entityData.title === null}
                 />
                 <Box
@@ -1392,21 +1394,13 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                         fontFeatureSettings: '"calt" on',
                     }}
                 >
-                    {entityData.media?.type === "Account" && typeDisplay.isAccountMediaAuthor && (
-                        <>
-                            <AccountShortName
-                                account={entityData.media.account}
-                                isTooltipDisabled={true}
-                            />
-                            {typeDisplay.type === "Post" ? " " : ": "}
-                        </>
-                    )}
+                    {renderAuthorShortNameIfNecessary(entityData)}
                     {entityData.title !== null
                         ? renderTextWithEmojiFontFamily(entityData.title)
-                        : isSearchDynamicEntityType(typeDisplay.type)
+                        : isSearchDynamicEntityType(entityData.type)
                           ? // If `title` is null then we assume the entity was deleted. Otherwise, all
                             // mentionable entities should have a non-null title.
-                            `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
+                            `${deletedSearchEntityTitle} ${getSearchEntityNoun(entityData.type)}`
                           : null}
                 </Box>
                 {shouldShowPendingSpinner && (
@@ -1479,5 +1473,19 @@ function ContentEditorMentionFloaterInsertItem({
                 </>
             )}
         </ContentEditorMentionFloaterItemBase>
+    );
+}
+
+function renderAuthorShortNameIfNecessary(entityData: SearchEntityModelDataWithAccount) {
+    if (entityData.type === "Account") return null;
+
+    const author = getAuthorFromSearchEntityIfExists(entityData);
+    if (!author) return null;
+
+    return (
+        <>
+            <AccountShortName account={author} isTooltipDisabled={true} />
+            {entityData.type === "Post" ? " " : ": "}
+        </>
     );
 }

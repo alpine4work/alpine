@@ -2947,6 +2947,67 @@ describe("parses standalone entity type", () => {
             ],
         });
     });
+
+    test("sites", () => {
+        expect(parseSearchNaturalLanguageQuery("sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("project x sites", () => {
+        expect(parseSearchNaturalLanguageQuery("project x sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("sites project x", () => {
+        expect(parseSearchNaturalLanguageQuery("sites project x", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("singular 'site' is recognized", () => {
+        // The stemmer normalizes "site" to the same root as "sites".
+        expect(parseSearchNaturalLanguageQuery("site", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["site"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("'side' is not fuzzy-matched as 'site'", () => {
+        // "site" is special-cased to disable fuzzy matching since "side", "size", and
+        // "sits" are all within one Levenshtein edit. So a query containing "side" should
+        // produce no entity-type filter.
+        expect(parseSearchNaturalLanguageQuery("side", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: ["side"],
+            controlQueryTexts: [],
+            filters: [],
+        });
+    });
+
+    test("tasks in a site fall through to keyword tag matching", () => {
+        // We intentionally don't have grammar for "tasks in site X". The leading "tasks"
+        // gives [Task, TaskCollection], and the rest ("in project x wiki") becomes
+        // free-text query that matches each task's site-name tag.
+        expect(parseSearchNaturalLanguageQuery("tasks in project x wiki", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["in project x wiki"],
+            controlQueryTexts: ["tasks"],
+            filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
+        });
+    });
 });
 
 describe("correctly splits query texts", () => {

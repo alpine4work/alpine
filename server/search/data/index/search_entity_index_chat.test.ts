@@ -187,13 +187,16 @@ test("room chat mention uses fallback when chat has not been indexed", async () 
     expect(await getSearchMentionEntityIfPossible(session1.action(), space.id, entityId)).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: entityId,
+            type: "Chat",
             title: "Fallback Room",
-            titleVersion: {type: "Integer", version: expect.any(Number)},
-            media: {
-                type: "AccountPile",
-                previewAccounts: expect.any(Array),
-                accountCount: null,
+            chat: {
+                id: chat.id,
+                version: expect.any(Number),
+                media: {
+                    type: "AccountPile",
+                    previewAccounts: expect.any(Array),
+                    accountCount: null,
+                },
             },
         }),
     });
@@ -224,13 +227,16 @@ test("direct chat mention uses fallback when chat has not been indexed", async (
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: entityId,
+            type: "Chat",
             title: expect.stringContaining("other"),
-            titleVersion: null,
-            media: {
-                type: "AccountPile",
-                previewAccounts: expect.any(Array),
-                accountCount: 3,
+            chat: {
+                id: chat.id,
+                version: 1,
+                media: {
+                    type: "AccountPile",
+                    previewAccounts: expect.any(Array),
+                    accountCount: 3,
+                },
             },
         }),
     });
@@ -288,6 +294,64 @@ test("private direct chat mention fallback returns private for ungranted account
     });
 
     expect(getCount()).toEqual(1);
+});
+
+test("room chat search entity title matches the room name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession({role: "Admin"});
+    const session3 = await space.createSession({role: "Admin"});
+
+    const chat = await TestChat.createRoom(session, {name: "Weekly Standup"});
+    await chat.sendMessage(session, "First message");
+    await chat.sendMessage(session2, "Second message");
+    await chat.sendMessage(session3, "Third message");
+
+    await runAllTimersAndWaitForTestTasksThenRefreshIndexes();
+
+    expect(
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Chat:${chat.id}`),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            type: "Chat",
+            title: "Weekly Standup",
+            chat: {
+                id: chat.id,
+                version: expect.any(Number),
+                media: expect.any(Object),
+            },
+        }),
+    });
+});
+
+test("direct chat search entity title joins sorted account full names", async () => {
+    const space = await TestSpace.create(context);
+    // Create sessions out of alphabetical order to confirm the indexed title sorts the
+    // account names.
+    const session1 = await space.createSession({name: "Charlie Gamma"});
+    const session2 = await space.createSession({name: "Alpha Account"});
+    const session3 = await space.createSession({name: "Bravo Beta"});
+
+    const chat = await TestChat.get(session1, session2, session3);
+    await chat.sendMessage(session1, "First message");
+
+    await runAllTimersAndWaitForTestTasksThenRefreshIndexes();
+
+    expect(
+        await getSearchMentionEntityIfPossible(session1.action(), space.id, `Chat:${chat.id}`),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            type: "Chat",
+            title: expect.stringMatching("(Bravo and Alpha)|(Alpha and Bravo)"),
+            chat: {
+                id: chat.id,
+                version: expect.any(Number),
+                media: expect.any(Object),
+            },
+        }),
+    });
 });
 
 test("will not index chat until first message is sent", async () => {

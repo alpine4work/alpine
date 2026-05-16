@@ -18,6 +18,7 @@ import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
 
 const knownTaskId = generateId<TaskId>();
 const privateTaskId = generateId<TaskId>();
@@ -26,13 +27,25 @@ const deletedTaskId = generateId<TaskId>();
 export const testMessagingApiImplementationSearchInjection: Partial<SearchInjection> = {
     getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
         if (entityId === `Task:${knownTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: "Some bug",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: knownTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText("Some bug"),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }
@@ -44,13 +57,25 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
         }
 
         if (entityId === `Task:${deletedTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: null,
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: deletedTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText("Deleted task"),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }

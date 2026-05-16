@@ -10,9 +10,9 @@ import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtim
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {createParentItemNotFoundError} from "~/shared/sites/site_error_messages.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function dangerouslyGetAddToSiteTransactionEntries(
@@ -78,8 +78,6 @@ export async function dangerouslyGetAddToSiteTransactionEntries(
             newEntry.item,
         );
     }
-
-    // TODO(#sites): Update site tags for entity
 
     // The injection slot returns the opaque placeholder type to avoid a circular Bazel
     // dependency between `//server/context` and

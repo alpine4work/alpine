@@ -11,6 +11,7 @@ import {getSite} from "~/server/sites/data/get_site.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {addEntityToSite} from "~/server/sites/entity_actions/add_entity_to_site.js";
+import {buildTestSiteEntityData} from "~/server/sites/test_helpers/build_test_site_entity_data.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -18,6 +19,7 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
@@ -25,18 +27,18 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdObject,
-} from "~/shared/sites/site_item_search_entity_id.js";
+    isSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const searchInjection: Partial<SearchInjection> = {
-    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => ({
-        isPrivate: false as const,
-        entity: new SearchEntityModel({
-            id: entityId,
-            title: "Test Entity",
-            titleVersion: null,
-            media: null,
-        }),
-    }),
+    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => {
+        assert(isSiteItemSearchEntityId(entityId));
+        return {
+            isPrivate: false as const,
+            entity: new SearchEntityModel(buildTestSiteEntityData(entityId)),
+        };
+    },
 };
 
 const context = createTestContext({sitesInjection, searchInjection});
@@ -89,12 +91,14 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
+                        initialEntityData: expect.objectContaining({
+                            type: "Channel",
                             title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                            channel: {
+                                id: channel.id,
+                                version: 0,
+                            },
+                        }),
                         version: 1,
                     }),
                 ]);
@@ -155,12 +159,19 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
+                        initialEntityData: expect.objectContaining({
+                            type: "Chat",
                             title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                            chat: {
+                                id: chat.id,
+                                version: 0,
+                                media: {
+                                    type: "AccountPile",
+                                    previewAccounts: expect.any(Array<AccountModel>),
+                                    accountCount: null,
+                                },
+                            },
+                        }),
                         type: "Entity",
                         version: 1,
                     }),
@@ -211,12 +222,18 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
+                        initialEntityData: expect.objectContaining({
+                            type: "Task",
                             title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                            task: {
+                                id: task.id,
+                                titleSnapshot: expect.any(Uint8Array),
+                                displayStatus: {
+                                    value: "OpenActive",
+                                    version: expect.any(Array),
+                                },
+                            },
+                        }),
                         type: "Entity",
                         version: 1,
                     }),
@@ -269,12 +286,18 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: {
-                            id: entityId,
+                        initialEntityData: expect.objectContaining({
+                            type: "TaskCollection",
                             title: "Test Entity",
-                            titleVersion: null,
-                            media: null,
-                        },
+                            collection: {
+                                id: collection.id,
+                                titleVersion: expect.any(Array),
+                                color: {
+                                    value: null,
+                                    version: expect.any(Array),
+                                },
+                            },
+                        }),
                         type: "Entity",
                         version: 1,
                     }),

@@ -7,12 +7,16 @@ import {channelBrandIconSvg} from "~/client/web/icons/brand/channel_brand_icon_s
 import {chatBrandIconSvg} from "~/client/web/icons/brand/chat_brand_icon_svg.js";
 import {documentBrandIconSvg} from "~/client/web/icons/brand/document_brand_icon_svg.js";
 import {postBrandIconSvg} from "~/client/web/icons/brand/post_brand_icon_svg.js";
+import {siteBrandIconSvg} from "~/client/web/icons/brand/site_brand_icon_svg.js";
 import {taskBrandIconSvg} from "~/client/web/icons/brand/task_brand_icon_svg.js";
 import {taskCollectionBrandIconSvg} from "~/client/web/icons/brand/task_collection_brand_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {lockIconSvg} from "~/client/web/icons/lock_icon_svg.js";
 import {trashIconSvg} from "~/client/web/icons/trash_icon_svg.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
@@ -24,7 +28,6 @@ import {truncateContentMentionText} from "~/shared/content/truncate_content_ment
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -40,7 +43,7 @@ import {
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {parseSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
+import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -83,7 +86,9 @@ export function renderContentMentionToHtml(
     );
 
     let href: string | null;
-    let media: SearchEntityMediaModel | null;
+    let searchEntityData: SearchEntityModelData | {type: "Account"; account: AccountModel} | null =
+        null;
+
     let text: string;
 
     switch (mention.type) {
@@ -91,7 +96,7 @@ export function renderContentMentionToHtml(
             href = `/s/${spaceId}/chat/with/${mention.accountId}?focus`;
 
             const account = references.accountById.get(mention.accountId);
-            media = account ? {type: "Account", account} : null;
+            searchEntityData = account ? {type: "Account", account} : null;
 
             if (!account) {
                 text = missingAccountName;
@@ -145,8 +150,9 @@ export function renderContentMentionToHtml(
                     entityIconSvg = postBrandIconSvg;
                     break;
                 case "Site":
-                    // TODO(#sites): Create a SiteBrandIcon for this entity type
-                    throw new UnimplementedError("Site search entities aren\u2019t implemented");
+                    entityIconWidth = "normal";
+                    entityIconSvg = siteBrandIconSvg;
+                    break;
                 default:
                     throw exhaustive(entityIdObject);
             }
@@ -167,15 +173,19 @@ export function renderContentMentionToHtml(
 
             const searchEntity = references.searchEntityById.get(mention.entityId);
 
-            href = !isInert
-                ? getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout)
-                : null;
-
             if (!searchEntity) {
-                media = null;
                 text = `${missingSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
+
+                href = !isInert
+                    ? getSearchDynamicEntityPathFromEntityIdObject(
+                          spaceId,
+                          entityIdObject.type === "Site"
+                              ? {type: "Site", siteId: entityIdObject.siteId, firstEntityId: null}
+                              : entityIdObject,
+                          routeLayout,
+                      )
+                    : null;
             } else if (searchEntity.isPrivate) {
-                media = null;
                 text = `${privateSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
 
                 html.appendChild(
@@ -186,15 +196,27 @@ export function renderContentMentionToHtml(
                         ),
                     }),
                 );
+
+                href = !isInert
+                    ? getSearchDynamicEntityPathFromEntityIdObject(
+                          spaceId,
+                          entityIdObject.type === "Site"
+                              ? {type: "Site", siteId: entityIdObject.siteId, firstEntityId: null}
+                              : entityIdObject,
+                          routeLayout,
+                      )
+                    : null;
             } else {
-                const searchEntityData = get(
-                    searchEntityRegistry.getEntityStore(searchEntity.entity),
-                );
+                searchEntityData = get(searchEntityRegistry.getEntityStore(searchEntity.entity));
+                assert(searchEntityData.type !== "Static");
+
+                href = !isInert
+                    ? getSearchDynamicEntityPath(spaceId, searchEntityData, routeLayout)
+                    : null;
 
                 // If `title` is null then we assume the entity was deleted. Otherwise, all
                 // mentionable entities should have a non-null title.
                 if (searchEntityData.title === null) {
-                    media = null;
                     text = `${deletedSearchEntityTitle} ${getSearchEntityNoun(
                         entityIdObject.type,
                     )}`;
@@ -208,8 +230,6 @@ export function renderContentMentionToHtml(
                         }),
                     );
                 } else {
-                    media = searchEntityData.media;
-
                     const entityTitle = truncateContentMentionText(searchEntityData.title);
 
                     if (entityTitle.length === 0) {
@@ -228,73 +248,108 @@ export function renderContentMentionToHtml(
             throw exhaustive(mention);
     }
 
-    if (media) {
-        switch (media.type) {
+    if (
+        searchEntityData &&
+        // If `title` is null then we assume the entity was deleted. Otherwise, all
+        // mentionable entities should have a non-null title.
+        (searchEntityData.type === "Account" || searchEntityData.title !== null)
+    ) {
+        switch (searchEntityData.type) {
             case "Account": {
-                const accountData = get(accountRegistry.getAccountStore(media.account));
-
-                if (mention.type !== "SearchEntity" || !mention.entityId.startsWith("Chat:")) {
-                    html.appendChild(
-                        renderContentMentionIcon({
-                            width: "wide",
-                            withScaling: true,
-                            children: renderAccountAvatar({
-                                spacingScale,
-                                accountData,
-                                size: contentStyles.mentionIconWithScalingSize,
-                            }),
-                        }),
-                    );
-                } else {
-                    // Render a grey circle for chats that don't have an `AccountPile` media. We want
-                    // to communicate it's a multi-person chat so we don't want to render one account.
-                    // This case should happen rarely. Just `RoomChat`s that only a single person has
-                    // messaged so far.
-                    html.appendChild(
-                        renderContentMentionIcon({
-                            width: "extra-wide",
-                            withScaling: true,
-                            children: renderAccountAvatarPile({
-                                spacingScale,
-                                previewAccounts: [null, accountData],
-                                size: contentStyles.mentionIconWithScalingSize,
-                            }),
-                        }),
-                    );
-                }
-
-                // Post titles are of the form "in ${channelName}: ". We rely on the client to add
-                // the account name to the post mention title.
-                if (mention.type === "SearchEntity" && mention.entityId.startsWith("Post:")) {
-                    text = `${getAccountShortNameWithoutFullNameTooltip(accountData)} ${text}`;
-                }
-                break;
-            }
-            case "AccountPile": {
-                assert(media.previewAccounts.length >= 2);
-
-                const accountData1 = get(
-                    accountRegistry.getAccountStore(media.previewAccounts[0]!),
-                );
-                const accountData2 = get(
-                    accountRegistry.getAccountStore(media.previewAccounts[1]!),
-                );
+                const accountData = get(accountRegistry.getAccountStore(searchEntityData.account));
 
                 html.appendChild(
                     renderContentMentionIcon({
-                        width: "extra-wide",
+                        width: "wide",
                         withScaling: true,
-                        children: renderAccountAvatarPile({
+                        children: renderAccountAvatar({
                             spacingScale,
-                            previewAccounts: [accountData1, accountData2],
+                            accountData,
                             size: contentStyles.mentionIconWithScalingSize,
                         }),
                     }),
                 );
+
                 break;
             }
-            case "TaskCollectionColor": {
-                if (media.color === null) break;
+            case "Chat": {
+                switch (searchEntityData.chat.media.type) {
+                    case "Account": {
+                        const accountData = get(
+                            accountRegistry.getAccountStore(searchEntityData.chat.media.account),
+                        );
+
+                        // Render a grey circle for chats that don't have an `AccountPile` media. We want
+                        // to communicate it's a multi-person chat so we don't want to render one account.
+                        // This case should happen rarely. Just `RoomChat`s that only a single person has
+                        // messaged so far.
+                        html.appendChild(
+                            renderContentMentionIcon({
+                                width: "extra-wide",
+                                withScaling: true,
+                                children: renderAccountAvatarPile({
+                                    spacingScale,
+                                    previewAccounts: [null, accountData],
+                                    size: contentStyles.mentionIconWithScalingSize,
+                                }),
+                            }),
+                        );
+                        break;
+                    }
+                    case "AccountPile": {
+                        assert(searchEntityData.chat.media.previewAccounts.length >= 2);
+
+                        const accountData1 = get(
+                            accountRegistry.getAccountStore(
+                                searchEntityData.chat.media.previewAccounts[0]!,
+                            ),
+                        );
+                        const accountData2 = get(
+                            accountRegistry.getAccountStore(
+                                searchEntityData.chat.media.previewAccounts[1]!,
+                            ),
+                        );
+
+                        html.appendChild(
+                            renderContentMentionIcon({
+                                width: "extra-wide",
+                                withScaling: true,
+                                children: renderAccountAvatarPile({
+                                    spacingScale,
+                                    previewAccounts: [accountData1, accountData2],
+                                    size: contentStyles.mentionIconWithScalingSize,
+                                }),
+                            }),
+                        );
+                        break;
+                    }
+                }
+                break;
+            }
+            case "Post": {
+                const accountData = get(
+                    accountRegistry.getAccountStore(searchEntityData.post.author),
+                );
+
+                html.appendChild(
+                    renderContentMentionIcon({
+                        width: "wide",
+                        withScaling: true,
+                        children: renderAccountAvatar({
+                            spacingScale,
+                            accountData,
+                            size: contentStyles.mentionIconWithScalingSize,
+                        }),
+                    }),
+                );
+
+                // Post titles are of the form "in ${channelName}: ". We rely on the client to add
+                // the account name to the post mention title.
+                text = `${getAccountShortNameWithoutFullNameTooltip(accountData)} ${text}`;
+                break;
+            }
+            case "TaskCollection": {
+                if (searchEntityData.collection.color.value === null) break;
 
                 const colorContainerHtml = new HtmlElementGenerator("span");
 
@@ -318,7 +373,9 @@ export function renderContentMentionToHtml(
                     sprinkles({
                         display: "block",
                         flexShrink: "0",
-                        backgroundColor: getTaskCollectionColor(media.color),
+                        backgroundColor: getTaskCollectionColor(
+                            searchEntityData.collection.color.value,
+                        ),
                         borderRadius: "full",
                     }),
                 );
@@ -335,13 +392,13 @@ export function renderContentMentionToHtml(
                 );
                 break;
             }
-            case "TaskDisplayStatus": {
+            case "Task": {
                 html.appendChild(
                     renderContentMentionIcon({
                         width: "wide",
                         withScaling: true,
                         children: renderTaskDisplayStatusCircle({
-                            displayStatus: media.displayStatus,
+                            displayStatus: searchEntityData.task.displayStatus.value,
                             size: contentStyles.mentionIconWithScalingSize,
                             // Content mention icons render at size "7" then are scaled down based on the font
                             // size. We want our task display circle to have a 1px border when scaled down to
@@ -352,8 +409,13 @@ export function renderContentMentionToHtml(
                 );
                 break;
             }
+            case "Channel":
+            case "Document":
+            case "Site": {
+                break;
+            }
             default:
-                throw exhaustive(media);
+                throw exhaustive(searchEntityData);
         }
     }
 

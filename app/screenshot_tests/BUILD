@@ -24,6 +24,7 @@ ts_project(
         "//:node_modules/mustache",
         "//:node_modules/playwright",
         "//:node_modules/prettier",
+        "//:node_modules/prosemirror-model",
         "//admin/environment/demo_space",
         "//admin/environment/test/integration",
         "//admin/helpers",
@@ -36,6 +37,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/helpers/node",
         "//server/search/data/table",
+        "//server/sites/test_helpers",
         "//server/spaces/create",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
@@ -50,6 +52,7 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/remix",
+        "//shared/search",
         "//shared/tracer",
     ],
 )

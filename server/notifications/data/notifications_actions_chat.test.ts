@@ -137,10 +137,12 @@ const context = createTestContext({
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Document",
                     title: documentResult.value.getTitle(),
-                    titleVersion: {type: "Integer", version: documentResult.value.version},
-                    media: null,
+                    document: {
+                        id: entityIdObject.documentId,
+                        version: documentResult.value.version,
+                    },
                 }),
             };
         },

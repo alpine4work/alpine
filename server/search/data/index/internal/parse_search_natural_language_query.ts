@@ -65,8 +65,9 @@ class SearchNaturalLanguageMatchTerm {
         );
 
         // Don't consider fuzzy matches for "chat". "Cat" and "hat" would be considered
-        // matches which are both common words in their own right.
-        if (this._text === "chat") {
+        // matches which are both common words in their own right. Same goes for "site" —
+        // "side", "size", "sits" are all within one edit and would cause false matches.
+        if (this._text === "chat" || this._text === "site") {
             return this._text === termText;
         }
 
@@ -97,6 +98,7 @@ const matchTermTexts = [
     "chats",
     "tasks",
     "collections",
+    "sites",
     "created",
     "written",
     "wrote",
@@ -1348,6 +1350,16 @@ function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
         state.advanceTerm();
         return {
             entityTypes: ["TaskCollection"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Sites
+    if (matchTerms.sites.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["Site"],
             entityStartTermIndex,
             entityEndTermIndex: state.termIndex - 1,
         };

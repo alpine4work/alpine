@@ -12,11 +12,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {
     SiteItemSearchEntityId,
     parseSiteItemSearchEntityId,
-} from "~/shared/sites/site_item_search_entity_id.js";
+} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function addEntityToSite(

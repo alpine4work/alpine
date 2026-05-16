@@ -11,6 +11,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {useSearchState} from "~/client/web/search/use_search_state.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -399,13 +400,14 @@ function SearchMobileEntityView({
     isLastItem: boolean;
 }) {
     const navigate = useNavigate();
+    const entityData = useSearchEntityModel(result.model);
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
             navigate(
                 getSearchEntityPath({
                     spaceId: spaceId,
-                    entityId: result.id,
+                    entityData,
                     randomSeed: searchKey,
                     currentTime: searchTime,
                     routeLayout: "narrow",

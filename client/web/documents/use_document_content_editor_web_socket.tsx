@@ -594,10 +594,12 @@ export function useDocumentContentEditorWebSocket(
                 title: persistedTitle,
                 store: searchEntityRegistry.getEntityStore(
                     new SearchEntityModel({
-                        id: `Document:${documentId}`,
+                        type: "Document",
+                        document: {
+                            id: documentId,
+                            version: state.persistedVersion,
+                        },
                         title: persistedTitle,
-                        titleVersion: {type: "Integer", version: state.persistedVersion},
-                        media: null,
                     }),
                 ),
             };

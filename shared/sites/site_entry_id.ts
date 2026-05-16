@@ -8,7 +8,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {
     SiteItemSearchEntityId,
     isSiteItemSearchEntityId,
-} from "~/shared/sites/site_item_search_entity_id.js";
+} from "~/shared/search/site_item_search_entity_id.js";
 
 export type SiteEntryId =
     | SiteTopBarId

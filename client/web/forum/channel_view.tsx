@@ -159,13 +159,15 @@ export function ChannelView({
     useMemo(() => {
         return searchEntityRegistry.getEntityStore(
             new SearchEntityModel({
-                id: `Channel:${channelId}`,
+                type: "Channel",
+                channel: {
+                    id: channel.id,
+                    version: channel.version,
+                },
                 title: channel.name,
-                titleVersion: {type: "Integer", version: channelItem.version},
-                media: null,
             }),
         );
-    }, [channel.name, channelId, channelItem.version, searchEntityRegistry]);
+    }, [channel.name, channel.id, channel.version, searchEntityRegistry]);
 
     const [posts, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostQueryList.new(initialPostsResult),

@@ -1,46 +1,16 @@
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {
+    HybridLogicalTime,
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {realmTaskTitleClientId} from "~/shared/id/realm_task_title_client_id.js";
-import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskTitleSnapshotSchema, decodeTaskTitleSnapshot} from "~/shared/tasks/title/task_title.js";
+import {TaskTitleSnapshot, decodeTaskTitleSnapshot} from "~/shared/tasks/title/task_title.js";
 
-export type SearchEntityTitleVersion = SchemaType<typeof SearchEntityTitleVersionSchema>;
-
-export const SearchEntityTitleVersionSchema = Schema.union({
-    Integer: Schema.object({
-        type: Schema.value("Integer"),
-        version: Schema.integer,
-    }),
-    Integers: Schema.object({
-        type: Schema.value("Integers"),
-        versions: Schema.array(Schema.integer).minLength(1),
-    }),
-    HybridLogicalTime: Schema.object({
-        type: Schema.value("HybridLogicalTime"),
-        time: HybridLogicalTimeSchema,
-    }),
-    TaskTitle: Schema.object({
-        type: Schema.value("TaskTitle"),
-        snapshot: TaskTitleSnapshotSchema,
-        deletedTime: HybridLogicalTimeSchema.optional(),
-    }),
-});
-
-/**
- * Compare two search entity title versions.
- *
- * - If <0 then `version1 < version2`
- * - If >0 then `version1 > version2`
- * - If 0 then `version1 = version2`
- */
-export function compareSearchEntityTitleVersion(
-    version1: SearchEntityTitleVersion | null,
-    version2: SearchEntityTitleVersion | null,
+export function compareSearchChatEntityVersion(
+    version1: number | null,
+    version2: number | null,
 ): -1 | 0 | 1 {
     if (version1 === null) {
         if (version2 === null) return 0;
@@ -49,57 +19,42 @@ export function compareSearchEntityTitleVersion(
 
     if (version2 === null) return 1;
 
-    if (version1.type === "Integer") {
-        if (version2.type !== "Integer") return -1;
-        if (version1.version < version2.version) return -1;
-        if (version1.version > version2.version) return 1;
-        return 0;
-    }
+    if (version1 < version2) return -1;
+    if (version1 > version2) return 1;
+    return 0;
+}
 
-    if (version1.type === "Integers") {
-        if (version2.type !== "Integers") return -1;
+export function compareSearchPostEntityVersions(
+    version1: {version: number; channelVersion: number},
+    version2: {version: number; channelVersion: number},
+): -1 | 0 | 1 {
+    if (version1.version > version2.version) return 1;
+    if (version1.version < version2.version) return -1;
 
-        const minVersionsLength = Math.min(version1.versions.length, version2.versions.length);
+    if (version1.channelVersion > version2.channelVersion) return 1;
+    if (version1.channelVersion < version2.channelVersion) return -1;
 
-        // Pick the title with the highest version number. Stop at the first version that's
-        // not equal to the other title's version. This is a generic conflict resolution
-        // mechanism designed to work without us knowing how to interpret the underlying
-        // versions.
-        for (let i = 0; i < minVersionsLength; i++) {
-            const subVersion1 = version1.versions[i]!;
-            const subVersion2 = version2.versions[i]!;
+    return 0;
+}
 
-            if (subVersion1 > subVersion2) {
-                return 1;
-            } else if (subVersion1 < subVersion2) {
-                return -1;
-            }
-        }
-
-        if (version1.versions.length > version2.versions.length) {
-            return 1;
-        } else if (version1.versions.length < version2.versions.length) {
-            return -1;
-        }
-
-        return 0;
-    }
-
-    if (version1.type === "HybridLogicalTime") {
-        if (version2.type !== "HybridLogicalTime") return -1;
-        return compareHybridLogicalTimes(version1.time, version2.time);
-    }
-
-    if (version2.type !== "TaskTitle") return -1;
-
+export function compareSearchTaskEntityTitleVersions(
+    version1: {
+        readonly titleSnapshot: TaskTitleSnapshot;
+        readonly deletedTime?: HybridLogicalTime;
+    },
+    version2: {
+        readonly titleSnapshot: TaskTitleSnapshot;
+        readonly deletedTime?: HybridLogicalTime;
+    },
+): -1 | 0 | 1 {
     return (
         compareHybridLogicalTimes(
             version1.deletedTime ?? zeroHybridLogicalTime,
             version2.deletedTime ?? zeroHybridLogicalTime,
         ) ||
         compareTaskTitleSnapshotForSearchEntityTitleVersion(
-            decodeTaskTitleSnapshot(version1.snapshot),
-            decodeTaskTitleSnapshot(version2.snapshot),
+            decodeTaskTitleSnapshot(version1.titleSnapshot),
+            decodeTaskTitleSnapshot(version2.titleSnapshot),
         )
     );
 }

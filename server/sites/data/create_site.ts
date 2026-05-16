@@ -105,7 +105,17 @@ export async function createSite(
         {clientRequestToken},
     );
 
-    // TODO(#sites): Index site for search.
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Site",
+            siteId,
+            // Nothing depends on this entity when it's created. Don't bother trying to reindex
+            // dependencies.
+            updatedTraits: {type: "None"},
+        },
+    });
 
     return {
         getDynamoGeneralRealtimeEventTransaction: async eventContext =>

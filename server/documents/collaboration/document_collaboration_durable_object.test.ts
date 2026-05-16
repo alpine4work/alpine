@@ -81,8 +81,8 @@ import {
     deleteDocumentComment,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteEntityModel} from "~/shared/sites/site_model.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 

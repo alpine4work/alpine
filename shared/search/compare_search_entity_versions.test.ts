@@ -3,7 +3,7 @@ import {realmTaskTitleClientId} from "~/shared/id/realm_task_title_client_id.js"
 import {
     TaskTitleSnapshotDeleteSet,
     compareTaskTitleSnapshotForSearchEntityTitleVersion,
-} from "~/shared/search/search_entity_title_version.js";
+} from "~/shared/search/compare_search_entity_versions.js";
 
 test("can compare task title snapshots", () => {
     expect(

@@ -5,7 +5,7 @@ import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_f
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function dangerouslyGetRemoveFromSiteTransactionEntries(

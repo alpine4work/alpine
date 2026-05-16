@@ -23,6 +23,7 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
 } from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerId,
     SiteSideBarContainerIdObject,
@@ -30,7 +31,6 @@ import {
     SiteTopBarContainerIdObject,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 let testSiteCount = 1;

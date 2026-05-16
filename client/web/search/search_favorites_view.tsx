@@ -51,6 +51,7 @@ import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
@@ -638,6 +639,7 @@ function SearchFavoritesViewItem({
     const {space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const activeContextMenuActions = useContextMenuActions();
+    const entityData = useSearchEntityModel(result.model);
 
     const id = useId();
 
@@ -645,12 +647,12 @@ function SearchFavoritesViewItem({
         () =>
             getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime,
                 routeLayout,
             }),
-        [currentTime, randomSeed, result.id, routeLayout, space.id],
+        [currentTime, randomSeed, entityData, routeLayout, space.id],
     );
 
     const {

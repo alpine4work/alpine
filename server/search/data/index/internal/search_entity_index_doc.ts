@@ -28,6 +28,10 @@ import {
     SearchEntityMedia,
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
+import {
+    SearchEntityTitleVersion,
+    SearchEntityTitleVersionSchema,
+} from "~/server/search/data/index/internal/search_entity_title_version_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -38,10 +42,6 @@ import {
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
-import {
-    SearchEntityTitleVersion,
-    SearchEntityTitleVersionSchema,
-} from "~/shared/search/search_entity_title_version.js";
 
 // NOTE(calebmer, 2025-01-14): The fact that this is a constant string `"Space"`
 // and not a boolean is a historical artifact based on data written to the

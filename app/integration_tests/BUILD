@@ -58,6 +58,7 @@ ts_playwright_tests(
         "//server/forum/test_helpers",
         "//server/helpers/node",
         "//server/remix",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
         "//server/tokens",

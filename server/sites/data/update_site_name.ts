@@ -40,7 +40,15 @@ export async function updateSiteName(
         });
         const {getEvent} = await SitesTable.directlyUpdateItem(context, newItem);
 
-        // TODO(#sites): Reindex site for search.
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: siteAttributesItem.spaceId,
+            update: {
+                type: "Site",
+                siteId,
+                updatedTraits: {type: "Some", traits: ["Preview"]},
+            },
+        });
 
         return {
             site: createSitePreviewModelFromItem(newItem),

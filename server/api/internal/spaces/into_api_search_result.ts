@@ -10,11 +10,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
-import {
-    SearchDynamicEntityType,
-    isSearchDynamicEntityIdWithoutAccount,
-    parseSearchDynamicEntityIdWithoutAccount,
-} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -80,18 +76,17 @@ function actuallyIntoApiSearchResult({
 
     assert(model instanceof SearchEntityModel);
 
-    const searchEntityId = model.getSearchEntityId();
+    const entity = model.initialData;
 
     // Check if this is a valid dynamic entity ID we can handle. This check helps
     // TypeScript narrow down the entity type, but in practice, we don't expect static
     // search entities (e.g. `My Tasks`) in the API search endpoint
-    if (!isSearchDynamicEntityIdWithoutAccount(searchEntityId)) {
+    if (entity.type === "Static") {
         return null;
     }
 
     const parsedFilter = resultParsedFilter ?? undefined;
 
-    const entity = parseSearchDynamicEntityIdWithoutAccount(searchEntityId);
     switch (entity.type) {
         case "Channel": {
             return {
@@ -99,7 +94,7 @@ function actuallyIntoApiSearchResult({
                 bodyMatch: null,
                 parsedFilter,
                 type: "Channel",
-                id: entity.channelId,
+                id: entity.channel.id,
             };
         }
         case "Chat": {
@@ -108,16 +103,11 @@ function actuallyIntoApiSearchResult({
                 bodyMatch: null,
                 parsedFilter,
                 type: "Chat",
-                id: entity.chatId,
+                id: entity.chat.id,
             };
         }
         case "ChatMessage": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "ChatMessage SearchEntityModel should have an account media object",
-            );
             // look at `get_search_entity` to see which data is supposed to be there
-            const author = intoApiAccount(model.initialData.media.account.initialData);
             assert(bodyMatch !== null);
 
             return {
@@ -125,9 +115,9 @@ function actuallyIntoApiSearchResult({
                 bodyMatch,
                 parsedFilter,
                 type: "ChatMessage",
-                id: entity.chatId,
-                index: entity.messageIndex,
-                author,
+                id: entity.message.chatId,
+                index: entity.message.index,
+                author: intoApiAccount(entity.message.author.initialData),
             };
         }
         case "Document": {
@@ -136,70 +126,50 @@ function actuallyIntoApiSearchResult({
                 bodyMatch,
                 parsedFilter,
                 type: "Document",
-                id: entity.documentId,
+                id: entity.document.id,
             };
         }
         case "DocumentComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "DocumentComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
-
             return {
                 title: null,
                 bodyMatch,
                 parsedFilter,
                 type: "DocumentMessage",
-                id: entity.documentId,
-                threadId: entity.commentThreadId,
-                index: entity.commentIndex,
-                author,
+                id: entity.comment.documentId,
+                threadId: entity.comment.commentThreadId,
+                index: entity.comment.index,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Post": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "Post SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
-
             return {
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
                 type: "Post",
-                id: entity.postId,
-                author,
+                id: entity.post.id,
+                author: intoApiAccount(entity.post.author.initialData),
             };
         }
         case "PostComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "PostComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
-
             return {
                 title: null,
                 bodyMatch,
                 parsedFilter,
                 type: "PostMessage",
-                id: entity.postId,
-                index: entity.commentIndex,
-                author,
+                id: entity.comment.postId,
+                index: entity.comment.index,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Task": {
-            assert(model.initialData.media?.type === "TaskDisplayStatus");
-
             return {
                 title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
                 bodyMatch,
                 parsedFilter,
                 type: "Task",
-                id: entity.taskId,
-                status: intoApiTaskStatus(model.initialData.media.displayStatus),
+                id: entity.task.id,
+                status: intoApiTaskStatus(entity.task.displayStatus.value),
             };
         }
         case "TaskCollection": {
@@ -208,28 +178,22 @@ function actuallyIntoApiSearchResult({
                 bodyMatch: null,
                 parsedFilter,
                 type: "TaskCollection",
-                id: entity.collectionId,
+                id: entity.collection.id,
             };
         }
         case "TaskComment": {
-            assert(
-                model.initialData.media?.type === "Account",
-                "TaskComment SearchEntityModel should have an account media object",
-            );
-            const author = intoApiAccount(model.initialData.media.account.initialData);
-
             return {
                 title: null,
                 bodyMatch,
                 parsedFilter,
                 type: "TaskMessage",
-                id: entity.taskId,
-                index: entity.commentIndex,
-                author,
+                id: entity.comment.taskId,
+                index: entity.comment.index,
+                author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Site": {
-            // TODO(#sites): Implement site search entity support
+            // TODO(#sites-api): Implement sites in API
             throw new UnimplementedError("Site search entity support is not implemented");
         }
         default:

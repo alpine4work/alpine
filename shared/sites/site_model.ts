@@ -1,10 +1,19 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityModelDataSchema} from "~/shared/search/search_entity_model.js";
+import {
+    SearchChannelEntityModelDataSchema,
+    SearchChatEntityModelDataSchema,
+    SearchDocumentEntityModelDataSchema,
+    SearchEntityModelData,
+    SearchTaskCollectionEntityModelDataSchema,
+    SearchTaskEntityModelDataSchema,
+} from "~/shared/search/search_entity_model.js";
+import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteRootContainerId,
     SiteSideBarContainerId,
@@ -17,7 +26,6 @@ import {
     SiteSideBarSectionEntrySchema,
     SiteTopBarEntrySchema,
 } from "~/shared/sites/site_entry_schema.js";
-import {SiteItemSearchEntityIdSchema} from "~/shared/sites/site_item_search_entity_id.js";
 
 export const SitePreviewModelDataSchema = Schema.object({
     id: Schema.id<SiteId>(),
@@ -119,12 +127,40 @@ export class SiteEntityModel extends Model(
         Schema.object({
             version: Schema.integer,
             id: SiteItemSearchEntityIdSchema,
-            initialEntityData: SearchEntityModelDataSchema.merge(
-                Schema.object({id: SiteItemSearchEntityIdSchema}),
-            ),
+            initialEntityData: Schema.union({
+                Channel: SearchChannelEntityModelDataSchema,
+                Chat: SearchChatEntityModelDataSchema,
+                Document: SearchDocumentEntityModelDataSchema,
+                Task: SearchTaskEntityModelDataSchema,
+                TaskCollection: SearchTaskCollectionEntityModelDataSchema,
+            }),
         }),
     ),
 ) {}
+
+export function isSiteSearchEntityModelData(
+    data: SearchEntityModelData,
+): data is SiteEntityModel["initialEntityData"] {
+    switch (data.type) {
+        case "Channel":
+        case "Chat":
+        case "Document":
+        case "Task":
+        case "TaskCollection":
+            return true;
+        case "Post":
+        case "Static":
+        case "Site":
+        case "ChatMessage":
+        case "DocumentComment":
+        case "PostComment":
+        case "TaskComment": {
+            return false;
+        }
+        default:
+            throw exhaustive(data);
+    }
+}
 
 /**
  * Union of all site entry model types.

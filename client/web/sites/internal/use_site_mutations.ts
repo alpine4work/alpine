@@ -6,7 +6,10 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -35,6 +38,11 @@ import {
 } from "~/shared/rpc/sites_rpc_definitions.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
+import {
+    SiteItemSearchEntityId,
+    isSiteItemSearchEntityId,
+    parseSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {doesSiteEntryMoveIntroduceCycle} from "~/shared/sites/does_site_entry_move_introduce_cycle.js";
 import {mergeNewSitePositionIntoSiteEntry} from "~/shared/sites/merge_new_site_position_into_site_entry.js";
 import {
@@ -47,11 +55,6 @@ import {
     parseSiteSideBarSectionContainerId,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {
-    SiteItemSearchEntityId,
-    isSiteItemSearchEntityId,
-    parseSiteItemSearchEntityId,
-} from "~/shared/sites/site_item_search_entity_id.js";
 import {SiteSideBarSectionModel} from "~/shared/sites/site_model.js";
 import {validateSiteContainerIsEmpty} from "~/shared/sites/validate_site_container_is_empty.js";
 
@@ -216,13 +219,7 @@ export function useSiteMutations() {
                 // you'd probaly see the entity disappear from the site chrome before actually
                 // navigating to the next entity, which introduces some pretty obvious screen
                 // flicker.
-                await navigateWithinSite(
-                    getSearchDynamicEntityPath(
-                        space.id,
-                        parseSiteItemSearchEntityId(entity.id),
-                        routeLayout,
-                    ),
-                );
+                await navigateWithinSite(getSearchDynamicEntityPath(space.id, entity, routeLayout));
                 flushSync(() => handleEventForSite(eventTransaction));
 
                 return {entityId: entity.id};
@@ -370,7 +367,7 @@ export function useSiteMutations() {
 
                 await navigateWithinSite(
                     adjacentEntityId
-                        ? getSearchDynamicEntityPath(
+                        ? getSearchDynamicEntityPathFromEntityIdObject(
                               space.id,
                               parseSiteItemSearchEntityId(adjacentEntityId),
                               routeLayout,

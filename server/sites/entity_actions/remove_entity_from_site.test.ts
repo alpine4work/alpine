@@ -13,6 +13,7 @@ import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {updateSiteAccessPolicy} from "~/server/sites/data/update_site_access_policy.js";
 import {addEntityToSite} from "~/server/sites/entity_actions/add_entity_to_site.js";
 import {removeEntityFromSite} from "~/server/sites/entity_actions/remove_entity_from_site.js";
+import {buildTestSiteEntityData} from "~/server/sites/test_helpers/build_test_site_entity_data.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -20,24 +21,24 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdObject,
-} from "~/shared/sites/site_item_search_entity_id.js";
+    isSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntityModel} from "~/shared/sites/site_model.js";
 
 const searchInjection: Partial<SearchInjection> = {
-    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => ({
-        isPrivate: false as const,
-        entity: new SearchEntityModel({
-            id: entityId,
-            title: "Test Entity",
-            titleVersion: null,
-            media: null,
-        }),
-    }),
+    getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) => {
+        assert(isSiteItemSearchEntityId(entityId));
+        return {
+            isPrivate: false as const,
+            entity: new SearchEntityModel(buildTestSiteEntityData(entityId)),
+        };
+    },
 };
 
 const context = createTestContext({sitesInjection, searchInjection});

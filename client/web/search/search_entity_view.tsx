@@ -12,7 +12,6 @@ import {renderTextWithEmojiFontFamily} from "~/client/web/helpers/render_text_wi
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/web/search/core/search_entity_type_display.js";
 import {
     SearchEntityViewTitle,
     SearchEntityViewTitlePrefix,
@@ -39,6 +38,8 @@ import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
+import {SearchEntityModelDataWithAccount} from "~/shared/search/search_entity_model.js";
 import {
     SearchAffinityEntityResultModel,
     SearchEntityResultModel,
@@ -64,26 +65,25 @@ export function SearchEntityView({
     isPressed?: boolean;
     withMarginTop?: boolean;
     withMarginBottom?: boolean;
-    onPressStart?: () => void;
-    onDoubleClick?: () => void;
-    getCopyPath?: () => string;
+    onPressStart?: (entityData: SearchEntityModelDataWithAccount) => void;
+    onDoubleClick?: (entityData: SearchEntityModelDataWithAccount) => void;
+    getCopyPath?: (entityData: SearchEntityModelDataWithAccount) => string;
     onRemoveFromFavorites?: () => MaybePromise<void>;
     onRemoveFromSuggested?: () => MaybePromise<void>;
-    onOpenInPeekStack?: () => MaybePromise<void>;
+    onOpenInPeekStack?: (entityData: SearchEntityModelDataWithAccount) => MaybePromise<void>;
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
 }) {
     const spacingScale = useSpacingScale();
 
     const entityData = useSearchEntityModel(result.model);
-    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
     const showTitle =
         (entityData.title !== null ||
             // If there's no body snippet and we have a `null` title then showing the title
             // will render "Deleted ${entityNoun}". For example, tasks in the suggested list
             // render in this state once they've been deleted.
             !result.bodyTextSnippet) &&
-        typeDisplay.type !== "Post";
+        entityData.type !== "Post";
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
@@ -98,7 +98,7 @@ export function SearchEntityView({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy link",
                 onPress: async () => {
-                    const path = getCopyPath();
+                    const path = getCopyPath(entityData);
                     const url = new URL(path, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
@@ -109,7 +109,7 @@ export function SearchEntityView({
             firstRightClickContextMenuGroup.push({
                 label: "Open in peek",
                 pressErrorTitle: "Couldn\u2019t open peek",
-                onPress: onOpenInPeekStack,
+                onPress: () => onOpenInPeekStack(entityData),
             });
         }
 
@@ -160,7 +160,7 @@ export function SearchEntityView({
                         event.target instanceof Element &&
                         event.currentTarget.contains(event.target)
                     ) {
-                        onPressStart?.();
+                        onPressStart?.(entityData);
                     }
                 }}
                 onDoubleClick={event => {
@@ -171,7 +171,7 @@ export function SearchEntityView({
                         event.target instanceof Element &&
                         event.currentTarget.contains(event.target)
                     ) {
-                        onDoubleClick?.();
+                        onDoubleClick?.(entityData);
                     }
                 }}
             >
@@ -211,10 +211,7 @@ export function SearchEntityView({
                     >
                         {showTitle && (
                             <>
-                                <SearchEntityViewTitle
-                                    typeDisplay={typeDisplay}
-                                    entityData={entityData}
-                                />
+                                <SearchEntityViewTitle entityData={entityData} />
                                 {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
                                     <Spacer space={searchEntityViewTitleMarginBottom} />
                                 )}
@@ -249,25 +246,14 @@ export function SearchEntityView({
                         >
                             {!showTitle && (
                                 <SearchEntityViewTitlePrefix
-                                    icon={typeDisplay.icon}
-                                    type={typeDisplay.type}
-                                    media={entityData.media}
+                                    entityData={entityData}
                                     // An entity is only considered to be deleted if there's no title and there's no
                                     // body. In this context we're rendering things like chat messages which have a
                                     // null `title` but do have a body.
                                     isDeleted={false}
                                 />
                             )}
-                            {typeDisplay.isAccountMediaAuthor &&
-                            entityData.media?.type === "Account" ? (
-                                <>
-                                    <AccountShortName
-                                        account={entityData.media.account}
-                                        isTooltipDisabled={true}
-                                    />
-                                    {typeDisplay.type === "Post" ? " " : ": "}
-                                </>
-                            ) : null}
+                            {renderAuthorShortNameIfNecessary(entityData)}
                             {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {
                                 if (!isHighlighted) {
                                     return (
@@ -483,4 +469,18 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     return print("", "", rootExplanation, printValue(rootExplanation.value));
 
     /* eslint-enable cyberworlds/string-quotes */
+}
+
+function renderAuthorShortNameIfNecessary(entityData: SearchEntityModelDataWithAccount) {
+    if (entityData.type === "Account") return null;
+
+    const author = getAuthorFromSearchEntityIfExists(entityData);
+    if (!author) return null;
+
+    return (
+        <>
+            <AccountShortName account={author} isTooltipDisabled={true} />
+            {entityData.type === "Post" ? " " : ": "}
+        </>
+    );
 }

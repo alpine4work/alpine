@@ -6,6 +6,7 @@ import {
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -19,6 +20,10 @@ import {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {
+    SiteItemSearchEntityId,
+    SiteItemSearchEntityIdSchema,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteRootContainerId} from "~/shared/sites/site_entry_id.js";
 import {
     SiteEntityEntrySchema,
@@ -27,15 +32,12 @@ import {
     SiteTopBarEntrySchema,
 } from "~/shared/sites/site_entry_schema.js";
 import {
-    SiteItemSearchEntityId,
-    SiteItemSearchEntityIdSchema,
-} from "~/shared/sites/site_item_search_entity_id.js";
-import {
     SiteEntityModel,
     SitePreviewModel,
     SiteSideBarModel,
     SiteSideBarSectionModel,
     SiteTopBarModel,
+    isSiteSearchEntityModelData,
 } from "~/shared/sites/site_model.js";
 import {SiteBroadcastRealtimeEventTransactionSchema} from "~/shared/sites/site_realtime_protocol.js";
 
@@ -229,16 +231,14 @@ export const SitesTable = DynamoGeneralRealtimeTableSchema.new({
                         throw new SchemaDeserializationError("Entity is private");
                     }
 
+                    const searchEntityData = result.entity.initialData;
+                    assert(isSiteSearchEntityModelData(searchEntityData));
+
                     return new SiteEntityModel({
                         type: "Entity",
                         id: item.id,
                         spaceId: item.spaceId,
-                        initialEntityData: {
-                            id: item.id,
-                            title: result.entity.initialData.title ?? null,
-                            titleVersion: result.entity.initialData.titleVersion ?? null,
-                            media: result.entity.initialData.media ?? null,
-                        },
+                        initialEntityData: searchEntityData,
                         orderKey: item.orderKey,
                         parentId: item.parentId,
                         version: item.updateLockVersion ?? 0,

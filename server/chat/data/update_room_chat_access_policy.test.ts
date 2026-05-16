@@ -30,10 +30,12 @@ const context = createTestContext({
         getSearchMentionEntityIfPossible: async () => ({
             isPrivate: false,
             entity: new SearchEntityModel({
-                id: `Channel:${generateId<ChannelId>()}`,
+                type: "Channel",
                 title: "Some title",
-                titleVersion: {type: "Integer", version: 0},
-                media: null,
+                channel: {
+                    id: generateId<ChannelId>(),
+                    version: 0,
+                },
             }),
         }),
     },

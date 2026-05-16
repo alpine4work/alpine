@@ -25,7 +25,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
-import {assertSiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {assertSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

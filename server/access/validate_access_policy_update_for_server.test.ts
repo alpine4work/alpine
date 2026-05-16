@@ -14,8 +14,8 @@ import {
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SiteId, SiteSideBarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // Mutable map that tests can configure for site access policies

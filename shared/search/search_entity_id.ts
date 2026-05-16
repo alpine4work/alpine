@@ -430,6 +430,8 @@ export function parseSearchDynamicEntityId(id: SearchDynamicEntityId): SearchDyn
                 taskId: idPayloadParts[0] as TaskId,
                 commentIndex: parseInt(idPayloadParts[1]!, 10),
             };
+        case "Site":
+            return {type: "Site", siteId: idPayloadParts[0] as SiteId};
         default:
             throw new InternalError(
                 quote`Unrecognized \`SearchDynamicEntityId\` type ${idType ?? ""}`,

@@ -7308,6 +7308,129 @@ exports[`search entity mention: clipboard 1`] = `
 
 exports[`search entity mention: clipboard text 1`] = `"foobar"`;
 
+exports[`site mention with null first entity Id 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  style=""
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/sites/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span
+          data-testid="ContentMentionText"
+        >
+          Test Site
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`site mention with null first entity Id: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/sites/qkanxhj066jh311428tsr0psp4"
+    >
+      Test Site
+    </a>
+  </p>
+</div>
+`;
+
+exports[`site mention with null first entity Id: clipboard text 1`] = `"Test Site"`;
+
+exports[`site search entity mention with first entity 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  style=""
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span
+          data-testid="ContentMentionText"
+        >
+          Sales
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`site search entity mention with first entity: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      data-cy-site="ehmwjvr0eqz3akrr16xx5tav8r"
+      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      Sales
+    </a>
+  </p>
+</div>
+`;
+
+exports[`site search entity mention with first entity: clipboard text 1`] = `"Sales"`;
+
 exports[`strike 1`] = `
 <div
   aria-label="Test"

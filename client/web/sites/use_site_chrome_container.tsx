@@ -1,5 +1,5 @@
 import {ReactElement, ReactNode} from "react";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 /**
  * Hook that wraps entity content with site chrome (sidebars/topbars) based on the

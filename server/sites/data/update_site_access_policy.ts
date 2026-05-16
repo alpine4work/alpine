@@ -64,8 +64,15 @@ export async function updateSiteAccessPolicy(
         });
         const {getEvent} = await SitesTable.directlyUpdateItem(context, newItem);
 
-        // TODO(#sites): Reindex all entities in the site for search since their effective
-        // authorization changed.
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: siteAttributesItem.spaceId,
+            update: {
+                type: "Site",
+                siteId,
+                updatedTraits: {type: "Some", traits: ["Preview"]},
+            },
+        });
 
         return {
             site: createSitePreviewModelFromItem(newItem),

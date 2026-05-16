@@ -1,30 +1,148 @@
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     SearchDynamicEntityIdObject,
-    SearchEntityId,
-    parseSearchDynamicEntityId,
+    SearchDynamicEntityType,
+    SearchStaticEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityModelDataWithAccount} from "~/shared/search/search_entity_model.js";
+import {
+    SiteItemSearchEntityId,
+    parseSiteItemSearchEntityId,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export function getSearchEntityPath({
     spaceId,
-    entityId,
+    entityData,
     randomSeed,
     currentTime,
     routeLayout,
 }: {
     spaceId: SpaceId;
-    entityId: SearchEntityId;
+    entityData: SearchEntityModelDataWithAccount;
     randomSeed: string;
     currentTime: Date;
     routeLayout: RouteLayout;
+}): string {
+    if (entityData.type === "Static") {
+        return getSearchStaticEntityPath({
+            spaceId,
+            entityId: entityData.id,
+            randomSeed,
+            currentTime,
+        });
+    }
+
+    return getSearchDynamicEntityPath(spaceId, entityData, routeLayout);
+}
+
+export function getSearchDynamicEntityPath(
+    spaceId: SpaceId,
+    entityData: SearchEntityModelDataWithAccount & {type: SearchDynamicEntityType},
+    // We may use this in the future, so we keep the parameter to avoid changing all
+    // call sites.
+    _routeLayout: RouteLayout,
+): string {
+    if (entityData.type === "Site") {
+        return getSearchDynamicEntityPathFromEntityIdObject(
+            spaceId,
+            {
+                type: "Site",
+                siteId: entityData.site.id,
+                firstEntityId: entityData.site.firstEntityId,
+            },
+            _routeLayout,
+        );
+    }
+
+    return getSearchDynamicEntityPathFromEntityIdObject(
+        spaceId,
+        intoSearchDynamicEntityIdObject(entityData),
+        _routeLayout,
+    );
+}
+
+export function getSearchDynamicEntityPathFromEntityIdObject(
+    spaceId: SpaceId,
+    entityId:
+        | Exclude<SearchDynamicEntityIdObject, {type: "Site"}>
+        | {
+              type: "Site";
+              siteId: SiteId;
+              firstEntityId: SiteItemSearchEntityId | null;
+          },
+    // We may use this in the future, so we keep the parameter to avoid changing all
+    // call sites.
+    _routeLayout: RouteLayout,
+): string {
+    switch (entityId.type) {
+        case "Account": {
+            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts. Since
+            // we don't currently have that, route to a 1:1 chat with the account.
+            //
+            // Though even if we had a profile page for accounts, routing to the 1:1 chat in
+            // search may be more useful.
+            return `/s/${spaceId}/chat/with/${entityId.accountId}`;
+        }
+        case "Document": {
+            return `/s/${spaceId}/documents/${entityId.documentId}`;
+        }
+        case "DocumentComment": {
+            return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
+        }
+        case "Channel": {
+            return `/s/${spaceId}/channels/${entityId.channelId}`;
+        }
+        case "Post": {
+            return `/s/${spaceId}/posts/${entityId.postId}`;
+        }
+        case "PostComment": {
+            return `/s/${spaceId}/posts/${entityId.postId}?comment=${entityId.commentIndex}`;
+        }
+        case "Chat": {
+            return `/s/${spaceId}/chat/${entityId.chatId}`;
+        }
+        case "ChatMessage": {
+            return `/s/${spaceId}/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
+        }
+        case "Task": {
+            return `/s/${spaceId}/tasks/${entityId.taskId}`;
+        }
+        case "TaskCollection": {
+            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
+        }
+        case "TaskComment": {
+            return `/s/${spaceId}/tasks/${entityId.taskId}?comment=${entityId.commentIndex}`;
+        }
+        case "Site": {
+            if (entityId.firstEntityId === null) {
+                return `/s/${spaceId}/sites/${entityId.siteId}`;
+            }
+
+            const idObject = parseSiteItemSearchEntityId(entityId.firstEntityId);
+            return getSearchDynamicEntityPathFromEntityIdObject(spaceId, idObject, _routeLayout);
+        }
+        default:
+            throw exhaustive(entityId);
+    }
+}
+
+export function getSearchStaticEntityPath({
+    spaceId,
+    entityId,
+    randomSeed,
+    currentTime,
+}: {
+    spaceId: SpaceId;
+    entityId: SearchStaticEntityId;
+    randomSeed: string;
+    currentTime: Date;
 }): string {
     const getStableRandom = () => new StableRandom(`getSearchEntityPath:${randomSeed}`);
 
@@ -188,64 +306,76 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/favorites`;
         }
         default: {
-            const entityIdObject = parseSearchDynamicEntityId(entityId);
-            return getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout);
+            throw exhaustive(entityId);
         }
     }
 }
 
-export function getSearchDynamicEntityPath(
-    spaceId: SpaceId,
-    entityId: SearchDynamicEntityIdObject,
-    // We may use this in the future, so we keep the
-    // parameter to avoid changing all call sites.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _routeLayout: RouteLayout,
-): string {
-    switch (entityId.type) {
+function intoSearchDynamicEntityIdObject(
+    entity: SearchEntityModelDataWithAccount & {type: SearchDynamicEntityType},
+):
+    | Exclude<SearchDynamicEntityIdObject, {type: "Site"}>
+    | {
+          type: "Site";
+          siteId: SiteId;
+          firstEntityId: SiteItemSearchEntityId | null;
+      } {
+    switch (entity.type) {
         case "Account": {
-            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts. Since
-            // we don't currently have that, route to a 1:1 chat with the account.
-            //
-            // Though even if we had a profile page for accounts, routing to the 1:1 chat in
-            // search may be more useful.
-            return `/s/${spaceId}/chat/with/${entityId.accountId}?focus`;
-        }
-        case "Document": {
-            return `/s/${spaceId}/documents/${entityId.documentId}`;
-        }
-        case "DocumentComment": {
-            return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
+            return {type: "Account", accountId: entity.account.id} as const;
         }
         case "Channel": {
-            return `/s/${spaceId}/channels/${entityId.channelId}`;
-        }
-        case "Post": {
-            return `/s/${spaceId}/posts/${entityId.postId}`;
-        }
-        case "PostComment": {
-            return `/s/${spaceId}/posts/${entityId.postId}?comment=${entityId.commentIndex}`;
+            return {type: "Channel", channelId: entity.channel.id};
         }
         case "Chat": {
-            return `/s/${spaceId}/chat/${entityId.chatId}`;
+            return {type: "Chat", chatId: entity.chat.id};
         }
-        case "ChatMessage": {
-            return `/s/${spaceId}/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
+        case "Document": {
+            return {type: "Document", documentId: entity.document.id} as const;
+        }
+        case "Post": {
+            return {type: "Post", postId: entity.post.id};
         }
         case "Task": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}`;
+            return {type: "Task", taskId: entity.task.id};
         }
         case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
-        }
-        case "TaskComment": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}?comments=show&comment=${entityId.commentIndex}`;
+            return {type: "TaskCollection", collectionId: entity.collection.id};
         }
         case "Site": {
-            // TODO(#sites): Implement site search entity path.
-            throw new UnimplementedError("Site search entities aren\u2019t implemented");
+            return {type: "Site", siteId: entity.site.id, firstEntityId: entity.site.firstEntityId};
         }
-        default:
-            throw exhaustive(entityId);
+        case "ChatMessage": {
+            return {
+                type: "ChatMessage",
+                chatId: entity.message.chatId,
+                messageIndex: entity.message.index,
+            };
+        }
+        case "DocumentComment": {
+            return {
+                type: "DocumentComment",
+                documentId: entity.comment.documentId,
+                commentThreadId: entity.comment.commentThreadId,
+                commentIndex: entity.comment.index,
+            };
+        }
+        case "PostComment": {
+            return {
+                type: "PostComment",
+                postId: entity.comment.postId,
+                commentIndex: entity.comment.index,
+            };
+        }
+        case "TaskComment": {
+            return {
+                type: "TaskComment",
+                taskId: entity.comment.taskId,
+                commentIndex: entity.comment.index,
+            };
+        }
+        default: {
+            throw exhaustive(entity);
+        }
     }
 }

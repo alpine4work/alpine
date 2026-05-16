@@ -213,9 +213,10 @@ export async function evaluateAccessPolicyForAccount(
     accountId: AccountId,
     rawAccessPolicy: AccessPolicy | ResolvedAccessPolicy | EffectiveAccessPolicy,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
     const accessPolicy = isAccessPolicyOrResolvedAccessPolicy(rawAccessPolicy)
-        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy)
+        ? await intoEffectiveAccessPolicy(context, rawAccessPolicy, options)
         : rawAccessPolicy;
 
     // If there's a `urlGrant` then everyone has access at this level. Even when

@@ -5,6 +5,13 @@ import {Schema, UnionSchema} from "~/shared/schema/schema.js";
 
 /**
  * Create a union schema from multiple model classes.
+ *
+ * The optional `typeKey` argument overrides the property used to discriminate
+ * variants on the wire. The default is `"type"`, but pass a unique key (e.g.
+ * `"_modelType"`) when the wrapped model classes have their own underlying
+ * discriminated unions also keyed on `"type"` — otherwise the outer wrapper will
+ * overwrite the inner discriminator on serialize and the inner union will fail
+ * with `"Unknown type"` on deserialize.
  */
 export function createModelUnionSchema<
     Config extends {
@@ -13,7 +20,7 @@ export function createModelUnionSchema<
             schema: Schema<any> | (() => Schema<any>);
         };
     },
->(config: Config): Schema<InstanceType<Config[keyof Config]>> {
+>(config: Config, {typeKey}: {typeKey?: string} = {}): Schema<InstanceType<Config[keyof Config]>> {
     const typeByModelClass = new Map<
         {
             new (...args: any): any;
@@ -38,6 +45,9 @@ export function createModelUnionSchema<
                     "Model must be directly instantiated from a class in the model union schema, no inheritance allowed",
                 );
             },
+            ...(typeKey !== undefined
+                ? {serializedTypeKey: typeKey, deserializedTypeKey: typeKey}
+                : {}),
         },
     ) as Schema<InstanceType<Config[keyof Config]>>;
 }

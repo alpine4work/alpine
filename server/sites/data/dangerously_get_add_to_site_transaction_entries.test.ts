@@ -9,8 +9,8 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SiteId, SiteSideBarSectionId} from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 
 const context = createTestContext();
 

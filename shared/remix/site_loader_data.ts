@@ -1,7 +1,7 @@
 import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SiteItemSearchEntityIdSchema} from "~/shared/sites/site_item_search_entity_id.js";
+import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 
 export type SiteLoaderData = SchemaType<typeof SiteLoaderDataSchema>;

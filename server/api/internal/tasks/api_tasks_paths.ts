@@ -4,6 +4,7 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
     getApiMentionTitleWithStrongConsistency,
+    getApiTaskMentionTitleWithStrongConsistency,
     intoApiContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
@@ -135,13 +136,11 @@ export const apiTasksPaths: Pick<
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
-            const {title, media} = await getApiMentionTitleWithStrongConsistency(
+            const {title, displayStatus} = await getApiTaskMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Task:${pathParameters.id}`,
             );
-
-            assert(media?.type === "TaskDisplayStatus");
 
             return {
                 content: {
@@ -150,7 +149,7 @@ export const apiTasksPaths: Pick<
                         target: {
                             type: "Task",
                             id: pathParameters.id,
-                            status: intoApiTaskStatus(media?.displayStatus),
+                            status: intoApiTaskStatus(displayStatus),
                         },
                         title,
                     },

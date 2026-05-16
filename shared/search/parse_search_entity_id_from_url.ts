@@ -5,6 +5,7 @@ import {
     ChatId,
     DocumentId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -120,6 +121,12 @@ export function parseSearchEntityIdFromUrl(
         }
     }
 
+    {
+        const siteMatch = url.pathname.match(/^\/s\/([^/]+)\/sites\/([^/]+)\/?$/);
+        if (siteMatch && siteMatch[1] === spaceId && isId<SiteId>(siteMatch[2]!)) {
+            return `Site:${siteMatch[2]}`;
+        }
+    }
     return null;
 }
 

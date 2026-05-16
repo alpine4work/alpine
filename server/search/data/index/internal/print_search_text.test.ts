@@ -46,7 +46,7 @@ const mockGetSearchEntityIfExists = (
         return {
             isPrivate: false,
             title: "Test Public Document",
-            getAccountMediaShortName: null,
+            getAuthorData: null,
         };
     }
 

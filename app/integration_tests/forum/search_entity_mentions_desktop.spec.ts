@@ -1,28 +1,32 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
+import {SiteId} from "~/shared/id/types/id_types.js";
 import {
-    SearchMentionEntityId,
+    SearchDynamicEntityIdObject,
     SearchMentionEntityType,
-    parseSearchMentionEntityId,
+    printSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 const {context, services} = createTestServices();
 
@@ -36,7 +40,16 @@ const testCaseByEntityType: Record<
             title: string;
             access: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         }) => Promise<{
-            id: SearchMentionEntityId;
+            entityId:
+                | Exclude<
+                      SearchDynamicEntityIdObject & {readonly type: SearchMentionEntityType},
+                      {type: "Site"}
+                  >
+                | {
+                      type: "Site";
+                      siteId: SiteId;
+                      firstEntityId: SiteItemSearchEntityId | null;
+                  };
             updateTitle: (
                 page: Page,
                 options: {oldTitle: string; newTitle: string},
@@ -49,7 +62,7 @@ const testCaseByEntityType: Record<
             const document = await TestDocument.create(session, {title, access});
 
             return {
-                id: `Document:${document.id}`,
+                entityId: {type: "Document", documentId: document.id},
                 updateTitle: async (page, {oldTitle, newTitle}) => {
                     await page.getByRole("textbox", {name: "Document"}).focus();
 
@@ -74,7 +87,7 @@ const testCaseByEntityType: Record<
             const channel = await TestChannel.create(session, {name: title, access});
 
             return {
-                id: `Channel:${channel.id}`,
+                entityId: {type: "Channel", channelId: channel.id},
                 updateTitle: async (page, {oldTitle, newTitle}) => {
                     await page.getByTestId("PeekStackOverlay").getByText(oldTitle).dblclick();
                     await page.getByPlaceholder(oldTitle).fill(newTitle);
@@ -88,7 +101,7 @@ const testCaseByEntityType: Record<
             const chat = await TestChat.createRoom(session, {name: title, access});
 
             return {
-                id: `Chat:${chat.id}`,
+                entityId: {type: "Chat", chatId: chat.id},
                 updateTitle: async (page, {oldTitle, newTitle}) => {
                     await page.getByTestId("ChatViewTopBar").getByLabel("More").click();
                     await page.getByRole("menuitem", {name: "Edit name"}).click();
@@ -108,7 +121,7 @@ const testCaseByEntityType: Record<
             const collection = await TestTaskCollection.create(session, {name: title, access});
 
             return {
-                id: `TaskCollection:${collection.id}`,
+                entityId: {type: "TaskCollection", collectionId: collection.id},
                 updateTitle: async (page, {oldTitle, newTitle}) => {
                     await page.getByRole("heading", {name: oldTitle}).dblclick();
                     await page.getByPlaceholder(oldTitle).fill(newTitle);
@@ -125,7 +138,7 @@ const testCaseByEntityType: Record<
             await task.addCollection(session, collection);
 
             return {
-                id: `Task:${task.id}`,
+                entityId: {type: "Task", taskId: task.id},
                 updateTitle: async (page, {newTitle}) => {
                     await page.getByTestId("TaskDetailViewMain").getByLabel("Title").click();
                     await page
@@ -144,7 +157,7 @@ const testCaseByEntityType: Record<
             const post = await channel.createPost(session, title);
 
             return {
-                id: `Post:${post.id}`,
+                entityId: {type: "Post", postId: post.id},
                 updateTitle: async (page, {newTitle}) => {
                     await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
                     await page.getByRole("menuitem", {name: "Edit"}).click();
@@ -156,9 +169,35 @@ const testCaseByEntityType: Record<
         },
     },
     Site: {
-        create: async () => {
-            // TODO(#sites): Implement tests
-            throw new UnimplementedError("Site mention test case not implemented");
+        create: async ({session, title, access}) => {
+            let accessPolicy: "Public" | "Private" | LocalAccessPolicy;
+            if (access === "Private" || access === "Public") {
+                accessPolicy = access;
+            } else {
+                assert(access.type === "Local");
+                accessPolicy = access;
+            }
+
+            const channel = await TestChannel.create(session, {access: accessPolicy});
+            const site = await TestSite.create(session, {name: title, access: accessPolicy});
+
+            const firstEntityId = `Channel:${channel.id}` as const;
+            await site.addEntity(session, {
+                entityId: firstEntityId,
+                parentId: site.initialRootContainerId,
+                orderKey: initialOrderKey,
+            });
+
+            return {
+                entityId: {type: "Site", siteId: site.id, firstEntityId},
+                updateTitle: async (page, {newTitle}) => {
+                    await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
+                    await page.getByRole("menuitem", {name: "Edit"}).click();
+                    await page.getByLabel("Post").press("ControlOrMeta+a");
+                    await page.getByLabel("Post").fill(newTitle);
+                    await page.getByLabel("Post").press("ControlOrMeta+Enter");
+                },
+            };
         },
     },
 };
@@ -188,7 +227,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
             type: "IndexSearchEntity",
             spaceId: space.id,
             update: {
-                ...parseSearchMentionEntityId(entity.id),
+                ...entity.entityId,
                 updatedTraits: {type: "None"},
             },
         });
@@ -198,7 +237,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 await context.opensearch.getDocWithoutSourceIfExists(
                     SearchEntityKeywordIndex,
                     space.id,
-                    entity.id,
+                    printSearchMentionEntityId(entity.entityId),
                 ),
             ).not.toBeNull();
         }).toPass({timeout: 5000});
@@ -211,7 +250,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                     PostContentProsemirrorSchema.node("mention", {
                         mention: cast<ContentMention>({
                             type: "SearchEntity",
-                            entityId: entity.id,
+                            entityId: printSearchMentionEntityId(entity.entityId),
                         }),
                     }),
                     PostContentProsemirrorSchema.text("."),
@@ -291,13 +330,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
                     documentElement.dispatchEvent(pasteEvent);
                 },
-                `${services.getBaseUrl()}${getSearchEntityPath({
-                    spaceId: space.id,
-                    entityId: entity.id,
-                    randomSeed: generateId(),
-                    currentTime: new Date(),
-                    routeLayout: "wide",
-                })}`,
+                `${services.getBaseUrl()}${getSearchDynamicEntityPathFromEntityIdObject(space.id, entity.entityId, "wide")}`,
             );
 
             await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeVisible();

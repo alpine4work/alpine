@@ -15,7 +15,7 @@ import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     SiteItemSearchEntityId,
     parseSiteItemSearchEntityId,
-} from "~/shared/sites/site_item_search_entity_id.js";
+} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function removeEntityFromSite(

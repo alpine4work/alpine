@@ -28,8 +28,8 @@ import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {
     SiteEntryModel,
     SiteOrSiteEntryModel,

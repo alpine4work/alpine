@@ -8,13 +8,13 @@ import {
     SiteSideBarSectionId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {computeFirstEntityId} from "~/shared/sites/compute_first_entity_id.js";
 import {
     SiteContainerId,
     SiteSideBarContainerId,
     SiteSideBarSectionContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {SiteItemSearchEntityId} from "~/shared/sites/site_item_search_entity_id.js";
 import {
     SiteEntityModel,
     SiteEntryModel,
@@ -29,7 +29,8 @@ const spaceId = generateId<SpaceId>();
 const creatorId = generateId<AccountId>();
 
 function createEntityItem(parentId: SiteContainerId, orderKey: string): SiteEntityModel {
-    const entityId: SiteItemSearchEntityId = `Channel:${generateId<ChannelId>()}`;
+    const channelId = generateId<ChannelId>();
+    const entityId: SiteItemSearchEntityId = `Channel:${channelId}`;
     return new SiteEntityModel({
         type: "Entity",
         id: entityId,
@@ -38,10 +39,12 @@ function createEntityItem(parentId: SiteContainerId, orderKey: string): SiteEnti
         spaceId,
         version: 0,
         initialEntityData: {
-            id: entityId,
+            type: "Channel",
             title: "test entity",
-            titleVersion: null,
-            media: null,
+            channel: {
+                id: channelId,
+                version: 0,
+            },
         },
     });
 }
