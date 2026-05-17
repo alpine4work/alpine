@@ -102,6 +102,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/api:api_lib",
     "//server/api/internal/chat:chat",
     "//server/api/internal/documents:documents",
+    "//server/api/internal/files:files",
     "//server/api/internal/forum:forum",
     "//server/api/internal/shared:shared",
     "//server/api/internal/spaces:spaces",

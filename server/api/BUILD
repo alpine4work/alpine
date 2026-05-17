@@ -8,6 +8,7 @@ ts_project(
     deps = [
         "//server/api/internal/chat",
         "//server/api/internal/documents",
+        "//server/api/internal/files",
         "//server/api/internal/forum",
         "//server/api/internal/shared",
         "//server/api/internal/spaces",

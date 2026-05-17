@@ -5,10 +5,13 @@ ts_project(
     test_deps = [
         "//server/bots/test_helpers",
         "//server/chat/data",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
         "//server/forum/data",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/tasks/test_helpers",
     ],
     visibility = [
         "//admin/crawl:__pkg__",

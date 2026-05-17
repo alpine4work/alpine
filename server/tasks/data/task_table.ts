@@ -1055,16 +1055,26 @@ export const FileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
     async (context, target, expectedAccessLevel) => {
+        let taskId: TaskId;
+        let accessLevel: AccessLevel;
+
         switch (target.type) {
             case "TaskNotes":
-                await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);
+                taskId = target.taskId;
+                accessLevel = expectedAccessLevel;
                 break;
             case "TaskComments":
-                await authorizeTaskAccess(context, target.taskId, "Comment");
+                taskId = target.taskId;
+                accessLevel = "Comment";
                 break;
             default:
                 throw exhaustive(target);
         }
+
+        const result = await authorizeTaskAccessIfPossible(context, taskId, accessLevel);
+        if (result === null) return {ok: false, error: createTaskNotFoundError(taskId)};
+
+        return mapResult(result, () => {});
     },
 );
 

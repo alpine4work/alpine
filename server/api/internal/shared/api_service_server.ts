@@ -48,6 +48,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -882,7 +883,7 @@ export async function createApiServiceRequestListener(
                  *                                 Execution                                  *
                 \* ========================================================================== */
 
-                const {content} = await executeOperation(contextWithActor, {
+                const operationResult = await executeOperation(contextWithActor, {
                     pathParameters,
                     queryParameters,
                     url,
@@ -890,6 +891,12 @@ export async function createApiServiceRequestListener(
                     requestBody,
                     span,
                 });
+
+                if (hasOwnProperty(operationResult, "response")) {
+                    return operationResult.response;
+                }
+
+                const {content} = operationResult;
 
                 const status = 200;
 

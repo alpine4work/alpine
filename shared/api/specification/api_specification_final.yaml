@@ -1350,6 +1350,56 @@ paths:
                                             $ref: "#/components/schemas/TaskWithoutContent"
                 default:
                     $ref: "#/components/responses/Error"
+    /files/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/FileId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - id
+                                    - contentType
+                                    - contentLength
+                                    - signedUrl
+                                    - isUploading
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/FileId"
+                                    contentType:
+                                        type: string
+                                    contentLength:
+                                        type: integer
+                                    signedUrl:
+                                        type: string
+                                    isUploading:
+                                        type: boolean
+                default:
+                    $ref: "#/components/responses/Error"
+    /files/{id}/content:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/FileId"
+        get:
+            responses:
+                "302":
+                    headers:
+                        location:
+                            schema:
+                                type: string
+                default:
+                    $ref: "#/components/responses/Error"
 webhooks:
     bot:
         post:

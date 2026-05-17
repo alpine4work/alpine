@@ -18,7 +18,7 @@ export type ApiPaths = {
                 requestBody: ApiOperationJsonRequestType<Path, Method>;
                 span: TracerSpan;
             },
-        ) => Promise<{content: ApiOperation200JsonResponseType<Path, Method>}>;
+        ) => Promise<ApiOperationResultType<Path, Method>>;
     };
 };
 
@@ -39,7 +39,7 @@ export type ApiPathsBase = {
                 requestBody: any;
                 span: TracerSpan;
             },
-        ) => Promise<{content: any}>;
+        ) => Promise<{content: any} | {response: Response}>;
     };
 };
 
@@ -69,6 +69,20 @@ export type ApiOperation200JsonResponseType<
 }
     ? JsonResponse
     : {};
+
+/**
+ * Resolves the return type for an API operation handler. Binary response endpoints
+ * (e.g. `application/octet-stream`) return `{response: Response}`, while JSON
+ * endpoints return `{content: ...}`.
+ */
+type ApiOperationResultType<
+    Path extends keyof ApiSpecification.paths,
+    Method extends OpenApiMethod,
+> = ApiSpecification.paths[Path][Method] extends {
+    responses: {200: {content: {"application/json": infer JsonResponse}}};
+}
+    ? {content: JsonResponse}
+    : {response: Response};
 
 type ApiOperationJsonRequestType<
     Path extends keyof ApiSpecification.paths,

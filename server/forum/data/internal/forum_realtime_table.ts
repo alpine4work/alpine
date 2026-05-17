@@ -10,8 +10,8 @@ import {
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js";
-import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
+import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
+import {authorizePostDraftAccessIfPossible} from "~/server/forum/data/authorize_post_draft_access.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
@@ -38,6 +38,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -591,22 +592,30 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel, options) => {
         switch (target.type) {
             case "Post":
-                await authorizePostAccess(context, target.postId, expectedAccessLevel);
-                break;
+                return mapResult(
+                    await authorizePostAccessIfPossible(
+                        context,
+                        target.postId,
+                        expectedAccessLevel,
+                        options,
+                    ),
+                    () => {},
+                );
             case "PostDraft":
-                await authorizePostDraftAccess(
+                return authorizePostDraftAccessIfPossible(
                     context,
                     target.spaceId,
                     target.accountId,
                     target.draftId,
                 );
-                break;
             case "PostComments":
-                await authorizePostAccess(context, target.postId, "View");
-                break;
+                return mapResult(
+                    await authorizePostAccessIfPossible(context, target.postId, "View", options),
+                    () => {},
+                );
             default:
                 throw exhaustive(target);
         }

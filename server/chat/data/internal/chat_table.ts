@@ -1,4 +1,4 @@
-import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
+import {authorizeChatAccessIfPossible} from "~/server/chat/data/authorize_chat_access.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
@@ -7,6 +7,7 @@ import {
     MessageStreamPartSchema,
 } from "~/server/messaging/helpers/message_stream_schema.js";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -315,8 +316,11 @@ export const AccountChatsIndex = ChatTable.addIndex({
 const FileChatAuthorizer = FileAuthorizer.new(
     ChatTable,
     "Chat",
-    (context, target, expectedAccessLevel) =>
-        authorizeChatAccess(context, target.chatId, expectedAccessLevel),
+    async (context, target, expectedAccessLevel) =>
+        mapResult(
+            await authorizeChatAccessIfPossible(context, target.chatId, expectedAccessLevel),
+            () => {},
+        ),
 );
 
 export {FileChatAuthorizer as InternalFileChatAuthorizer};

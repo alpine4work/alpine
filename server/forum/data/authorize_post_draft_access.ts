@@ -1,42 +1,65 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function authorizePostDraftAccess(
     context: ServerActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     draftId: PostDraftId,
 ): Promise<void> {
-    await authorizeSpaceAccess(context, spaceId);
+    unwrapResult(await authorizePostDraftAccessIfPossible(context, spaceId, accountId, draftId));
+}
+
+export async function authorizePostDraftAccessIfPossible(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    draftId: PostDraftId,
+): Promise<Result<void, Error>> {
+    const spaceAccessResult = await authorizeSpaceAccessIfPossible(context, spaceId);
+    if (!spaceAccessResult.ok) return spaceAccessResult;
 
     // Bots can't access drafts. Bots must directly create posts.
-    await authorizeNotBotSpaceAccount(context, spaceId, accountId);
+    if (await isBotSpaceAccount(context, spaceId, accountId)) {
+        return {ok: false, error: permissionDeniedBotError()};
+    }
 
     switch (context.actor.type) {
         case "System": {
             // We don't have a use case for system actions looking at drafts right now. So
             // block it.
-            throw new PermissionDeniedError("System actors can\u2019t access post drafts");
+            return {
+                ok: false,
+                error: new PermissionDeniedError("System actors can\u2019t access post drafts"),
+            };
         }
         case "Session":
         case "ImpersonatedAccount": {
             if (accountId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Can\u2019t access drafts from other accounts");
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Can\u2019t access drafts from other accounts",
+                    ),
+                };
             }
             break;
         }
         case "Anonymous": {
-            throw unauthenticatedSessionError();
+            return {ok: false, error: unauthenticatedSessionError()};
         }
         case "Bot": {
-            throw permissionDeniedBotError();
+            return {ok: false, error: permissionDeniedBotError()};
         }
         default:
             throw exhaustive(context.actor);
@@ -50,9 +73,9 @@ export async function authorizePostDraftAccess(
     // `getPostDraftFileAttachments()` (which calls this function) and DynamoDB
     // deleting the draft item.
 
-
     // Note that we don't authorize whether you have access to `draftItem.channelId`.
     // The draft author may have had access to the provided channel when they created
     // the draft then subsequently lost access to the channel. If the user has lost
     // access to the channel then we should consider `channelId` to be null.
+    return okResult;
 }

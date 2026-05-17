@@ -1231,6 +1231,48 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/TaskWithoutContent"
 
+    /files/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [id, contentType, contentLength, signedUrl, isUploading]
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/FileId"
+                                    contentType:
+                                        type: string
+                                    contentLength:
+                                        type: integer
+                                    signedUrl:
+                                        type: string
+                                    isUploading:
+                                        type: boolean
+
+    /files/{id}/content:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "302":
+                    headers:
+                        location:
+                            schema: {type: string}
+
 webhooks:
     bot:
         post:
