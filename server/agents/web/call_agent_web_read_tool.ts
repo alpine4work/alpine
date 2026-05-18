@@ -1,5 +1,5 @@
 import {addHours} from "date-fns";
-import {Root} from "mdast";
+import {Node, Parent, Root} from "mdast";
 import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
@@ -22,6 +22,7 @@ import {
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -76,34 +77,32 @@ export async function callAgentWebReadTool(
 
         const responseTree = await printAgentWebPage(context.storage, page);
 
+        let response = printMarkdownTree(responseTree);
+
         // Use Prettier to print our Markdown before sending it to the LLM. We hypothesize
         // this will lead to better performance from the LLM since Prettier formatting is
         // more "standard" than micromark's (used by `printMarkdownTree()`) default
         // formatting.
-        //
-        // To directly provide our Markdown AST to Prettier we provide an empty string and
-        // a plugin that simply returns the `mdast` AST which Prettier understands how to
-        // print. This way we don't have to call `printMarkdownTree()` only for Prettier to
-        // immediately parse it back into an AST.
-        let response = await prettier.format("ignored", {
-            parser: "mdast",
+        response = await prettier.format(response, {
+            parser: "markdown",
             endOfLine: "lf",
             printWidth: 80,
             tabWidth: 2,
+            // We never wrap text within paragraphs at 80 characters. This is entirely
+            // presentational. Two reasons why we think it's bad for LLMs:
+            //
+            // 1. Pagination via newlines ends up being more semantic since it's close to
+            //    paginating by paragraphs in a long document.
+            //
+            // 2. We're guessing LLMs are trained on vastly more text without presentational
+            //    line breaks than text with presentational line breaks. So the LLM should be
+            //    slightly more intelligent when not presented with text that has
+            //    presentational line breaks.
+            //
+            // Wrapping at 80 characters is good for a human reader but not necessarily for an
+            // LLM reader.
             proseWrap: "never",
-            plugins: [
-                {
-                    parsers: {
-                        mdast: {
-                            parse: () => responseTree,
-                            astFormat: "mdast",
-                            locStart: node => node.position?.start?.offset ?? 0,
-                            locEnd: node => node.position?.end?.offset ?? 0,
-                        },
-                    },
-                },
-                markdownPrettierPlugin,
-            ],
+            plugins: [markdownPrettierPlugin],
         });
 
         response = response.trim();

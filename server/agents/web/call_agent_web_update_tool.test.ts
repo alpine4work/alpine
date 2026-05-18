@@ -21,10 +21,10 @@ const {span} = testTracer.startSpan("call_agent_web_update_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-const context: AgentWebContext = {api, storage, span};
+const context: AgentWebContext = {spaceId, api, storage, span};
 
 afterEach(() => {
-    jest.useRealTimers();
+    import.meta.jest.useRealTimers();
 });
 
 function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
@@ -104,9 +104,9 @@ async function setupDocument({
     return {documentId, path};
 }
 
-function mockDocumentPut(documentId: DocumentId, ...versions: ReadonlyArray<number>) {
+function mockDocumentPatch(documentId: DocumentId, ...versions: ReadonlyArray<number>) {
     for (const version of versions) {
-        api.mockPut(
+        api.mockPatch(
             "/documents/{id}",
             {
                 data: {
@@ -124,10 +124,10 @@ function mockDocumentPut(documentId: DocumentId, ...versions: ReadonlyArray<numb
     }
 }
 
-function getDocumentPutRequests() {
+function getDocumentPatchRequests() {
     return api
         .getRequestHistory()
-        .filter(record => record.method === "PUT" && record.path === "/documents/{id}");
+        .filter(record => record.method === "PATCH" && record.path === "/documents/{id}");
 }
 
 function stripEndOfFileSuffix(response: string): string {
@@ -161,17 +161,17 @@ test("throws NotFoundError when no cached read response exists", async () => {
 });
 
 test("throws NotFoundError when cached read response is expired", async () => {
-    jest.useFakeTimers();
+    import.meta.jest.useFakeTimers();
 
     const t0 = new Date("2026-01-01T00:00:00.000Z");
-    jest.setSystemTime(t0);
+    import.meta.jest.setSystemTime(t0);
 
     const {path} = await setupDocument({
         title: "Expired Update",
         bodyMarkdown: "Alpha",
     });
 
-    jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
+    import.meta.jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -243,7 +243,7 @@ test("updates exactly one match when replaceAll is false", async () => {
         bodyMarkdown: "first second",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -252,7 +252,7 @@ test("updates exactly one match when replaceAll is false", async () => {
 
     const response = await readFull(path);
     expect(response).toContain("first third");
-    expect(getDocumentPutRequests()).toHaveLength(1);
+    expect(getDocumentPatchRequests()).toHaveLength(1);
 });
 
 test("replaceAll true with multiple expanding matches updates every match", async () => {
@@ -261,7 +261,7 @@ test("replaceAll true with multiple expanding matches updates every match", asyn
         bodyMarkdown: "aa aa aa",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -270,7 +270,7 @@ test("replaceAll true with multiple expanding matches updates every match", asyn
 
     const response = await readFull(path);
     expect(response).toContain("aaaa aaaa aaaa");
-    expect(getDocumentPutRequests()).toHaveLength(1);
+    expect(getDocumentPatchRequests()).toHaveLength(1);
 });
 
 test("replaceAll true with multiple shrinking matches updates every match", async () => {
@@ -279,7 +279,7 @@ test("replaceAll true with multiple shrinking matches updates every match", asyn
         bodyMarkdown: "aaaa aaaa",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -288,7 +288,7 @@ test("replaceAll true with multiple shrinking matches updates every match", asyn
 
     const response = await readFull(path);
     expect(response).toContain("a a");
-    expect(getDocumentPutRequests()).toHaveLength(1);
+    expect(getDocumentPatchRequests()).toHaveLength(1);
 });
 
 test("replaceAll true with zero matches throws and keeps cached content unchanged", async () => {
@@ -308,7 +308,7 @@ test("replaceAll true with zero matches throws and keeps cached content unchange
 
     const after = await readFull(path);
     expect(after).toEqual(before);
-    expect(getDocumentPutRequests()).toHaveLength(0);
+    expect(getDocumentPatchRequests()).toHaveLength(0);
 });
 
 test("replaceAll true with one match succeeds and updates cached content", async () => {
@@ -317,7 +317,7 @@ test("replaceAll true with one match succeeds and updates cached content", async
         bodyMarkdown: "only once",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -326,7 +326,7 @@ test("replaceAll true with one match succeeds and updates cached content", async
 
     const response = await readFull(path);
     expect(response).toContain("only NOW");
-    expect(getDocumentPutRequests()).toHaveLength(1);
+    expect(getDocumentPatchRequests()).toHaveLength(1);
 });
 
 test("applies updates sequentially in one call", async () => {
@@ -335,7 +335,7 @@ test("applies updates sequentially in one call", async () => {
         bodyMarkdown: "alpha beta gamma",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -355,7 +355,7 @@ test("uses non-overlapping replacement semantics", async () => {
         bodyMarkdown: "aaaa",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -372,7 +372,7 @@ test("handles UTF-8 multibyte replacements", async () => {
         bodyMarkdown: "I like 🧪 and café",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -395,7 +395,7 @@ test("normalizes path during update lookup", async () => {
         path: `${path}?b=2&a=1#ignored`,
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
     await callAgentWebUpdateTool(context, {
         path: `${path.slice(1)}?a=1&b=2#tail`,
@@ -423,7 +423,7 @@ test("parse failure for missing title bubbles and keeps cache unchanged", async 
 
     const after = await readFull(path);
     expect(after).toEqual(before);
-    expect(getDocumentPutRequests()).toHaveLength(0);
+    expect(getDocumentPatchRequests()).toHaveLength(0);
 });
 
 test("parse failure for second h1 bubbles and keeps cache unchanged", async () => {
@@ -443,21 +443,21 @@ test("parse failure for second h1 bubbles and keeps cache unchanged", async () =
 
     const after = await readFull(path);
     expect(after).toEqual(before);
-    expect(getDocumentPutRequests()).toHaveLength(0);
+    expect(getDocumentPatchRequests()).toHaveLength(0);
 });
 
-test("api put failure bubbles unchanged and keeps cache unchanged", async () => {
+test("api patch failure bubbles unchanged and keeps cache unchanged", async () => {
     const {path} = await setupDocument({
-        title: "PUT Failure",
+        title: "PATCH Failure",
         bodyMarkdown: "Body text.",
     });
 
     const before = await readFull(path);
-    const putError = new FailedPreconditionError("PUT failed");
-    const originalPut = api.put;
+    const patchError = new FailedPreconditionError("PATCH failed");
+    const originalPatch = api.patch;
 
-    api.put = async () => {
-        throw putError;
+    api.patch = async () => {
+        throw patchError;
     };
 
     try {
@@ -466,9 +466,9 @@ test("api put failure bubbles unchanged and keeps cache unchanged", async () => 
                 path,
                 updates: [{old: "Body text.", new: "Updated text.", replaceAll: false}],
             }),
-        ).rejects.toBe(putError);
+        ).rejects.toBe(patchError);
     } finally {
-        api.put = originalPut;
+        api.patch = originalPatch;
     }
 
     const after = await readFull(path);
@@ -482,7 +482,7 @@ test("uses updated version from first update as precondition for second update",
         version: 1,
     });
 
-    mockDocumentPut(documentId, 2, 3);
+    mockDocumentPatch(documentId, 2, 3);
 
     await callAgentWebUpdateTool(context, {
         path,
@@ -494,40 +494,40 @@ test("uses updated version from first update as precondition for second update",
         updates: [{old: "three", new: "four", replaceAll: false}],
     });
 
-    const putRequests = getDocumentPutRequests();
+    const patchRequests = getDocumentPatchRequests();
 
-    expect(putRequests).toHaveLength(2);
-    expect((putRequests[0] as any).body.document.version).toBe(1);
-    expect((putRequests[1] as any).body.document.version).toBe(2);
+    expect(patchRequests).toHaveLength(2);
+    expect((patchRequests[0] as any).body.document.version).toBe(1);
+    expect((patchRequests[1] as any).body.document.version).toBe(2);
 });
 
 test("does not extend cache expiration after update", async () => {
-    jest.useFakeTimers();
+    import.meta.jest.useFakeTimers();
 
     const t0 = new Date("2026-01-01T00:00:00.000Z");
-    jest.setSystemTime(t0);
+    import.meta.jest.setSystemTime(t0);
 
     const {documentId, path} = await setupDocument({
         title: "Expiration",
         bodyMarkdown: "Alpha",
     });
 
-    mockDocumentPut(documentId, 2);
+    mockDocumentPatch(documentId, 2);
 
-    jest.setSystemTime(new Date(t0.getTime() + 30 * 60 * 1000));
+    import.meta.jest.setSystemTime(new Date(t0.getTime() + 30 * 60 * 1000));
 
     await callAgentWebUpdateTool(context, {
         path,
         updates: [{old: "Alpha", new: "Beta", replaceAll: false}],
     });
 
-    jest.setSystemTime(new Date(t0.getTime() + 59 * 60 * 1000));
+    import.meta.jest.setSystemTime(new Date(t0.getTime() + 59 * 60 * 1000));
 
     await expect(
         callAgentWebScrollTool(context, {path, offset: 1, limit: "200kb"}),
     ).resolves.toContain("(End of file.");
 
-    jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
+    import.meta.jest.setSystemTime(new Date(t0.getTime() + 61 * 60 * 1000));
 
     await expect(
         callAgentWebScrollTool(context, {path, offset: 1, limit: "200kb"}),
@@ -540,7 +540,7 @@ test("serializes concurrent updates for the same path", async () => {
         bodyMarkdown: "alpha omega",
     });
 
-    mockDocumentPut(documentId, 2, 3);
+    mockDocumentPatch(documentId, 2, 3);
 
     await Promise.all([
         callAgentWebUpdateTool(context, {
@@ -556,5 +556,5 @@ test("serializes concurrent updates for the same path", async () => {
     const response = await readFull(path);
 
     expect(response).toContain("alpha-1 omega-1");
-    expect(getDocumentPutRequests()).toHaveLength(2);
+    expect(getDocumentPatchRequests()).toHaveLength(2);
 });

@@ -18,7 +18,7 @@ const {span} = testTracer.startSpan("call_agent_web_scroll_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-const context: AgentWebContext = {api, storage, span};
+const context: AgentWebContext = {spaceId, api, storage, span};
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
     return parseApiContentFromMarkdown(paragraphTextList.join("\n\n"), {
@@ -72,22 +72,22 @@ test("paginates through a long document across multiple scroll calls", async () 
 
 Paragraph 1: alpha beta gamma.
 
-(Response truncated, 749b remaining. Showing lines 1-4 of 49. Call the \`scroll\` tool with an \`offset\` of 5 to continue.)`);
+(Response truncated, 749b remaining. Showing lines 1-4 of 49. Call the \`scroll\` tool with an \`offset\` of 4 to continue.)`);
 
     const secondResponse = await callAgentWebScrollTool(context, {
         path: "/document/long-document",
-        offset: 5,
+        offset: 4,
         limit: "50b",
     });
 
     expect(secondResponse).toEqual(`\
 Paragraph 2: alpha beta gamma.
 
-(Response truncated, 717b remaining. Showing lines 5-6 of 49. Use \`offset\` of 7 to continue.)`);
+(Response truncated, 717b remaining. Showing lines 5-6 of 49. Use \`offset\` of 6 to continue.)`);
 
     const finalResponse = await callAgentWebScrollTool(context, {
         path: "/document/long-document",
-        offset: 7,
+        offset: 6,
         limit: "10kb",
     });
 
@@ -161,12 +161,13 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 
     await context.storage.readResponseByPath.put(path, {
         expirationTime: new Date(Date.now() + 60_000),
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
         ...createReadResponse(tableResponseString),
     });
 
     const firstResponseString = truncateAgentWebReadResponse(
         createReadResponse(tableResponseString),
-        {offsetLine: 0, limitBytes: 180, isScrollTool: false},
+        {offsetNewline: 0, limitBytes: 180, isScrollTool: false},
     );
 
     expect(firstResponseString).toEqual(`\
@@ -176,11 +177,11 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 | - | - | - |
 | M01 API schema freeze | Platform | Done |
 | M02 Query planner rollout | Search | In Progress |
-(Response truncated, 510b remaining. Showing lines 1-6 of 16. Call the \`scroll\` tool with an \`offset\` of 7 to continue.)`);
+(Response truncated, 510b remaining. Showing lines 1-6 of 16. Call the \`scroll\` tool with an \`offset\` of 6 to continue.)`);
 
     const secondResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 7,
+        offset: 6,
         limit: "180b",
     });
 
@@ -188,11 +189,11 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 | M03 Inbox notification polish | Comms | Planned |
 | M04 Document AI suggestions | Docs | In Progress |
 | M05 Agent memory sync | Agents | Planned |
-(Response truncated, 360b remaining. Showing lines 7-9 of 16. Use \`offset\` of 10 to continue.)`);
+(Response truncated, 360b remaining. Showing lines 7-9 of 16. Use \`offset\` of 9 to continue.)`);
 
     const thirdResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 10,
+        offset: 9,
         limit: "180b",
     });
 
@@ -200,11 +201,11 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 | M06 Notification digests | Comms | Planned |
 | M07 Permissions hardening | Security | In Review |
 | M08 Search ranking tuning | Search | Planned |
-(Response truncated, 211b remaining. Showing lines 10-12 of 16. Use \`offset\` of 13 to continue.)`);
+(Response truncated, 211b remaining. Showing lines 10-12 of 16. Use \`offset\` of 12 to continue.)`);
 
     const fourthResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 13,
+        offset: 12,
         limit: "180b",
     });
 
@@ -212,11 +213,11 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 | M09 Feed relevance update | Feed | Planned |
 | M10 Realtime cursor optimizations | Realtime | In Progress |
 | M11 Import migration tooling | Platform | Planned |
-(Response truncated, 47b remaining. Showing lines 13-15 of 16. Use \`offset\` of 16 to continue.)`);
+(Response truncated, 47b remaining. Showing lines 13-15 of 16. Use \`offset\` of 15 to continue.)`);
 
     const fifthResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 16,
+        offset: 15,
         limit: "180b",
     });
 
@@ -242,6 +243,7 @@ test("iterates through realistic wikipedia content one page at a time", async ()
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,
+            getFileIfExists: () => undefined,
         }),
     });
 
@@ -255,50 +257,50 @@ test("iterates through realistic wikipedia content one page at a time", async ()
 
 YouTube is an American online video sharing and social media platform headquartered in San Bruno, California, United States. Accessible worldwide, it was launched on February 14, 2005, by Steve Chen, Chad Hurley, and Jawed Karim. It is owned by Google and is the second most visited website in the world, after Google Search. YouTube has more than 2.5 billion monthly users, who collectively watch more than one billion hours of videos every day. As of May 2019, videos were being uploaded to the platform at a rate of more than 500 hours of content per minute.
 
-In October 2006, YouTube was bought by Google for $1.65 billion. Google’s ownership of YouTube expanded the site’s business model, expanding from generating revenue from advertisements alone to offering paid content such as movies and exclusive content produced by YouTube. It also offers YouTube Premium, a paid subscription option for watching content without ads. YouTube also approved creators to participate in Google’s AdSense program, which seeks to generate more revenue for both parties. In 2021, YouTube’s annual advertising revenue increased to $28.8 billion, an increase in revenue of $9 billion from the previous year. YouTube reported revenue of $29.2 billion in 2022.
+In October 2006, YouTube was bought by Google for $1.65 billion. Google\u2019s ownership of YouTube expanded the site\u2019s business model, expanding from generating revenue from advertisements alone to offering paid content such as movies and exclusive content produced by YouTube. It also offers YouTube Premium, a paid subscription option for watching content without ads. YouTube also approved creators to participate in Google\u2019s AdSense program, which seeks to generate more revenue for both parties. In 2021, YouTube\u2019s annual advertising revenue increased to $28.8 billion, an increase in revenue of $9 billion from the previous year. YouTube reported revenue of $29.2 billion in 2022.
 
 Since its purchase by Google, YouTube has expanded beyond the core website into mobile apps, network television, and the ability to link with other platforms. Video categories on YouTube include music videos, video clips, news, short films, feature films, songs, documentaries, movie trailers, teasers, live streams, vlogs, and more. Most content is generated by individuals, including collaborations between YouTubers and corporate sponsors. Established media corporations such as Disney, Paramount, NBCUniversal, and Warner Bros. Discovery have also created and expanded their corporate YouTube channels to advertise to a greater audience.
 
-(Response truncated, 3.64kb remaining. Showing lines 1-8 of 21. Call the \`scroll\` tool with an \`offset\` of 9 to continue.)`);
+(Response truncated, 3.6kb remaining. Showing lines 1-8 of 21. Call the \`scroll\` tool with an \`offset\` of 8 to continue.)`);
 
     const secondResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 9,
+        offset: 8,
         limit: "2kb",
     });
 
     expect(secondResponseString).toEqual(`\
-YouTube has had unprecedented social impact, influencing popular culture, internet trends, and creating multimillionaire celebrities. Despite its growth and success, it has been widely criticized for allegedly facilitating the spread of misinformation, the sharing of copyrighted content, routinely violating its users’ privacy, enabling censorship, endangering child safety and wellbeing, and for its inconsistent or incorrect implementation of platform guidelines.
+YouTube has had unprecedented social impact, influencing popular culture, internet trends, and creating multimillionaire celebrities. Despite its growth and success, it has been widely criticized for allegedly facilitating the spread of misinformation, the sharing of copyrighted content, routinely violating its users\u2019 privacy, enabling censorship, endangering child safety and wellbeing, and for its inconsistent or incorrect implementation of platform guidelines.
 
 ## History
 
 YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim. The trio were early employees of PayPal, which left them enriched after the company was bought by eBay. Hurley had studied design at the Indiana University of Pennsylvania, and Chen and Karim studied computer science together at the University of Illinois Urbana-Champaign.
 
-According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen’s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party “was probably very strengthened by marketing ideas around creating a story that was very digestible”.
+According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen\u2019s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party \u201Cwas probably very strengthened by marketing ideas around creating a story that was very digestible\u201D.
 
-(Response truncated, 2.29kb remaining. Showing lines 9-16 of 21. Use \`offset\` of 17 to continue.)`);
+(Response truncated, 2.27kb remaining. Showing lines 9-16 of 21. Use \`offset\` of 16 to continue.)`);
 
     const thirdResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 17,
+        offset: 16,
         limit: "2kb",
     });
 
     expect(thirdResponseString).toEqual(`\
-YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube’s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled “Me at the zoo”, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.
+YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube\u2019s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled \u201CMe at the zoo\u201D, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.
 
-YouTube was not the first video-sharing site on the Internet; Vimeo was launched in November 2004, though that site remained a side project of its developers from CollegeHumor. The week of YouTube’s launch, NBC-Universal’s Saturday Night Live ran a skit ”Lazy Sunday” by The Lonely Island. Besides helping to bolster ratings and long-term viewership for Saturday Night Live, ”Lazy Sunday”’s status as an early viral video helped establish YouTube as an important website. Unofficial uploads of the skit to YouTube drew in more than five million collective views by February 2006 before they were removed when NBCUniversal requested it two months later based on copyright concerns. Despite eventually being taken down, these duplicate uploads of the skit helped popularize YouTube’s reach and led to the upload of more third-party content. The site grew rapidly; in July 2006, the company announced that more than 65,000 new videos were being uploaded every day and that the site was receiving 100 million video views per day.
+YouTube was not the first video-sharing site on the Internet; Vimeo was launched in November 2004, though that site remained a side project of its developers from CollegeHumor. The week of YouTube\u2019s launch, NBC-Universal\u2019s Saturday Night Live ran a skit \u201DLazy Sunday\u201D by The Lonely Island. Besides helping to bolster ratings and long-term viewership for Saturday Night Live, \u201DLazy Sunday\u201D\u2019s status as an early viral video helped establish YouTube as an important website. Unofficial uploads of the skit to YouTube drew in more than five million collective views by February 2006 before they were removed when NBCUniversal requested it two months later based on copyright concerns. Despite eventually being taken down, these duplicate uploads of the skit helped popularize YouTube\u2019s reach and led to the upload of more third-party content. The site grew rapidly; in July 2006, the company announced that more than 65,000 new videos were being uploaded every day and that the site was receiving 100 million video views per day.
 
-(Response truncated, 343b remaining. Showing lines 17-20 of 21. Use \`offset\` of 21 to continue.)`);
+(Response truncated, 341b remaining. Showing lines 17-20 of 21. Use \`offset\` of 20 to continue.)`);
 
     const fourthResponseString = await callAgentWebScrollTool(context, {
         path,
-        offset: 21,
+        offset: 20,
         limit: "2kb",
     });
 
     expect(fourthResponseString).toEqual(`\
-The choice of the name www.youtube.com led to problems for a similarly named website, www.utube.com. That site’s owner, Universal Tube & Rollform Equipment, filed a lawsuit against YouTube in November 2006 after being regularly overloaded by people looking for YouTube. Universal Tube subsequently changed its website to www.utubeonline.com.
+The choice of the name www.youtube.com led to problems for a similarly named website, www.utube.com. That site\u2019s owner, Universal Tube & Rollform Equipment, filed a lawsuit against YouTube in November 2006 after being regularly overloaded by people looking for YouTube. Universal Tube subsequently changed its website to www.utubeonline.com.
 
 (End of file. Showing line 21 of 21.)`);
 });
@@ -324,7 +326,7 @@ test("uses normalized path when reading cached responses", async () => {
 
     const responseString = await callAgentWebScrollTool(context, {
         path: "document/path-normalized?a=1&b=2#tail",
-        offset: 1,
+        offset: 0,
         limit: "10kb",
     });
 
@@ -340,7 +342,7 @@ test("throws when read response does not exist", async () => {
     await expect(
         callAgentWebScrollTool(context, {
             path: "/document/missing",
-            offset: 1,
+            offset: 0,
             limit: "10kb",
         }),
     ).rejects.toThrow("Read response not found or expired");
@@ -349,21 +351,23 @@ test("throws when read response does not exist", async () => {
 test("throws when read response is expired", async () => {
     await context.storage.readResponseByPath.put("/document/expired", {
         expirationTime: new Date(Date.now() - 60_000),
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
         ...createReadResponse("Expired content."),
     });
 
     await expect(
         callAgentWebScrollTool(context, {
             path: "/document/expired",
-            offset: 1,
+            offset: 0,
             limit: "10kb",
         }),
     ).rejects.toThrow("Read response not found or expired");
 });
 
-test.each([0, 1.5, 3])("throws for invalid offset %s", async offset => {
+test.each([-1, 1.5, 3])("throws for invalid offset %s", async offset => {
     await context.storage.readResponseByPath.put("/document/offset", {
         expirationTime: new Date(Date.now() + 60_000),
+        pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42},
         ...createReadResponse("Single line"),
     });
 
@@ -380,7 +384,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with end-of-file line range", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("alpha\nbeta\ngamma"),
-            {offsetLine: 0, limitBytes: 100, isScrollTool: true},
+            {offsetNewline: 0, limitBytes: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("alpha\nbeta\ngamma\n\n(End of file. Showing lines 1-3 of 3.)");
@@ -389,7 +393,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with singular end-of-file line text", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("alpha\nbeta\ngamma"),
-            {offsetLine: 2, limitBytes: 100, isScrollTool: true},
+            {offsetNewline: 2, limitBytes: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("gamma\n\n(End of file. Showing line 3 of 3.)");
@@ -398,18 +402,18 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates to a newline when the newline is after half the byte limit", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 0, limitBytes: 10, isScrollTool: true},
+            {offsetNewline: 0, limitBytes: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
-            "aaaaaa\n(Response truncated, 20b remaining. Showing line 1 of 4. Use `offset` of 2 to continue.)",
+            "aaaaaa\n(Response truncated, 20b remaining. Showing line 1 of 4. Use `offset` of 1 to continue.)",
         );
     });
 
     test("truncates at the exact byte limit when newline would be too early", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("a\nbbbbbbbbbb\ncccc"),
-            {offsetLine: 0, limitBytes: 10, isScrollTool: true},
+            {offsetNewline: 0, limitBytes: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -420,18 +424,18 @@ describe("truncateAgentWebReadResponse", () => {
     test("trims adjacent newline candidates to avoid returning trailing blank lines", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("line1\n\n\nline2\nline3"),
-            {offsetLine: 0, limitBytes: 8, isScrollTool: true},
+            {offsetNewline: 0, limitBytes: 8, isScrollTool: true},
         );
 
         expect(responseString).toBe(
-            "line1\n\n\n(Response truncated, 11b remaining. Showing lines 1-3 of 5. Use `offset` of 4 to continue.)",
+            "line1\n\n\n(Response truncated, 11b remaining. Showing lines 1-3 of 5. Use `offset` of 3 to continue.)",
         );
     });
 
     test("truncates correctly from a non-zero offset", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 2, limitBytes: 12, isScrollTool: true},
+            {offsetNewline: 2, limitBytes: 12, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -442,7 +446,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates correctly in the middle of a line", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetLine: 2, limitBytes: 4, isScrollTool: true},
+            {offsetNewline: 2, limitBytes: 4, isScrollTool: true},
         );
 
         expect(responseString).toBe(

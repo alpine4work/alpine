@@ -5,6 +5,7 @@ ts_project(
     visibility = ["//server/agents:__subpackages__"],
     test_deps = [
         "//:node_modules/fast-check",
+        "//:node_modules/gpt-tokenizer",
         "//server/agents/api/test_helpers",
         "//server/cloudflare",
         "//shared/api/content",

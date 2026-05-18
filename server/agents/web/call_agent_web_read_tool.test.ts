@@ -14,7 +14,7 @@ const {span} = testTracer.startSpan("call_agent_web_read_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-const context: AgentWebContext = {api, storage, span};
+const context: AgentWebContext = {spaceId, api, storage, span};
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
     return parseApiContentFromMarkdown(paragraphTextList.join("\n\n"), {
@@ -105,7 +105,7 @@ test("truncates the returned response but caches the full response", async () =>
 
 Paragraph 01 detail detail detail detail detail detail.
 
-(Response truncated, 1.08kb remaining. Showing lines 1-4 of 41. Call the \`scroll\` tool with an \`offset\` of 5 to continue.)`);
+(Response truncated, 1.08kb remaining. Showing lines 1-4 of 41. Call the \`scroll\` tool with an \`offset\` of 4 to continue.)`);
 });
 
 test("reads GFM table content without crashing prettier formatting", async () => {

@@ -138,7 +138,7 @@ const done = true;
             name: "escaped messaging html",
             pageLink: null,
             markdown: `\
-<time>May &amp; &quot;Later&quot; &lt;soon&gt;</time>
+<time>May & \u0022Later\u0022 \\<soon></time>
 
 <human name="Alice &amp; Bob&#39;s &quot;Team&quot;" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
 
@@ -179,7 +179,7 @@ Escaped attributes survive.
             markdown: `\
 <human name="Alice">
 
-<hr/>
+<hr />
 
 <p></p>
 
