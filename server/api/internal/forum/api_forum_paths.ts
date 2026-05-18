@@ -1,3 +1,4 @@
+import {getFileAttachmentTargetAuthorizer} from "~/server/api/internal/files/get_file_attachment_target_authorizer.js";
 import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
@@ -110,6 +111,7 @@ export const apiForumPaths: Pick<
                         createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
                         content,
                         consistency: "Strong",
+                        getFileAttachmentTargetAuthorizer,
                     }),
                     getApiAccount(
                         referencesContext,

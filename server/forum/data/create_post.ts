@@ -12,6 +12,8 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     attachFileFromAttachment,
     detachFile,
@@ -35,6 +37,7 @@ import {
     DynamoGeneralRealtimePutItemEvent,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -65,6 +68,7 @@ export async function createPost(
         createdTimeZone,
         consistency,
         overrideCreatedTimeForTest,
+        getFileAttachmentTargetAuthorizer,
     }: {
         id?: PostId;
         channelId: ChannelId;
@@ -73,6 +77,7 @@ export async function createPost(
         createdTimeZone: TimeZone;
         consistency?: DynamoCacheReadConsistency;
         overrideCreatedTimeForTest?: Date;
+        getFileAttachmentTargetAuthorizer?: (target: FileAttachmentTarget) => FileAuthorizer;
     },
 ): Promise<{
     id: PostId;
@@ -129,22 +134,31 @@ export async function createPost(
     // they can load the files.
     await runAllPromises(
         mapIterable(fileIds, async fileId => {
-            if (draftId === null) {
+            if (draftId !== null) {
+                // Move file attachment from the draft to the published post.
+                await attachFileFromAttachment(context, fileId, {
+                    from: FilePostAuthorizer.bind({
+                        type: "PostDraft",
+                        spaceId: postItem.spaceId,
+                        accountId: postItem.authorId,
+                        draftId,
+                    }),
+                    to: FilePostAuthorizer.bind({
+                        type: "Post",
+                        postId,
+                    }),
+                });
+            } else if (context.actor.type === "Bot") {
+                // No draft — attach the file directly (API service path).
+                await attachFileToTargetAsBot(
+                    context,
+                    fileId,
+                    FilePostAuthorizer.bind({type: "Post", postId}),
+                    {getFileAttachmentTargetAuthorizer},
+                );
+            } else {
                 throw new FailedPreconditionError("Must create post from draft to attach files");
             }
-
-            await attachFileFromAttachment(context, fileId, {
-                from: FilePostAuthorizer.bind({
-                    type: "PostDraft",
-                    spaceId: postItem.spaceId,
-                    accountId: postItem.authorId,
-                    draftId,
-                }),
-                to: FilePostAuthorizer.bind({
-                    type: "Post",
-                    postId,
-                }),
-            });
         }),
     );
 

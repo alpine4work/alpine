@@ -145,6 +145,41 @@ function getFileAttachmentTargetItemKey(
 }
 
 /**
+ * Create (or replace) a file attachment target record. This is used by code
+ * outside `files_actions.ts` that needs to create attachment records without
+ * access to the private `getFileAttachmentTargetItemKey` helper.
+ */
+export async function createFileAttachmentTarget(
+    context: ServerActionContext,
+    fileId: FileId,
+    target: FileAttachmentTarget,
+): Promise<void> {
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, target),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Get the uploader account ID for a file, verifying it exists in the given space.
+ * Returns `null` if the file doesn't exist or belongs to a different space. Used
+ * by bot file attachment to decide whether the bot uploaded the file or needs to
+ * prove access through an existing attachment.
+ */
+export async function getFileUploaderIdIfExists(
+    context: ServerActionContext,
+    fileId: FileId,
+    spaceId: SpaceId,
+): Promise<AccountId | null> {
+    const item = await getFileItemIfExistsWithCache(context, fileId, {
+        consistency: "StrongWithinCache",
+    });
+    if (!item) return null;
+    if (item.spaceId !== spaceId) return null;
+    return item.uploaderId;
+}
+
+/**
  * The total number of bytes you're allowed to store in an Alpine space on the free
  * plan (5 GB). After you exceed this amount we'll start deleting old files. This
  * is the same as Slack's file limit for their free plan.

@@ -1,5 +1,6 @@
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
+import {getFileAttachmentTargetAuthorizer} from "~/server/api/internal/files/get_file_attachment_target_authorizer.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -22,10 +23,13 @@ import {
     pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {
     fromApiContent,
     fromApiContentForPutDocument,
 } from "~/shared/api/content/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -82,6 +86,27 @@ export const apiDocumentsPaths: Pick<
                         : [DocumentContentProsemirrorSchema.node("paragraph")]),
                 ]),
             );
+
+            // Attach files referenced in the content to the document before creating the
+            // document so there's no race where a reader sees the document before its files
+            // are attached.
+            if (apiContent) {
+                const fileIds = extractFileIdsFromApiContent(apiContent);
+                fileIds.delete(unknownFileId);
+                await runAllPromises(
+                    [...fileIds].map(fileId =>
+                        attachFileToTargetAsBot(
+                            context,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId,
+                            }),
+                            {getFileAttachmentTargetAuthorizer},
+                        ),
+                    ),
+                );
+            }
 
             const [document, apiContentResponse] = await runAllPromises([
                 createDocument(context, {
@@ -151,6 +176,27 @@ export const apiDocumentsPaths: Pick<
                 requestBody.document.title,
                 requestBody.document.content,
             );
+
+            // Attach any new files referenced in the updated content before applying the
+            // update so there's no race where a reader sees the updated content before its
+            // files are attached.
+            if (requestBody.document.content) {
+                const fileIds = extractFileIdsFromApiContent(requestBody.document.content);
+                fileIds.delete(unknownFileId);
+                await runAllPromises(
+                    [...fileIds].map(fileId =>
+                        attachFileToTargetAsBot(
+                            context,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId: pathParameters.id,
+                            }),
+                            {getFileAttachmentTargetAuthorizer},
+                        ),
+                    ),
+                );
+            }
 
             const responseBody = DocumentCollaborationPutContentResponseBodySchema.deserialize(
                 await context.edge.sendRequestToDurableObject(
