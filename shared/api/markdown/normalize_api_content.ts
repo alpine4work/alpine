@@ -22,12 +22,18 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  */
 export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements, {isResponse: false});
+        normalizeApiContentBlockElements(content.elements, {
+            isResponse: false,
+            withoutFileGalleryElementRowItemWidth: false,
+        });
     });
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeApiContentBlockElements(content.elements, {isResponse: false});
+    normalizeApiContentBlockElements(content.elements, {
+        isResponse: false,
+        withoutFileGalleryElementRowItemWidth: false,
+    });
 }
 
 /**
@@ -38,18 +44,33 @@ export function normalizeDraftApiContent(content: Draft<ApiContent>) {
  * Does not clean response-only properties. `normalizeApiContent()` will clean
  * response-only properties.
  */
-export function normalizeApiContentResponse(content: ApiContentResponse): ApiContentResponse {
+export function normalizeApiContentResponse(
+    content: ApiContentResponse,
+    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+): ApiContentResponse {
     return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements, {isResponse: true});
+        normalizeApiContentBlockElements(content.elements, {
+            isResponse: true,
+            withoutFileGalleryElementRowItemWidth:
+                options?.withoutFileGalleryElementRowItemWidth ?? false,
+        });
     });
 }
 
-export function normalizeDraftApiContentResponse(content: Draft<ApiContentResponse>) {
-    normalizeApiContentBlockElements(content.elements, {isResponse: true});
+export function normalizeDraftApiContentResponse(
+    content: Draft<ApiContentResponse>,
+    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+) {
+    normalizeApiContentBlockElements(content.elements, {
+        isResponse: true,
+        withoutFileGalleryElementRowItemWidth:
+            options?.withoutFileGalleryElementRowItemWidth ?? false,
+    });
 }
 
 type ApiContentNormalizationOptions = {
     readonly isResponse: boolean;
+    readonly withoutFileGalleryElementRowItemWidth: boolean;
 };
 
 function normalizeApiContentBlockElements(
@@ -350,7 +371,7 @@ function normalizeApiContentBlockElement(
             if (!options.isResponse) {
                 // The preview title is only sometimes included as a convenience. It isn't
                 // essential to the preview element.
-                if (hasOwnProperty(element, "title")) delete element.title;
+                if (hasOwnProperty(element.target, "title")) delete element.target.title;
             }
             break;
         }
@@ -367,7 +388,12 @@ function normalizeApiContentBlockElement(
             // items, `contentType` on File elements).
             for (const row of element.rows) {
                 for (const item of row.items) {
-                    if (!options.isResponse && hasOwnProperty(item, "width")) delete item.width;
+                    if (
+                        (!options.isResponse || options.withoutFileGalleryElementRowItemWidth) &&
+                        hasOwnProperty(item, "width")
+                    ) {
+                        delete item.width;
+                    }
                     normalizeApiContentBlockElement(item.element, options);
                 }
             }

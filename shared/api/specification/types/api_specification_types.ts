@@ -2006,6 +2006,74 @@ export namespace ApiSpecification {
             /** Format: date-time */
             readonly DateTime: DateString;
             readonly TimeZone: TimeZone;
+            /** @enum {string} */
+            readonly FileContentType:
+                | "application/json"
+                | "application/msword"
+                | "application/octet-stream"
+                | "application/pdf"
+                | "application/sql"
+                | "application/vnd.dart"
+                | "application/vnd.ms-excel"
+                | "application/vnd.ms-powerpoint"
+                | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                | "application/wasm"
+                | "application/x-httpd-php"
+                | "application/x-powershell"
+                | "application/x-ruby"
+                | "application/x-sh"
+                | "application/xml"
+                | "application/yaml"
+                | "audio/mp4"
+                | "audio/mpeg"
+                | "audio/ogg"
+                | "audio/wav"
+                | "audio/webm"
+                | "image/apng"
+                | "image/avif"
+                | "image/bmp"
+                | "image/gif"
+                | "image/heif"
+                | "image/ico"
+                | "image/jpeg"
+                | "image/png"
+                | "image/svg+xml"
+                | "image/tiff"
+                | "image/webp"
+                | "text/css"
+                | "text/html"
+                | "text/javascript"
+                | "text/markdown"
+                | "text/plain"
+                | "text/rust"
+                | "text/x-asm"
+                | "text/x-c++src"
+                | "text/x-clojure"
+                | "text/x-csharp"
+                | "text/x-csrc"
+                | "text/x-elixir"
+                | "text/x-erlang"
+                | "text/x-go"
+                | "text/x-haskell"
+                | "text/x-java"
+                | "text/x-kotlin"
+                | "text/x-lua"
+                | "text/x-objcsrc"
+                | "text/x-ocaml"
+                | "text/x-perl"
+                | "text/x-python"
+                | "text/x-r"
+                | "text/x-scala"
+                | "text/x-solidity"
+                | "text/x-swift"
+                | "text/x-typescript"
+                | "video/mp4"
+                | "video/mpeg"
+                | "video/quicktime"
+                | "video/webm"
+                | "video/x-matroska";
             readonly AccountId: IdTypes.AccountId;
             readonly BotId: IdTypes.BotId;
             readonly BotWebhookEventId: IdTypes.BotWebhookEventId;
@@ -2343,74 +2411,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "File";
                 readonly id: components["schemas"]["FileId"];
-                /** @enum {string} */
-                readonly contentType?:
-                    | "application/json"
-                    | "application/msword"
-                    | "application/octet-stream"
-                    | "application/pdf"
-                    | "application/sql"
-                    | "application/vnd.dart"
-                    | "application/vnd.ms-excel"
-                    | "application/vnd.ms-powerpoint"
-                    | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    | "application/wasm"
-                    | "application/x-httpd-php"
-                    | "application/x-powershell"
-                    | "application/x-ruby"
-                    | "application/x-sh"
-                    | "application/xml"
-                    | "application/yaml"
-                    | "audio/mp4"
-                    | "audio/mpeg"
-                    | "audio/ogg"
-                    | "audio/wav"
-                    | "audio/webm"
-                    | "image/apng"
-                    | "image/avif"
-                    | "image/bmp"
-                    | "image/gif"
-                    | "image/heif"
-                    | "image/ico"
-                    | "image/jpeg"
-                    | "image/png"
-                    | "image/svg+xml"
-                    | "image/tiff"
-                    | "image/webp"
-                    | "text/css"
-                    | "text/html"
-                    | "text/javascript"
-                    | "text/markdown"
-                    | "text/plain"
-                    | "text/rust"
-                    | "text/x-asm"
-                    | "text/x-c++src"
-                    | "text/x-clojure"
-                    | "text/x-csharp"
-                    | "text/x-csrc"
-                    | "text/x-elixir"
-                    | "text/x-erlang"
-                    | "text/x-go"
-                    | "text/x-haskell"
-                    | "text/x-java"
-                    | "text/x-kotlin"
-                    | "text/x-lua"
-                    | "text/x-objcsrc"
-                    | "text/x-ocaml"
-                    | "text/x-perl"
-                    | "text/x-python"
-                    | "text/x-r"
-                    | "text/x-scala"
-                    | "text/x-solidity"
-                    | "text/x-swift"
-                    | "text/x-typescript"
-                    | "video/mp4"
-                    | "video/mpeg"
-                    | "video/quicktime"
-                    | "video/webm"
-                    | "video/x-matroska";
+                readonly contentType?: components["schemas"]["FileContentType"];
                 readonly contentLength?: number;
             };
             readonly ContentFileBlockElement_Response: {
@@ -2420,74 +2421,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "File";
                 readonly id: components["schemas"]["FileId"];
-                /** @enum {string} */
-                readonly contentType:
-                    | "application/json"
-                    | "application/msword"
-                    | "application/octet-stream"
-                    | "application/pdf"
-                    | "application/sql"
-                    | "application/vnd.dart"
-                    | "application/vnd.ms-excel"
-                    | "application/vnd.ms-powerpoint"
-                    | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    | "application/wasm"
-                    | "application/x-httpd-php"
-                    | "application/x-powershell"
-                    | "application/x-ruby"
-                    | "application/x-sh"
-                    | "application/xml"
-                    | "application/yaml"
-                    | "audio/mp4"
-                    | "audio/mpeg"
-                    | "audio/ogg"
-                    | "audio/wav"
-                    | "audio/webm"
-                    | "image/apng"
-                    | "image/avif"
-                    | "image/bmp"
-                    | "image/gif"
-                    | "image/heif"
-                    | "image/ico"
-                    | "image/jpeg"
-                    | "image/png"
-                    | "image/svg+xml"
-                    | "image/tiff"
-                    | "image/webp"
-                    | "text/css"
-                    | "text/html"
-                    | "text/javascript"
-                    | "text/markdown"
-                    | "text/plain"
-                    | "text/rust"
-                    | "text/x-asm"
-                    | "text/x-c++src"
-                    | "text/x-clojure"
-                    | "text/x-csharp"
-                    | "text/x-csrc"
-                    | "text/x-elixir"
-                    | "text/x-erlang"
-                    | "text/x-go"
-                    | "text/x-haskell"
-                    | "text/x-java"
-                    | "text/x-kotlin"
-                    | "text/x-lua"
-                    | "text/x-objcsrc"
-                    | "text/x-ocaml"
-                    | "text/x-perl"
-                    | "text/x-python"
-                    | "text/x-r"
-                    | "text/x-scala"
-                    | "text/x-solidity"
-                    | "text/x-swift"
-                    | "text/x-typescript"
-                    | "video/mp4"
-                    | "video/mpeg"
-                    | "video/quicktime"
-                    | "video/webm"
-                    | "video/x-matroska";
+                readonly contentType: components["schemas"]["FileContentType"];
                 readonly contentLength: number;
             };
             readonly ContentPreviewBlockElement: {
@@ -2497,16 +2431,6 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Preview";
                 readonly target: components["schemas"]["PreviewTarget"];
-                readonly title?: string;
-            };
-            readonly ContentPreviewBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Preview";
-                readonly target: components["schemas"]["PreviewTarget_Response"];
-                readonly title: string;
             };
             readonly ContentFileGalleryBlockElement: {
                 /**
@@ -3260,6 +3184,14 @@ export namespace ApiSpecification {
             };
             readonly ContentTableBlockElementCell_Response: {
                 readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
+            };
+            readonly ContentPreviewBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly target: components["schemas"]["PreviewTarget_Response"];
             };
             readonly ContentFileGalleryBlockElement_Response: {
                 /**

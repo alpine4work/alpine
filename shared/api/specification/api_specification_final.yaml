@@ -1580,6 +1580,75 @@ components:
             format: date-time
         TimeZone:
             type: string
+        FileContentType:
+            type: string
+            enum:
+                - application/json
+                - application/msword
+                - application/octet-stream
+                - application/pdf
+                - application/sql
+                - application/vnd.dart
+                - application/vnd.ms-excel
+                - application/vnd.ms-powerpoint
+                - application/vnd.openxmlformats-officedocument.presentationml.presentation
+                - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+                - application/wasm
+                - application/x-httpd-php
+                - application/x-powershell
+                - application/x-ruby
+                - application/x-sh
+                - application/xml
+                - application/yaml
+                - audio/mp4
+                - audio/mpeg
+                - audio/ogg
+                - audio/wav
+                - audio/webm
+                - image/apng
+                - image/avif
+                - image/bmp
+                - image/gif
+                - image/heif
+                - image/ico
+                - image/jpeg
+                - image/png
+                - image/svg+xml
+                - image/tiff
+                - image/webp
+                - text/css
+                - text/html
+                - text/javascript
+                - text/markdown
+                - text/plain
+                - text/rust
+                - text/x-asm
+                - text/x-c++src
+                - text/x-clojure
+                - text/x-csharp
+                - text/x-csrc
+                - text/x-elixir
+                - text/x-erlang
+                - text/x-go
+                - text/x-haskell
+                - text/x-java
+                - text/x-kotlin
+                - text/x-lua
+                - text/x-objcsrc
+                - text/x-ocaml
+                - text/x-perl
+                - text/x-python
+                - text/x-r
+                - text/x-scala
+                - text/x-solidity
+                - text/x-swift
+                - text/x-typescript
+                - video/mp4
+                - video/mpeg
+                - video/quicktime
+                - video/webm
+                - video/x-matroska
         AccountId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
@@ -2201,74 +2270,7 @@ components:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
-                    type: string
-                    enum:
-                        - application/json
-                        - application/msword
-                        - application/octet-stream
-                        - application/pdf
-                        - application/sql
-                        - application/vnd.dart
-                        - application/vnd.ms-excel
-                        - application/vnd.ms-powerpoint
-                        - application/vnd.openxmlformats-officedocument.presentationml.presentation
-                        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-                        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
-                        - application/wasm
-                        - application/x-httpd-php
-                        - application/x-powershell
-                        - application/x-ruby
-                        - application/x-sh
-                        - application/xml
-                        - application/yaml
-                        - audio/mp4
-                        - audio/mpeg
-                        - audio/ogg
-                        - audio/wav
-                        - audio/webm
-                        - image/apng
-                        - image/avif
-                        - image/bmp
-                        - image/gif
-                        - image/heif
-                        - image/ico
-                        - image/jpeg
-                        - image/png
-                        - image/svg+xml
-                        - image/tiff
-                        - image/webp
-                        - text/css
-                        - text/html
-                        - text/javascript
-                        - text/markdown
-                        - text/plain
-                        - text/rust
-                        - text/x-asm
-                        - text/x-c++src
-                        - text/x-clojure
-                        - text/x-csharp
-                        - text/x-csrc
-                        - text/x-elixir
-                        - text/x-erlang
-                        - text/x-go
-                        - text/x-haskell
-                        - text/x-java
-                        - text/x-kotlin
-                        - text/x-lua
-                        - text/x-objcsrc
-                        - text/x-ocaml
-                        - text/x-perl
-                        - text/x-python
-                        - text/x-r
-                        - text/x-scala
-                        - text/x-solidity
-                        - text/x-swift
-                        - text/x-typescript
-                        - video/mp4
-                        - video/mpeg
-                        - video/quicktime
-                        - video/webm
-                        - video/x-matroska
+                    $ref: "#/components/schemas/FileContentType"
                 contentLength:
                     type: integer
                     minimum: 0
@@ -2286,74 +2288,7 @@ components:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
-                    type: string
-                    enum:
-                        - application/json
-                        - application/msword
-                        - application/octet-stream
-                        - application/pdf
-                        - application/sql
-                        - application/vnd.dart
-                        - application/vnd.ms-excel
-                        - application/vnd.ms-powerpoint
-                        - application/vnd.openxmlformats-officedocument.presentationml.presentation
-                        - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-                        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
-                        - application/wasm
-                        - application/x-httpd-php
-                        - application/x-powershell
-                        - application/x-ruby
-                        - application/x-sh
-                        - application/xml
-                        - application/yaml
-                        - audio/mp4
-                        - audio/mpeg
-                        - audio/ogg
-                        - audio/wav
-                        - audio/webm
-                        - image/apng
-                        - image/avif
-                        - image/bmp
-                        - image/gif
-                        - image/heif
-                        - image/ico
-                        - image/jpeg
-                        - image/png
-                        - image/svg+xml
-                        - image/tiff
-                        - image/webp
-                        - text/css
-                        - text/html
-                        - text/javascript
-                        - text/markdown
-                        - text/plain
-                        - text/rust
-                        - text/x-asm
-                        - text/x-c++src
-                        - text/x-clojure
-                        - text/x-csharp
-                        - text/x-csrc
-                        - text/x-elixir
-                        - text/x-erlang
-                        - text/x-go
-                        - text/x-haskell
-                        - text/x-java
-                        - text/x-kotlin
-                        - text/x-lua
-                        - text/x-objcsrc
-                        - text/x-ocaml
-                        - text/x-perl
-                        - text/x-python
-                        - text/x-r
-                        - text/x-scala
-                        - text/x-solidity
-                        - text/x-swift
-                        - text/x-typescript
-                        - video/mp4
-                        - video/mpeg
-                        - video/quicktime
-                        - video/webm
-                        - video/x-matroska
+                    $ref: "#/components/schemas/FileContentType"
                 contentLength:
                     type: integer
                     minimum: 0
@@ -2368,23 +2303,6 @@ components:
                     const: Preview
                 target:
                     $ref: "#/components/schemas/PreviewTarget"
-                title:
-                    type: string
-        ContentPreviewBlockElement_Response:
-            type: object
-            required:
-                - type
-                - target
-                - title
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                target:
-                    $ref: "#/components/schemas/PreviewTarget_Response"
-                title:
-                    type: string
-                    minLength: 1
         ContentFileGalleryBlockElement:
             type: object
             required:
@@ -3936,6 +3854,17 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        ContentPreviewBlockElement_Response:
+            type: object
+            required:
+                - type
+                - target
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget_Response"
         ContentFileGalleryBlockElement_Response:
             type: object
             required:

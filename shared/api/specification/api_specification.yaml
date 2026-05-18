@@ -1469,6 +1469,10 @@ components:
         TimeZone:
             type: string
 
+        FileContentType:
+            type: string
+            enum: {{fileContentTypes}}
+
         # =========================================================================== #
         #                                     IDs                                     #
         # =========================================================================== #
@@ -2090,8 +2094,7 @@ components:
                 # Ignored on write but ensures ContentFileBlockElement_Response
                 # is compatible as input.
                 contentType:
-                    type: string
-                    enum: {{fileContentTypes}}
+                    $ref: "#/components/schemas/FileContentType"
                 contentLength:
                     type: integer
                     minimum: 0
@@ -2106,8 +2109,7 @@ components:
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
-                    type: string
-                    enum: {{fileContentTypes}}
+                    $ref: "#/components/schemas/FileContentType"
                 contentLength:
                     type: integer
                     minimum: 0
@@ -2121,25 +2123,6 @@ components:
                     const: Preview
                 target:
                     $ref: "#/components/schemas/PreviewTarget"
-                # Ignored on write but ensures ContentPreviewBlockElement_Response
-                # is compatible as input.
-                title:
-                    type: string
-
-        # TODO: Auto-generate _Response variants from their base types instead
-        # of duplicating fields manually.
-        ContentPreviewBlockElement_Response:
-            type: object
-            required: [type, target, title]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                target:
-                    $ref: "#/components/schemas/PreviewTarget"
-                title:
-                    type: string
-                    minLength: 1
 
         ContentFileGalleryBlockElement:
             type: object

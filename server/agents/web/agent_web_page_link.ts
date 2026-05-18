@@ -1,5 +1,14 @@
+import prettyBytes from "pretty-bytes";
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.js";
 import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
+import {
+    getFileContentTypeNoun,
+    getFileContentTypeStartOfSentenceNoun,
+} from "~/shared/files/get_file_content_type_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -11,6 +20,7 @@ import {
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
     TaskCollectionId,
     TaskId,
@@ -83,7 +93,19 @@ export type AgentWebPageLink =
           readonly type: "TaskCollection";
           readonly id: TaskCollectionId;
           readonly title: string;
+      }
+    | {
+          readonly type: "File";
+          readonly id: FileId;
+          readonly contentType: FileContentType;
+          readonly contentLength: number;
       };
+
+// NOCOMMIT: Use this??
+type AgentWebPageMentionLink = Extract<
+    AgentWebPageLink,
+    {type: "Account" | "Channel" | "Chat" | "Document" | "Post" | "Task" | "TaskCollection"}
+>;
 
 assertAssignableTypes<AgentWebPageLink, AgentWebPageLinkKeyObject>();
 
@@ -164,6 +186,9 @@ function actuallyPrintAgentWebPageLinkPathname(
         case "TaskCollection": {
             return `/task-collection/${slugify(link.title)}${dedupe}`;
         }
+        case "File": {
+            return `/file/${slugify(getFileContentTypeNoun(link.contentType))}${dedupe}.${getFileContentTypePreferredExtension(link.contentType)}`;
+        }
         default:
             throw exhaustive(link);
     }
@@ -220,6 +245,16 @@ export function printAgentWebPageLinkLabel(link: AgentWebPageLink): string {
         }
         case "TaskMessage": {
             return `${link.authorShortName}: ${link.bodySnippet}`;
+        }
+        case "File": {
+            // NOTE(calebmer): This link label isn't really printed anywhere to my knowledge.
+            // Maybe we should update the types to make this impossible case actually
+            // impossible?
+            //
+            // Come to think of it, I'm not sure the `ChatMessage` etc. link labels are ever
+            // really printed? So this refactor to disallow printing labels for non-mention
+            // links may make a lot of sense.
+            return getFileContentTypeStartOfSentenceNoun(link.contentType);
         }
         default:
             throw exhaustive(link);

@@ -32,7 +32,11 @@ test("can parse exact same content that was printed", async () => {
                 await parseApiContentFromAgentWebMarkdown(storage, markdown, {
                     documentId,
                 }),
-            ).toEqual(normalizeApiContentResponse(content));
+            ).toEqual(
+                normalizeApiContentResponse(content, {
+                    withoutFileGalleryElementRowItemWidth: true,
+                }),
+            );
         }),
         {
             // Run until we reach our 10s timeout.

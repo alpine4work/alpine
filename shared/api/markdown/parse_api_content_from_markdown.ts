@@ -3,6 +3,7 @@ import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
+    HtmlData,
     List,
     ListItem,
     PhrasingContent,
@@ -396,6 +397,16 @@ function* parseApiContentBlockElementFromMarkdown(
                 firstChild?.type === "image" &&
                 options.spaceId !== null
             ) {
+                if (firstChild.data?.fileElement) {
+                    yield firstChild.data.fileElement;
+                    break;
+                }
+
+                if (firstChild.data?.previewElement) {
+                    yield firstChild.data.previewElement;
+                    break;
+                }
+
                 const imageNode = firstChild;
 
                 const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
@@ -456,10 +467,17 @@ function* parseApiContentBlockElementFromMarkdown(
                     // Concatenate all adjacent html children into a single string for the block HTML
                     // parser.
                     let combinedHtml = "";
+                    const combinedData: HtmlData = {};
                     for (let i = mediaStartIndex; i <= mediaEndIndex; i++) {
                         const child = content.children[i]!;
                         if (child.type === "html") {
                             combinedHtml += child.value;
+                            if (child.data?.fileOrPreviewElementByUrl) {
+                                combinedData.fileOrPreviewElementByUrl ??= new Map();
+                                for (const [key, value] of child.data.fileOrPreviewElementByUrl) {
+                                    combinedData.fileOrPreviewElementByUrl.set(key, value);
+                                }
+                            }
                         }
                     }
 
@@ -480,7 +498,7 @@ function* parseApiContentBlockElementFromMarkdown(
 
                     // Parse the combined inline HTML as block-level HTML to extract the media element.
                     yield* parseApiContentBlockElementFromMarkdown(
-                        {type: "html", value: combinedHtml},
+                        {type: "html", value: combinedHtml, data: combinedData},
                         definitions,
                         tableState,
                         options,
@@ -826,10 +844,10 @@ function* parseApiContentBlockElementFromMarkdown(
                 }
 
                 if (mediaUrl && options.spaceId !== null) {
-                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
-                        options.spaceId,
-                        mediaUrl,
-                    );
+                    const element =
+                        content.data?.fileOrPreviewElementByUrl?.get(mediaUrl) ??
+                        parseApiContentFileOrPreviewBlockElementFromUrl(options.spaceId, mediaUrl);
+
                     if (element !== null) {
                         if (divFileState?.containerType === "file-gallery-row") {
                             // Widths are response-only metadata computed by the server. We don't need to parse

@@ -1,16 +1,24 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Root, RootContent} from "mdast";
-import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
+import {
+    AgentWebPageLink,
+    printAgentWebPageLinkLabel,
+} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
     printApiContentToMarkdownTree,
+    printApiFileContentUrl,
+    printApiPreviewTargetToPreviewUrl,
     printMarkdownTree,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
+    ApiContentFileBlockElementResponse,
+    ApiContentFileGalleryBlockElementRowResponse,
     ApiContentMentionInlineElementResponse,
+    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -70,6 +78,9 @@ export async function printApiContentToAgentWebMarkdownTree(
     };
 }
 
+const fileHtmlErrataRegExp =
+    /(?: controls| style="flex: [^"]*"| type="[^"]*"|; align-items: stretch|; clear: both)/g;
+
 async function traverseApiContentMarkdownNode(
     storage: AgentWebSessionStorage,
     node: RootContent,
@@ -112,6 +123,112 @@ async function traverseApiContentMarkdownNode(
             return {...node, depth: newDepth};
         }
         case "html": {
+            if (node.data?.fileElement || node.data?.previewElement) {
+                // This `element` will always be a response specialization because we print
+                // `ApiContentResponse`.
+                const element = (node.data.fileElement ?? node.data?.previewElement) as
+                    | ApiContentFileBlockElementResponse
+                    | ApiContentPreviewBlockElementResponse;
+
+                const pageLink: AgentWebPageLink =
+                    element.type === "Preview"
+                        ? createApiTargetAgentWebPageLink(element.target)
+                        : {
+                              type: "File",
+                              id: element.id,
+                              contentType: element.contentType,
+                              contentLength: element.contentLength,
+                          };
+
+                const pageLinkPathname = await createAgentWebPageLinkPathname(storage, pageLink);
+                const pageLinkLabel = printAgentWebPageLinkLabel(pageLink);
+
+                const newValue = node.value
+                    // Strip any accessory attributes that are provided in case the printed HTML is
+                    // actually rendered in a browser. An agent doesn't need these attributes.
+                    .replaceAll(fileHtmlErrataRegExp, "")
+                    // We control the HTML printed by the file element so a simple string replace is
+                    // sufficient for printing the right path in agent web markdown.
+                    .replaceAll(
+                        /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
+                        (substring, string1, string2, string3, string4) => {
+                            return `${string1 ? ` alt="${pageLinkLabel}"` : ""}${string2}${pageLinkPathname}${string4}`;
+                        },
+                    );
+
+                assert(node.value !== newValue);
+
+                return {
+                    type: "html",
+                    value: newValue,
+                };
+            }
+
+            if (node.data?.fileGalleryElementRow) {
+                // This `fileGalleryElementRow` will always be a response specialization because we
+                // print `ApiContentResponse`.
+                const fileGalleryElementRow = node.data
+                    .fileGalleryElementRow as ApiContentFileGalleryBlockElementRowResponse;
+
+                const pageLinkByUrlEntries = await runAllPromises(
+                    fileGalleryElementRow.items.map(async item => {
+                        const pageLink: AgentWebPageLink =
+                            item.element.type === "Preview"
+                                ? createApiTargetAgentWebPageLink(item.element.target)
+                                : {
+                                      type: "File",
+                                      id: item.element.id,
+                                      contentType: item.element.contentType,
+                                      contentLength: item.element.contentLength,
+                                  };
+
+                        const pageLinkPathname = await createAgentWebPageLinkPathname(
+                            storage,
+                            pageLink,
+                        );
+
+                        const pageLinkLabel = printAgentWebPageLinkLabel(pageLink);
+
+                        const url =
+                            item.element.type === "Preview"
+                                ? printApiPreviewTargetToPreviewUrl(
+                                      storage.spaceId,
+                                      item.element.target,
+                                  )
+                                : printApiFileContentUrl(storage.spaceId, item.element.id);
+
+                        return [
+                            escapeHtml(url),
+                            {pathname: pageLinkPathname, label: pageLinkLabel},
+                        ] as const;
+                    }),
+                );
+
+                const pageLinkByUrl = new Map(pageLinkByUrlEntries);
+
+                const newValue = node.value
+                    // Strip any accessory attributes that are provided in case the printed HTML is
+                    // actually rendered in a browser. An agent doesn't need these attributes.
+                    .replaceAll(fileHtmlErrataRegExp, "")
+                    // We control the HTML printed by the file element so a simple string replace is
+                    // sufficient for printing the right path in agent web markdown.
+                    .replaceAll(
+                        /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
+                        (substring, string1, string2, string3, string4) => {
+                            const pageLink = pageLinkByUrl.get(string3);
+                            if (!pageLink) return substring;
+                            return `${string1 ? ` alt="${pageLink.label}"` : ""}${string2}${pageLink.pathname}${string4}`;
+                        },
+                    );
+
+                assert(node.value !== newValue);
+
+                return {
+                    type: "html",
+                    value: newValue,
+                };
+            }
+
             return traverseApiContentMarkdownHtmlNode(storage, node, state);
         }
         case "link": {
@@ -165,6 +282,47 @@ async function traverseApiContentMarkdownNode(
                 url: pageLinkPath,
                 children: [{type: "text", value: pageLinkLabel}],
             };
+        }
+        case "image": {
+            if (node.data?.fileElement) {
+                // This `fileElement` will always be a response specialization because we print
+                // `ApiContentResponse`.
+                const fileElement = node.data.fileElement as ApiContentFileBlockElementResponse;
+
+                const pageLink: AgentWebPageLink = {
+                    type: "File",
+                    id: fileElement.id,
+                    contentType: fileElement.contentType,
+                    contentLength: fileElement.contentLength,
+                };
+
+                const pageLinkPathname = await createAgentWebPageLinkPathname(storage, pageLink);
+
+                return {
+                    type: "image",
+                    url: pageLinkPathname,
+                    alt: null,
+                };
+            }
+
+            if (node.data?.previewElement) {
+                // This `previewElement` will always be a response specialization because we print
+                // `ApiContentResponse`.
+                const previewElement = node.data
+                    .previewElement as ApiContentPreviewBlockElementResponse;
+
+                const pageLink = createApiTargetAgentWebPageLink(previewElement.target);
+                const pageLinkPathname = await createAgentWebPageLinkPathname(storage, pageLink);
+                const pageLinkLabel = printAgentWebPageLinkLabel(pageLink);
+
+                return {
+                    type: "image",
+                    url: pageLinkPathname,
+                    alt: pageLinkLabel,
+                };
+            }
+
+            return node;
         }
         default:
             return node;

@@ -7,6 +7,7 @@ import {
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
     TaskCollectionId,
     TaskId,
@@ -23,7 +24,8 @@ export type AgentWebPageLinkKey =
     | `PostMessage:${PostId}-${number}`
     | `Task:${TaskId}`
     | `TaskMessage:${TaskId}-${number}`
-    | `TaskCollection:${TaskCollectionId}`;
+    | `TaskCollection:${TaskCollectionId}`
+    | `File:${FileId}`;
 
 export type AgentWebPageLinkKeyObject =
     | {
@@ -75,6 +77,10 @@ export type AgentWebPageLinkKeyObject =
     | {
           readonly type: "TaskCollection";
           readonly id: TaskCollectionId;
+      }
+    | {
+          readonly type: "File";
+          readonly id: FileId;
       };
 
 export function printAgentWebPageLinkKey(key: AgentWebPageLinkKeyObject): AgentWebPageLinkKey {
@@ -101,6 +107,8 @@ export function printAgentWebPageLinkKey(key: AgentWebPageLinkKeyObject): AgentW
             return `TaskMessage:${key.id}-${key.index}`;
         case "TaskCollection":
             return `TaskCollection:${key.id}`;
+        case "File":
+            return `File:${key.id}`;
         default:
             throw exhaustive(key);
     }

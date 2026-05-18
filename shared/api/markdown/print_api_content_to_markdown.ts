@@ -23,6 +23,8 @@ import {
     ApiContentBlockElement,
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentFileBlockElement,
+    ApiContentFileGalleryBlockElementRow,
     ApiContentInlineElement,
     ApiContentInlineElementCodeMark,
     ApiContentInlineElementHighlightMarkColor,
@@ -30,6 +32,7 @@ import {
     ApiContentInlineElementMark,
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
+    ApiContentPreviewBlockElement,
     ApiContentTableBlockElement,
     ApiMentionTarget,
     ApiPreviewTarget,
@@ -55,9 +58,21 @@ declare module "mdast" {
         mentionElement?: ApiContentMentionInlineElement;
     }
 
+    export interface ImageData {
+        fileElement?: ApiContentFileBlockElement;
+        previewElement?: ApiContentPreviewBlockElement;
+    }
+
     export interface HtmlData {
         expectedOpenHtml?: string;
         expectedCloseHtml?: string;
+        fileElement?: ApiContentFileBlockElement;
+        previewElement?: ApiContentPreviewBlockElement;
+        fileGalleryElementRow?: ApiContentFileGalleryBlockElementRow;
+        fileOrPreviewElementByUrl?: Map<
+            string,
+            ApiContentFileBlockElement | ApiContentPreviewBlockElement
+        >;
     }
 }
 
@@ -130,11 +145,11 @@ function printApiContentToMarkdown(
         type: "root",
         children:
             // If the first element in our content is a divider then we serialize it using the
-            // HTML syntax `<hr/>` so the divider isn't confused with frontmatter.
+            // HTML syntax `<hr />` so the divider isn't confused with frontmatter.
             content.elements.length > 0 && content.elements[0]!.type === "Divider"
                 ? Array.from(
                       concatIterables(
-                          [{type: "html", value: "<hr/>"}],
+                          [{type: "html", value: "<hr />"}],
                           printApiContentBlockElementsToMarkdown(
                               content.elements.slice(1),
                               options,
@@ -332,12 +347,14 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "File": {
-            const fileUrl = printFileUrl(options.spaceId, element.id);
+            const fileUrl = printApiFileContentUrl(options.spaceId, element.id);
             if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
                 // Web safe images (and files with unknown content type) use markdown image syntax.
                 yield {
                     type: "paragraph",
-                    children: [{type: "image", url: fileUrl, alt: null}],
+                    children: [
+                        {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
+                    ],
                 };
             } else {
                 // Video, audio, PDF, etc. use their HTML representations so they render correctly
@@ -346,18 +363,24 @@ function* printApiContentBlockElementToMarkdown(
                 // paragraphs into block-level file elements.
                 yield {
                     type: "html",
-                    value: fileToHtml(fileUrl, element.contentType),
+                    value: printApiContentFileBlockElementToMarkdown(fileUrl, element.contentType),
+                    data: {fileElement: element},
                 };
             }
 
             break;
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(options.spaceId, element.target);
-            const title = element.title?.trim() ? element.title : "";
             yield {
                 type: "paragraph",
-                children: [{type: "image", url: previewUrl, alt: title}],
+                children: [
+                    {
+                        type: "image",
+                        url: printApiPreviewTargetToPreviewUrl(options.spaceId, element.target),
+                        alt: printApiMentionTargetToMentionLinkLabel(element.target),
+                        data: {previewElement: element},
+                    },
+                ],
             };
             break;
         }
@@ -405,7 +428,7 @@ function* printApiContentBlockElementToMarkdown(
                     const widthPercent = assertExists(widthPercents[i]);
 
                     lines.push(
-                        fileOrPreviewToHtml(
+                        printApiContentFileOrPreviewBlockElementToMarkdown(
                             item.element,
                             options.spaceId,
                             `flex: 0 0 ${widthPercent}%`,
@@ -413,7 +436,7 @@ function* printApiContentBlockElementToMarkdown(
                     );
                 }
                 lines.push(`</div>`);
-                yield {type: "html", value: lines.join("\n")};
+                yield {type: "html", value: lines.join("\n"), data: {fileGalleryElementRow: row}};
             }
             break;
         }
@@ -422,7 +445,11 @@ function* printApiContentBlockElementToMarkdown(
             const style = `float: ${side}; clear: both`;
             yield {
                 type: "html",
-                value: `<div style="${style}">${fileOrPreviewToHtml(element.element, options.spaceId)}</div>`,
+                value: `<div style="${style}">\n${printApiContentFileOrPreviewBlockElementToMarkdown(element.element, options.spaceId)}\n</div>`,
+                data:
+                    element.element.type === "Preview"
+                        ? {previewElement: element.element}
+                        : {fileElement: element.element},
             };
             break;
         }
@@ -437,13 +464,17 @@ function* printApiContentBlockElementToMarkdown(
  * web-safe content types in `<img>`, `<video>`, and `<audio>` tags. Everything
  * else falls back to `<object>`.
  */
-function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr = ""): string {
+function printApiContentFileBlockElementToMarkdown(
+    fileUrl: string,
+    contentType: string | undefined,
+    styleAttr = "",
+): string {
     const escapedUrl = escapeHtml(fileUrl);
 
     // If the file is a web safe image then use an `<img>` element. Files with unknown
     // content type also use `<img>` as the default.
     if (!contentType || isWebSafeImageContentType(contentType)) {
-        return `<img src="${escapedUrl}"${styleAttr}/>`;
+        return `<img src="${escapedUrl}"${styleAttr} />`;
     }
 
     // If the file is web safe video then use a `<video>` element. `video/mp4` is not
@@ -452,7 +483,7 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
     if (isWebSafeVideoContentType(contentType) || contentType === "video/mp4") {
-        return `<video controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></video>`;
+        return `<video type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></video>`;
     }
 
     // If the file is web safe audio then use an `<audio>` element. `audio/mp4` is not
@@ -461,30 +492,34 @@ function fileToHtml(fileUrl: string, contentType: string | undefined, styleAttr 
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
     if (isWebSafeAudioContentType(contentType) || contentType === "audio/mp4") {
-        return `<audio controls${styleAttr}><source type="${escapeHtml(contentType)}" src="${escapedUrl}"/></audio>`;
+        return `<audio type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></audio>`;
     }
 
     // Otherwise, fallback to an `<object>` element.
-    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}/>`;
+    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}></object>`;
 }
 
-function fileOrPreviewToHtml(
+function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
         | {readonly type: "File"; readonly id: string; readonly contentType?: string}
-        | {readonly type: "Preview"; readonly target: ApiPreviewTarget; readonly title?: string},
+        | {readonly type: "Preview"; readonly target: ApiPreviewTarget},
     spaceId: SpaceId,
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
-            const fileUrl = printFileUrl(spaceId, element.id);
-            return fileToHtml(fileUrl, element.contentType, styleAttr);
+            const fileUrl = printApiFileContentUrl(spaceId, element.id);
+            return printApiContentFileBlockElementToMarkdown(
+                fileUrl,
+                element.contentType,
+                styleAttr,
+            );
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(spaceId, element.target);
-            const title = element.title?.trim() ? element.title : "";
-            return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr}/>`;
+            const previewUrl = printApiPreviewTargetToPreviewUrl(spaceId, element.target);
+            const title = element.target.title?.trim() ? element.target.title : "";
+            return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr} />`;
         }
         default:
             throw exhaustive(element);
@@ -906,7 +941,7 @@ function printApiContentInlineElementsToMarkdown(
 
         // `mdast` struggles to parse breaks at the end of block content. So if this is the
         // last inline element (or all elements afterwards are breaks) then force breaks to
-        // be output as HTML (`<br/>`).
+        // be output as HTML (`<br>`).
         if (
             element.type === "Break" &&
             elements.slice(index + 1).every(element => element.type === "Break")
@@ -931,12 +966,12 @@ function printApiContentInlineElementsToMarkdown(
                     nextContent.type === "strong" ||
                     nextContent.type === "delete")
             ) {
-                lastContent = contents[contents.length - 1] = {type: "html", value: "<br/>"};
+                lastContent = contents[contents.length - 1] = {type: "html", value: "<br />"};
 
                 for (let i = contents.length - 2; i >= 0; i--) {
                     const lastContent = contents[i]!;
                     if (lastContent.type !== "break") break;
-                    contents[i] = {type: "html", value: "<br/>"};
+                    contents[i] = {type: "html", value: "<br />"};
                 }
             }
 
@@ -1198,8 +1233,8 @@ function* printApiContentInlineElementToMarkdown(
                 yield* printApiContentInlineElementMarksToMarkdown(
                     marks,
                     hasCodeMark
-                        ? {type: "html", value: "<code><br/></code>"}
-                        : {type: "html", value: "<br/>"},
+                        ? {type: "html", value: "<code><br /></code>"}
+                        : {type: "html", value: "<br />"},
                     options,
                 );
             }
@@ -1229,11 +1264,16 @@ function* printApiContentInlineElementToMarkdown(
             const childContent: Array<PhrasingContent> = [
                 {
                     type: "link",
-                    url: printApiMentionTargetToMentionLinkUrl(element.target, {
+                    url: printApiMentionTargetToMentionUrl(element.target, {
                         spaceId: options.spaceId,
                         isAccountShortName: element.isAccountShortName,
                     }),
-                    children: printApiMentionTargetToMentionLinkLabel(element.target),
+                    children: [
+                        {
+                            type: "text",
+                            value: printApiMentionTargetToMentionLinkLabel(element.target),
+                        },
+                    ],
                     data: {mentionElement: element},
                 },
             ];
@@ -1278,17 +1318,15 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiMentionTargetToMentionLinkLabel(
-    target: ApiMentionTarget,
-): Array<PhrasingContent> {
+export function printApiMentionTargetToMentionLinkLabel(target: ApiMentionTarget): string {
     const title =
         target.title ??
         (target.type === "Account" ? "Unknown" : `Unknown ${getApiMentionTargetNoun(target.type)}`);
 
-    return [{type: "text", value: title}];
+    return title;
 }
 
-export function printApiMentionTargetToMentionLinkUrl(
+export function printApiMentionTargetToMentionUrl(
     target: ApiMentionTarget,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {
@@ -1319,11 +1357,14 @@ export function printApiMentionTargetToMentionLinkUrl(
 // points to our app which would render a custom previewer, but `<img>`, `<video>`,
 // `<audio>`, and `<object>` tags need the raw file content to work. This should
 // serve the file bytes directly (or redirect to a signed URL).
-function printFileUrl(spaceId: SpaceId, fileId: string): string {
+export function printApiFileContentUrl(spaceId: SpaceId, fileId: string): string {
     return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
 }
 
-function printPreviewTargetUrl(spaceId: SpaceId, target: ApiPreviewTarget): string {
+export function printApiPreviewTargetToPreviewUrl(
+    spaceId: SpaceId,
+    target: ApiPreviewTarget,
+): string {
     // TODO(#sites): Add Site to PreviewTarget.
     switch (target.type) {
         case "Channel":
@@ -1536,8 +1577,8 @@ function printApiContentInlineElementHighlightMarkColor(
 /**
  * If the list has an orderStart of 1, we inject an empty html `span` element into
  * the list content so that something like `1. ` becomes
- * `1. <span data-start="1"/>` or `1. first item` becomes
- * `1. <span data-start="1"/>first item`.
+ * `1. <span data-start="1"></span>` or `1. first item` becomes
+ * `1. <span data-start="1"></span>first item`.
  *
  * This ensures that we maintain the orderStart value from the original content and
  * can parse it back into the exact same content later. See the note below for more
@@ -1645,7 +1686,7 @@ function addOrderedStartSpanToFirstItemInOrderedListIfNeeded(listContent: List):
     function insertSpanIntoContent(content: ListItem | Paragraph) {
         content.children.unshift({
             type: "html",
-            value: `<span data-start=\u201D${listContent.start}\u201D/>`,
+            value: `<span data-start=\u201D${listContent.start}\u201D></span>`,
         });
     }
 }

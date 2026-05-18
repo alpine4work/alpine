@@ -1,3 +1,7 @@
+import {
+    decode as decodeO200kBase,
+    encode as encodeO200kBase,
+} from "gpt-tokenizer/esm/encoding/o200k_base";
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
@@ -7,13 +11,16 @@ import {
     ApiContentBlockElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     BotId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -30,6 +37,12 @@ const threadId5 = generateId<DocumentCommentThreadId>();
 const calebAccountId = generateId<AccountId>();
 const chatGptAccountId = generateId<AccountId>();
 const chatGptBotId = generateId<BotId>();
+const file1Id = generateChronologicalId<FileId>();
+const file2Id = generateChronologicalId<FileId>();
+const file3Id = generateChronologicalId<FileId>();
+const file4Id = generateChronologicalId<FileId>();
+const file5Id = generateChronologicalId<FileId>();
+const file6Id = generateChronologicalId<FileId>();
 
 const exampleUrl = `https://example.com/${generateId()}/${generateId()}/${generateId()}`;
 const exampleTruncatedUrl = exampleUrl.slice(0, 40) + "…" + exampleUrl.slice(-10);
@@ -1525,6 +1538,446 @@ Test: <comment id="5">five</comment>
 \`\`\`
 `,
     },
+    {
+        name: "task preview element",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Review this today:"}],
+                },
+                {
+                    type: "Preview",
+                    target: {
+                        type: "Task",
+                        id: taskId,
+                        title: "Fix auth",
+                        status: {type: "Open", isActive: true},
+                    },
+                },
+            ],
+        },
+        markdown: `\
+Review this today:
+
+![Fix auth (Open)](/task/fix-auth)
+`,
+    },
+    {
+        name: "image file element",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    id: file1Id,
+                    contentType: "image/png",
+                    contentLength: 100,
+                },
+            ],
+        },
+        markdown: `\
+![](/file/image.png)
+`,
+    },
+    {
+        name: "video file element",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    id: file1Id,
+                    contentType: "video/mp4",
+                    contentLength: 100,
+                },
+            ],
+        },
+        markdown: `\
+<video src="/file/video.mp4"></video>
+`,
+    },
+    {
+        name: "audio file element",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    id: file1Id,
+                    contentType: "audio/webm",
+                    contentLength: 100,
+                },
+            ],
+        },
+        markdown: `\
+<audio src="/file/audio.weba"></audio>
+`,
+    },
+    {
+        name: "PDF file element",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    id: file1Id,
+                    contentType: "application/pdf",
+                    contentLength: 100,
+                },
+            ],
+        },
+        markdown: `\
+<object data="/file/file.pdf"></object>
+`,
+    },
+    {
+        name: "file row (2)",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "image/png",
+                                        contentLength: 100,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file2Id,
+                                        contentType: "video/mp4",
+                                        contentLength: 200,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img src="/file/image.png" />
+<video src="/file/video.mp4"></video>
+</div>
+`,
+    },
+    {
+        name: "file row with previews",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Task",
+                                            id: taskId,
+                                            title: "Fix auth",
+                                            status: {type: "Open", isActive: true},
+                                        },
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Document",
+                                            id: documentId,
+                                            title: "My Document",
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img alt="Fix auth (Open)" src="/task/fix-auth" />
+<img alt="My Document" src="/document/my-document" />
+</div>
+`,
+    },
+    {
+        name: "file row (3)",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "image/png",
+                                        contentLength: 100,
+                                    },
+                                },
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file2Id,
+                                        contentType: "video/mp4",
+                                        contentLength: 200,
+                                    },
+                                },
+                                {
+                                    width: 0.4,
+                                    element: {
+                                        type: "File",
+                                        id: file3Id,
+                                        contentType: "application/pdf",
+                                        contentLength: 300,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img src="/file/image.png" />
+<video src="/file/video.mp4"></video>
+<object data="/file/file.pdf"></object>
+</div>
+`,
+    },
+    {
+        name: "file gallery",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "image/png",
+                                        contentLength: 100,
+                                    },
+                                },
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file2Id,
+                                        contentType: "video/mp4",
+                                        contentLength: 200,
+                                    },
+                                },
+                                {
+                                    width: 0.4,
+                                    element: {
+                                        type: "File",
+                                        id: file3Id,
+                                        contentType: "application/pdf",
+                                        contentLength: 300,
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file4Id,
+                                        contentType: "audio/webm",
+                                        contentLength: 400,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file5Id,
+                                        contentType: "image/gif",
+                                        contentLength: 500,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img src="/file/image.png" />
+<video src="/file/video.mp4"></video>
+<object data="/file/file.pdf"></object>
+</div>
+
+<div style="display: flex">
+<audio src="/file/audio.weba"></audio>
+<img src="/file/image.gif" />
+</div>
+`,
+    },
+    {
+        name: "file gallery with row with one item",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "image/png",
+                                        contentLength: 100,
+                                    },
+                                },
+                                {
+                                    width: 0.3,
+                                    element: {
+                                        type: "File",
+                                        id: file2Id,
+                                        contentType: "video/mp4",
+                                        contentLength: 200,
+                                    },
+                                },
+                                {
+                                    width: 0.4,
+                                    element: {
+                                        type: "File",
+                                        id: file3Id,
+                                        contentType: "application/pdf",
+                                        contentLength: 300,
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            items: [
+                                {
+                                    width: 1,
+                                    element: {
+                                        type: "File",
+                                        id: file6Id,
+                                        contentType: "image/avif",
+                                        contentLength: 600,
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file4Id,
+                                        contentType: "audio/webm",
+                                        contentLength: 400,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file5Id,
+                                        contentType: "image/gif",
+                                        contentLength: 500,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img src="/file/image.png" />
+<video src="/file/video.mp4"></video>
+<object data="/file/file.pdf"></object>
+</div>
+
+![](/file/image.avif)
+
+<div style="display: flex">
+<audio src="/file/audio.weba"></audio>
+<img src="/file/image.gif" />
+</div>
+`,
+    },
+    {
+        name: "file float",
+        content: {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "File",
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<div style="float: left">
+<img src="/file/image.png" />
+</div>
+`,
+    },
+    {
+        name: "file float with preview",
+        content: {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "Preview",
+                        target: {
+                            type: "Task",
+                            id: taskId,
+                            title: "Fix auth",
+                            status: {type: "Open", isActive: true},
+                        },
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<div style="float: left">
+<img alt="Fix auth (Open)" src="/task/fix-auth" />
+</div>
+`,
+    },
 ];
 
 for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of testCases) {
@@ -1559,7 +2012,9 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             );
 
             expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent),
+                normalizeApiContentResponse(expectedContent, {
+                    withoutFileGalleryElementRowItemWidth: true,
+                }),
             );
         });
 
@@ -1576,12 +2031,28 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 storage,
                 documentId: contextDocumentId,
             });
+            const markdownTokens = encodeO200kBase(actualMarkdown);
 
-            parser.pushText(null, actualMarkdown);
+            let nextUpdate = randomInteger(1, 5);
+
+            for (const markdownToken of markdownTokens) {
+                parser.pushText(null, decodeO200kBase([markdownToken]));
+
+                // Update randomly within the message to exercise parse throttling choosing to
+                // update at arbitrary times.
+                nextUpdate--;
+                if (nextUpdate === 0) {
+                    await parser.update(null);
+                    nextUpdate = randomInteger(1, 5);
+                }
+            }
+
+            // Always perform one last update.
+            await parser.update(null);
 
             const elements: Array<ApiContentBlockElementResponse> = [];
 
-            for (const {part} of await parser.update(null)) {
+            for (const part of parser.getParts()) {
                 // We only push text so there should be only content parts.
                 if (part.payload.type !== "Content") continue;
 
@@ -1593,7 +2064,9 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             const actualContent: ApiContentResponse = {elements};
 
             expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent),
+                normalizeApiContentResponse(expectedContent, {
+                    withoutFileGalleryElementRowItemWidth: true,
+                }),
             );
         });
     });

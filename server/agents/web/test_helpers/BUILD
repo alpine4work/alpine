@@ -3,9 +3,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     testonly = True,
     name = "test_helpers",
-    visibility = ["//server/agents:__subpackages__"],
+    visibility = [
+        "//server/agents:__subpackages__",
+        "//shared/api/markdown:__subpackages__",
+    ],
     deps = [
         "//server/agents/web",
+        "//server/cloudflare",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",

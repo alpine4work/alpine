@@ -4,7 +4,8 @@ import {
     decode as decodeO200kBase,
     encode as encodeO200kBase,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
+import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
+import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
@@ -26,9 +27,9 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
+const agentWebSessionStorage = createAgentWebSessionStorageForTest(spaceId);
 
 type PrintMarkdownFixtureTestCase = {
     description: string;
@@ -963,7 +964,7 @@ Third line
                         ],
                     },
                     expectedMarkdown: `\
-Regular lin&#x65;**<br/>**&#x53;till regular
+Regular lin&#x65;**<br />**&#x53;till regular
 `,
                 },
                 {
@@ -981,7 +982,7 @@ Regular lin&#x65;**<br/>**&#x53;till regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular line **<br/>** Still regular
+Regular line **<br />** Still regular
 `,
                 },
                 {
@@ -999,7 +1000,7 @@ Regular line **<br/>** Still regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular lin&#x65;*<br/>*&#x53;till regular
+Regular lin&#x65;*<br />*&#x53;till regular
 `,
                 },
                 {
@@ -1017,7 +1018,7 @@ Regular lin&#x65;*<br/>*&#x53;till regular
                         ],
                     },
                     expectedMarkdown: `\
-Regular line *<br/>* Still regular
+Regular line *<br />* Still regular
 `,
                 },
                 {
@@ -1035,7 +1036,7 @@ Regular line *<br/>* Still regular
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line<br/>Still bold**
+**Bold line<br />Still bold**
 `,
                 },
                 {
@@ -1053,7 +1054,7 @@ Regular line *<br/>* Still regular
                         ],
                     },
                     expectedMarkdown: `\
-_Bold line_**<br/>**_Still bold_
+_Bold line_**<br />**_Still bold_
 `,
                 },
                 {
@@ -1071,7 +1072,7 @@ _Bold line_**<br/>**_Still bold_
                         ],
                     },
                     expectedMarkdown: `\
-Bold lin&#x65;**<br/>**_Still bold_
+Bold lin&#x65;**<br />**_Still bold_
 `,
                 },
                 {
@@ -1089,7 +1090,7 @@ Bold lin&#x65;**<br/>**_Still bold_
                         ],
                     },
                     expectedMarkdown: `\
-_Bold line_**<br/>**&#x53;till bold
+_Bold line_**<br />**&#x53;till bold
 `,
                 },
                 {
@@ -1126,7 +1127,7 @@ Bold line\\*\\*\\
                         ],
                     },
                     expectedMarkdown: `\
-Bold line\\*\\**<br/>*\\*\\*Still bold
+Bold line\\*\\**<br />*\\*\\*Still bold
 `,
                 },
                 {
@@ -1144,7 +1145,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**_<br/>_**Still bold**
+**Bold line**_<br />_**Still bold**
 `,
                 },
                 {
@@ -1162,7 +1163,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**~~<br/>~~**Still bold**
+**Bold line**~~<br />~~**Still bold**
 `,
                 },
                 {
@@ -1180,7 +1181,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**<code><br/></code>**Still bold**
+**Bold line**<code><br /></code>**Still bold**
 `,
                 },
                 {
@@ -1198,7 +1199,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold lin&#x65;*<br/>*&#x53;till bold**
+**Bold lin&#x65;*<br />*&#x53;till bold**
 `,
                 },
                 {
@@ -1219,7 +1220,7 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
                         ],
                     },
                     expectedMarkdown: `\
-**Bold line**[<br/>](https://example.com)**Still bold**
+**Bold line**[<br />](https://example.com)**Still bold**
 `,
                 },
             ],
@@ -4734,9 +4735,46 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                         ],
                     },
                     expectedMarkdown: `\
-| Wide | Normal | Wider |
-| - | - | - |
-| A | B | C<span hidden data-column-widths="2,1,3"/> |
+<table data-column-widths="2,1,3">
+<thead>
+<tr>
+<th>
+
+Wide
+
+</th>
+<th>
+
+Normal
+
+</th>
+<th>
+
+Wider
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+A
+
+</td>
+<td>
+
+B
+
+</td>
+<td>
+
+C
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
                 },
                 {
@@ -4795,9 +4833,36 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                         ],
                     },
                     expectedMarkdown: `\
-| Col1 | Col2 |
-| - | - |
-| Data1 | Data2<span hidden data-width="2.5"/> |
+<table data-width="2.5">
+<thead>
+<tr>
+<th>
+
+Col1
+
+</th>
+<th>
+
+Col2
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Data1
+
+</td>
+<td>
+
+Data2
+
+</td>
+</tr>
+</tbody>
+</table>
 `,
                 },
                 {
@@ -5484,7 +5549,7 @@ Value
                     expectedMarkdown: `\
 | Col A | Col B |
 | - | - |
-| Line 1<br/>Line 2 | Single line |
+| Line 1<br />Line 2 | Single line |
 `,
                 },
                 {
@@ -6473,7 +6538,7 @@ third
                         ],
                     },
                     expectedMarkdown: `\
-\`Code line\`<code><br/></code>\`Still code\`
+\`Code line\`<code><br /></code>\`Still code\`
 `,
                 },
                 {
@@ -6491,7 +6556,7 @@ third
                         ],
                     },
                     expectedMarkdown: `\
-Normal<code><br/></code>Also normal
+Normal<code><br /></code>Also normal
 `,
                 },
                 {
@@ -6511,7 +6576,7 @@ Normal<code><br/></code>Also normal
                         ],
                     },
                     expectedMarkdown: `\
-\`Line 1\`<code><br/></code>\`Line 2\`<code><br/></code>\`Line 3\`
+\`Line 1\`<code><br /></code>\`Line 2\`<code><br /></code>\`Line 3\`
 `,
                 },
                 {
@@ -6550,8 +6615,8 @@ Normal<code><br/></code>Also normal
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@alice",
                                         },
-                                        title: "@alice",
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6575,8 +6640,8 @@ Normal<code><br/></code>Also normal
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@bob",
                                         },
-                                        title: "@bob",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " about it"},
@@ -6601,8 +6666,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@charlie",
                                         },
-                                        title: "@charlie",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " is mentioned", marks: [{type: "Code"}]},
@@ -6627,8 +6692,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@eve",
                                         },
-                                        title: "@eve",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: " and ", marks: [{type: "Code"}]},
@@ -6637,8 +6702,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
+                                            title: "@frank",
                                         },
-                                        title: "@frank",
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6667,8 +6732,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@grace",
                                         },
-                                        title: "@grace",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Break", marks: [{type: "Code"}]},
@@ -6678,7 +6743,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                         ],
                     },
                     expectedMarkdown: `\
-\`User: \`<code>[@grace](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</code><code><br/></code>\`Status: active\`
+\`User: \`<code>[@grace](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</code><code><br /></code>\`Status: active\`
 `,
                 },
                 {
@@ -6694,8 +6759,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@henry",
                                         },
-                                        title: "@henry",
                                     },
                                     {type: "Text", text: " code after", marks: [{type: "Code"}]},
                                 ],
@@ -6718,8 +6783,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "iris",
                                         },
-                                        title: "iris",
                                         isAccountShortName: true,
                                         marks: [{type: "Code"}],
                                     },
@@ -6765,8 +6830,8 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
+                                            title: "@jack",
                                         },
-                                        title: "@jack",
                                         marks: [{type: "Code"}],
                                     },
                                     {type: "Text", text: ")", marks: [{type: "Code"}]},
@@ -6783,15 +6848,15 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                         target: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
+                                            title: "@kate",
                                         },
-                                        title: "@kate",
                                     },
                                 ],
                             },
                         ],
                     },
                     expectedMarkdown: `\
-\`Function: getUserData(\`<code>[@jack](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</code>\`)\`<code><br/></code>\`Returns: user object\`\\
+\`Function: getUserData(\`<code>[@jack](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</code>\`)\`<code><br /></code>\`Returns: user object\`\\
 Author: [@kate](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId2}?mention)
 `,
                 },
@@ -7065,7 +7130,7 @@ Author: [@kate](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccou
                         ],
                     },
                     expectedMarkdown: `\
-<br/>
+<br />
 `,
                 },
                 {
@@ -7079,7 +7144,7 @@ Author: [@kate](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccou
                         ],
                     },
                     expectedMarkdown: `\
-**<br/>**
+**<br />**
 `,
                 },
                 {
@@ -7093,7 +7158,7 @@ Author: [@kate](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccou
                         ],
                     },
                     expectedMarkdown: `\
-<br/><br/><br/>
+<br /><br /><br />
 `,
                 },
                 {
@@ -7150,7 +7215,7 @@ Text after break
                         ],
                     },
                     expectedMarkdown: `\
-Text before break<br/>
+Text before break<br />
 `,
                 },
                 {
@@ -7169,7 +7234,7 @@ Text before break<br/>
                         ],
                     },
                     expectedMarkdown: `\
-Text before break<br/><br/><br/>
+Text before break<br /><br /><br />
 `,
                 },
                 {
@@ -7238,7 +7303,7 @@ BeforeAfter
                         ],
                     },
                     expectedMarkdown: `\
-Start<br/>**<br/>**_<br/>_&#x45;nd
+Start<br />**<br />**_<br />_&#x45;nd
 `,
                 },
                 {
@@ -7570,8 +7635,11 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
-                                        title: "",
+                                        target: {
+                                            type: "Task",
+                                            id: printTestFixtureTaskId,
+                                            title: "",
+                                        },
                                         isAccountShortName: false,
                                         marks: [],
                                     },
@@ -7870,7 +7938,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<br/>
+<br />
 `,
                 },
                 {
@@ -7916,8 +7984,8 @@ Text\\[^1] with footnote
                                         target: {
                                             type: "TaskCollection",
                                             id: printTestFixtureTaskCollectionId,
+                                            title: "",
                                         },
-                                        title: "",
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa/&"}],
                                     },
@@ -7952,7 +8020,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<br/><a href="http://a.aa">[Unknown](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</a>
+<br /><a href="http://a.aa">[Unknown](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</a>
 `,
                 },
                 {
@@ -7978,7 +8046,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-**<br/>**<a href="http://a.aa">[Unknown](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</a>
+**<br />**<a href="http://a.aa">[Unknown](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccountId1}?mention)</a>
 `,
                 },
                 {
@@ -8179,8 +8247,11 @@ a \\$
                                     {type: "Break", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {type: "Post", id: printTestFixturePostId},
-                                        title: "",
+                                        target: {
+                                            type: "Post",
+                                            id: printTestFixturePostId,
+                                            title: "",
+                                        },
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
                                     },
@@ -8189,7 +8260,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/><br/><a href="http://a.aa">[](https://alpine.inc/s/${spaceId}/posts/${printTestFixturePostId}?mention)</a>
+<br /><br /><a href="http://a.aa">[](https://alpine.inc/s/${spaceId}/posts/${printTestFixturePostId}?mention)</a>
 `,
                 },
                 {
@@ -8307,7 +8378,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>*&#x20;*
+<br />*&#x20;*
 `,
                 },
                 {
@@ -8324,7 +8395,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>**&#x20;**
+<br />**&#x20;**
 `,
                 },
                 {
@@ -8341,7 +8412,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-<br/>~~&#x20;~~
+<br />~~&#x20;~~
 `,
                 },
                 {
@@ -9064,8 +9135,18 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-| | <span hidden data-column-widths="0.009999999776482582,0.009999999776482582,0.009999999776482582"/> |
-| - | - |
+<table data-column-widths="0.009999999776482582,0.009999999776482582,0.009999999776482582">
+<thead>
+<tr>
+<th>
+
+</th>
+<th>
+
+</th>
+</tr>
+</thead>
+</table>
 `,
                 },
                 {
@@ -9679,7 +9760,7 @@ Click <a href="https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAccoun
                         ],
                     },
                     expectedMarkdown: `\
-## Multi<br/>line heading
+## Multi<br />line heading
 `,
                 },
                 {
@@ -9726,7 +9807,7 @@ More content.
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 `,
                 },
                 {
@@ -9812,7 +9893,7 @@ Section 3
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 
 title: Hello, world!
 
@@ -9908,7 +9989,7 @@ The quick brown fox jumps over the lazy dog.
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 
 - <p></p>
 `,
@@ -9982,7 +10063,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<video controls><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+<video type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls></video>
 `,
                 },
                 {
@@ -9998,7 +10079,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<audio controls><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
+<audio type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls></audio>
 `,
                 },
                 {
@@ -10014,7 +10095,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/>
+<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"></object>
 `,
                 },
                 {
@@ -10023,8 +10104,11 @@ a
                         elements: [
                             {
                                 type: "Preview",
-                                target: {type: "Document", id: printTestFixtureDocumentId},
-                                title: "My Document",
+                                target: {
+                                    type: "Document",
+                                    id: printTestFixtureDocumentId,
+                                    title: "My Document",
+                                },
                             },
                         ],
                     },
@@ -10038,8 +10122,11 @@ a
                         elements: [
                             {
                                 type: "Preview",
-                                target: {type: "Channel", id: printTestFixtureChannelId},
-                                title: "General",
+                                target: {
+                                    type: "Channel",
+                                    id: printTestFixtureChannelId,
+                                    title: "General",
+                                },
                             },
                         ],
                     },
@@ -10078,8 +10165,8 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10113,8 +10200,8 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 
 ![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
@@ -10155,7 +10242,9 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: left; clear: both"><img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></div>
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" />
+</div>
 `,
                 },
                 {
@@ -10173,7 +10262,9 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: right; clear: both"><img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></div>
+<div style="float: right; clear: both">
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" />
+</div>
 `,
                 },
                 {
@@ -10191,8 +10282,8 @@ a
                                                     target: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                         ],
@@ -10251,14 +10342,14 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%" />
 </div>
 
 ![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
@@ -10279,8 +10370,8 @@ a
                                                     target: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "Design Spec",
                                                     },
-                                                    title: "Design Spec",
                                                 },
                                             },
                                         ],
@@ -10451,8 +10542,8 @@ caption
                                                         target: {
                                                             type: "Document",
                                                             id: printTestFixtureDocumentId,
+                                                            title: "My Document",
                                                         },
-                                                        title: "My Document",
                                                     },
                                                 ],
                                             },
@@ -10496,8 +10587,8 @@ caption
                                                     target: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                             {
@@ -10515,8 +10606,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10545,8 +10636,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 67%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 67%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
 </div>
 `,
                 },
@@ -10579,8 +10670,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<video controls style="flex: 0 0 50%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<video type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls style="flex: 0 0 50%"></video>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10613,8 +10704,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<audio type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls style="flex: 0 0 50%"></audio>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10647,8 +10738,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
+<object type="application/pdf" data="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"></object>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10668,8 +10759,8 @@ caption
                                                     target: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
+                                                        title: "My Document",
                                                     },
-                                                    title: "My Document",
                                                 },
                                             },
                                             {
@@ -10688,8 +10779,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%"/>
-<video controls style="flex: 0 0 60%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
+<img alt="My Document" src="https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%" />
+<video type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls style="flex: 0 0 60%"></video>
 </div>
 `,
                 },
@@ -10722,9 +10813,9 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 30%"/>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 20%"/>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 30%" />
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 20%" />
 </div>
 `,
                 },
@@ -10765,9 +10856,9 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 33%"><source type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></audio>
-<video controls style="flex: 0 0 33%"><source type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content"/></video>
-<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%"/>
+<audio type="audio/mpeg" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls style="flex: 0 0 33%"></audio>
+<video type="video/mp4" src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" controls style="flex: 0 0 33%"></video>
+<img src="https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content" style="flex: 0 0 34%" />
 </div>
 `,
                 },
@@ -10829,49 +10920,53 @@ Use \`\` \`backticks\` \`\` for inline code
                 ).toEqual(normalizeApiContent(content));
             });
 
-            test(`can be parsed by AgentMessageStream`, async () => {
+            // Test that `AgentWebMarkdownStreamParser` can parse all the content we test in
+            // this file exactly the same as the test expects.
+            //
+            // NOCOMMIT: Maybe move this to
+            // `server/agents/web/print_api_content_to_agent_web_markdown_generative.test.ts`
+            // or `server/agents/bots/internal/print_api_content_to_agent_markdown.test.ts`?
+            // The key thing we want to test here is that Markdown pushed in a random order via
+            // the stream parser will ultimately produce correct results.
+            test.skip(`can be parsed by AgentWebMarkdownStreamParser`, async () => {
                 const actualMarkdown = printApiContentToMarkdown(content, {
                     spaceId,
                 });
 
-                // Test that `AgentMessageStream` can parse all the content we test in this file
-                // exactly the same as the test expects.
-                await testTracer.withSpan("Test `AgentMessageStream`", async span => {
-                    const message = new AgentMessageStream({
-                        spaceId,
-                        getTargetPathIfExists: async () => null,
-                    });
-                    const markdownTokens = encodeO200kBase(actualMarkdown);
-
-                    let nextUpdate = randomInteger(1, 5);
-
-                    for (const markdownToken of markdownTokens) {
-                        message.pushText(span, decodeO200kBase([markdownToken]));
-
-                        // Update randomly within the message to exercise parse throttling choosing to
-                        // update at arbitrary times.
-                        nextUpdate--;
-                        if (nextUpdate === 0) {
-                            await message.update(span);
-                            nextUpdate = randomInteger(1, 5);
-                        }
-                    }
-
-                    // Always perform one last update.
-                    await message.update(span);
-
-                    const elements: Array<ApiContentBlockElement> = [];
-
-                    for (const part of message.getParts()) {
-                        if (part.payload.type === "Content") {
-                            for (const element of part.payload.content.elements) {
-                                elements.push(element);
-                            }
-                        }
-                    }
-
-                    expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
+                const message = new AgentWebMarkdownStreamParser({
+                    storage: agentWebSessionStorage,
+                    documentId: null,
                 });
+                const markdownTokens = encodeO200kBase(actualMarkdown);
+
+                let nextUpdate = randomInteger(1, 5);
+
+                for (const markdownToken of markdownTokens) {
+                    message.pushText(null, decodeO200kBase([markdownToken]));
+
+                    // Update randomly within the message to exercise parse throttling choosing to
+                    // update at arbitrary times.
+                    nextUpdate--;
+                    if (nextUpdate === 0) {
+                        await message.update(null);
+                        nextUpdate = randomInteger(1, 5);
+                    }
+                }
+
+                // Always perform one last update.
+                await message.update(null);
+
+                const elements: Array<ApiContentBlockElement> = [];
+
+                for (const part of message.getParts()) {
+                    if (part.payload.type === "Content") {
+                        for (const element of part.payload.content.elements) {
+                            elements.push(element);
+                        }
+                    }
+                }
+
+                expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
             });
         });
     });

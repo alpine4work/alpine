@@ -4,6 +4,7 @@ import {BlockContent, DefinitionContent, Html, Root, RootContent} from "mdast";
 import {printAgentWebPageLinkLabel} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
+import {createAgentWebPageLinkApiPreviewTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_target_if_possible.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
@@ -12,11 +13,15 @@ import {
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
+    printApiFileContentUrl,
     printApiMentionTargetToMentionLinkLabel,
-    printApiMentionTargetToMentionLinkUrl,
+    printApiMentionTargetToMentionUrl,
+    printApiPreviewTargetToPreviewUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElement,
+    ApiContentFileBlockElementResponse,
+    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
     ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
@@ -540,13 +545,18 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
                             return {
                                 type: "link",
-                                url: printApiMentionTargetToMentionLinkUrl(
-                                    mentionTargetResult.target,
-                                    {spaceId: storage.spaceId, isAccountShortName},
-                                ),
-                                children: printApiMentionTargetToMentionLinkLabel(
-                                    mentionTargetResult.target,
-                                ),
+                                url: printApiMentionTargetToMentionUrl(mentionTargetResult.target, {
+                                    spaceId: storage.spaceId,
+                                    isAccountShortName,
+                                }),
+                                children: [
+                                    {
+                                        type: "text",
+                                        value: printApiMentionTargetToMentionLinkLabel(
+                                            mentionTargetResult.target,
+                                        ),
+                                    },
+                                ],
                                 position: node.position,
                                 data: {
                                     mentionElement: {
@@ -561,6 +571,47 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                             throw exhaustive(mentionTargetResult);
                     }
                 }
+            }
+            case "image": {
+                if (!node.url.startsWith("/")) return node;
+
+                const {pathname} = normalizeAgentWebPath(node.url);
+
+                const pageLink = await storage.pageLinkByPathname.get(pathname);
+                if (!pageLink) return node;
+
+                if (pageLink.type === "File") {
+                    return {
+                        type: "image",
+                        url: printApiFileContentUrl(storage.spaceId, pageLink.id),
+                        alt: null,
+                        position: node.position,
+                        data: {
+                            fileElement: {
+                                type: "File",
+                                id: pageLink.id,
+                                contentType: pageLink.contentType,
+                                contentLength: pageLink.contentLength,
+                            },
+                        },
+                    };
+                }
+
+                const previewTarget = createAgentWebPageLinkApiPreviewTargetIfPossible(pageLink);
+                if (!previewTarget) return node;
+
+                return {
+                    type: "image",
+                    url: printApiPreviewTargetToPreviewUrl(storage.spaceId, previewTarget),
+                    alt: printApiMentionTargetToMentionLinkLabel(previewTarget),
+                    position: node.position,
+                    data: {
+                        previewElement: {
+                            type: "Preview",
+                            target: previewTarget,
+                        },
+                    },
+                };
             }
             default:
                 return node;
@@ -593,33 +644,29 @@ async function traverseMarkdownHtmlNode(
     documentId: DocumentId | null,
     node: Html,
 ): Promise<Html> {
+    type AttributeState = {
+        isOpen: boolean;
+        nameEndIndex: number;
+        data: {startIndex: number; endIndex: number; value: string} | null;
+    };
+
     let anchorTagState: {
-        href: {
-            isOpen: boolean;
-            attributeEndIndex: number;
-            data: {startIndex: number; endIndex: number; value: string} | null;
-        } | null;
+        href: AttributeState | null;
     } | null = null;
 
     let commentTagState: {
-        id: {
-            isOpen: boolean;
-            attributeEndIndex: number;
-            data: {startIndex: number; endIndex: number; value: string} | null;
-        } | null;
+        id: AttributeState | null;
     } | null = null;
 
     let tableTagState: {
-        dataWidth: {
-            isOpen: boolean;
-            attributeEndIndex: number;
-            data: {startIndex: number; endIndex: number; value: string} | null;
-        } | null;
-        dataColumnWidths: {
-            isOpen: boolean;
-            attributeEndIndex: number;
-            data: {startIndex: number; endIndex: number; value: string} | null;
-        } | null;
+        dataWidth: AttributeState | null;
+        dataColumnWidths: AttributeState | null;
+    } | null = null;
+
+    let mediaTagState: {
+        tagName: string;
+        src: AttributeState | null;
+        data: AttributeState | null;
     } | null = null;
 
     const replacements: Array<{
@@ -627,6 +674,156 @@ async function traverseMarkdownHtmlNode(
         endIndex: number;
         string: Promise<string | null>;
     }> = [];
+
+    // NOCOMMIT: Can I get rid of all the machinery to parse response-only properties?
+    // It's unnatural and may lead to bugs. I also don't think it's necessary?
+    let fileOrPreviewElementByUrl: Map<
+        string,
+        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+    > | null = null;
+
+    const handleOpenTagEndOrSelfCloseTag = () => {
+        if (anchorTagState) {
+            if (anchorTagState.href?.data) {
+                const truncatedUrl = anchorTagState.href.data.value;
+
+                replacements.push({
+                    startIndex: anchorTagState.href.data.startIndex,
+                    endIndex: anchorTagState.href.data.endIndex,
+                    string: (async () => {
+                        const url = await storage.urlByTruncatedUrl.get(truncatedUrl);
+                        if (url === undefined) return null;
+                        return escapeHtml(url);
+                    })(),
+                });
+            }
+
+            anchorTagState = null;
+        }
+
+        if (commentTagState) {
+            if (commentTagState.id?.data) {
+                const numberString = commentTagState.id.data.value;
+                const number = parseInt(numberString, 10);
+
+                if (documentId && !isNaN(number)) {
+                    replacements.push({
+                        startIndex: commentTagState.id.data.startIndex,
+                        endIndex: commentTagState.id.data.endIndex,
+                        string: (async () => {
+                            const commentThreadId =
+                                await storage.documentCommentThreadIdByNumber.get(
+                                    `${documentId}-${number}`,
+                                );
+
+                            if (commentThreadId === undefined) return null;
+
+                            return escapeHtml(commentThreadId);
+                        })(),
+                    });
+                }
+            }
+
+            commentTagState = null;
+        }
+
+        if (tableTagState) {
+            if (tableTagState.dataWidth?.data) {
+                const truncatedWidth = tableTagState.dataWidth.data.value;
+
+                replacements.push({
+                    startIndex: tableTagState.dataWidth.data.startIndex,
+                    endIndex: tableTagState.dataWidth.data.endIndex,
+                    string: (async () => {
+                        const width = await storage.tableWidthByTruncatedWidth.get(truncatedWidth);
+
+                        if (width === undefined) return null;
+
+                        return JSON.stringify(width);
+                    })(),
+                });
+            }
+
+            if (tableTagState.dataColumnWidths?.data) {
+                const truncatedColumnWidths = tableTagState.dataColumnWidths.data.value;
+
+                replacements.push({
+                    startIndex: tableTagState.dataColumnWidths.data.startIndex,
+                    endIndex: tableTagState.dataColumnWidths.data.endIndex,
+                    string: (async () => {
+                        const columnWidths =
+                            await storage.tableColumnWidthsByTruncatedColumnWidths.get(
+                                truncatedColumnWidths,
+                            );
+
+                        if (columnWidths === undefined) return null;
+
+                        return JSON.stringify(columnWidths).slice(1, -1);
+                    })(),
+                });
+            }
+
+            tableTagState = null;
+        }
+
+        if (mediaTagState) {
+            const attributeState =
+                mediaTagState.tagName === "object" ? mediaTagState.data : mediaTagState.src;
+
+            if (attributeState?.data) {
+                const url = attributeState.data.value;
+
+                replacements.push({
+                    startIndex: attributeState.data.startIndex,
+                    endIndex: attributeState.data.endIndex,
+                    string: (async () => {
+                        const {pathname} = normalizeAgentWebPath(url);
+
+                        const pageLink = await storage.pageLinkByPathname.get(pathname);
+                        if (!pageLink) return url;
+
+                        if (pageLink.type === "File") {
+                            const fileElement: ApiContentFileBlockElementResponse = {
+                                type: "File",
+                                id: pageLink.id,
+                                contentType: pageLink.contentType,
+                                contentLength: pageLink.contentLength,
+                            };
+
+                            const replacedUrl = printApiFileContentUrl(
+                                storage.spaceId,
+                                pageLink.id,
+                            );
+
+                            fileOrPreviewElementByUrl ??= new Map();
+                            fileOrPreviewElementByUrl.set(replacedUrl, fileElement);
+                            return replacedUrl;
+                        }
+
+                        const previewTarget =
+                            createAgentWebPageLinkApiPreviewTargetIfPossible(pageLink);
+                        if (!previewTarget) return url;
+
+                        const previewElement: ApiContentPreviewBlockElementResponse = {
+                            type: "Preview",
+                            target: previewTarget,
+                        };
+
+                        const replacedUrl = printApiPreviewTargetToPreviewUrl(
+                            storage.spaceId,
+                            previewTarget,
+                        );
+
+                        fileOrPreviewElementByUrl ??= new Map();
+                        fileOrPreviewElementByUrl.set(replacedUrl, previewElement);
+                        return replacedUrl;
+                    })(),
+                });
+            }
+
+            mediaTagState = null;
+        }
+    };
 
     const tokenizer = new HtmlTokenizer(
         {},
@@ -650,93 +847,18 @@ async function traverseMarkdownHtmlNode(
                         tableTagState = {dataWidth: null, dataColumnWidths: null};
                         break;
                     }
+                    case "img":
+                    case "video":
+                    case "audio":
+                    case "source":
+                    case "object": {
+                        mediaTagState = {tagName, src: null, data: null};
+                        break;
+                    }
                 }
             },
-            onopentagend: () => {
-                if (anchorTagState) {
-                    if (anchorTagState.href?.data) {
-                        const truncatedUrl = anchorTagState.href.data.value;
-
-                        replacements.push({
-                            startIndex: anchorTagState.href.data.startIndex,
-                            endIndex: anchorTagState.href.data.endIndex,
-                            string: (async () => {
-                                const url = await storage.urlByTruncatedUrl.get(truncatedUrl);
-                                if (url === undefined) return null;
-                                return escapeHtml(url);
-                            })(),
-                        });
-                    }
-
-                    anchorTagState = null;
-                }
-
-                if (commentTagState) {
-                    if (commentTagState.id?.data) {
-                        const numberString = commentTagState.id.data.value;
-                        const number = parseInt(numberString, 10);
-
-                        if (documentId && !isNaN(number)) {
-                            replacements.push({
-                                startIndex: commentTagState.id.data.startIndex,
-                                endIndex: commentTagState.id.data.endIndex,
-                                string: (async () => {
-                                    const commentThreadId =
-                                        await storage.documentCommentThreadIdByNumber.get(
-                                            `${documentId}-${number}`,
-                                        );
-
-                                    if (commentThreadId === undefined) return null;
-
-                                    return escapeHtml(commentThreadId);
-                                })(),
-                            });
-                        }
-                    }
-
-                    commentTagState = null;
-                }
-
-                if (tableTagState) {
-                    if (tableTagState.dataWidth?.data) {
-                        const truncatedWidth = tableTagState.dataWidth.data.value;
-
-                        replacements.push({
-                            startIndex: tableTagState.dataWidth.data.startIndex,
-                            endIndex: tableTagState.dataWidth.data.endIndex,
-                            string: (async () => {
-                                const width =
-                                    await storage.tableWidthByTruncatedWidth.get(truncatedWidth);
-
-                                if (width === undefined) return null;
-
-                                return JSON.stringify(width);
-                            })(),
-                        });
-                    }
-
-                    if (tableTagState.dataColumnWidths?.data) {
-                        const truncatedColumnWidths = tableTagState.dataColumnWidths.data.value;
-
-                        replacements.push({
-                            startIndex: tableTagState.dataColumnWidths.data.startIndex,
-                            endIndex: tableTagState.dataColumnWidths.data.endIndex,
-                            string: (async () => {
-                                const columnWidths =
-                                    await storage.tableColumnWidthsByTruncatedColumnWidths.get(
-                                        truncatedColumnWidths,
-                                    );
-
-                                if (columnWidths === undefined) return null;
-
-                                return JSON.stringify(columnWidths).slice(1, -1);
-                            })(),
-                        });
-                    }
-
-                    tableTagState = null;
-                }
-            },
+            onopentagend: handleOpenTagEndOrSelfCloseTag,
+            onselfclosingtag: handleOpenTagEndOrSelfCloseTag,
             onclosetag: noop,
 
             onattribname: (startIndex, endIndex) => {
@@ -745,7 +867,7 @@ async function traverseMarkdownHtmlNode(
                 if (anchorTagState && attributeName === "href") {
                     anchorTagState.href = {
                         isOpen: true,
-                        attributeEndIndex: endIndex,
+                        nameEndIndex: endIndex,
                         data: null,
                     };
                 }
@@ -753,7 +875,7 @@ async function traverseMarkdownHtmlNode(
                 if (commentTagState && attributeName === "id") {
                     commentTagState.id = {
                         isOpen: true,
-                        attributeEndIndex: endIndex,
+                        nameEndIndex: endIndex,
                         data: null,
                     };
                 }
@@ -762,7 +884,7 @@ async function traverseMarkdownHtmlNode(
                     if (attributeName === "data-width") {
                         tableTagState.dataWidth = {
                             isOpen: true,
-                            attributeEndIndex: endIndex,
+                            nameEndIndex: endIndex,
                             data: null,
                         };
                     }
@@ -770,7 +892,25 @@ async function traverseMarkdownHtmlNode(
                     if (attributeName === "data-column-widths") {
                         tableTagState.dataColumnWidths = {
                             isOpen: true,
-                            attributeEndIndex: endIndex,
+                            nameEndIndex: endIndex,
+                            data: null,
+                        };
+                    }
+                }
+
+                if (mediaTagState) {
+                    if (attributeName === "src") {
+                        mediaTagState.src = {
+                            isOpen: true,
+                            nameEndIndex: endIndex,
+                            data: null,
+                        };
+                    }
+
+                    if (attributeName === "data") {
+                        mediaTagState.data = {
+                            isOpen: true,
+                            nameEndIndex: endIndex,
                             data: null,
                         };
                     }
@@ -779,10 +919,7 @@ async function traverseMarkdownHtmlNode(
             onattribdata: (startIndex, endIndex) => {
                 const attributeData = node.value.slice(startIndex, endIndex);
 
-                const addAttributeData = (state: {
-                    attributeEndIndex: number;
-                    data: {startIndex: number; endIndex: number; value: string} | null;
-                }) => {
+                const addAttributeData = (state: AttributeState) => {
                     state.data ??= {startIndex, endIndex, value: ""};
                     state.data.endIndex = endIndex;
                     state.data.value += attributeData;
@@ -793,22 +930,25 @@ async function traverseMarkdownHtmlNode(
                 if (tableTagState?.dataWidth?.isOpen) addAttributeData(tableTagState.dataWidth);
                 if (tableTagState?.dataColumnWidths?.isOpen)
                     addAttributeData(tableTagState.dataColumnWidths);
+                if (mediaTagState?.src?.isOpen) addAttributeData(mediaTagState.src);
+                if (mediaTagState?.data?.isOpen) addAttributeData(mediaTagState.data);
             },
             onattribentity: codepoint => {
                 const attributeData = String.fromCodePoint(codepoint);
 
-                const addAttributeEntity = (state: {
-                    attributeEndIndex: number;
-                    data: {startIndex: number; endIndex: number; value: string} | null;
-                }) => {
-                    const lastIndex = state.data?.endIndex ?? state.attributeEndIndex;
+                const addAttributeEntity = (state: AttributeState) => {
+                    const lastIndex = state.data?.endIndex ?? state.nameEndIndex;
 
                     let startIndex = node.value.slice(lastIndex).indexOf("&");
                     assert(startIndex !== -1);
                     startIndex += lastIndex;
 
                     let endIndex = node.value.slice(startIndex + 1).indexOf(";");
-                    assert(endIndex !== -1);
+
+                    // Handle cases where we're streaming markdown and we've streamed part of an HTML
+                    // entity (e.g. `&amp` but not the full `&amp;`).
+                    if (endIndex === -1) endIndex = node.value.length - 1;
+
                     endIndex += startIndex + 1;
                     endIndex += 1;
 
@@ -822,23 +962,17 @@ async function traverseMarkdownHtmlNode(
                 if (tableTagState?.dataWidth?.isOpen) addAttributeEntity(tableTagState.dataWidth);
                 if (tableTagState?.dataColumnWidths?.isOpen)
                     addAttributeEntity(tableTagState.dataColumnWidths);
+                if (mediaTagState?.src?.isOpen) addAttributeEntity(mediaTagState.src);
+                if (mediaTagState?.data?.isOpen) addAttributeEntity(mediaTagState.data);
             },
             onattribend: () => {
-                if (anchorTagState?.href?.isOpen) {
-                    anchorTagState.href.isOpen = false;
-                }
-
-                if (commentTagState?.id?.isOpen) {
-                    commentTagState.id.isOpen = false;
-                }
-
-                if (tableTagState?.dataWidth?.isOpen) {
-                    tableTagState.dataWidth.isOpen = false;
-                }
-
-                if (tableTagState?.dataColumnWidths?.isOpen) {
+                if (anchorTagState?.href?.isOpen) anchorTagState.href.isOpen = false;
+                if (commentTagState?.id?.isOpen) commentTagState.id.isOpen = false;
+                if (tableTagState?.dataWidth?.isOpen) tableTagState.dataWidth.isOpen = false;
+                if (tableTagState?.dataColumnWidths?.isOpen)
                     tableTagState.dataColumnWidths.isOpen = false;
-                }
+                if (mediaTagState?.src?.isOpen) mediaTagState.src.isOpen = false;
+                if (mediaTagState?.data?.isOpen) mediaTagState.data.isOpen = false;
             },
 
             oncdata: noop,
@@ -846,7 +980,6 @@ async function traverseMarkdownHtmlNode(
             ondeclaration: noop,
             onend: noop,
             onprocessinginstruction: noop,
-            onselfclosingtag: noop,
         },
     );
 
@@ -871,7 +1004,11 @@ async function traverseMarkdownHtmlNode(
         newValue = newValue.slice(0, startIndex) + string + newValue.slice(endIndex);
     }
 
-    return {...node, value: newValue};
+    return {
+        ...node,
+        value: newValue,
+        data: fileOrPreviewElementByUrl ? {fileOrPreviewElementByUrl} : undefined,
+    };
 }
 
 function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockContent>> {

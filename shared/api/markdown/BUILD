@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/fast-check",
         "//:node_modules/gpt-tokenizer",
+        "//server/agents/web/test_helpers",
         "//shared/api/markdown/test_helpers",
         "//shared/tracer/dev",
     ],

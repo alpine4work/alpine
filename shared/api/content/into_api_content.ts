@@ -510,7 +510,7 @@ function intoApiContentFileOrPreviewElement(
             options.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
 
-        return {type: "Preview", target, title};
+        return {type: "Preview", target};
     }
 
     assert(isId<FileId>(fileId));
