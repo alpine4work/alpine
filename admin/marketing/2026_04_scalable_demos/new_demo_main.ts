@@ -211,10 +211,8 @@ async function updateRemotionRoot(
     const demoIdName = demoName.replaceAll("_", "-");
     const newComposition =
         `            <Composition\n` +
-        // The straight double quotes in the generated JSX attribute are
-        // TypeScript syntax, not prose — they must not be replaced with
-        // typographic quotes.
-        // eslint-disable-next-line cyberworlds/string-quotes
+        // The straight double quotes in the generated JSX attribute are TypeScript syntax,
+        // not prose — they must not be replaced with typographic quotes.
         `                id="${demoNumber}-${demoIdName}-demo"\n` +
         `                component={${demoNamePascal}DemoComposition}\n` +
         `                recordingWidth={scalableDemoNarrowViewportWidth}\n` +

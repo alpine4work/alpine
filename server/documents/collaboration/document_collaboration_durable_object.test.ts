@@ -6672,7 +6672,7 @@ describe("adding and removing documents from sites", () => {
 
         await waitForPersistence(connection, result.newVersion);
 
-        // Verify the document\u2019s access policy is now Site
+        // Verify the document's access policy is now Site
         const documentAccessPolicy = await document.access.get();
         expect(documentAccessPolicy).toMatchObject({type: "Site", siteId: site.id});
 
@@ -6773,7 +6773,7 @@ describe("adding and removing documents from sites", () => {
 
         await waitForPersistence(connection, removeResult.newVersion);
 
-        // Verify the document\u2019s access policy is now Local
+        // Verify the document's access policy is now Local
         const restoredAccessPolicy = await document.access.get();
         expect(restoredAccessPolicy.type).toBe("Local");
 
@@ -6799,7 +6799,7 @@ describe("adding and removing documents from sites", () => {
         await createSite(session1.action(), {
             spaceId: space.id,
             siteId,
-            name: "session1’s site",
+            name: "session1\u2019s site",
             accessPolicy: {
                 type: "Local",
                 accountGrantById: new Map([
@@ -6822,7 +6822,7 @@ describe("adding and removing documents from sites", () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
-            title: "session2’s doc",
+            title: "session2\u2019s doc",
         });
         const clientId = generateId<ContentEditorClientId>();
         const connection = await connectForTest(context.action(session2), document.id);
@@ -6845,7 +6845,7 @@ describe("adding and removing documents from sites", () => {
                 },
                 updateOurPresenceState: {state: null},
             }),
-        ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
     });
 
     test("cannot add a document to a site when the actor lacks `Manage` on the document", async () => {
@@ -6864,7 +6864,7 @@ describe("adding and removing documents from sites", () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
-            title: "session1’s doc",
+            title: "session1\u2019s doc",
         });
 
         // session2 creates their own site that they manage.
@@ -6873,7 +6873,7 @@ describe("adding and removing documents from sites", () => {
         await createSite(session2.action(), {
             spaceId: space.id,
             siteId,
-            name: "session2’s site",
+            name: "session2\u2019s site",
             root: {type: "SideBar", id: rootSideBarId},
         });
         const rootContainerId = printSiteContainerId({type: "SideBar", id: rootSideBarId});
@@ -6901,6 +6901,6 @@ describe("adding and removing documents from sites", () => {
                 },
                 updateOurPresenceState: {state: null},
             }),
-        ).rejects.toThrow("Actor doesn’t have `Manage` access level");
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
     });
 });

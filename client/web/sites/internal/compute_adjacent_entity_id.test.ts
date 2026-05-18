@@ -189,7 +189,7 @@ describe("computeAdjacentEntityId", () => {
         expect(computeAdjacentEntityId(mid.id, makeTree([root, high, mid, low]))).toBe(low.id);
     });
 
-    test("walks into a preceding sibling section’s rightmost entity (DFS reverse)", () => {
+    test("walks into a preceding sibling section\u2019s rightmost entity (DFS reverse)", () => {
         // ```
         // SideBar
         //   Section
@@ -210,7 +210,7 @@ describe("computeAdjacentEntityId", () => {
         ).toBe(inSecLast.id);
     });
 
-    test("walks into a following sibling section’s leftmost entity (DFS forward)", () => {
+    test("walks into a following sibling section\u2019s leftmost entity (DFS forward)", () => {
         // ```
         // SideBar
         //   before          ← target (no preceding entity)
@@ -242,7 +242,7 @@ describe("computeAdjacentEntityId", () => {
         //     onlyChild     ← target (no preceding sibling within Section)
         // ```
         //
-        // Walk has to climb out of Section and look at Section’s preceding siblings.
+        // Walk has to climb out of Section and look at Section's preceding siblings.
         const root = sidebar();
         const rootId = root.id;
         const beforeSection = entity({parentId: rootId, orderKey: "a0"});
@@ -301,7 +301,7 @@ describe("computeAdjacentEntityId", () => {
         // ```
         //
         // Walk has to climb from target out of SideBar1, up to TopBar, and pick up
-        // SideBar1’s following sibling SideBar2.
+        // SideBar1's following sibling SideBar2.
         const top = topbar();
         const topId = top.id;
         const left = sidebar({parentId: topId, orderKey: "a0"});
@@ -453,7 +453,7 @@ describe("computeAdjacentEntityId", () => {
         );
     });
 
-    test("ignores entries unrelated to the target’s ancestry", () => {
+    test("ignores entries unrelated to the target\u2019s ancestry", () => {
         // ```
         // TopBar
         //   SideBar1        (empty — no entities)

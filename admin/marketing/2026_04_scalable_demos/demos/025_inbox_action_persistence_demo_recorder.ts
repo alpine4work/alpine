@@ -28,7 +28,7 @@ import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const taskNotificationSnippet =
-    "i’d keep v1 to filters and channel mute. quiet hours turns this into settings work";
+    "i\u2019d keep v1 to filters and channel mute. quiet hours turns this into settings work";
 const documentNotificationSnippet =
     "This is the right scope. Filters plus per-channel mute gives people control";
 const forumNotificationSnippet = "Meridian signed the pilot this morning";
@@ -75,12 +75,12 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     await recorder.record({
         instructions: markdown`
-This automated demo shows that Alpine’s inbox entries are not dismissed just because Cass opens
+This automated demo shows that Alpine\u2019s inbox entries are not dismissed just because Cass opens
 them. Each entry stays in the inbox until Cass takes action in the relevant product surface.
 
-The recording opens on Cass’s inbox with notifications from Tasks, Forum, and Docs. The automation
-uses a task comment, a Celebrate reaction on Cliff’s won-deal post, and a document comment to show
-each inbox entry clearing only after Cass takes action.
+The recording opens on Cass\u2019s inbox with notifications from Tasks, Forum, and Docs. The
+automation uses a task comment, a Celebrate reaction on Cliff\u2019s won-deal post, and a document
+comment to show each inbox entry clearing only after Cass takes action.
         `,
         session: accounts.cassCade,
         path: `/s/${space.id}/inbox`,
@@ -182,7 +182,7 @@ async function createForumInboxEntry(
 FORUM_NOTIFICATION_SNIPPET. Contract is in, security signed off, and they want the first workspace
 stood up next week.
 
-Holly’s case study got us in the door, the new one-pager handled the first call, and the inbox
+Holly\u2019s case study got us in the door, the new one-pager handled the first call, and the inbox
 section closed the loop with their VP Eng. Huge team win!
         `.replace("FORUM_NOTIFICATION_SNIPPET", forumNotificationSnippet),
         {overrideCreatedTime: todayAt(10, 55)},
@@ -210,7 +210,7 @@ async function runInboxActionPersistenceDemo(page: Page) {
         page,
         cursor,
         entryText: taskNotificationSnippet,
-        commentText: "Makes sense. I’ll leave quiet hours out of v1",
+        commentText: "Makes sense. I\u2019ll leave quiet hours out of v1",
     });
 
     await openEntryAndReactCelebrate({

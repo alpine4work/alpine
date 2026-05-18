@@ -571,7 +571,7 @@ Author
 # Summary
 
 > One paragraph. What broke, who noticed, how long it lasted, who was affected. Write this so
-> someone who wasn’t on call can understand the shape of the incident in thirty seconds.
+> someone who wasn\u2019t on call can understand the shape of the incident in thirty seconds.
 
 # Timeline
 
@@ -589,14 +589,14 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
 # Root cause
 
 > What actually went wrong. Walk through the chain of events. If multiple things had to fail at
-> once, say so. If we got lucky that it wasn’t worse, say that too.
+> once, say so. If we got lucky that it wasn\u2019t worse, say that too.
 
 # What went well
 
 - [ ]
 - [ ]
 
-# What didn’t
+# What didn\u2019t
 
 - [ ]
 - [ ]

@@ -70,7 +70,7 @@ underperforming and which management changes are working. -->
 Goals:
 
 - Help producers discover programs they qualify for
-- Reduce time to go from “I’ve heard <!-- of this grant” to a complete application -->
+- Reduce time to go from \u201CI\u2019ve heard
             `,
         }),
     ]);
@@ -111,7 +111,7 @@ Goals:
             markdown`
 In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
-quarter. We’re going to add a couple features for larger businesses this quarter.
+quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 
 | Project                  | DRI                                                                       | Priority                                     | PRD                                         |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------- |

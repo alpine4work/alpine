@@ -5,7 +5,7 @@
  * `diff` npm library only provides the new token value.
  *
  * So we forked! The core diff algorithm is implemented in [`src/diff/base.ts`][2]
- * and is based on “[An O(ND) Difference Algorithm and Its Variations][3]” (Myers,
+ * and is based on "[An O(ND) Difference Algorithm and Its Variations][3]" (Myers,
  * 1986).
  *
  * Our fork simplifies the library to just the core diffing algorithm. We remove
@@ -69,8 +69,8 @@ type Path = {
 };
 
 /**
- * Diff two arrays using an algorithm based on “[An O(ND) Difference Algorithm and
- * Its Variations][1]” (Myers, 1986)
+ * Diff two arrays using an algorithm based on "[An O(ND) Difference Algorithm and
+ * Its Variations][1]" (Myers, 1986)
  *
  * You may set `maxEditLength` or `timeout` to control how much computation time is
  * spent on a diff. If either of those thresholds are met then the function returns

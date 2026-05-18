@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {useId, useMemo} from "react";
 import {usePress} from "react-aria";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";

@@ -242,11 +242,9 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/related; boundary="${outerBoundary}"`,
             "",
             `--${outerBoundary}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${innerBoundary}"`,
             "",
             `--${innerBoundary}`,
@@ -282,11 +280,9 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/related; boundary="${outerBoundary}"`,
             "",
             `--${outerBoundary}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${innerBoundary}"`,
             "",
             `--${innerBoundary}`,
@@ -321,7 +317,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -348,7 +343,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -374,7 +368,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -408,7 +401,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -438,7 +430,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -470,7 +461,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -499,7 +489,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -527,7 +516,6 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -558,11 +546,9 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Test",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${outer}"`,
             "",
             `--${outer}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${inner}"`,
             "",
             `--${inner}`,
@@ -599,11 +585,9 @@ describe("parseMimeEmailMessage", () => {
             "To: bob@test.cyberworlds.dev",
             "Subject: Nested multipart",
             "MIME-Version: 1.0",
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${outer}"`,
             "",
             `--${outer}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${inner}"`,
             "",
             `--${inner}`,

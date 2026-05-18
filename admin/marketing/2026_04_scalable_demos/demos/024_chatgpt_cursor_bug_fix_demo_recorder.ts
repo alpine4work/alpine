@@ -108,7 +108,7 @@ Priorities:
 
 - Fix regressions that interrupt writing flow.
 - Keep notification control as the top Q4 product bet.
-- Protect Elle’s realtime reliability rollout from scope creep.
+- Protect Elle\u2019s realtime reliability rollout from scope creep.
             `,
         }),
     ]);
@@ -169,8 +169,8 @@ when the current block is plain cell content.
             planningChannel.createPost(
                 accounts.cassCade,
                 markdown`
-Q4 planning draft is moving. I pulled Holly’s survey themes into the product section and left space
-for engineering capacity notes.
+Q4 planning draft is moving. I pulled Holly\u2019s survey themes into the product section and left
+space for engineering capacity notes.
                 `,
                 {overrideCreatedTime: new Date("2025-10-16T10:05:00-04:00")},
             ),
@@ -319,7 +319,7 @@ nice. the absence of reconnect noise is honestly the feature
             space.id,
             [
                 1_000,
-                "## Table tab keydown fix\n\nStarted coding. I’ll let you know when I’m done ([watch me work](http://localhost:3000)).",
+                "## Table tab keydown fix\n\nStarted coding. I\u2019ll let you know when I\u2019m done ([watch me work](http://localhost:3000)).",
             ],
             {waitMillisecondsBetweenTokens: 12},
         ),

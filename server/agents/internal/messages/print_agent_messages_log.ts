@@ -143,8 +143,6 @@ export function printAgentMessagesIntoMarkdownTree(
             });
         }
 
-        /* eslint-disable cyberworlds/string-quotes */
-
         // Build opening tag with attributes
         let openingTag = "";
         if (message.author.botId) {
@@ -183,8 +181,6 @@ export function printAgentMessagesIntoMarkdownTree(
             );
             openingTag += ` timezone="${escapeHtml(timeZoneAbbreviation)}"`;
         }
-
-        /* eslint-enable cyberworlds/string-quotes */
 
         openingTag += ">";
 
@@ -235,7 +231,6 @@ function* getMessageParentHtml(
 ): IterableIterator<RootContent | null> {
     if (parent === null) return null;
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     yield {type: "html", value: `<blockquote cite="${escapeHtml(parent.author.name)}">`};
 
     for (const element of parent.markdownContent.slice(0, -1)) {

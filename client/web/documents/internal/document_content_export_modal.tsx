@@ -49,7 +49,7 @@ export function DocumentContentExportModal({
             buttonsPaddingX="7"
             buttonsPaddingBottom="5"
             primaryButtonLabel="Copy"
-            primaryButtonPressErrorTitle="Couldn’t copy export"
+            primaryButtonPressErrorTitle="Couldn&#x2019;t copy export"
             onPrimaryButtonPress={async () => {
                 await writeTextToClipboard(string);
             }}

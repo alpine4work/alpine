@@ -299,12 +299,12 @@ describe("validates access policy updates without default grants", () => {
                     accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
                 }),
             ),
-        ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+        ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
     });
 
     test("actor can\u2019t escalate own manage generation in new policy above accounts with manage access at a lower generation in the old policy", () => {
-        // accountId3 (gen 2) can\u2019t escalate self to gen 1 - would violate senior
-        // chain invariant
+        // accountId3 (gen 2) can't escalate self to gen 1 - would violate senior chain
+        // invariant
         expect(
             validateAccessPolicyUpdate(
                 accountId3,
@@ -313,7 +313,7 @@ describe("validates access policy updates without default grants", () => {
                     accessPolicy.accountGrantById.set(accountId3, {level: "Manage", generation: 1});
                 }),
             ),
-        ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+        ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
     });
 
     test("actors can\u2019t remove a manage account at a generation less than their own", () => {
@@ -624,7 +624,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -634,7 +634,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 2};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -644,7 +644,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -654,7 +654,7 @@ test("validates access policy updates with default grants", () => {
                 accessPolicy.defaultGrant = {level: "Manage", generation: 0};
             }),
         ),
-    ).toEqual({ok: false, reason: "Can’t reorder manage grant generations"});
+    ).toEqual({ok: false, reason: "Can\u2019t reorder manage grant generations"});
 
     expect(
         validateAccessPolicyUpdate(
@@ -1157,7 +1157,7 @@ describe("validateAccessPolicyUpdate senior chain validation", () => {
 
         expect(validateAccessPolicyUpdate(carol, basePolicyWith4Managers, newPolicy)).toEqual({
             ok: false,
-            reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
         });
     });
 
@@ -1171,7 +1171,7 @@ describe("validateAccessPolicyUpdate senior chain validation", () => {
         // [{alice}, {bob}, {carol}, {dan}] -> [{alice}, {bob, carol}, {dan}]
         expect(validateAccessPolicyUpdate(carol, basePolicyWith4Managers, newPolicy)).toEqual({
             ok: false,
-            reason: "Can’t reorder manage grant generations",
+            reason: "Can\u2019t reorder manage grant generations",
         });
     });
 
@@ -1764,7 +1764,7 @@ describe("validateAccessPolicyUpdate tie consistency", () => {
 
         expect(validateAccessPolicyUpdate(carol, oldPolicy, newPolicy)).toEqual({
             ok: false,
-            reason: "Can’t reorder manage grant generations",
+            reason: "Can\u2019t reorder manage grant generations",
         });
     });
 

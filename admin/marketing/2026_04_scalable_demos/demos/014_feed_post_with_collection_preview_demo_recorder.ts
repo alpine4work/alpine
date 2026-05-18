@@ -105,8 +105,7 @@ Senior backend engineer offer went out. Start date is early Q3.
         TestChannel.create(accounts.cassCade, {name: "Announcements", access: "Public"}),
     ]);
 
-    // Rose\u2019s Q3 roadmap post in Leads, mentioning the Q2 Update doc with a
-    // preview.
+    // Rose's Q3 roadmap post in Leads, mentioning the Q2 Update doc with a preview.
     const q2UpdateMentionUrl = `${spaceUrl}/documents/${q2UpdateDoc.id}?mention`;
     const q2UpdatePreviewUrl = `${spaceUrl}/documents/${q2UpdateDoc.id}?preview`;
     const fy26Q3MentionUrl = `${spaceUrl}/tasks/collections/${fy26Q3Collection.id}?mention`;

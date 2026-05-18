@@ -1,4 +1,4 @@
-/* eslint-disable testing-library/no-node-access, cyberworlds/string-quotes */
+/* eslint-disable testing-library/no-node-access */
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/web/content/content_view.js";

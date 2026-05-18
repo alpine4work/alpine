@@ -174,7 +174,7 @@ post I shared this in), and create followup tasks for me.
 
             await streamMessage.putStreamPart(chatGpt.action(chat.getBotScope()), 0, {
                 type: "Reasoning",
-                content: parseTestMessageContent(space.id, "I’m thinking here"),
+                content: parseTestMessageContent(space.id, "I\u2019m thinking here"),
             });
 
             const [task1, task2, task3] = await tasksPromise;
@@ -184,13 +184,13 @@ post I shared this in), and create followup tasks for me.
                 1,
                 Mustache.render(
                     markdown`
-Here’s how the feedback clusters and what to do with it:
+Here\u2019s how the feedback clusters and what to do with it:
 
 - **Tighten the technical contract:** Engineers asked for a clear definition of the plan object and
   the \`BillingService\` API surface.
 
-- **Cover concrete flows & risks:** PMs want an explicit “Risks / Mitigations” section for migration
-  issues like double‑billing or wrong limits.
+- **Cover concrete flows & risks:** PMs want an explicit \u201CRisks / Mitigations\u201D section for
+  migration issues like double‑billing or wrong limits.
 
 - **Articulate business impact:** Leadership wants a short, explicit statement of business impact,
   effects on revenue reporting and dashboards, and how this supports future pricing models and

@@ -65,7 +65,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         q4PlanningFinalReview,
     ] = await runAllPromises([
         TestTask.create(accounts.cassCade, {
-            title: "Review Holly’s sales one-pager edits",
+            title: "Review Holly\u2019s sales one-pager edits",
             assignee: accounts.cassCade,
             priority: "Medium",
             dueDate: daysFromToday(3),
@@ -127,7 +127,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     // ── Closed (for visual texture in the Closed section) ────────────────
 
     const reliabilityShipAnnouncement = await TestTask.create(accounts.cassCade, {
-        title: "Draft announcement for Elle’s realtime reliability ship",
+        title: "Draft announcement for Elle\u2019s realtime reliability ship",
         assignee: accounts.cassCade,
         priority: "Medium",
         dueDate: daysFromToday(-4),
@@ -159,33 +159,35 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     await recorder.record({
         instructions: markdown`
-Cass starts her day in “My tasks.” It’s the single page where she sees what’s active, what’s
-overdue, what’s due today, and what’s coming up across everything assigned to her. The demo shows
-three quick beats: closing yesterday’s overdue task, filtering by priority to surface 2 unscheduled
-High-priority items – one of which is bumped to Active while the other is scheduled for the end of
-the week.
+Cass starts her day in \u201CMy tasks.\u201D It\u2019s the single page where she sees what\u2019s
+active, what\u2019s overdue, what\u2019s due today, and what\u2019s coming up across everything
+assigned to her. The demo shows three quick beats: closing yesterday\u2019s overdue task, filtering
+by priority to surface 2 unscheduled High-priority items – one of which is bumped to Active while
+the other is scheduled for the end of the week.
 
-1. Expand the Chrome window so the corner radiuses aren’t in the recording frame.
+1. Expand the Chrome window so the corner radiuses aren\u2019t in the recording frame.
 
-2. Start recording on the “My tasks” page. Scroll slowly once from the top through “Overdue,” “Due
-   today,” “Due soon,” and “Remaining” so the shape of the day is visible, then scroll back up.
+2. Start recording on the \u201CMy tasks\u201D page. Scroll slowly once from the top through
+   \u201COverdue,\u201D \u201CDue today,\u201D \u201CDue soon,\u201D and \u201CRemaining\u201D so
+   the shape of the day is visible, then scroll back up.
 
-3. **Close the overdue task.** In the “Overdue” section, click the status circle on “Send Q4
-   planning input deadline reminder” to close it. The section should collapse away or update so the
-   list tightens up.
+3. **Close the overdue task.** In the \u201COverdue\u201D section, click the status circle on
+   \u201CSend Q4 planning input deadline reminder\u201D to close it. The section should collapse
+   away or update so the list tightens up.
 
 4. **Filter by High priority.** Open the filter/sort menu at the top of the view, add a priority
-   filter, and select “High.” The list should now show only High-priority items across sections.
+   filter, and select \u201CHigh.\u201D The list should now show only High-priority items across
+   sections.
 
-5. **Find “SSO scoping next steps with Elle”** in the “Remaining” section (no due date). Click the
-   status circle / Active toggle to mark it Active. It should animate up into the “Active” section
-   at the top of the view.
+5. **Find \u201CSSO scoping next steps with Elle\u201D** in the \u201CRemaining\u201D section (no
+   due date). Click the status circle / Active toggle to mark it Active. It should animate up into
+   the \u201CActive\u201D section at the top of the view.
 
-6. **Find “Notification controls: gather Q4 input”** in the “Remaining” section (no due date). Click
-   the date picker and set the due date to the end of the week.
+6. **Find \u201CNotification controls: gather Q4 input\u201D** in the \u201CRemaining\u201D section
+   (no due date). Click the date picker and set the due date to the end of the week.
 
 7. Clear the priority filter so the list looks tidy as the recording ends, and leave the mouse near
-   the “Active” section header so the loop point is clean.
+   the \u201CActive\u201D section header so the loop point is clean.
         `,
         session: accounts.cassCade,
         path: `/s/${space.id}/tasks`,

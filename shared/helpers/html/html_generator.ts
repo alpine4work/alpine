@@ -233,7 +233,6 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         let html = `<${this.tagName}`;
 
         for (const [attributeName, attributeValue] of this._attributes) {
-            // eslint-disable-next-line cyberworlds/string-quotes
             html += ` ${attributeName}="${escapeHtml(attributeValue)}"`;
         }
 

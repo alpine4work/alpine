@@ -126,7 +126,7 @@ describe("dangerouslyGetRemoveFromSiteTransactionEntries", () => {
         expect(attrs.firstEntityId).toBe(secondEntityId);
     });
 
-    test("throws NotFoundError when entity doesn’t exist in the site", async () => {
+    test("throws NotFoundError when entity doesn\u2019t exist in the site", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const site = await TestSite.create(session);

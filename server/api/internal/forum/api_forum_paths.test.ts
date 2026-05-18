@@ -145,7 +145,7 @@ describe("/channels/{id}/mention", () => {
         });
     });
 
-    test("can’t read channel mention without access", async () => {
+    test("can\u2019t read channel mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -164,13 +164,15 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("You aren’t allowed to access this channel."),
+                    message: expect.stringMatching(
+                        "You aren\u2019t allowed to access this channel.",
+                    ),
                 }),
             },
         });
     });
 
-    test("can’t read channel mention for non-existent channel", async () => {
+    test("can\u2019t read channel mention for non-existent channel", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -186,7 +188,7 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This channel doesn’t exist"),
+                    message: expect.stringMatching("This channel doesn\u2019t exist"),
                 }),
             },
         });
@@ -325,7 +327,7 @@ describe("/posts/{id}/mention", () => {
         });
     });
 
-    test("can’t read post mention without access", async () => {
+    test("can\u2019t read post mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -344,7 +346,7 @@ describe("/posts/{id}/mention", () => {
         expect(response.body.error.message).toMatch(/You aren.t allowed/);
     });
 
-    test("can’t read post mention for non-existent post", async () => {
+    test("can\u2019t read post mention for non-existent post", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 

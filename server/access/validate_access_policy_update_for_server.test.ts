@@ -105,7 +105,7 @@ test("bots cannot update existing access policies", async () => {
             oldAccessPolicy,
             newAccessPolicy,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Bots can’t update access policies"));
+    ).rejects.toThrow(new PermissionDeniedError("Bots can\u2019t update access policies"));
 });
 
 test("bots can create new access policies", async () => {
@@ -135,7 +135,7 @@ test("bots can create new access policies", async () => {
     ).resolves.not.toThrow();
 });
 
-test("bots can’t create new access policies if they don’t have access to the conversation", async () => {
+test("bots can\u2019t create new access policies if they don\u2019t have access to the conversation", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const session = await space.createSession();

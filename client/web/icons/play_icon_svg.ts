@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 import {Play} from "phosphor-react";
 

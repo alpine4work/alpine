@@ -402,7 +402,7 @@ export async function createLandingPageScenario(
                     // Move the mouse so we don't show any hover states.
                     await page.mouse.move(0, 0);
 
-                    // Hide times on inbox entries because it'll all be the same time which wouldn’t
+                    // Hide times on inbox entries because it'll all be the same time which wouldn't
                     // make sense.
                     await page.evaluate("dev.inbox.toggleEntryTimeVisibility()");
 

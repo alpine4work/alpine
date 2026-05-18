@@ -1117,7 +1117,7 @@ async function callChatGptAgentFunction({
                 throw new InvalidArgumentError(
                     "Missing required `title` and `content` in function call arguments",
                     {
-                        displayMessage: errorDisplayMessage`The function call’s arguments must include \`title\` and \`content\` strings.`,
+                        displayMessage: errorDisplayMessage`The function call\u2019s arguments must include \`title\` and \`content\` strings.`,
                     },
                 );
             }

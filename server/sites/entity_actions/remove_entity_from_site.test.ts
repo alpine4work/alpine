@@ -112,7 +112,7 @@ describe("removeEntityFromSite", () => {
                     }),
                 ]);
 
-                // Channel\u2019s access policy should be the site\u2019s Local access policy
+                // Channel's access policy should be the site's Local access policy
                 expect(channelPreview.accessPolicy).toEqual(
                     new AccessPolicyModel(sitePreview.initialData.accessPolicy),
                 );
@@ -182,7 +182,7 @@ describe("removeEntityFromSite", () => {
                     }),
                 ]);
 
-                // Chat\u2019s access policy should be Local
+                // Chat's access policy should be Local
                 expect(chatDefinition.definition).toEqual(
                     expect.objectContaining({
                         type: "Room",
@@ -236,7 +236,7 @@ describe("removeEntityFromSite", () => {
                     }),
                 ]);
 
-                // Task\u2019s access policy should match the site\u2019s Local access policy
+                // Task's access policy should match the site's Local access policy
                 expect(taskAccessPolicy).toEqual(sitePreview.initialData.accessPolicy);
             });
         },
@@ -381,8 +381,8 @@ describe("removeEntityFromSite", () => {
 describe("addEntityToSite and removeEntityFromSite edge cases", () => {
     // TODO(#sites): Re-add after removal fails with ConditionalCheckFailed because
     // `dangerouslyGetAddToSiteTransactionEntries` uses
-    // `transactionCreateItemWithEvent` which expects the item doesn\u2019t exist.
-    // After deletion, the realtime table still has a tombstone. Fix by using
+    // `transactionCreateItemWithEvent` which expects the item doesn't exist. After
+    // deletion, the realtime table still has a tombstone. Fix by using
     // `transactionCreateOrReplaceItemWithEvent` instead.
     test("add then remove then re-add increments the entity version", async () => {
         const space = await TestSpace.create(context);

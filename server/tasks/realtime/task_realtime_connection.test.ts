@@ -17807,7 +17807,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
 // an assignee without site access _sees_ in the UI (no site chrome, task opens,
 // etc.). This unit test only locks down the realtime payload — that the site
 // preview doesn't get surfaced to a viewer who lacks access to it.
-test("assignee retains task access when task is in a site they can’t access", async () => {
+test("assignee retains task access when task is in a site they can\u2019t access", async () => {
     const space = await TestSpace.create(context);
     const owner = await space.createSession();
     const assignee = await space.createSession();

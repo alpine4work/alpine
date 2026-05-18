@@ -37,7 +37,7 @@ export function mergeNewSitePositionIntoSiteEntry<Entry extends SiteTreeEntry>(
             };
         case "TopBar":
         case "SideBar":
-            throw new InvalidArgumentError("Can’t move the top bar or side bar");
+            throw new InvalidArgumentError("Can\u2019t move the top bar or side bar");
         default:
             throw exhaustive(entry);
     }

@@ -289,7 +289,6 @@ export function PostContentView({
         // apply our scroll after that.
         scheduleMicrotask(() => {
             const fileElement = contentContainerElement.querySelector(
-                // eslint-disable-next-line cyberworlds/string-quotes
                 `[data-pos="${fileNodePos}"]`,
             );
             if (!fileElement) return;

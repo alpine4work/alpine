@@ -18,8 +18,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const timeZone = getCurrentTimeZone();
     const currentDate = today(timeZone);
 
-    // Anchor inbox texture to the recording day so \u201C2h ago\u201D /
-    // \u201Cyesterday\u201D stays realistic when the demo is re-shot.
+    // Anchor inbox texture to the recording day so "2h ago" / "yesterday" stays
+    // realistic when the demo is re-shot.
     const todayAt = (hour: number, minute: number) =>
         new CalendarDateTime(
             currentDate.year,
@@ -93,7 +93,7 @@ No other roles opening this quarter.
 
     // 2. Background texture: channel posts. One engineering channel, two posts from
     //    different authors across the past couple of days. They show up as a single
-    //    bucketed \u201CChannelPosts\u201D inbox entry.
+    //    bucketed "ChannelPosts" inbox entry.
     const engineering = await TestChannel.create(accounts.cassCade, {
         name: "Engineering",
         access: "Public",
@@ -133,8 +133,8 @@ Feeds directly into Q3 and Q4 planning. Happy to walk anyone through the raw dat
     );
 
     // 3. Background texture: document comment threads. Two separate docs produce two
-    //    \u201CDocumentNewCommentThreads\u201D inbox entries. Cass is the creator on
-    //    both so the notifications flow to her.
+    //    "DocumentNewCommentThreads" inbox entries. Cass is the creator on both so the
+    //    notifications flow to her.
     const tablesDesignSpec = await TestDocument.create(accounts.cassCade, {
         title: "Tables Design Spec",
         access: "Public",
@@ -212,9 +212,9 @@ after.
 
     // 4. The three urgent DMs. Each has a lived-in backlog spanning several days so
     //    the chat feels like a real ongoing conversation when Cass opens it, plus a
-    //    newest unread message that\u2019s driving the action. The newest message on
-    //    each is \u201Ctoday\u201D so the three DMs sort above the older posts and
-    //    comments in the inbox.
+    //    newest unread message that's driving the action. The newest message on each
+    //    is "today" so the three DMs sort above the older posts and comments in the
+    //    inbox.
     const [roseCass, cliffCass, mattCass] = await runAllPromises([
         TestChat.get(accounts.cassCade, accounts.roseCompas),
         TestChat.get(accounts.cassCade, accounts.cliffWeathers),
@@ -279,8 +279,8 @@ after.
     );
 
     // Cliff <> Cass. Context: pipeline + Acme blocked on SSO. Cliff is upbeat with
-    // exclamation points. Cass is terse-professional. His newest message is the
-    // \u201Creply in-line\u201D one Cass will respond to.
+    // exclamation points. Cass is terse-professional. His newest message is the "reply
+    // in-line" one Cass will respond to.
     await cliffCass.sendMessage(
         accounts.cliffWeathers,
         "Acme call locked in for wednesday! Demo plus procurement in the same room. Big week.",

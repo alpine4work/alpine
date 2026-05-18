@@ -1375,7 +1375,7 @@ test("can paste a formatted list and it will create tasks in a detail view\u2019
     );
 });
 
-test("can paste a formatted list and it will create tasks in a detail view’s subtasks when the last pasted task is a child", async ({
+test("can paste a formatted list and it will create tasks in a detail view\u2019s subtasks when the last pasted task is a child", async ({
     page,
     context: browserContext,
 }) => {

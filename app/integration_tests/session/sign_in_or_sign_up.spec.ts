@@ -593,7 +593,7 @@ test("can sign in from invite link", async ({browser, page: page1, isMobile}) =>
     await page3.close();
 });
 
-test("can’t sign in with email that doesn’t have an account", async ({page}) => {
+test("can\u2019t sign in with email that doesn\u2019t have an account", async ({page}) => {
     await page.goto("/auth/sign-in");
 
     const emailId = generateId();
@@ -601,11 +601,11 @@ test("can’t sign in with email that doesn’t have an account", async ({page})
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
 
     await page.getByRole("button", {name: "Sign in"}).click();
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeVisible();
     await expect(page.getByPlaceholder("name@company.com")).toHaveValue(
         `test.${emailId}@gmail.com`,
     );
@@ -618,13 +618,13 @@ test("can’t sign in with email that doesn’t have an account", async ({page})
     await expect(page.getByRole("button", {name: "Sign in"})).toBeHidden();
     await expect(page.getByRole("button", {name: "Sign up"})).toBeVisible();
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
     await expect(page.getByPlaceholder("name@company.com")).toHaveValue(
         `test.${emailId}@gmail.com`,
     );
 });
 
-test("can’t sign up with email that already has an account", async ({
+test("can\u2019t sign up with email that already has an account", async ({
     browser,
     page: page1,
     isMobile,
@@ -649,11 +649,11 @@ test("can’t sign up with email that already has an account", async ({
     await page2.getByPlaceholder("name@company.com").click();
     await page2.getByPlaceholder("name@company.com").fill(emailAddress);
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
 
     await page2.getByRole("button", {name: "Sign up"}).click();
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeVisible();
     await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(emailAddress);
 
     await expect(page2.getByRole("button", {name: "Sign up"})).toBeVisible();
@@ -664,13 +664,17 @@ test("can’t sign up with email that already has an account", async ({
     await expect(page2.getByRole("button", {name: "Sign up"})).toBeHidden();
     await expect(page2.getByRole("button", {name: "Sign in"})).toBeVisible();
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
     await expect(page2.getByPlaceholder("name@company.com")).toHaveValue(emailAddress);
 
     await page2.close();
 });
 
-test("can restart sign up if sign up hasn’t finished", async ({browser, page: page1, isMobile}) => {
+test("can restart sign up if sign up hasn\u2019t finished", async ({
+    browser,
+    page: page1,
+    isMobile,
+}) => {
     await page1.goto("/auth/sign-up");
 
     const emailId = generateId();
@@ -697,7 +701,7 @@ test("can restart sign up if sign up hasn’t finished", async ({browser, page: 
     await page2.close();
 });
 
-test("sign in will redirect to sign up if if sign up hasn’t finished", async ({
+test("sign in will redirect to sign up if if sign up hasn\u2019t finished", async ({
     browser,
     page: page1,
     isMobile,
@@ -731,7 +735,7 @@ test("sign in will redirect to sign up if if sign up hasn’t finished", async (
     await page2.close();
 });
 
-test("can’t sign in with email that doesn’t have an account and preserve `to` search param", async ({
+test("can\u2019t sign in with email that doesn\u2019t have an account and preserve `to` search param", async ({
     page,
 }) => {
     await page.goto(`/auth/sign-in?to=${encodeURIComponent("/create-space")}`);
@@ -741,22 +745,22 @@ test("can’t sign in with email that doesn’t have an account and preserve `to
     await page.getByPlaceholder("name@company.com").click();
     await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
 
     await page.getByRole("button", {name: "Sign in"}).click();
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeVisible();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeVisible();
 
     await page.getByRole("link", {name: "sign up", exact: true}).click();
 
-    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+    await expect(page.getByText("Couldn\u2019t sign in. Can\u2019t find an account")).toBeHidden();
     await expect(page.getByRole("button", {name: "Sign up"})).toBeVisible();
 
     await expect(page).toHaveURL(/\/auth\/sign-up(?:\?|$)/);
     await expect(page).toHaveURL(/(?:\?|&)to=%2Fcreate-space(?:&|$)/);
 });
 
-test("can’t sign up with email that already has an account and preserve `to` search param", async ({
+test("can\u2019t sign up with email that already has an account and preserve `to` search param", async ({
     browser,
     page: page1,
     isMobile,
@@ -781,15 +785,15 @@ test("can’t sign up with email that already has an account and preserve `to` s
     await page2.getByPlaceholder("name@company.com").click();
     await page2.getByPlaceholder("name@company.com").fill(emailAddress);
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
 
     await page2.getByRole("button", {name: "Sign up"}).click();
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeVisible();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeVisible();
 
     await page2.getByRole("link", {name: "signing in", exact: true}).click();
 
-    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByText("Couldn\u2019t sign up. The email")).toBeHidden();
     await expect(page2.getByRole("button", {name: "Sign in"})).toBeVisible();
 
     await expect(page2).toHaveURL(/\/auth\/sign-in(?:\?|$)/);

@@ -14,6 +14,51 @@ function createUseUnicodeEscapeMessage(codePoint) {
     return `Use the Unicode escape \`\\u${codePoint}\` instead of \`&#x${codePoint};\` in strings. HTML entities are not interpreted in JavaScript strings and will render literally.`;
 }
 
+function createUseUnicodeEscapeForCurlyQuoteMessage(codePoint) {
+    return `Use the Unicode escape \`\\u${codePoint}\` instead of a raw curly quotation mark in strings.`;
+}
+
+function createUseHtmlEntityForCurlyQuoteMessage(codePoint) {
+    return `Use the HTML entity \`&#x${codePoint};\` instead of a raw curly quotation mark in JSX.`;
+}
+
+function createUseStraightQuoteInCommentMessage(straightQuote) {
+    return `Use a straight quotation mark \`${straightQuote}\` in comments instead of a curly quotation mark or quote escape.`;
+}
+
+const curlyQuoteCodePoints = new Map([
+    ["\u201C", "201C"],
+    ["\u201D", "201D"],
+    ["\u2018", "2018"],
+    ["\u2019", "2019"],
+]);
+
+const straightQuotesByCodePoint = new Map([
+    ["201C", '"'],
+    ["201D", '"'],
+    ["2018", "'"],
+    ["2019", "'"],
+]);
+
+const codePointsByDecimalHtmlEntity = new Map([
+    ["8220", "201C"],
+    ["8221", "201D"],
+    ["8216", "2018"],
+    ["8217", "2019"],
+]);
+
+const codePointsByNamedHtmlEntity = new Map([
+    ["ldquo", "201C"],
+    ["rdquo", "201D"],
+    ["lsquo", "2018"],
+    ["rsquo", "2019"],
+]);
+
+const stringQuoteReferences = /[\u201C\u201D\u2018\u2019]|["']|&#x(201C|201D|2018|2019);/giu;
+const jsxQuoteReferences = /[\u201C\u201D\u2018\u2019]|["']|\\u(201C|201D|2018|2019)/giu;
+const commentCurlyQuoteReferences =
+    /[\u201C\u201D\u2018\u2019]|\\u(?:\{(201C|201D|2018|2019)\}|(201C|201D|2018|2019))|&#x(201C|201D|2018|2019);|&#(8216|8217|8220|8221);|&(ldquo|rdquo|lsquo|rsquo);/giu;
+
 module.exports = {
     meta: {
         schema: [],
@@ -35,29 +80,69 @@ module.exports = {
             "useUnicodeEscape:&#x201D;": createUseUnicodeEscapeMessage("201D"),
             "useUnicodeEscape:&#x2018;": createUseUnicodeEscapeMessage("2018"),
             "useUnicodeEscape:&#x2019;": createUseUnicodeEscapeMessage("2019"),
+            "useUnicodeEscapeForCurlyQuote:\\u201C":
+                createUseUnicodeEscapeForCurlyQuoteMessage("201C"),
+            "useUnicodeEscapeForCurlyQuote:\\u201D":
+                createUseUnicodeEscapeForCurlyQuoteMessage("201D"),
+            "useUnicodeEscapeForCurlyQuote:\\u2018":
+                createUseUnicodeEscapeForCurlyQuoteMessage("2018"),
+            "useUnicodeEscapeForCurlyQuote:\\u2019":
+                createUseUnicodeEscapeForCurlyQuoteMessage("2019"),
+            "useHtmlEntityForCurlyQuote:&#x201C;": createUseHtmlEntityForCurlyQuoteMessage("201C"),
+            "useHtmlEntityForCurlyQuote:&#x201D;": createUseHtmlEntityForCurlyQuoteMessage("201D"),
+            "useHtmlEntityForCurlyQuote:&#x2018;": createUseHtmlEntityForCurlyQuoteMessage("2018"),
+            "useHtmlEntityForCurlyQuote:&#x2019;": createUseHtmlEntityForCurlyQuoteMessage("2019"),
+            useStraightDoubleQuoteInComment: createUseStraightQuoteInCommentMessage('"'),
+            useStraightSingleQuoteInComment: createUseStraightQuoteInCommentMessage("'"),
         },
     },
 
     create(context) {
         const sourceCode = context.getSourceCode();
 
-        /**
-         * Reports straight quotes that should be curly quotes, using Unicode escapes. Also
-         * reports HTML entities that should be Unicode escapes. Used for regular strings
-         * and template literals.
-         */
-        function reportStringStraightQuotes(nodeStart, text) {
-            const matches = text.matchAll(/["']/g);
-            let ignoreNextMatch = false;
+        function reportStringQuoteReferences(nodeStart, text, state = {ignoreNextMatch: false}) {
+            const matches = text.matchAll(stringQuoteReferences);
 
             for (const match of matches) {
-                if (ignoreNextMatch) {
-                    ignoreNextMatch = false;
+                const quoteReference = match[0];
+                const start = nodeStart + match.index;
+                const end = start + quoteReference.length;
+                const curlyQuoteCodePoint = curlyQuoteCodePoints.get(quoteReference);
+
+                if (curlyQuoteCodePoint !== undefined) {
+                    const unicodeEscape = `\\u${curlyQuoteCodePoint}`;
+
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: `useUnicodeEscapeForCurlyQuote:${unicodeEscape}`,
+                        fix: fixer => fixer.replaceTextRange([start, end], unicodeEscape),
+                    });
                     continue;
                 }
 
-                const start = nodeStart + match.index;
-                const end = start + 1;
+                if (match[1] !== undefined) {
+                    const codePoint = match[1].toUpperCase();
+                    const unicodeEscape = `\\u${codePoint}`;
+                    const htmlEntity = `&#x${codePoint};`;
+
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: `useUnicodeEscape:${htmlEntity}`,
+                        fix: fixer => fixer.replaceTextRange([start, end], unicodeEscape),
+                    });
+                    continue;
+                }
+
+                if (state.ignoreNextMatch) {
+                    state.ignoreNextMatch = false;
+                    continue;
+                }
 
                 const {properQuote, charBefore} = parse(text, match.index);
 
@@ -65,7 +150,7 @@ module.exports = {
                 // developer is writing an HTML attribute (e.g. `<mark class="highlight-red">`).
                 // Don't warn for this quote or the next quote.
                 if (charBefore === "=") {
-                    ignoreNextMatch = true;
+                    state.ignoreNextMatch = true;
                     continue;
                 }
 
@@ -80,41 +165,43 @@ module.exports = {
             }
         }
 
-        /**
-         * Reports HTML entities that should be Unicode escapes. Used for regular strings
-         * and template literals.
-         */
-        function reportStringHtmlEntities(nodeStart, text) {
-            const entityMatches = text.matchAll(/&#x(201C|201D|2018|2019);/gi);
+        function reportJsxQuoteReferences(nodeStart, text) {
+            const matches = text.matchAll(jsxQuoteReferences);
 
-            for (const match of entityMatches) {
+            for (const match of matches) {
+                const quoteReference = match[0];
                 const start = nodeStart + match.index;
-                const end = start + match[0].length;
-                const codePoint = match[1].toUpperCase();
-                const unicodeEscape = `\\u${codePoint}`;
-                const htmlEntity = `&#x${codePoint};`;
+                const end = start + quoteReference.length;
+                const curlyQuoteCodePoint = curlyQuoteCodePoints.get(quoteReference);
 
-                context.report({
-                    loc: {
-                        start: sourceCode.getLocFromIndex(start),
-                        end: sourceCode.getLocFromIndex(end),
-                    },
-                    messageId: `useUnicodeEscape:${htmlEntity}`,
-                    fix: fixer => fixer.replaceTextRange([start, end], unicodeEscape),
-                });
-            }
-        }
+                if (curlyQuoteCodePoint !== undefined) {
+                    const htmlEntity = `&#x${curlyQuoteCodePoint};`;
 
-        /**
-         * Reports straight quotes that should be curly quotes, using HTML entities. Used
-         * for JSX text and JSX attribute strings.
-         */
-        function reportJsxStraightQuotes(nodeStart, text) {
-            const quoteMatches = text.matchAll(/["']/g);
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: `useHtmlEntityForCurlyQuote:${htmlEntity}`,
+                        fix: fixer => fixer.replaceTextRange([start, end], htmlEntity),
+                    });
+                    continue;
+                }
 
-            for (const match of quoteMatches) {
-                const start = nodeStart + match.index;
-                const end = start + 1;
+                if (match[1] !== undefined) {
+                    const codePoint = match[1].toUpperCase();
+                    const htmlEntity = `&#x${codePoint};`;
+
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: `useHtmlEntity:\\u${codePoint}`,
+                        fix: fixer => fixer.replaceTextRange([start, end], htmlEntity),
+                    });
+                    continue;
+                }
 
                 const {properQuote} = parse(text, match.index);
                 const properHtmlEntity = `&#x${properQuote.slice(2)};`;
@@ -131,30 +218,40 @@ module.exports = {
         }
 
         /**
-         * Reports Unicode escapes that should be HTML entities. Used for JSX text and JSX
-         * attribute strings.
+         * Reports raw curly quote characters and curly quote escapes in comments. Comments
+         * should use regular straight quotes instead.
          */
-        function reportJsxUnicodeEscapes(nodeStart, text) {
-            const escapeMatches = text.matchAll(/\\u(201C|201D|2018|2019)/g);
+        function reportCommentCurlyQuoteReferences(comment) {
+            const commentStart = comment.range[0] + 2;
+            const matches = comment.value.matchAll(commentCurlyQuoteReferences);
 
-            for (const match of escapeMatches) {
-                const start = nodeStart + match.index;
+            for (const match of matches) {
+                const start = commentStart + match.index;
                 const end = start + match[0].length;
-                const codePoint = match[1];
-                const htmlEntity = `&#x${codePoint};`;
+                const codePoint = getCommentCurlyQuoteCodePoint(match[0]);
+                const straightQuote = getStraightQuoteForCodePoint(codePoint);
+                const messageId =
+                    straightQuote === '"'
+                        ? "useStraightDoubleQuoteInComment"
+                        : "useStraightSingleQuoteInComment";
 
                 context.report({
                     loc: {
                         start: sourceCode.getLocFromIndex(start),
                         end: sourceCode.getLocFromIndex(end),
                     },
-                    messageId: `useHtmlEntity:\\u${codePoint}`,
-                    fix: fixer => fixer.replaceTextRange([start, end], htmlEntity),
+                    messageId,
+                    fix: fixer => fixer.replaceTextRange([start, end], straightQuote),
                 });
             }
         }
 
         return {
+            Program() {
+                for (const comment of sourceCode.getAllComments()) {
+                    reportCommentCurlyQuoteReferences(comment);
+                }
+            },
             Literal(node) {
                 if (typeof node.value !== "string") return;
 
@@ -164,27 +261,27 @@ module.exports = {
                 // JSX attribute strings should use HTML entities instead of Unicode escapes, just
                 // like JSX text.
                 if (node.parent.type === "JSXAttribute") {
-                    reportJsxStraightQuotes(nodeStart, text);
-                    reportJsxUnicodeEscapes(nodeStart, text);
+                    reportJsxQuoteReferences(nodeStart, text);
                     return;
                 }
 
-                reportStringStraightQuotes(nodeStart, text);
-                reportStringHtmlEntities(nodeStart, text);
+                reportStringQuoteReferences(nodeStart, text);
             },
-            TemplateElement(node) {
-                const nodeStart = node.range[0] + 1;
-                const text = node.value.raw;
+            TemplateLiteral(node) {
+                const state = {ignoreNextMatch: false};
 
-                reportStringStraightQuotes(nodeStart, text);
-                reportStringHtmlEntities(nodeStart, text);
+                for (const quasi of node.quasis) {
+                    const nodeStart = quasi.range[0] + 1;
+                    const text = quasi.value.raw;
+
+                    reportStringQuoteReferences(nodeStart, text, state);
+                }
             },
             JSXText(node) {
                 const nodeStart = node.range[0];
                 const text = node.raw;
 
-                reportJsxStraightQuotes(nodeStart, text);
-                reportJsxUnicodeEscapes(nodeStart, text);
+                reportJsxQuoteReferences(nodeStart, text);
             },
         };
     },
@@ -235,4 +332,43 @@ function parse(text, index) {
         charBefore,
         charAfter,
     };
+}
+
+function getStraightQuoteForCodePoint(codePoint) {
+    const straightQuote = straightQuotesByCodePoint.get(codePoint);
+
+    if (straightQuote === undefined) {
+        throw new Error(`Unexpected curly quote code point ${codePoint}`);
+    }
+
+    return straightQuote;
+}
+
+function getCommentCurlyQuoteCodePoint(quoteReference) {
+    const curlyQuoteCodePoint = curlyQuoteCodePoints.get(quoteReference);
+    if (curlyQuoteCodePoint !== undefined) return curlyQuoteCodePoint;
+
+    const unicodeEscapeMatch = /^\\u(?:\{(201C|201D|2018|2019)\}|(201C|201D|2018|2019))$/i.exec(
+        quoteReference,
+    );
+    if (unicodeEscapeMatch !== null) {
+        return (unicodeEscapeMatch[1] ?? unicodeEscapeMatch[2]).toUpperCase();
+    }
+
+    const hexHtmlEntityMatch = /^&#x(201C|201D|2018|2019);$/i.exec(quoteReference);
+    if (hexHtmlEntityMatch !== null) {
+        return hexHtmlEntityMatch[1].toUpperCase();
+    }
+
+    const decimalHtmlEntityMatch = /^&#(8216|8217|8220|8221);$/.exec(quoteReference);
+    if (decimalHtmlEntityMatch !== null) {
+        return codePointsByDecimalHtmlEntity.get(decimalHtmlEntityMatch[1]);
+    }
+
+    const namedHtmlEntityMatch = /^&(ldquo|rdquo|lsquo|rsquo);$/i.exec(quoteReference);
+    if (namedHtmlEntityMatch !== null) {
+        return codePointsByNamedHtmlEntity.get(namedHtmlEntityMatch[1].toLowerCase());
+    }
+
+    throw new Error(`Unexpected curly quote reference ${quoteReference}`);
 }

@@ -58,8 +58,8 @@ executive summary of everything the engineering team worked in Q1 2026 and wheth
 estimates from
 [Product Roadmap (Q1 2026)](https://alpine.inc/s/{{spaceId}}/documents/{{roadmapDocumentId}}?mention).
 
-cc [Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) let’s use
-this for our retro today
+cc [Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) let\u2019s
+use this for our retro today
                         `,
                         {
                             spaceId: space.id,

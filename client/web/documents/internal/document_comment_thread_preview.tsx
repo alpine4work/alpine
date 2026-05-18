@@ -93,7 +93,6 @@ export function DocumentCommentThreadPreview({
         const previewContentElement = assertExists(previewContentRef.current);
 
         const commentElement = assertExists(
-            // eslint-disable-next-line cyberworlds/string-quotes
             previewContentElement.querySelector(`[data-comment="${commentThread.id}"]`),
             "Snippet should contain previewed comment thread",
         );

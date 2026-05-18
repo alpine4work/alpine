@@ -291,7 +291,6 @@ describe("serializeEmailMessageToMimeString", () => {
             "MIME-Version: 1.0",
             `Message-ID: <${message.id}@test.cyberworlds.dev>`,
             `X-Alpine-Message-Id: ${message.id}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -344,7 +343,6 @@ describe("serializeEmailMessageToMimeString", () => {
             "MIME-Version: 1.0",
             `Message-ID: <${message.id}@test.cyberworlds.dev>`,
             `X-Alpine-Message-Id: ${message.id}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
             "",
             `--${boundary}`,
@@ -401,11 +399,9 @@ describe("serializeEmailMessageToMimeString", () => {
             "MIME-Version: 1.0",
             `Message-ID: <${message.id}@test.cyberworlds.dev>`,
             `X-Alpine-Message-Id: ${message.id}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
             "",
             `--${mixedBoundary}`,
-            // eslint-disable-next-line cyberworlds/string-quotes
             `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
             "",
             `--${altBoundary}`,

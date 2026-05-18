@@ -1377,7 +1377,7 @@ test("can\u2019t update channel access policy with invalid update", async () => 
             notification: null,
         }),
     ).rejects.toThrow(
-        "Can\u2019t set new account grant manage generation to be less than or equal to our actor’s manage generation",
+        "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
     );
 });
 

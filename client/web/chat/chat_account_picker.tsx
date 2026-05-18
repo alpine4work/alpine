@@ -803,7 +803,7 @@ export function ChatAccountPicker({
                             .catch(error => {
                                 if (abortController.signal.aborted) return;
 
-                                reporter.displayError("Couldn’t choose chat", error);
+                                reporter.displayError("Couldn\u2019t choose chat", error);
                             })
                             .finally(() => {
                                 // Make sure we clear our pending item state.

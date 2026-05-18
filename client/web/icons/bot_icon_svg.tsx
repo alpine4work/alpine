@@ -1,4 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
 import escapeHtml from "escape-html";
 import {Robot} from "phosphor-react";
 

@@ -1,4 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes -- Tests need straight quotes for HTML content */
 import {strToU8} from "fflate";
 
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";

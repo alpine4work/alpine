@@ -21521,7 +21521,7 @@ test("access policy grants access even after assignee is removed", async () => {
     );
 });
 
-test("access policy revocation doesn’t remove access when assignee access remains", async () => {
+test("access policy revocation doesn\u2019t remove access when assignee access remains", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -21554,7 +21554,7 @@ test("access policy grants access to child tasks via parent", async () => {
     ).toEqual(true);
 });
 
-test("access policy revocation doesn’t remove access when parent access remains", async () => {
+test("access policy revocation doesn\u2019t remove access when parent access remains", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 

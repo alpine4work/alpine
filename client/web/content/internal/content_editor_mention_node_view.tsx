@@ -206,7 +206,7 @@ export function createContentEditorMentionNodeViewConstructor({
                     },
                     {
                         label: `Turn into ${entityNoun} preview`,
-                        pressErrorTitle: `Couldn’t turn into ${entityNoun} preview`,
+                        pressErrorTitle: `Couldn\u2019t turn into ${entityNoun} preview`,
                         icon: <ArrowSquareOut />,
                         iconPlacement: "end",
                         onPress: async () => {

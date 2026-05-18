@@ -52,8 +52,8 @@ async function createFictionalAmbrookDemoChat1(
     await chat.sendMessage(
         elleKappaTan,
         markdown`
-hey i know you’re probably still off the grid on your adventure but just lmk when you’re back in
-civilization
+hey i know you\u2019re probably still off the grid on your adventure but just lmk when you\u2019re
+back in civilization
         `,
         {
             overrideCreatedTime: baseTime.toDate(timeZone),
@@ -66,8 +66,8 @@ civilization
             markdown`
 Hi Elle! I finally made it back to land today
 
-There were some weather delays which is why I didn’t respond sooner, but everything is good! I’m
-pretty tired but I’ll send you +
+There were some weather delays which is why I didn\u2019t respond sooner, but everything is good!
+I\u2019m pretty tired but I\u2019ll send you +
 [Matt](https://alpine.inc/s/{{spaceId}}/accounts/{{mattRHornAccountId}}?mention=short) the
 sorted/tagged customer feedback as soon as I can
             `,
@@ -150,7 +150,7 @@ sorry one last q, any ideas for what project i work on next?
 Not sure. Before going I was thinking the receipt uploader, but I wonder if the profit dashboard is
 actually more important
 
-I’ll send you some more thoughts tomorrow
+I\u2019ll send you some more thoughts tomorrow
         `,
         {
             overrideCreatedTime: baseTime.add({days: 2, minutes: 18}).toDate(timeZone),
@@ -216,14 +216,14 @@ tag the feedback in
 
     await streamMessage.putStreamPart(chatGpt.action(chat.getBotScope()), 0, {
         type: "Reasoning",
-        content: parseTestMessageContent(space.id, "I’m thinking here"),
+        content: parseTestMessageContent(space.id, "I\u2019m thinking here"),
     });
 
     await streamMessage.putStreamPart(
         chatGpt.action(chat.getBotScope()),
         1,
         markdown`
-Absolutely. I’ll read and group the feedback into clear themes.
+Absolutely. I\u2019ll read and group the feedback into clear themes.
 
 - **Feature: Receipt Mobile Scanner**
 
@@ -232,7 +232,7 @@ Absolutely. I’ll read and group the feedback into clear themes.
 
 - **Feature: Grants Navigator**
 
-    Needs: curated “top X this month,” clear checklists, especially for small/mid farms.
+    Needs: curated \u201Ctop X this month,\u201D clear checklists, especially for small/mid farms.
 
 - **Feature: Profit by Acre Dashboard**
 

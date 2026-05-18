@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 import {BellRinging} from "phosphor-react";
 

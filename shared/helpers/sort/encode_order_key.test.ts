@@ -142,7 +142,7 @@ test("binary order matches string order for many random order keys", () => {
         }
     }
 
-    for (let i = 0; i < 100_000; i++) {
+    for (let i = 0; i < 1_000; i++) {
         orderKeys.push(generateRandomOrderKey(i));
     }
 

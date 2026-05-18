@@ -48,7 +48,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.getByLabel("Email").fill(signUpEmailAddress);
     await runner.getByRole("button", {name: "Sign up"}).click();
-    await runner.getByText("Nice to meet you, what’s your name?").waitFor();
+    await runner.getByText("Nice to meet you, what\u2019s your name?").waitFor();
     await runner.getByRole("option").nth(15).click();
     await runner.screenshot("a3", "sign-up-profile");
 

@@ -535,7 +535,7 @@ describe("ImmutableSiteTree#deleteEntry", () => {
         const tree = makeTree(sidebar, section, child);
 
         expect(() => tree.deleteEntry(sectionKey)).toThrow(
-            "Can’t delete a container that has children",
+            "Can\u2019t delete a container that has children",
         );
     });
 

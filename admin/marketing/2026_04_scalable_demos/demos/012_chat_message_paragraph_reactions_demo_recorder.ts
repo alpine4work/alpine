@@ -10,8 +10,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     const chat = await TestChat.get(accounts.cliffWeathers, accounts.cassCade);
 
-    // A tiny bit of prior context so the chat doesn\u2019t look empty when the
-    // recording starts.
+    // A tiny bit of prior context so the chat doesn't look empty when the recording
+    // starts.
     await chat.sendMessage(accounts.cliffWeathers, "Morning! Quick question...");
     await chat.sendMessage(accounts.cassCade, "Yeah what\u2019s up");
 

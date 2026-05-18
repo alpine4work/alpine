@@ -1740,7 +1740,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                                     <Box fontSize="50">
                                         Tasks are saved automatically as you type.
                                         <br />
-                                        Press esc to close when you’re done editing.
+                                        Press esc to close when you&#x2019;re done editing.
                                     </Box>
                                 </Box>
                             }

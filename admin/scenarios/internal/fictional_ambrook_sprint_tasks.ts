@@ -301,7 +301,7 @@ export async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(mattRHorn, {
-                title: "Dashboard cards v1 with “view in ledger” link",
+                title: "Dashboard cards v1 with \u201Cview in ledger\u201D link",
                 collections: [
                     sprintCollection,
                     profitByAcreDashboardCollection,
@@ -341,7 +341,7 @@ export async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(masonClay, {
-                title: "“Approve & post” expenses UX + undo",
+                title: "\u201CApprove & post\u201D expenses UX + undo",
                 collections: [sprintCollection, receiptMobileScannerCollection],
                 priority: "Medium",
                 assignee: masonClay,
@@ -351,7 +351,7 @@ export async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(cassCade, {
-                title: "Program match score + “why this matched” explainer copy",
+                title: "Program match score + \u201Cwhy this matched\u201D explainer copy",
                 collections: [sprintCollection, grantsNavigatorCollection, aiCollection],
                 priority: "Medium",
                 assignee: cassCade,
@@ -370,7 +370,7 @@ export async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(cassCade, {
-                title: "“Explain this number” inline notes for primary metrics",
+                title: "\u201CExplain this number\u201D inline notes for primary metrics",
                 collections: [sprintCollection, profitByAcreDashboardCollection],
                 priority: "Medium",
                 assignee: cassCade,
@@ -414,7 +414,7 @@ export async function createFictionalAmbrookSprintTasks({
         })(),
         (async () => {
             const task = await TestTask.create(masonClay, {
-                title: "Voice natural language processing (e.g. “allocate 73 gal to harvest”)",
+                title: "Voice natural language processing (e.g. \u201Callocate 73 gal to harvest\u201D)",
                 collections: [sprintCollection, receiptMobileScannerCollection, aiCollection],
                 priority: "Low",
                 assignee: masonClay,

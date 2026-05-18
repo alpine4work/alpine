@@ -247,7 +247,7 @@ test("task collection in a site is searchable by site name", async () => {
     await ProcessContextModule.waitForTestTasks();
 });
 
-test("renaming a site reindexes contained entities so they’re findable by the new name", async () => {
+test("renaming a site reindexes contained entities so they\u2019re findable by the new name", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

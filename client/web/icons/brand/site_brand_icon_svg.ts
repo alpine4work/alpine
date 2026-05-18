@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
