@@ -104,7 +104,7 @@ export async function addEntityToSite(
             // 1. Constructing a `DocAttrStep` that updates the doc's `accessPolicy` attribute
             //    to a `Site` policy.
             // 2. Sending the step to the document's collaboration durable object via the
-            //    `/put-content-without-optimistic-broadcast` HTTP route, which persists the
+            //    `/update-content-without-optimistic-broadcast` HTTP route, which persists the
             //    document write before broadcasting steps to connected clients.
             // 3. Setting `intentionallyUpdateAccessPolicy` (with `sitePosition`) so
             //    `updateDocumentContent` recognizes this as an intentional access policy
@@ -119,9 +119,13 @@ export async function addEntityToSite(
             const {eventTransactionForSite} =
                 DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.deserialize(
                     await context.edge.sendRequestToDurableObject(
+                        // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
+                        // durable object has been deployed.
                         `/api/durable-objects/documents/${entity.documentId}/put-content-without-optimistic-broadcast`,
                         {
                             serviceName: "DocumentCollaborationService",
+                            // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
+                            // durable object has been deployed.
                             route: "/api/durable-objects/documents/:documentId/put-content-without-optimistic-broadcast",
                             body: DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.inputSchema.serialize(
                                 {

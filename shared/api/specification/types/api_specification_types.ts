@@ -686,7 +686,12 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly put: {
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
                 readonly parameters: {
                     readonly query?: never;
                     readonly header?: never;
@@ -711,11 +716,6 @@ export namespace ApiSpecification {
                     readonly default: components["responses"]["Error"];
                 };
             };
-            readonly post?: never;
-            readonly delete?: never;
-            readonly options?: never;
-            readonly head?: never;
-            readonly patch?: never;
             readonly trace?: never;
         };
         readonly "/documents/{id}/mention": {

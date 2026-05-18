@@ -458,7 +458,7 @@ paths:
                     $ref: "#/components/responses/GetDocument"
                 default:
                     $ref: "#/components/responses/Error"
-        put:
+        patch:
             requestBody:
                 required: true
                 content:

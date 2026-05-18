@@ -20,8 +20,8 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {
-    DocumentCollaborationPutContentRequestBodySchema,
-    DocumentCollaborationPutContentResponseBodySchema,
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -37,11 +37,14 @@ const context = createTestContext({
     documentsInjection,
     tasksInjection,
 
-    // Reimplement the Durable Object `/put-content` route in tests so we can test the
-    // API endpoint. The actual route in `DocumentCollaborationDurableObject` isn't
-    // that dissimilar from what you see here.
+    // Reimplement the Durable Object `/update-content-with-diff` route in tests so we
+    // can test the API endpoint. The actual route in
+    // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
+    // here.
     sendRequestToDurableObject: async (actualContext, request) => {
-        const match = request.url.match(/^\/api\/durable-objects\/documents\/([^/]+)\/put-content/);
+        const match = request.url.match(
+            /^\/api\/durable-objects\/documents\/([^/]+)\/update-content-with-diff/,
+        );
         if (!match) return;
 
         const context = (actualContext as ApiServiceBotActionContext).dynamo
@@ -51,7 +54,7 @@ const context = createTestContext({
 
         const documentId = assertId<DocumentId>(match[1]!);
 
-        const requestBody = DocumentCollaborationPutContentRequestBodySchema.deserialize(
+        const requestBody = DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
             request.body ?? null,
         );
 
@@ -91,7 +94,7 @@ const context = createTestContext({
             clientId: generateId(),
         });
 
-        return DocumentCollaborationPutContentResponseBodySchema.serialize({
+        return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
             ok: true,
             spaceId: document.spaceId,
             creatorId: document.creator.id,
@@ -935,8 +938,8 @@ describe("comment threads", () => {
     });
 });
 
-describe("PUT /documents/{id}", () => {
-    test("no-op PUT returns the unchanged document", async () => {
+describe("PATCH /documents/{id}", () => {
+    test("no-op PATCH returns the unchanged document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -948,7 +951,7 @@ describe("PUT /documents/{id}", () => {
             access: "Public",
         });
 
-        const response = await server.PUT(`/documents/${document.id}`, {
+        const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -989,7 +992,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT returns the updated document", async () => {
+    test("PATCH returns the updated document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1001,7 +1004,7 @@ describe("PUT /documents/{id}", () => {
             access: "Public",
         });
 
-        const response = await server.PUT(`/documents/${document.id}`, {
+        const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1041,7 +1044,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT updates the document title via ProseMirror steps", async () => {
+    test("PATCH updates the document title via ProseMirror steps", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1053,7 +1056,7 @@ describe("PUT /documents/{id}", () => {
             access: "Public",
         });
 
-        const response = await server.PUT(`/documents/${document.id}`, {
+        const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1081,7 +1084,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT rebases title updates from a previous version over concurrent body updates", async () => {
+    test("PATCH rebases title updates from a previous version over concurrent body updates", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1096,7 +1099,7 @@ describe("PUT /documents/{id}", () => {
 
         await document.type(session, " Concurrent tail.");
 
-        const putResponse = await server.PUT(`/documents/${document.id}`, {
+        const patchResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1117,8 +1120,8 @@ describe("PUT /documents/{id}", () => {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
-        expect({putResponse, getResponse}).toMatchObject({
-            putResponse: {
+        expect({patchResponse, getResponse}).toMatchObject({
+            patchResponse: {
                 status: 200,
                 body: {
                     document: expect.objectContaining({
@@ -1163,7 +1166,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT rebases body updates from a previous version over concurrent title updates", async () => {
+    test("PATCH rebases body updates from a previous version over concurrent title updates", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1176,7 +1179,7 @@ describe("PUT /documents/{id}", () => {
         });
         const previousVersion = await document.getVersion();
 
-        const concurrentTitleResponse = await server.PUT(`/documents/${document.id}`, {
+        const concurrentTitleResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1193,7 +1196,7 @@ describe("PUT /documents/{id}", () => {
                 },
             },
         });
-        const staleBodyResponse = await server.PUT(`/documents/${document.id}`, {
+        const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1232,7 +1235,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT rebases non-conflicting body updates from a previous version", async () => {
+    test("PATCH rebases non-conflicting body updates from a previous version", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1245,7 +1248,7 @@ describe("PUT /documents/{id}", () => {
         });
         const previousVersion = await document.getVersion();
 
-        const concurrentBodyResponse = await server.PUT(`/documents/${document.id}`, {
+        const concurrentBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1262,7 +1265,7 @@ describe("PUT /documents/{id}", () => {
                 },
             },
         });
-        const staleBodyResponse = await server.PUT(`/documents/${document.id}`, {
+        const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
@@ -1301,7 +1304,7 @@ describe("PUT /documents/{id}", () => {
         });
     });
 
-    test("PUT rebases previous version updates across the document snapshot boundary", async () => {
+    test("PATCH rebases previous version updates across the document snapshot boundary", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1320,7 +1323,7 @@ describe("PUT /documents/{id}", () => {
         await document.type(session, " three");
         await document.type(session, " four");
 
-        const response = await server.PUT(`/documents/${document.id}`, {
+        const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
                 document: {
