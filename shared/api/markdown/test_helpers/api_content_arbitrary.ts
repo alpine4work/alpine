@@ -117,7 +117,7 @@ const ApiPreviewTargetArbitraries = {
     }),
 };
 
-const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
+export const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
     ...ApiPreviewTargetArbitraries,
     Account: fc.record({
         type: fc.constant("Account"),

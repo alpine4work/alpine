@@ -2,21 +2,24 @@ import {fromDate, toCalendarDate} from "@internationalized/date";
 import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {Html, Node, Root, RootContent} from "mdast";
+import {Html, Link, Node, Root, RootContent} from "mdast";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
+import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
-import {parseApiContentFromMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElementResponse,
-    ApiContentInlineElement,
     ApiContentInlineElementResponse,
     ApiContentResponse,
+    ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
     ApiMessageRoomTarget,
@@ -41,8 +44,17 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebMessagingPageBase = {
-    readonly preamble: ReadonlyArray<ApiContentInlineElement>;
+    readonly preamble: AgentWebMessagingPageBasePreamble;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
+};
+
+export type AgentWebMessagingPageBasePreamble = {
+    readonly elements: ReadonlyArray<ApiContentInlineElementResponse>;
+    readonly paginationLink: {
+        readonly text: string;
+        readonly target: ApiMentionTargetResponse;
+        readonly searchParams: URLSearchParams;
+    } | null;
 };
 
 export type AgentWebMessagingPageBlock =
@@ -104,7 +116,7 @@ export async function readAgentWebMessagingPageBase<Page>(
     }: {
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
-            pathname: string;
+            target: ApiMentionTargetResponse;
             description: ReadonlyArray<ApiContentInlineElementResponse>;
         }>;
         defaultDirection: "Start" | "End";
@@ -433,7 +445,7 @@ function buildAgentWebMessagingPageFromApiMessages({
     messageNouns: AgentWebMessagingPageNouns;
     direction: "Start" | "End";
     roomMetadata: {
-        pathname: string;
+        target: ApiMentionTargetResponse;
         description: ReadonlyArray<ApiContentInlineElementResponse>;
     };
     messages: ReadonlyArray<ApiMessageResponse>;
@@ -534,7 +546,7 @@ function buildAgentWebMessagingPageFromApiMessages({
     // Flush any remaining block
     flushCurrentBlock();
 
-    const preamble: Array<ApiContentInlineElement> = [
+    const preambleElements: Array<ApiContentInlineElementResponse> = [
         {
             type: "Text",
             text:
@@ -549,32 +561,26 @@ function buildAgentWebMessagingPageFromApiMessages({
         },
     ];
 
+    let paginationLink: AgentWebMessagingPageBasePreamble["paginationLink"] = null;
+
     if (hasMoreMessages && messages.length > 0) {
-        preamble.push(
-            {
-                type: "Text",
-                text: " ",
-            },
-            {
-                type: "Text",
-                text: `${direction === "Start" ? "Next" : "Previous"} page »`,
-                marks: [
-                    {
-                        type: "Link",
-                        url:
-                            direction === "Start"
-                                ? `${roomMetadata.pathname}?after=${
-                                      messages[messages.length - 1]!.index
-                                  }`
-                                : `${roomMetadata.pathname}?before=${messages[0]!.index}`,
-                    },
-                ],
-            },
+        const paginationSearchParams = new URLSearchParams();
+        paginationSearchParams.set(
+            direction === "Start" ? "after" : "before",
+            direction === "Start"
+                ? messages[messages.length - 1]!.index.toString()
+                : messages[0]!.index.toString(),
         );
+
+        paginationLink = {
+            text: `${direction === "Start" ? "Next" : "Previous"} page »`,
+            target: roomMetadata.target,
+            searchParams: paginationSearchParams,
+        };
     }
 
     return {
-        preamble,
+        preamble: {elements: preambleElements, paginationLink},
         blocks,
     };
 
@@ -679,35 +685,64 @@ export async function printAgentWebMessagingPageBase(
 ): Promise<Root> {
     const children: Array<RootContent> = [];
 
-    if (page.preamble.length > 0) {
+    if (page.preamble.elements.length > 0) {
         for (const node of printApiContentToMarkdownTree(
-            {elements: [{type: "Paragraph", elements: page.preamble}]},
+            {elements: [{type: "Paragraph", elements: page.preamble.elements}]},
             {spaceId: storage.spaceId},
         ).children) {
             children.push(node);
         }
     }
 
-    const blocks = await runAllPromises(
-        page.blocks.map(async block => {
-            if (block.type !== "Message") return block;
+    const [, blocks] = await runAllPromises([
+        (async () => {
+            if (page.preamble.paginationLink === null) return;
 
-            const [contentTree, previewContentTree] = await runAllPromises([
-                printApiContentToAgentWebMarkdownTree(storage, block.content),
-                block.parent
-                    ? printApiContentToAgentWebMarkdownTree(storage, block.parent.previewContent)
-                    : null,
-            ]);
+            const pageLink = createApiTargetAgentWebPageLink(page.preamble.paginationLink.target);
+            let url = await createAgentWebPageLinkPathname(storage, pageLink);
 
-            return {
-                ...block,
-                contentTree,
-                parent: block.parent
-                    ? {...block.parent, previewContentTree: assertExists(previewContentTree)}
-                    : null,
+            if (page.preamble.paginationLink.searchParams.size > 0) {
+                url += `?${page.preamble.paginationLink.searchParams.toString()}`;
+            }
+
+            const node: Link = {
+                type: "link",
+                url,
+                children: [{type: "text", value: page.preamble.paginationLink.text}],
             };
-        }),
-    );
+
+            const lastChild = children[children.length - 1]!;
+
+            if (lastChild?.type === "paragraph") {
+                lastChild.children.push({type: "text", value: " "}, node);
+            } else {
+                children.push({type: "paragraph", children: [node]});
+            }
+        })(),
+        runAllPromises(
+            page.blocks.map(async block => {
+                if (block.type !== "Message") return block;
+
+                const [contentTree, previewContentTree] = await runAllPromises([
+                    printApiContentToAgentWebMarkdownTree(storage, block.content),
+                    block.parent
+                        ? printApiContentToAgentWebMarkdownTree(
+                              storage,
+                              block.parent.previewContent,
+                          )
+                        : null,
+                ]);
+
+                return {
+                    ...block,
+                    contentTree,
+                    parent: block.parent
+                        ? {...block.parent, previewContentTree: assertExists(previewContentTree)}
+                        : null,
+                };
+            }),
+        ),
+    ]);
 
     for (const block of blocks) {
         switch (block.type) {
@@ -1309,12 +1344,17 @@ export async function parseAgentWebMessagingPageBase(
         });
     }
 
-    const preambleContent = parseApiContentFromMarkdownTree(
-        {type: "root", children: preamble},
-        {spaceId: storage.spaceId},
+    const paginationLink = await takeAgentWebMessagingPagePaginationLinkFromPreamble(
+        storage,
+        preamble,
     );
 
-    let actualPreamble: ReadonlyArray<ApiContentInlineElement> = [];
+    const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, {
+        type: "root",
+        children: preamble,
+    });
+
+    let actualPreamble: ReadonlyArray<ApiContentInlineElementResponse> = [];
 
     if (preambleContent.elements.length === 0) {
         // noop
@@ -1330,8 +1370,56 @@ export async function parseAgentWebMessagingPageBase(
     }
 
     return {
-        preamble: actualPreamble,
+        preamble: {elements: actualPreamble, paginationLink},
         blocks: await runAllPromises(blockPromises),
+    };
+}
+
+async function takeAgentWebMessagingPagePaginationLinkFromPreamble(
+    storage: AgentWebSessionStorage,
+    preamble: Array<RootContent>,
+): Promise<AgentWebMessagingPageBasePreamble["paginationLink"]> {
+    const lastNode = preamble[preamble.length - 1];
+    if (lastNode?.type !== "paragraph") return null;
+
+    const lastChild = lastNode.children[lastNode.children.length - 1];
+    if (lastChild?.type !== "link") return null;
+
+    const text = printMarkdownPhrasingContentText(lastChild.children);
+    if (text !== "Previous page »" && text !== "Next page »") return null;
+
+    if (/^[a-zA-Z0-9]+:/.test(lastChild.url)) return null;
+
+    const {pathname, searchParams} = normalizeAgentWebPath(lastChild.url);
+    if (!searchParams.has("before") && !searchParams.has("after")) return null;
+
+    const pageLink = await storage.pageLinkByPathname.get(pathname);
+    if (!pageLink) return null;
+
+    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
+        storage.spaceId,
+        pageLink,
+    );
+
+    if (mentionTargetResult.type !== "MentionTarget") return null;
+
+    lastNode.children.pop();
+
+    const previousChild = lastNode.children[lastNode.children.length - 1];
+    if (previousChild?.type === "text" && previousChild.value.endsWith(" ")) {
+        if (previousChild.value === " ") {
+            lastNode.children.pop();
+        } else {
+            previousChild.value = previousChild.value.slice(0, -1);
+        }
+    }
+
+    if (lastNode.children.length === 0) preamble.pop();
+
+    return {
+        text,
+        target: mentionTargetResult.target,
+        searchParams,
     };
 }
 

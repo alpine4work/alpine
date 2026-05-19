@@ -1,7 +1,6 @@
 import {Root} from "mdast";
-import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPageBase,
     agentWebMessagingPageMessageNouns,
@@ -24,7 +23,7 @@ export type AgentWebChatPageMetadata = {
 };
 
 export async function readAgentWebChatPage(
-    context: AgentWebContext,
+    context: AgentWebContextWithoutStorage,
     id: ChatId,
     {
         searchParams,
@@ -55,26 +54,22 @@ export async function readAgentWebChatPage(
 
                 switch (chat.type) {
                     case "Direct": {
-                        const pathname = await createAgentWebPageLinkPathname(context.storage, {
-                            type: "Chat",
-                            id,
-                            title: chat.title,
-                        });
-
                         return {
-                            pathname,
-                            description: [{type: "Text", text: `in chat with ${chat.title}`}],
+                            target: {
+                                type: "Chat",
+                                id,
+                                title: chat.title,
+                            },
+                            description: [{type: "Text", text: `in a chat with ${chat.title}`}],
                         };
                     }
                     case "Room": {
-                        const pathname = await createAgentWebPageLinkPathname(context.storage, {
-                            type: "Chat",
-                            id,
-                            title: chat.name,
-                        });
-
                         return {
-                            pathname,
+                            target: {
+                                type: "Chat",
+                                id,
+                                title: chat.name,
+                            },
                             description: [{type: "Text", text: `in ${chat.name}`}],
                         };
                     }
