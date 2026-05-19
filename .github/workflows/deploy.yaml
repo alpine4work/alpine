@@ -100,6 +100,7 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch
 
             - name: Collect sourcemaps
+              continue-on-error: true
               shell: bash
               run: |
                   mkdir -p /tmp/sourcemaps
@@ -107,6 +108,7 @@ jobs:
                   echo "Sourcemaps: $(find /tmp/sourcemaps -name '*.map' | wc -l)"
 
             - name: Upload sourcemaps
+              continue-on-error: true
               uses: actions/upload-artifact@v4
               with:
                   name: sourcemaps-${{ inputs.commitSha }}
