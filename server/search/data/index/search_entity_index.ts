@@ -164,6 +164,7 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -2628,14 +2629,18 @@ async function prepareSearchEntityDataForResult(
     const idObject = parseSearchDynamicEntityIdWithoutAccount(entityId);
     switch (idObject.type) {
         case "Document": {
-            assert(titleVersion?.type === "Integer");
+            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where document
+            // entities do not have the expected `Integer` title version, which is crashing the
+            // app. This is a short term fix that will allow us to investigate the issue
+            // without end-user impact.
+            const version = titleVersion?.type === "Integer" ? titleVersion.version : -1;
 
             return {
                 type: "Document",
                 title,
                 document: {
                     id: idObject.documentId,
-                    version: titleVersion.version,
+                    version,
                 },
             };
         }
@@ -2676,8 +2681,17 @@ async function prepareSearchEntityDataForResult(
             };
         }
         case "Task": {
-            assert(hitMedia?.type === "TaskDisplayStatus");
             assert(titleVersion?.type === "TaskTitle");
+
+            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where task
+            // entities do not have display statuses, which is crashing the app for a set of
+            // users. This is a short term fix that will allow us to investigate the issue
+            // without end-user impact. It may be that the tasks in question are deleted, but
+            // it's hard to say without more data.
+            const displayStatus =
+                hitMedia?.type === "TaskDisplayStatus"
+                    ? ({value: hitMedia.displayStatus, version: hitMedia.version} as const)
+                    : ({value: "OpenInactive", version: zeroHybridLogicalTime} as const);
 
             return {
                 type: "Task",
@@ -2686,26 +2700,29 @@ async function prepareSearchEntityDataForResult(
                     id: idObject.taskId,
                     titleSnapshot: titleVersion.snapshot,
                     deletedTime: titleVersion.deletedTime,
-                    displayStatus: {
-                        value: hitMedia.displayStatus,
-                        version: hitMedia.version,
-                    },
+                    displayStatus,
                 },
             };
         }
         case "TaskCollection": {
-            assert(hitMedia?.type === "TaskCollectionColor");
             assert(titleVersion?.type === "HybridLogicalTime");
+
+            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where task
+            // collections do not have colors, which is crashing the app for a set of users.
+            // This is a short term fix that will allow us to investigate the issue without
+            // end-user impact. It may be that the collections in question are deleted, but
+            // it's hard to say without more data.
+            const color =
+                hitMedia?.type === "TaskCollectionColor"
+                    ? ({value: hitMedia.color, version: hitMedia.version} as const)
+                    : ({value: null, version: zeroHybridLogicalTime} as const);
             return {
                 type: "TaskCollection",
                 title,
                 collection: {
                     id: idObject.collectionId,
                     titleVersion: titleVersion.time,
-                    color: {
-                        value: hitMedia.color,
-                        version: hitMedia.version,
-                    },
+                    color,
                 },
             };
         }
