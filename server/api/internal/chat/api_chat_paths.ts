@@ -18,6 +18,7 @@ import {
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
+import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {ApiChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
@@ -25,6 +26,7 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -39,30 +41,47 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             const chatDefinition = await getChatDefinition(context, pathParameters.id, {
                 consistency: "StrongWithinCache",
             });
-            const chat: ApiChat =
-                chatDefinition.definition.type === "Direct"
-                    ? {
-                          type: "Direct",
-                          id: pathParameters.id,
-                          members: await runAllPromises(
-                              mapIterable(
-                                  chatDefinition.definition.accountIds,
-                                  async accountId => ({
-                                      account: await getApiAccount(
-                                          context,
-                                          chatDefinition.spaceId,
-                                          accountId,
-                                          {consistency: "StrongWithinCache"},
-                                      ),
-                                  }),
-                              ),
-                          ),
-                      }
-                    : {
-                          type: "Room",
-                          id: pathParameters.id,
-                          name: chatDefinition.definition.name,
-                      };
+
+            let chat: ApiChat;
+
+            switch (chatDefinition.definition.type) {
+                case "Direct": {
+                    const {title} = await getSearchDirectChatEntityTitleAndMedia(
+                        context,
+                        chatDefinition.spaceId,
+                        pathParameters.id,
+                        chatDefinition.definition.accountIds,
+                    );
+
+                    chat = {
+                        type: "Direct",
+                        id: pathParameters.id,
+                        // NOCOMMIT: Test!!
+                        title,
+                        members: await runAllPromises(
+                            mapIterable(chatDefinition.definition.accountIds, async accountId => ({
+                                account: await getApiAccount(
+                                    context,
+                                    chatDefinition.spaceId,
+                                    accountId,
+                                    {consistency: "StrongWithinCache"},
+                                ),
+                            })),
+                        ),
+                    };
+                    break;
+                }
+                case "Room": {
+                    chat = {
+                        type: "Room",
+                        id: pathParameters.id,
+                        name: chatDefinition.definition.name,
+                    };
+                    break;
+                }
+                default:
+                    throw exhaustive(chatDefinition.definition);
+            }
 
             return {
                 content: {
@@ -90,8 +109,8 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                         target: {
                             type: "Chat",
                             id: pathParameters.id,
+                            title,
                         },
-                        title,
                     },
                 },
             };
@@ -138,7 +157,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
     "/chats/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, messageCount, messages} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getChatMessagePayloadsFromEnd(context, {
                           chatId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -159,7 +178,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             if (messages.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstMessage = messages[0]!;
                     if (firstMessage.index > 0) {
                         nextCursor = firstMessage.index;

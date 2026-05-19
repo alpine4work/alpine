@@ -85,8 +85,8 @@ export const apiForumPaths: Pick<
                         target: {
                             type: "Channel",
                             id: pathParameters.id,
+                            title,
                         },
-                        title,
                     },
                 },
             };
@@ -219,8 +219,8 @@ export const apiForumPaths: Pick<
                         target: {
                             type: "Post",
                             id: pathParameters.id,
+                            title,
                         },
-                        title,
                     },
                 },
             };

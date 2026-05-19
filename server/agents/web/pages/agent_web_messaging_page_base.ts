@@ -1,11 +1,27 @@
+import {fromDate, toCalendarDate} from "@internationalized/date";
+import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Node, Root, RootContent} from "mdast";
+import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
+import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {parseApiContentFromMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {printApiContentToMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {
+    ApiContentBlockElementResponse,
+    ApiContentInlineElement,
+    ApiContentInlineElementResponse,
+    ApiContentResponse,
+    ApiMessageContentPayloadParentContentSnippet,
+    ApiMessageResponse,
+    ApiMessageRoomTarget,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -13,12 +29,19 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebMessagingPageBase = {
+    readonly preamble: ReadonlyArray<ApiContentInlineElement>;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
 };
 
@@ -65,6 +88,545 @@ export const agentWebMessagingPageCommentNouns: AgentWebMessagingPageNouns = {
     startOfSentencePluralNoun: "Comments",
 };
 
+const agentWebMessagingPageApiMessagesBatchCount = 30;
+
+export async function readAgentWebMessagingPageBase<Page>(
+    context: AgentWebContextWithoutStorage,
+    messageNouns: AgentWebMessagingPageNouns,
+    {
+        room,
+        roomMetadataPromise,
+        from,
+        searchParams,
+        limitLength,
+        computeLength,
+        buildPage,
+    }: {
+        room: ApiMessageRoomTarget;
+        roomMetadataPromise: Promise<{
+            pathname: string;
+            description: ReadonlyArray<ApiContentInlineElementResponse>;
+        }>;
+        from: "Start" | "End";
+        searchParams: URLSearchParams;
+        limitLength: number;
+        computeLength: (page: Page) => Promise<number>;
+        buildPage: (page: AgentWebMessagingPageBase) => Page;
+    },
+): Promise<Page> {
+    const beforeMessageIndexSearchParam = searchParams.get("before");
+    const afterMessageIndexSearchParam = searchParams.get("after");
+
+    let beforeMessageIndex: number | null = null;
+    let afterMessageIndex: number | null = null;
+
+    if (beforeMessageIndexSearchParam) {
+        beforeMessageIndex = parseInt(beforeMessageIndexSearchParam, 10);
+
+        if (
+            !/^(0|[1-9][0-9]*)$/.test(beforeMessageIndexSearchParam) ||
+            isNaN(beforeMessageIndex) ||
+            !Number.isInteger(beforeMessageIndex) ||
+            beforeMessageIndex < 0
+        ) {
+            throw new InvalidArgumentError(
+                "Expected `before` search param to be a positive integer",
+                {
+                    displayMessage: errorDisplayMessage`Expected \`before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting the \`before\` URL search param. We recommend using a value for \`before\` that you\u2019ve seen previously in a pagination link.`,
+                },
+            );
+        }
+    }
+
+    if (afterMessageIndexSearchParam) {
+        afterMessageIndex = parseInt(afterMessageIndexSearchParam, 10);
+
+        if (
+            !/^(0|[1-9][0-9]*)$/.test(afterMessageIndexSearchParam) ||
+            isNaN(afterMessageIndex) ||
+            !Number.isInteger(afterMessageIndex) ||
+            afterMessageIndex < 0
+        ) {
+            throw new InvalidArgumentError(
+                "Expected `after` search param to be a positive integer",
+                {
+                    displayMessage: errorDisplayMessage`Expected \`after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting the \`after\` URL search param. We recommend using a value for \`after\` that you\u2019ve seen previously in a pagination link.`,
+                },
+            );
+        }
+    }
+
+    let cursor: number | null = from === "Start" ? afterMessageIndex : beforeMessageIndex;
+    let totalLengthEstimate = 0;
+    const messages: Array<ApiMessageResponse> = [];
+
+    // Load messages until we reach our token limit.
+    outer: while (totalLengthEstimate < limitLength) {
+        const {
+            data: {nextCursor, messages: currentMessages},
+        } =
+            from === "Start"
+                ? await getApiMessagesFromStart(context.span, context.api, room, {
+                      limit: agentWebMessagingPageApiMessagesBatchCount,
+                      cursor,
+                  })
+                : await getApiMessagesFromEnd(context.span, context.api, room, {
+                      limit: agentWebMessagingPageApiMessagesBatchCount,
+                      cursor,
+                  });
+
+        cursor = nextCursor;
+
+        for (const message of from === "Start"
+            ? currentMessages
+            : reverseIterable(currentMessages)) {
+            const lengthEstimate = estimateApiMessageLength(message);
+            totalLengthEstimate += lengthEstimate;
+
+            // If this message would put us over our limit then DO NOT add the message and
+            // instead return the messages we have.
+            //
+            // Unless we've filled less than half of our limit. In this case we must be adding
+            // a single message with MORE length than half of our limit. Include the full
+            // message. The maximum message size is 400kb. If we assume 1 character per bytes
+            // that's 400k characters which is approximately 100k tokens using the
+            // [one-token-is-about-four-characters rule of thumb][1]. GPT-5's context window is
+            // 400k tokens so a max length message would consume a quarter of the context
+            // window which is not ideal but still fine.
+            //
+            // [1]: https://platform.openai.com/tokenizer
+            if (
+                totalLengthEstimate > limitLength / 2 &&
+                totalLengthEstimate + lengthEstimate > limitLength
+            ) {
+                break outer;
+            } else {
+                totalLengthEstimate += limitLength;
+                messages.push(message);
+            }
+        }
+    }
+
+    // Make sure messages are in the right order.
+    if (from !== "Start") messages.reverse();
+
+    // Await the room metadata after we've fetched all our messages. We should have
+    // been loading the room metadata in parallel.
+    const roomMetadata = await roomMetadataPromise;
+
+    let page: Page;
+
+    // Build the page from the messages we fetched and compute the page's length. If
+    // the built page exceeds our limit then we remove one message and try building the
+    // page again until we get a page that fits our limit.
+    //
+    // If we can get a page that's under the limit then the agent doesn't need to call
+    // the `scroll` tool!
+    while (true) {
+        const messagingPage = buildAgentWebMessagingPageFromApiMessages({
+            timeZone: context.timeZone,
+            messageNouns,
+            from,
+            roomMetadata,
+            messages,
+        });
+
+        page = buildPage(messagingPage);
+
+        // If there's only one message left then we have to return it. We can't return a
+        // page with no messages. This likely means the one message is larger than our
+        // limit by itself.
+        if (messages.length === 1) break;
+
+        const length = await computeLength(page);
+        if (length <= limitLength) break;
+
+        if (from === "Start") {
+            messages.pop();
+        } else {
+            messages.shift();
+        }
+    }
+
+    return page;
+}
+
+/**
+ * Estimate the length of a message after it has been printed to a Markdown string.
+ * It's better to under estimate the message length than to over estimate.
+ */
+function estimateApiMessageLength(message: ApiMessageResponse): number {
+    let lengthEstimate = 0;
+
+    if (message.payload.type !== "Content") {
+        // `Math.min()` since we'd rather under estimate than over estimate.
+        lengthEstimate += Math.min("Delete message".length, "Deleted comment".length);
+    } else {
+        visitApiContent(message.payload.content, {
+            // NOTE(ifitzsimmons): This recurses through the current element and counts the
+            // total number of tokens for the root and all children. A slight optimization
+            // would be to break out of the recursion loop as soon as a child element pushes
+            // the token count over the limit. However, we shouldn't do this unless we have a
+            // really strong reason. As is, this would likely only come up for really large
+            // tables (because it will visit every cell in the table) and the table would have
+            // have to be pretty massive to make a meaningful difference.
+            visitInlineElement: element => {
+                switch (element.type) {
+                    case "Text": {
+                        lengthEstimate += element.text.length;
+                        break;
+                    }
+                    case "Mention": {
+                        lengthEstimate += (element.target.title?.length ?? 0) + 4;
+                        break;
+                    }
+                    case "Break": {
+                        lengthEstimate += 1;
+                        break;
+                    }
+                    default:
+                        throw exhaustive(element);
+                }
+            },
+            visitBlockElement: element => {
+                switch (element.type) {
+                    case "Paragraph": {
+                        // "\n\n"
+                        lengthEstimate += 2;
+                        break;
+                    }
+                    case "UnorderedList": {
+                        // "- "
+                        lengthEstimate += element.items.length * 2;
+                        break;
+                    }
+                    case "OrderedList": {
+                        // "1. "
+                        lengthEstimate += element.items.length * 3;
+                        break;
+                    }
+                    case "CheckList": {
+                        // "- [ ] "
+                        lengthEstimate += element.items.length * 6;
+                        break;
+                    }
+                    case "Quote": {
+                        // "> "
+                        lengthEstimate += element.elements.length * 2;
+                        break;
+                    }
+                    case "Heading": {
+                        // "## "
+                        lengthEstimate += element.level + 2;
+                        break;
+                    }
+                    case "Divider": {
+                        // "---"
+                        lengthEstimate += 3;
+                        break;
+                    }
+                    case "Table": {
+                        // Don't bother. Table length is hard to estimate. Though tables may add a lot of
+                        // length if formatted as HTML! We'd rather underestimate than overestimate.
+                        break;
+                    }
+                    case "Code": {
+                        // "```\n" x2
+                        lengthEstimate += 8;
+                        break;
+                    }
+                    case "File":
+                    case "FileGallery":
+                    case "FileFloat": {
+                        // Don't bother. File length is hard to estimate. We'd rather underestimate than
+                        // overestimate.
+                        break;
+                    }
+                    case "Preview": {
+                        lengthEstimate += (element.target.title?.length ?? 0) + 5;
+                        break;
+                    }
+                    default:
+                        throw exhaustive(element);
+                }
+            },
+            visitInlineElementMark: mark => {
+                switch (mark.type) {
+                    case "Bold": {
+                        // "\*\*" x2
+                        lengthEstimate += 4;
+                        break;
+                    }
+                    case "Italic": {
+                        // "\*" x2
+                        lengthEstimate += 2;
+                        break;
+                    }
+                    case "Strike": {
+                        // "~~" x2
+                        lengthEstimate += 4;
+                        break;
+                    }
+                    case "Code": {
+                        // "`" x2
+                        lengthEstimate += 2;
+                        break;
+                    }
+                    case "Link": {
+                        // "[]()"
+                        lengthEstimate += 4;
+                        break;
+                    }
+                    case "Highlight":
+                    case "Comment": {
+                        // Don't bother. It's hard to estimate the length of these marks. We'd rather
+                        // underestimate than overestimate.
+                        break;
+                    }
+                    default:
+                        throw exhaustive(mark);
+                }
+            },
+        });
+
+        if (message.payload.parent) {
+            for (const element of message.payload.parent.contentSnippet.elements) {
+                lengthEstimate += element.text.length;
+            }
+        }
+    }
+
+    return lengthEstimate;
+}
+
+function buildAgentWebMessagingPageFromApiMessages({
+    timeZone,
+    messageNouns,
+    from,
+    roomMetadata,
+    messages,
+}: {
+    timeZone: TimeZone;
+    messageNouns: AgentWebMessagingPageNouns;
+    from: "Start" | "End";
+    roomMetadata: {
+        pathname: string;
+        description: ReadonlyArray<ApiContentInlineElementResponse>;
+    };
+    messages: ReadonlyArray<ApiMessageResponse>;
+}): AgentWebMessagingPageBase {
+    const contextTime = new Date();
+    const contextDate = toCalendarDate(fromDate(contextTime, timeZone));
+    const contextFormattedTimeZone = formatTimeZoneAbbreviation(timeZone, contextTime);
+
+    const blocks: Array<AgentWebMessagingPageBlock> = [];
+    let previousTimeInjectionTime: Date | null = null;
+
+    let currentBlock: {
+        authorId: AccountId;
+        formattedTimeZone: string;
+        firstCreatedTime: Date;
+        lastCreatedTime: Date;
+        differenceInMinutesSinceLastMessage: number;
+        messages: Array<ApiMessageResponse>;
+    } | null = null;
+
+    for (const message of messages) {
+        const createdTime = deserializeDateString(message.createdTime);
+        const formattedTimeZone = formatTimeZoneAbbreviation(message.createdTimeZone, createdTime);
+
+        const differenceInMinutesSinceLastMessage: number =
+            currentBlock !== null
+                ? differenceInMinutes(createdTime, currentBlock.lastCreatedTime)
+                : 0;
+
+        // If there are consecutive messages from the same author, we put them within the
+        // same <human> or <bot> tag IF:
+        //
+        // 1. The current message is not a reply to a previous message.
+        // 2. They're less than 10 minutes apart.
+        // 3. The author did not switch timezones.
+        //
+        // Importantly, a user can change Olson Timezones without changing the actual
+        // standardized timezone. e.g. America/New_York and America/Toronto both format to
+        // EST, so we shouldn't show the timezone attribute if a user takes a flight from
+        // NYC to Toronto.
+        const shouldContinueBlock =
+            (message.payload.type !== "Content" || !message.payload.parent) &&
+            currentBlock !== null &&
+            currentBlock.authorId === message.author.id &&
+            currentBlock.formattedTimeZone === formattedTimeZone &&
+            differenceInMinutesSinceLastMessage < 10 &&
+            // Special case: `index` -1 is used for posts which are formatted like a message
+            // (see `getPostAgentMessage()`). We don't want the post to be merged with the
+            // first comment from the same author as they'll be rendered as two distinct text
+            // blocks in the UI.
+            //
+            // This is a bit of a hack. It relies on the knowledge that `getPostAgentMessage()`
+            // uses `index` -1 for posts.
+            message.index > 0;
+
+        if (shouldContinueBlock) {
+            // shouldContinueBlock can only be true if currentBlock is not null.
+            assert(currentBlock !== null);
+
+            currentBlock.messages.push(message);
+            currentBlock.lastCreatedTime = createdTime;
+            continue;
+        }
+
+        // Flush the previous block before starting a new one
+        flushCurrentBlock();
+
+        // Inject time tag if needed
+        if (
+            previousTimeInjectionTime === null ||
+            differenceInHours(createdTime, previousTimeInjectionTime) >= 1
+        ) {
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                timeZone,
+                contextDate,
+                createdTime,
+                {withLongMonth: true},
+            );
+            previousTimeInjectionTime = createdTime;
+            blocks.push({
+                type: "Time",
+                timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
+            });
+        }
+
+        currentBlock = {
+            authorId: message.author.id,
+            formattedTimeZone,
+            firstCreatedTime: createdTime,
+            lastCreatedTime: createdTime,
+            differenceInMinutesSinceLastMessage,
+            messages: [message],
+        };
+    }
+
+    // Flush any remaining block
+    flushCurrentBlock();
+
+    return {
+        preamble: [
+            {
+                type: "Text",
+                text: `Some ${messageNouns.pluralNoun} `,
+            },
+            ...roomMetadata.description,
+            {
+                type: "Text",
+                text: `${from === "Start" ? "Next" : "Previous"} page »`,
+                marks: [
+                    {
+                        type: "Link",
+                        url:
+                            from === "Start"
+                                ? `${roomMetadata.pathname}?after=${messages[messages.length - 1]!.index}`
+                                : `${roomMetadata.pathname}?before=${messages[0]!.index}`,
+                    },
+                ],
+            },
+        ],
+        blocks,
+    };
+
+    function flushCurrentBlock() {
+        if (currentBlock === null) return;
+
+        assert(currentBlock.messages.length > 0);
+        const firstMessage = currentBlock.messages[0]!;
+
+        let timeAttribute = null;
+        let timeZoneAttribute = null;
+
+        // Include the time difference between this message and the last message. Since it
+        // may be important context for the conversation. Whenever messages are more than
+        // an hour apart, we inject a `<time/>` tag with the time of the message. The first
+        // message after the time injection should never have a relative time. Because we
+        // inject the current time between messages that are further than an hour apart,
+        // the relative time between two messages between time injection tags will never
+        // exceed 1 hour.
+        if (
+            currentBlock.firstCreatedTime.getTime() !== previousTimeInjectionTime?.getTime() &&
+            currentBlock.differenceInMinutesSinceLastMessage >= 10
+        ) {
+            timeAttribute = `${printPrettyNumber(
+                defaultLocale,
+                currentBlock.differenceInMinutesSinceLastMessage,
+                "minute",
+            )} later`;
+        }
+
+        // Include timezone attribute for users whose timezone differs from the context
+        // timezone
+        if (
+            !firstMessage.author.botId &&
+            currentBlock.formattedTimeZone !== contextFormattedTimeZone
+        ) {
+            timeZoneAttribute = currentBlock.formattedTimeZone;
+        }
+
+        let parent = null;
+
+        if (firstMessage.payload.type === "Content" && firstMessage.payload.parent) {
+            parent = {
+                nameAttribute: firstMessage.payload.parent.author.name,
+                previewContent: convertApiMessageContentPayloadParentContentSnippetToContent(
+                    firstMessage.payload.parent.contentSnippet,
+                ),
+            };
+        }
+
+        const elements: Array<ApiContentBlockElementResponse> = [];
+
+        for (const message of currentBlock.messages) {
+            switch (message.payload.type) {
+                case "Deleted": {
+                    elements.push({
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: `Deleted ${messageNouns.noun}`}],
+                    });
+                    break;
+                }
+                case "Content": {
+                    for (const element of message.payload.content.elements) {
+                        elements.push(element);
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(message.payload);
+            }
+        }
+
+        blocks.push({
+            type: "Message",
+            tagName: firstMessage.author.botId ? "bot" : "human",
+            nameAttribute: firstMessage.author.name,
+            timeAttribute,
+            timeZoneAttribute,
+            parent,
+            content: {elements},
+        });
+
+        currentBlock = null;
+    }
+}
+
+function convertApiMessageContentPayloadParentContentSnippetToContent(
+    parent: ApiMessageContentPayloadParentContentSnippet,
+): ApiContentResponse {
+    const elements: ReadonlyArray<ApiContentInlineElementResponse> = !parent.isTruncated
+        ? parent.elements
+        : [...parent.elements, {type: "Text", text: " […]"}];
+
+    return {elements: [{type: "Paragraph", elements}]};
+}
+
 export async function printAgentWebMessagingPageBase(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
@@ -72,6 +634,15 @@ export async function printAgentWebMessagingPageBase(
     page: AgentWebMessagingPageBase,
 ): Promise<Root> {
     const children: Array<RootContent> = [];
+
+    if (page.preamble.length > 0) {
+        for (const node of printApiContentToMarkdownTree(
+            {elements: [{type: "Paragraph", elements: page.preamble}]},
+            {spaceId: storage.spaceId},
+        ).children) {
+            children.push(node);
+        }
+    }
 
     const blocks = await runAllPromises(
         page.blocks.map(async block => {
@@ -168,6 +739,9 @@ export async function parseAgentWebMessagingPageBase(
     root: Root,
 ): Promise<AgentWebMessagingPageBase> {
     const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>> = [];
+
+    let hasFinishedPreamble = false;
+    const preamble: Array<RootContent> = [];
 
     let state: {
         tagName: "human" | "bot";
@@ -549,7 +1123,7 @@ export async function parseAgentWebMessagingPageBase(
                     throw new InvalidArgumentError(
                         "Unexpected text in the same HTML Markdown node as an open or close tag",
                         {
-                            displayMessage: errorDisplayMessage`Must add an empty new line between the \`${tag}\` ${tagType} tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of Markdown. The \`<${tagName}>\` element must be formatted like this: \`<${tagName}>\\n\\n...\\n\\n</${tagName}>\`.`,
+                            displayMessage: errorDisplayMessage`Must add an empty new line between the \`${tag}\` ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The \`<${tagName}>\` element must be formatted like this: \`<${tagName}>\\n\\n...\\n\\n</${tagName}>\`.`,
                         },
                     );
                 }
@@ -562,6 +1136,7 @@ export async function parseAgentWebMessagingPageBase(
 
     for (let node of root.children) {
         if (node.type === "html" && parseHtml(node)) {
+            hasFinishedPreamble = true;
             continue;
         }
 
@@ -594,6 +1169,7 @@ export async function parseAgentWebMessagingPageBase(
 
             if (timeBlock) {
                 blockPromises.push(timeBlock);
+                hasFinishedPreamble = true;
                 continue;
             }
 
@@ -636,6 +1212,7 @@ export async function parseAgentWebMessagingPageBase(
 
                 if (parseHtml(childNode)) {
                     lastPushedIndex = index + 1;
+                    hasFinishedPreamble = true;
                     continue;
                 }
 
@@ -646,13 +1223,21 @@ export async function parseAgentWebMessagingPageBase(
 
             if (lastPushedIndex > 0) {
                 // The paragraph is now empty, skip.
-                if (lastPushedIndex >= node.children.length) continue;
+                if (lastPushedIndex >= node.children.length) {
+                    hasFinishedPreamble = true;
+                    continue;
+                }
 
                 node = {
                     type: "paragraph",
                     children: node.children.slice(lastPushedIndex),
                 };
             }
+        }
+
+        if (!hasFinishedPreamble) {
+            preamble.push(node);
+            continue;
         }
 
         // Annoyingly, TypeScript doesn't understand that `state` can be assigned inside
@@ -680,7 +1265,30 @@ export async function parseAgentWebMessagingPageBase(
         });
     }
 
-    return {blocks: await runAllPromises(blockPromises)};
+    const preambleContent = parseApiContentFromMarkdownTree(
+        {type: "root", children: preamble},
+        {spaceId: storage.spaceId},
+    );
+
+    let actualPreamble: ReadonlyArray<ApiContentInlineElement> = [];
+
+    if (preambleContent.elements.length === 0) {
+        // noop
+    } else if (
+        preambleContent.elements.length === 1 &&
+        preambleContent.elements[0]!.type === "Paragraph"
+    ) {
+        actualPreamble = preambleContent.elements[0].elements;
+    } else {
+        throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
+            displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
+        });
+    }
+
+    return {
+        preamble: actualPreamble,
+        blocks: await runAllPromises(blockPromises),
+    };
 }
 
 function createUnexpectedMarkdownError(

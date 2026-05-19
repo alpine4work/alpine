@@ -19,7 +19,13 @@ export async function callAgentWebScrollTool(
     },
 ): Promise<string> {
     const {path} = normalizeAgentWebPath(originalPath);
-    const limitBytes = parseAgentWebBytes(limitBytesString);
+
+    // The agent gives us a limit in bytes (which conventionally is understood as UTF-8
+    // code units) but for convenience we treat it as UTF-16 code units since that's
+    // how JavaScript strings are represented. This means in extreme cases we may
+    // return a string up to 2x longer in UTF-8 code units than the requested byte
+    // limit.
+    const limitLength = parseAgentWebBytes(limitBytesString);
 
     const readResponse = await context.storage.readResponseByPath.get(path);
 
@@ -41,7 +47,7 @@ export async function callAgentWebScrollTool(
 
     return truncateAgentWebReadResponse(readResponse, {
         offsetNewline,
-        limitBytes,
+        limitLength,
         isScrollTool: true,
     });
 }
@@ -50,7 +56,7 @@ export async function callAgentWebScrollTool(
  * Truncates the agent's read response with the specified offset (line number) and
  * limit (number of bytes).
  *
- * JavaScript strings are represented as UTF-16. Ideally `limitBytes` would
+ * JavaScript strings are represented as UTF-16. Ideally `limitLength` would
  * represent the number of UTF-8 bytes we're returning. However, practically that
  * requires a lot of encoding/decoding from JavaScript strings to `Uint8Array`s. So
  * instead we pretend that each JavaScript character is 1 byte (instead of 2). This
@@ -59,7 +65,7 @@ export async function callAgentWebScrollTool(
  *
  * So there are some JavaScript characters that take two bytes in UTF-8. So in the
  * worst case (text that is ONLY such characters) we may return 2x what
- * `limitBytes` requested. We're ok with this tradeoff since in practice we don't
+ * `limitLength` requested. We're ok with this tradeoff since in practice we don't
  * expect degenerate strings like this to occur and even if they do exceeding the
  * limit requested by an agent by 2x isn't that bad an outcome.
  */
@@ -73,18 +79,18 @@ export function truncateAgentWebReadResponse(
     },
     {
         offsetNewline,
-        limitBytes,
+        limitLength,
         isScrollTool,
     }: {
         offsetNewline: number;
-        limitBytes: number;
+        limitLength: number;
         isScrollTool: boolean;
     },
 ) {
     const offsetIndex = offsetNewline === 0 ? 0 : newlineIndexes[offsetNewline - 1]! + 1;
     let truncatedResponse: string;
 
-    if (response.length - offsetIndex <= limitBytes) {
+    if (response.length - offsetIndex <= limitLength) {
         truncatedResponse = response.slice(offsetIndex);
 
         let truncationString = `End of file.`;
@@ -100,7 +106,7 @@ export function truncateAgentWebReadResponse(
         truncatedResponse += `\n\n(${truncationString})`;
     } else {
         let newlineIndexResult = assertExists(
-            binarySearchLessThanOrEqual(newlineIndexes, offsetIndex + limitBytes),
+            binarySearchLessThanOrEqual(newlineIndexes, offsetIndex + limitLength),
         );
 
         // Consume newline characters until we find the last non-newline character.
@@ -121,13 +127,13 @@ export function truncateAgentWebReadResponse(
 
         // Only truncate to the last newline if we'll return at least half of the limit.
         // Otherwise, truncate exactly at the limit.
-        if (newlineIndexResult.value > offsetIndex + limitBytes / 2) {
+        if (newlineIndexResult.value > offsetIndex + limitLength / 2) {
             truncatedResponse = response.slice(offsetIndex, newlineIndexResult.value + 1);
 
             lastNewline = newlineIndexResult.index;
             isTruncatedAtNewline = true;
         } else {
-            truncatedResponse = response.slice(offsetIndex, offsetIndex + limitBytes);
+            truncatedResponse = response.slice(offsetIndex, offsetIndex + limitLength);
 
             lastNewline = newlineIndexResult.index + 1;
             isTruncatedAtNewline = false;

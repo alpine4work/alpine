@@ -50,6 +50,7 @@ Hello there.
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Time",
@@ -65,6 +66,83 @@ Hello there.
                         content: content([paragraph([text("Hello there.")])]),
                     },
                 ],
+            },
+        },
+        {
+            name: "preamble before message log",
+            pageLink: null,
+            markdown: `\
+Viewing the **launch** thread for [Alpine](https://example.com/alpine).
+
+<human name="Alice">
+
+Hello there.
+
+</human>
+`,
+            page: {
+                preamble: [
+                    text("Viewing the "),
+                    text("launch", [{type: "Bold"}]),
+                    text(" thread for "),
+                    text("Alpine", [{type: "Link", url: "https://example.com/alpine"}]),
+                    text("."),
+                ],
+                blocks: [
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello there.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "preamble before time block",
+            pageLink: null,
+            markdown: `\
+The current page starts after the May planning sync.
+
+<time>May 13, 2026 3:00 PM EDT</time>
+
+<human name="Alice">
+
+Hello there.
+
+</human>
+`,
+            page: {
+                preamble: [text("The current page starts after the May planning sync.")],
+                blocks: [
+                    {
+                        type: "Time",
+                        timeContent: "May 13, 2026 3:00 PM EDT",
+                    },
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello there.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "preamble without message blocks",
+            pageLink: null,
+            markdown: `\
+No messages matched the current filters.
+`,
+            page: {
+                preamble: [text("No messages matched the current filters.")],
+                blocks: [],
             },
         },
         {
@@ -90,6 +168,7 @@ const done = true;
 </bot>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Message",
@@ -153,6 +232,7 @@ Escaped attributes survive.
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Time",
@@ -188,6 +268,7 @@ After the empty paragraph.
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Message",
@@ -206,13 +287,51 @@ After the empty paragraph.
             },
         },
         {
-            name: "content outside message",
+            name: "content after message",
             pageLink: null,
             markdown: `\
+<human name="Alice">
+
+Hello.
+
+</human>
+
 Hello outside.
 `,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements.",
+                "Unexpected markdown on line 7. Messages markdown must be a list of `<human>` or `<bot>` elements.",
+        },
+        {
+            name: "preamble with multiple paragraphs",
+            pageLink: null,
+            markdown: `\
+First paragraph.
+
+Second paragraph.
+
+<human name="Alice">
+
+Hello.
+
+</human>
+`,
+            parseError:
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+        },
+        {
+            name: "preamble with non paragraph block",
+            pageLink: null,
+            markdown: `\
+## Thread context
+
+<human name="Alice">
+
+Hello.
+
+</human>
+`,
+            parseError:
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
             name: "message without name attribute",
@@ -446,6 +565,7 @@ Hello.
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Message",
@@ -468,7 +588,7 @@ Hello there.
 </human>
 `,
             parseError:
-                "Must add an empty new line between the `<human>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 2 will be parsed as HTML instead of Markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+                "Must add an empty new line between the `<human>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
         },
         {
             name: "message without newline between tags (attached to open tag)",
@@ -482,7 +602,7 @@ bar
 </human>
 `,
             parseError:
-                "Must add an empty new line between the `<human>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 2 will be parsed as HTML instead of Markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+                "Must add an empty new line between the `<human>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
         },
         {
             name: "message without newline between tags (attached to closed tag)",
@@ -505,6 +625,7 @@ bar&#x20;
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Message",
@@ -531,7 +652,7 @@ Hello there.
 </human>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 3 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags",
@@ -548,7 +669,7 @@ Hello there.
 </human>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 4 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags (attached to open tag)",
@@ -568,7 +689,7 @@ Hello there.
 </human>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and Markdown text. Otherwise, due to a quirk in Markdown, the text on line 4 will be parsed as HTML instead of Markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags (attached to closed tag)",
@@ -603,6 +724,7 @@ Hello there.
 </human>
 `,
             page: {
+                preamble: [],
                 blocks: [
                     {
                         type: "Message",
@@ -629,6 +751,7 @@ Hello there.
 <time></time>
 `,
             page: {
+                preamble: [],
                 blocks: [{type: "Time", timeContent: ""}],
             },
         },

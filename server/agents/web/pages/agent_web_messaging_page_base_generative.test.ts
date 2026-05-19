@@ -11,9 +11,13 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {normalizeDraftApiContent} from "~/shared/api/markdown/normalize_api_content.js";
+import {
+    normalizeApiContentInlineElements,
+    normalizeDraftApiContent,
+} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentArbitrary as ActualApiContentArbitrary,
+    ApiContentInlineElementArbitrary,
     ApiContentTextArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
@@ -62,6 +66,7 @@ const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagi
 });
 
 const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> = fc.record({
+    preamble: fc.array(ApiContentInlineElementArbitrary, {maxLength: 5}),
     blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
 });
 
@@ -71,6 +76,8 @@ runAgentWebPageGenerativeTests({
     pageLink: fc.constant(null),
     page: AgentWebMessagingPageBaseArbitrary,
     normalize: page => {
+        normalizeApiContentInlineElements(page.preamble);
+
         for (const block of page.blocks) {
             if (block.type !== "Message") continue;
             if (block.parent) normalizeDraftApiContent(block.parent.previewContent);

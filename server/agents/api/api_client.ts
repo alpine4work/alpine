@@ -294,7 +294,7 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -305,7 +305,7 @@ export function getApiMessagesFromEnd(
                         id: room.id,
                         threadId: room.threadId,
                     },
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -313,7 +313,7 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }
@@ -321,7 +321,7 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: room.id},
-                    query: {limit, cursor: cursor ?? undefined, from: "end"},
+                    query: {limit, cursor: cursor ?? undefined, from: "End"},
                 },
             });
         }

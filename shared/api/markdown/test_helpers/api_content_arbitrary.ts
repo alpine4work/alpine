@@ -283,11 +283,12 @@ const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInline
         ),
     });
 
-const ApiContentInlineElementArbitrary = createUnionArbitrary<ApiContentInlineElementResponse>({
-    Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
-    Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
-    Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
-});
+export const ApiContentInlineElementArbitrary =
+    createUnionArbitrary<ApiContentInlineElementResponse>({
+        Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
+        Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
+        Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
+    });
 
 const ApiContentInlineElementArbitraryForSimpleTable =
     createUnionArbitrary<ApiContentInlineElementResponse>({

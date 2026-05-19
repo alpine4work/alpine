@@ -136,6 +136,7 @@ import {
     FileId,
     PostId,
     SiteId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";

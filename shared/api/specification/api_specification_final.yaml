@@ -60,13 +60,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/AccountTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /spaces/{id}:
@@ -251,13 +248,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/ChatTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}:
@@ -304,9 +298,9 @@ paths:
                   schema:
                       type: string
                       enum:
-                          - start
-                          - end
-                      default: start
+                          - Start
+                          - End
+                      default: Start
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessages"
@@ -513,13 +507,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/DocumentTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}:
@@ -606,9 +597,9 @@ paths:
                   schema:
                       type: string
                       enum:
-                          - start
-                          - end
-                      default: start
+                          - Start
+                          - End
+                      default: Start
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessages"
@@ -778,13 +769,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/ChannelTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /posts:
@@ -846,7 +834,13 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/Mention_Response"
+                                        type: object
+                                        required:
+                                            - target
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/PostTarget_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}:
@@ -893,9 +887,9 @@ paths:
                   schema:
                       type: string
                       enum:
-                          - start
-                          - end
-                      default: start
+                          - Start
+                          - End
+                      default: Start
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessages"
@@ -1082,13 +1076,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/TaskTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}:
@@ -1135,9 +1126,9 @@ paths:
                   schema:
                       type: string
                       enum:
-                          - start
-                          - end
-                      default: start
+                          - Start
+                          - End
+                      default: Start
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessages"
@@ -1287,13 +1278,10 @@ paths:
                                         type: object
                                         required:
                                             - target
-                                            - title
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/TaskCollectionTarget_Response"
-                                            title:
-                                                type: string
                 default:
                     $ref: "#/components/responses/Error"
     /task-collections/{id}/tasks:
@@ -2673,6 +2661,7 @@ components:
             required:
                 - type
                 - id
+                - title
                 - members
             additionalProperties: false
             properties:
@@ -2680,6 +2669,8 @@ components:
                     const: Direct
                 id:
                     $ref: "#/components/schemas/ChatId"
+                title:
+                    type: string
                 members:
                     type: array
                     items:

@@ -67,7 +67,7 @@ This is a cool doc.
 Isn\u2019t that neat?
 `,
             parseError:
-                "A document can only have one Markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional Markdown h1 “La la land”. Try again but remove the additional Markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
+                "A document can only have one Markdown h1 (e.g. `# My Document`) and the h1 must be placed at the start of the document. You added an additional Markdown h1 \u201CLa la land\u201D. Try again but remove the additional Markdown h1 or make it an h2 (e.g. `## My Sub-heading`).",
         },
         {
             name: "document page with one comment",

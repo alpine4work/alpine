@@ -15,12 +15,16 @@
         "..."
     ],
     "lsp": {
-        // https://github.com/zed-industries/zed/issues/6115#issuecomment-2709471139
         "vtsls": {
             "settings": {
                 "typescript": {
                     "preferences": {
+                        // https://github.com/zed-industries/zed/issues/6115#issuecomment-2709471139
                         "importModuleSpecifier": "non-relative"
+                    },
+                    "tsserver": {
+                        // NOCOMMIT: For debugging only!
+                        "log": "verbose"
                     }
                 }
             }

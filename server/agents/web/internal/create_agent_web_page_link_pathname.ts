@@ -10,7 +10,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 export function createAgentWebPageLinkPathname(
     storage: AgentWebSessionStorage,
     pageLink: AgentWebPageLink,
-) {
+): Promise<string> {
     return storage.mutex.withLock(async () => {
         const pageLinkKey = printAgentWebPageLinkKey(pageLink);
 

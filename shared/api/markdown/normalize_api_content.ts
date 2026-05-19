@@ -346,7 +346,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
     }
 }
 
-function normalizeApiContentInlineElements(
+export function normalizeApiContentInlineElements(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
 ) {
     let index = 0;

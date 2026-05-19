@@ -29,5 +29,7 @@ export async function parseApiContentFromAgentWebMarkdownTree(
     // make sure to provide enough information that our parse function can return
     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
     // `ApiContentMentionInlineElementResponse` object).
+    //
+    // NOCOMMIT: Revert PR which reverted this behavior
     return parseApiContentFromMarkdownTree(root, {spaceId: storage.spaceId}) as ApiContentResponse;
 }

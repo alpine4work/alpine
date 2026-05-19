@@ -1,5 +1,5 @@
 import {addHours} from "date-fns";
-import {Node, Parent, Root} from "mdast";
+import {Root} from "mdast";
 import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
 import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.js";
@@ -36,8 +36,14 @@ export async function callAgentWebReadTool(
     context: AgentWebContext,
     {path: originalPath, limit: limitBytesString}: {path: string; limit: string},
 ) {
-    const {path, pathname} = normalizeAgentWebPath(originalPath);
-    const limitBytes = parseAgentWebBytes(limitBytesString);
+    const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
+
+    // The agent gives us a limit in bytes (which conventionally is understood as UTF-8
+    // code units) but for convenience we treat it as UTF-16 code units since that's
+    // how JavaScript strings are represented. This means in extreme cases we may
+    // return a string up to 2x longer in UTF-8 code units than the requested byte
+    // limit.
+    const limitLength = parseAgentWebBytes(limitBytesString);
 
     return getOrSetDefaultMapValue(
         context.storage.readResponseMutexByPath,
@@ -54,9 +60,37 @@ export async function callAgentWebReadTool(
 
         const pageLinkKey = printAgentWebPageLinkKey(pageLink);
 
+        let cachedPrintedPagePromise: Promise<{
+            page: AgentWebPageWithMetadata;
+            response: string;
+        }> | null = null;
+
+        // Allow an agent web page reader to get the UTF-16 code unit length of a `page` it
+        // generates. This is intended to be used for pagination so the reader can make
+        // sure its page comes in under the requested limit.
+        //
+        // We cache the printed string so if the reader returns the exact page then we
+        // don't have to print it again.
+        const computeLength = (page: AgentWebPageWithMetadata) => {
+            const previousCachedPrintedPagePromise = cachedPrintedPagePromise;
+
+            cachedPrintedPagePromise = (async () => {
+                const previousCachedPrintedPage = await previousCachedPrintedPagePromise;
+                if (previousCachedPrintedPage?.page === page) return previousCachedPrintedPage;
+
+                const response = await printAgentWebPageToMarkdownForReadTool(
+                    context.storage,
+                    page,
+                );
+                return {page, response};
+            })();
+
+            return cachedPrintedPagePromise.then(({response}) => response.length);
+        };
+
         const [latestPageLinkPathnameForKey, page] = await runAllPromises([
             context.storage.latestPageLinkPathnameByKey.get(pageLinkKey),
-            readAgentWebPageLink(context, pageLink),
+            readAgentWebPageLink(context, pageLink, {searchParams, limitLength, computeLength}),
         ]);
 
         // Allow the agent to observe when a path change occurs. We frame this as a
@@ -75,37 +109,16 @@ export async function callAgentWebReadTool(
             });
         }
 
-        const responseTree = await printAgentWebPage(context.storage, page);
+        // TypeScript is so so dumb in this case. `countBytes()` assigns this variable
+        // which is called by `readAgentWebPageLink()`.
+        cachedPrintedPagePromise = cachedPrintedPagePromise as any;
 
-        let response = printMarkdownTree(responseTree);
+        const cachedPrintedPage = await cachedPrintedPagePromise;
 
-        // Use Prettier to print our Markdown before sending it to the LLM. We hypothesize
-        // this will lead to better performance from the LLM since Prettier formatting is
-        // more "standard" than micromark's (used by `printMarkdownTree()`) default
-        // formatting.
-        response = await prettier.format(response, {
-            parser: "markdown",
-            endOfLine: "lf",
-            printWidth: 80,
-            tabWidth: 2,
-            // We never wrap text within paragraphs at 80 characters. This is entirely
-            // presentational. Two reasons why we think it's bad for LLMs:
-            //
-            // 1. Pagination via newlines ends up being more semantic since it's close to
-            //    paginating by paragraphs in a long document.
-            //
-            // 2. We're guessing LLMs are trained on vastly more text without presentational
-            //    line breaks than text with presentational line breaks. So the LLM should be
-            //    slightly more intelligent when not presented with text that has
-            //    presentational line breaks.
-            //
-            // Wrapping at 80 characters is good for a human reader but not necessarily for an
-            // LLM reader.
-            proseWrap: "never",
-            plugins: [markdownPrettierPlugin],
-        });
-
-        response = response.trim();
+        const response =
+            cachedPrintedPage?.page === page
+                ? cachedPrintedPage.response
+                : await printAgentWebPageToMarkdownForReadTool(context.storage, page);
 
         // Find all the newline indexes in our response. So the `scroll` tool can easily
         // return a slice of the response.
@@ -128,15 +141,54 @@ export async function callAgentWebReadTool(
             newlineIndexes,
         });
 
-        if (response.length <= limitBytes) {
+        if (response.length <= limitLength) {
             return response;
         } else {
             return truncateAgentWebReadResponse(
                 {response, newlineIndexes},
-                {offsetNewline: 0, limitBytes, isScrollTool: false},
+                {offsetNewline: 0, limitLength, isScrollTool: false},
             );
         }
     });
+}
+
+async function printAgentWebPageToMarkdownForReadTool(
+    storage: AgentWebSessionStorage,
+    page: AgentWebPageWithMetadata,
+): Promise<string> {
+    const tree = await printAgentWebPage(storage, page);
+
+    let string = printMarkdownTree(tree);
+
+    // Use Prettier to print our Markdown before sending it to the LLM. We hypothesize
+    // this will lead to better performance from the LLM since Prettier formatting is
+    // more "standard" than micromark's (used by `printMarkdownTree()`) default
+    // formatting.
+    string = await prettier.format(string, {
+        parser: "markdown",
+        endOfLine: "lf",
+        printWidth: 80,
+        tabWidth: 2,
+        // We never wrap text within paragraphs at 80 characters. This is entirely
+        // presentational. Two reasons why we think it's bad for LLMs:
+        //
+        // 1. Pagination via newlines ends up being more semantic since it's close to
+        //    paginating by paragraphs in a long document.
+        //
+        // 2. We're guessing LLMs are trained on vastly more text without presentational
+        //    line breaks than text with presentational line breaks. So the LLM should be
+        //    slightly more intelligent when not presented with text that has
+        //    presentational line breaks.
+        //
+        // Wrapping at 80 characters is good for a human reader but not necessarily for an
+        // LLM reader.
+        proseWrap: "never",
+        plugins: [markdownPrettierPlugin],
+    });
+
+    string = string.trim();
+
+    return string;
 }
 
 function readAgentWebPageLink(
@@ -151,6 +203,11 @@ function readAgentWebPageLink(
     // doesn't rely on `title` or any extra data we include in the full link object to
     // print a friendly path for the agent.
     pageLink: AgentWebPageLinkKeyObject,
+    options: {
+        searchParams: URLSearchParams;
+        limitLength: number;
+        computeLength: (page: AgentWebPageWithMetadata) => Promise<number>;
+    },
 ): Promise<AgentWebPageWithMetadata> {
     switch (pageLink.type) {
         case "Document": {

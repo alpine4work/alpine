@@ -82,13 +82,11 @@ paths:
                                 properties:
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/AccountTarget"
-                                            title:
-                                                type: string
 
     /spaces/{id}:
         parameters:
@@ -249,13 +247,11 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/ChatTarget"
-                                            title:
-                                                type: string
 
     # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
     # endpoints that deal with content. This variant should return a string for
@@ -301,8 +297,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -479,13 +475,11 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/DocumentTarget"
-                                            title:
-                                                type: string
 
     /documents/{id}/threads/{threadId}:
         parameters:
@@ -567,8 +561,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -715,13 +709,11 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/ChannelTarget"
-                                            title:
-                                                type: string
 
     /posts:
         post:
@@ -784,7 +776,12 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
-                                        $ref: "#/components/schemas/Mention"
+                                        type: object
+                                        required: [target]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/PostTarget"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -826,8 +823,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -996,13 +993,11 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/TaskTarget"
-                                            title:
-                                                type: string
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -1044,8 +1039,8 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
-                      default: start
+                      enum: [Start, End]
+                      default: Start
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
@@ -1176,13 +1171,11 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     mention:
                                         type: object
-                                        required: [target, title]
+                                        required: [target]
                                         additionalProperties: false
                                         properties:
                                             target:
                                                 $ref: "#/components/schemas/TaskCollectionTarget"
-                                            title:
-                                                type: string
 
     /task-collections/{id}/tasks:
         parameters:
@@ -2487,13 +2480,17 @@ components:
 
         DirectChat:
             type: object
-            required: [type, id, members]
+            required: [type, id, title, members]
             additionalProperties: false
             properties:
                 type:
                     const: Direct
                 id:
                     $ref: "#/components/schemas/ChatId"
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                title:
+                    type: string
                 members:
                     type: array
                     items:

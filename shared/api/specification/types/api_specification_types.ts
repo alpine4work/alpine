@@ -111,7 +111,6 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly mention: {
                                     readonly target: components["schemas"]["AccountTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -383,7 +382,6 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly mention: {
                                     readonly target: components["schemas"]["ChatTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -447,7 +445,7 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: number;
-                        readonly from?: "start" | "end";
+                        readonly from?: "Start" | "End";
                     };
                     readonly header?: never;
                     readonly path: {
@@ -747,7 +745,6 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly mention: {
                                     readonly target: components["schemas"]["DocumentTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -858,7 +855,7 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: number;
-                        readonly from?: "start" | "end";
+                        readonly from?: "Start" | "End";
                     };
                     readonly header?: never;
                     readonly path: {
@@ -1113,7 +1110,6 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly mention: {
                                     readonly target: components["schemas"]["ChannelTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -1224,7 +1220,9 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly mention: components["schemas"]["Mention_Response"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["PostTarget_Response"];
+                                };
                             };
                         };
                     };
@@ -1287,7 +1285,7 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: number;
-                        readonly from?: "start" | "end";
+                        readonly from?: "Start" | "End";
                     };
                     readonly header?: never;
                     readonly path: {
@@ -1576,7 +1574,6 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly mention: {
                                     readonly target: components["schemas"]["TaskTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -1640,7 +1637,7 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: number;
-                        readonly from?: "start" | "end";
+                        readonly from?: "Start" | "End";
                     };
                     readonly header?: never;
                     readonly path: {
@@ -1885,7 +1882,6 @@ export namespace ApiSpecification {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly mention: {
                                     readonly target: components["schemas"]["TaskCollectionTarget_Response"];
-                                    readonly title: string;
                                 };
                             };
                         };
@@ -2620,6 +2616,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Direct";
                 readonly id: components["schemas"]["ChatId"];
+                readonly title: string;
                 readonly members: readonly {
                     readonly account: components["schemas"]["Account"];
                 }[];

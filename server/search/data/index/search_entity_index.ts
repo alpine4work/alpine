@@ -2659,6 +2659,41 @@ function prepareSearchEntityTitleForResult(
     return prepareSearchDirectChatEntityTitleForResult(actorType, media);
 }
 
+export async function getSearchDirectChatEntityTitleAndMedia(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    chatId: ChatId,
+    accountIds: ReadonlySet<AccountId>,
+) {
+    const media = await prepareSearchEntityMediaForResult(
+        context,
+        spaceId,
+        `Chat:${chatId}`,
+        {
+            type: "AccountPile",
+            previewAccountIds: sortSearchDirectChatEntityAccountIds(chatId, accountIds).slice(
+                0,
+                // Add 1 to make sure we can filter out the actor account and still have enough
+                // accounts to render a nice looking pile.
+                searchChatEntityResultTitlePreviewAccountCount + 1,
+            ),
+            accountCount: accountIds.size,
+        },
+        {consistency: "StrongWithinCache"},
+    );
+
+    let title: string;
+
+    if (media.type !== "AccountPile") {
+        assert(media.type === "Account");
+        title = media.account.initialData.name;
+    } else {
+        title = prepareSearchDirectChatEntityTitleForResult(context.actor.type, media);
+    }
+
+    return {title, media};
+}
+
 type SearchEntityModelBaseResult =
     | {
           isPrivate: false;
@@ -2868,37 +2903,12 @@ async function fallbackGetSearchEntityBaseIfPossible(
                     // This matches the behavior of `getChatSearchEntity()`.
                     if (chat.definition.accountIds.size <= 2) return null;
 
-                    const media = await prepareSearchEntityMediaForResult(
+                    const {title, media} = await getSearchDirectChatEntityTitleAndMedia(
                         context,
-                        spaceId,
-                        entityId,
-                        {
-                            type: "AccountPile",
-                            previewAccountIds: sortSearchDirectChatEntityAccountIds(
-                                entityIdObject.chatId,
-                                chat.definition.accountIds,
-                            ).slice(
-                                0,
-                                // Add 1 to make sure we can filter out the actor account and still have enough
-                                // accounts to render a nice looking pile.
-                                searchChatEntityResultTitlePreviewAccountCount + 1,
-                            ),
-                            accountCount: chat.definition.accountIds.size,
-                        },
-                        {consistency: "StrongWithinCache"},
+                        chat.spaceId,
+                        entityIdObject.chatId,
+                        chat.definition.accountIds,
                     );
-
-                    let title: string;
-
-                    if (media.type !== "AccountPile") {
-                        assert(media.type === "Account");
-                        title = media.account.initialData.name;
-                    } else {
-                        title = prepareSearchDirectChatEntityTitleForResult(
-                            context.actor.type,
-                            media,
-                        );
-                    }
 
                     return {
                         isPrivate: false,
