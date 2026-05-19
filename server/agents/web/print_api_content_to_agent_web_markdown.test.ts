@@ -6,7 +6,7 @@ import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdo
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentResponse,
@@ -2011,10 +2011,8 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 {documentId: contextDocumentId},
             );
 
-            expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent, {
-                    withoutFileGalleryElementRowItemWidth: true,
-                }),
+            expect(normalizeApiContent(actualContent)).toEqual(
+                normalizeApiContent(expectedContent),
             );
         });
 
@@ -2063,10 +2061,8 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             const actualContent: ApiContentResponse = {elements};
 
-            expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent, {
-                    withoutFileGalleryElementRowItemWidth: true,
-                }),
+            expect(normalizeApiContent(actualContent)).toEqual(
+                normalizeApiContent(expectedContent),
             );
         });
     });

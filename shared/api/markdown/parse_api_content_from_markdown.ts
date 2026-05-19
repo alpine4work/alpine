@@ -3,7 +3,6 @@ import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
-    HtmlData,
     List,
     ListItem,
     PhrasingContent,
@@ -147,7 +146,7 @@ export function parseMarkdownTree(
             gfmStrikethrough({singleTilde: false}),
             gfmTable(),
             gfmTaskListItem(),
-            math(),
+            math({singleDollarTextMath: false}),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
             // frontmatter in the future.
@@ -397,16 +396,6 @@ function* parseApiContentBlockElementFromMarkdown(
                 firstChild?.type === "image" &&
                 options.spaceId !== null
             ) {
-                if (firstChild.data?.fileElement) {
-                    yield firstChild.data.fileElement;
-                    break;
-                }
-
-                if (firstChild.data?.previewElement) {
-                    yield firstChild.data.previewElement;
-                    break;
-                }
-
                 const imageNode = firstChild;
 
                 const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
@@ -467,17 +456,10 @@ function* parseApiContentBlockElementFromMarkdown(
                     // Concatenate all adjacent html children into a single string for the block HTML
                     // parser.
                     let combinedHtml = "";
-                    const combinedData: HtmlData = {};
                     for (let i = mediaStartIndex; i <= mediaEndIndex; i++) {
                         const child = content.children[i]!;
                         if (child.type === "html") {
                             combinedHtml += child.value;
-                            if (child.data?.fileOrPreviewElementByUrl) {
-                                combinedData.fileOrPreviewElementByUrl ??= new Map();
-                                for (const [key, value] of child.data.fileOrPreviewElementByUrl) {
-                                    combinedData.fileOrPreviewElementByUrl.set(key, value);
-                                }
-                            }
                         }
                     }
 
@@ -498,7 +480,7 @@ function* parseApiContentBlockElementFromMarkdown(
 
                     // Parse the combined inline HTML as block-level HTML to extract the media element.
                     yield* parseApiContentBlockElementFromMarkdown(
-                        {type: "html", value: combinedHtml, data: combinedData},
+                        {type: "html", value: combinedHtml},
                         definitions,
                         tableState,
                         options,
@@ -844,9 +826,10 @@ function* parseApiContentBlockElementFromMarkdown(
                 }
 
                 if (mediaUrl && options.spaceId !== null) {
-                    const element =
-                        content.data?.fileOrPreviewElementByUrl?.get(mediaUrl) ??
-                        parseApiContentFileOrPreviewBlockElementFromUrl(options.spaceId, mediaUrl);
+                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
+                        options.spaceId,
+                        mediaUrl,
+                    );
 
                     if (element !== null) {
                         if (divFileState?.containerType === "file-gallery-row") {
@@ -2383,15 +2366,6 @@ function* parseApiContentInlineElementFromMarkdown(
             break;
         }
         case "link": {
-            // If a mention element was already parsed for us then use that.
-            if (content.data?.mentionElement) {
-                yield {
-                    ...content.data?.mentionElement,
-                    marks: markStack.getMarks(),
-                };
-                break;
-            }
-
             // Try parsing URL.
             let url: URL | undefined;
             try {

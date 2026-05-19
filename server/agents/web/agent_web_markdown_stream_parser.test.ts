@@ -7,8 +7,9 @@
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
@@ -1932,6 +1933,169 @@ test("empty paragraphs with updates in weird places", async () => {
     ]);
 });
 
+test("streams file gallery rows as their HTML completes", async () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    await storage.pageLinkByPathname.put("/file/image.png", {
+        type: "File",
+        id: file1Id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+    await storage.pageLinkByPathname.put("/file/image-2.png", {
+        type: "File",
+        id: file2Id,
+        contentType: "image/png",
+        contentLength: 200,
+    });
+    await storage.pageLinkByPathname.put("/file/image-3.png", {
+        type: "File",
+        id: file3Id,
+        contentType: "image/png",
+        contentLength: 300,
+    });
+    await storage.pageLinkByPathname.put("/file/image-4.png", {
+        type: "File",
+        id: file4Id,
+        contentType: "image/png",
+        contentLength: 400,
+    });
+    await storage.pageLinkByPathname.put("/file/image-5.png", {
+        type: "File",
+        id: file5Id,
+        contentType: "image/png",
+        contentLength: 500,
+    });
+    await storage.pageLinkByPathname.put("/file/image-6.png", {
+        type: "File",
+        id: file6Id,
+        contentType: "image/png",
+        contentLength: 600,
+    });
+
+    const message = new AgentWebMarkdownStreamParser({
+        storage,
+        documentId: null,
+    });
+
+    const update = () => message.update(null).then(items => items.map(item => item.part));
+
+    message.pushText(
+        null,
+        `<div style="display: flex; align-items: stretch">\n<img src="/file/image.png"`,
+    );
+    expect(await update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {elements: []},
+            },
+        },
+    ]);
+
+    message.pushText(null, ` />\n`);
+    expect(await update()).toEqual([]);
+
+    message.pushText(null, `</div>\n\n`);
+    expect(await update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "FileGallery",
+                            rows: [
+                                {
+                                    items: [{element: {type: "File", id: file1Id}}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(
+        null,
+        `<div style="display: flex; align-items: stretch">\n<img src="/file/image-2.png" />\n<img src="/file/image-3.png"`,
+    );
+    expect(await update()).toEqual([
+        {
+            index: 1,
+            payload: {
+                type: "Content",
+                content: {elements: []},
+            },
+        },
+    ]);
+
+    message.pushText(null, ` />\n`);
+    expect(await update()).toEqual([]);
+
+    message.pushText(null, `</div>\n\n`);
+    expect(await update()).toEqual([
+        {
+            index: 1,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "FileGallery",
+                            rows: [
+                                {
+                                    items: [
+                                        {element: {type: "File", id: file2Id}},
+                                        {element: {type: "File", id: file3Id}},
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(
+        null,
+        `<div style="display: flex; align-items: stretch">\n<img src="/file/image-4.png" />\n<img src="/file/image-5.png" />\n<img src="/file/image-6.png" />\n</div>\n`,
+    );
+    expect(await update()).toEqual([
+        {
+            index: 2,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "FileGallery",
+                            rows: [
+                                {
+                                    items: [
+                                        {element: {type: "File", id: file4Id}},
+                                        {element: {type: "File", id: file5Id}},
+                                        {element: {type: "File", id: file6Id}},
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
 test("can stream simple unordered list", async () => {
     const message = new AgentWebMarkdownStreamParser({
         storage,
@@ -2787,11 +2951,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Document",
-                                        id: documentId,
-                                        title: "Brown Fox Jumps Over The",
-                                    },
+                                    target: {type: "Document", id: documentId},
                                 },
                             ],
                         },
@@ -2819,11 +2979,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Document",
-                                        id: documentId,
-                                        title: "Brown Fox Jumps Over The",
-                                    },
+                                    target: {type: "Document", id: documentId},
                                 },
                                 {
                                     type: "Text",
@@ -2959,12 +3115,7 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Task",
-                                        id: taskId,
-                                        title: "Brown Fox Jumps Over The",
-                                        status: {type: "Open", isActive: true},
-                                    },
+                                    target: {type: "Task", id: taskId},
                                 },
                             ],
                         },
@@ -2992,12 +3143,7 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Task",
-                                        id: taskId,
-                                        title: "Brown Fox Jumps Over The",
-                                        status: {type: "Open", isActive: true},
-                                    },
+                                    target: {type: "Task", id: taskId},
                                 },
                                 {
                                     type: "Text",
@@ -3644,11 +3790,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Document",
-                                        id: documentId,
-                                        title: "Brown Fox Jumps Over The",
-                                    },
+                                    target: {type: "Document", id: documentId},
                                 },
                             ],
                         },
@@ -3676,11 +3818,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
-                                        type: "Document",
-                                        id: documentId,
-                                        title: "Brown Fox Jumps Over The",
-                                    },
+                                    target: {type: "Document", id: documentId},
                                 },
                                 {
                                     type: "Text",

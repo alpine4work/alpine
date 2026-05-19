@@ -11,7 +11,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {normalizeDraftApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeDraftApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentArbitrary as ActualApiContentArbitrary,
     ApiContentTextArbitrary,
@@ -27,8 +27,6 @@ const ApiContentArbitrary = ActualApiContentArbitrary.map(content => {
                 }
             },
         });
-
-        normalizeDraftApiContentResponse(content);
     });
 });
 
@@ -72,4 +70,11 @@ runAgentWebPageGenerativeTests({
     parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     pageLink: fc.constant(null),
     page: AgentWebMessagingPageBaseArbitrary,
+    normalize: page => {
+        for (const block of page.blocks) {
+            if (block.type !== "Message") continue;
+            if (block.parent) normalizeDraftApiContent(block.parent.previewContent);
+            normalizeDraftApiContent(block.content);
+        }
+    },
 });

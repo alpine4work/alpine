@@ -6,7 +6,6 @@ import {
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -22,61 +21,15 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  */
 export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements, {
-            isResponse: false,
-            withoutFileGalleryElementRowItemWidth: false,
-        });
+        normalizeApiContentBlockElements(content.elements);
     });
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeApiContentBlockElements(content.elements, {
-        isResponse: false,
-        withoutFileGalleryElementRowItemWidth: false,
-    });
+    normalizeApiContentBlockElements(content.elements);
 }
 
-/**
- * If two `ApiContentResponse` objects normalize to the same object (based on an
- * `isDeepEqual()` check) then the two `ApiContentResponse`s are considered to be
- * equivalent.
- *
- * Does not clean response-only properties. `normalizeApiContent()` will clean
- * response-only properties.
- */
-export function normalizeApiContentResponse(
-    content: ApiContentResponse,
-    options?: {withoutFileGalleryElementRowItemWidth: boolean},
-): ApiContentResponse {
-    return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements, {
-            isResponse: true,
-            withoutFileGalleryElementRowItemWidth:
-                options?.withoutFileGalleryElementRowItemWidth ?? false,
-        });
-    });
-}
-
-export function normalizeDraftApiContentResponse(
-    content: Draft<ApiContentResponse>,
-    options?: {withoutFileGalleryElementRowItemWidth: boolean},
-) {
-    normalizeApiContentBlockElements(content.elements, {
-        isResponse: true,
-        withoutFileGalleryElementRowItemWidth:
-            options?.withoutFileGalleryElementRowItemWidth ?? false,
-    });
-}
-
-type ApiContentNormalizationOptions = {
-    readonly isResponse: boolean;
-    readonly withoutFileGalleryElementRowItemWidth: boolean;
-};
-
-function normalizeApiContentBlockElements(
-    elements: Draft<ReadonlyArray<ApiContentBlockElement>>,
-    options: ApiContentNormalizationOptions,
-) {
+function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
     let index = 0;
     while (index < elements.length) {
         const element = elements[index]!;
@@ -231,18 +184,15 @@ function normalizeApiContentBlockElements(
             }
         }
 
-        normalizeApiContentBlockElement(elements[index]!, options);
+        normalizeApiContentBlockElement(elements[index]!);
         index++;
     }
 }
 
-function normalizeApiContentBlockElement(
-    element: Draft<ApiContentBlockElement>,
-    options: ApiContentNormalizationOptions,
-) {
+function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>) {
     switch (element.type) {
         case "Paragraph": {
-            normalizeApiContentInlineElements(element.elements, options);
+            normalizeApiContentInlineElements(element.elements);
             break;
         }
         case "UnorderedList":
@@ -250,7 +200,7 @@ function normalizeApiContentBlockElement(
         case "CheckList": {
             for (const item of element.items) {
                 if (item.elements.length > 0) {
-                    normalizeApiContentBlockElements(item.elements, options);
+                    normalizeApiContentBlockElements(item.elements);
                 } else if (element.type !== "UnorderedList") {
                     // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
                     // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
@@ -279,7 +229,7 @@ function normalizeApiContentBlockElement(
                 }
 
                 if (item.nestedListElements !== undefined) {
-                    normalizeApiContentBlockElements(item.nestedListElements, options);
+                    normalizeApiContentBlockElements(item.nestedListElements);
 
                     if (item.nestedListElements.length === 0) {
                         item.nestedListElements = undefined;
@@ -289,11 +239,11 @@ function normalizeApiContentBlockElement(
             break;
         }
         case "Quote": {
-            normalizeApiContentBlockElements(element.elements, options);
+            normalizeApiContentBlockElements(element.elements);
             break;
         }
         case "Heading": {
-            normalizeApiContentInlineElements(element.elements, options);
+            normalizeApiContentInlineElements(element.elements);
             break;
         }
         case "Divider": {
@@ -305,7 +255,7 @@ function normalizeApiContentBlockElement(
                 element.lines.push({elements: []});
             } else {
                 for (const line of element.lines) {
-                    normalizeApiContentInlineElements(line.elements, options);
+                    normalizeApiContentInlineElements(line.elements);
                 }
             }
             break;
@@ -328,7 +278,7 @@ function normalizeApiContentBlockElement(
                 columnCount = Math.max(columnCount, row.cells.length);
 
                 for (const cell of row.cells) {
-                    normalizeApiContentBlockElements(cell.elements, options);
+                    normalizeApiContentBlockElements(cell.elements);
 
                     // A single empty paragraph is the default for empty cells. Remove it since the
                     // parser will recreate it.
@@ -358,25 +308,22 @@ function normalizeApiContentBlockElement(
             break;
         }
         case "File": {
-            if (!options.isResponse) {
-                // `contentType` and `contentLength` are response-only metadata that don't survive
-                // the markdown round trip. Strip them so that content with and without metadata
-                // normalizes to the same form.
-                if (hasOwnProperty(element, "contentType")) delete element.contentType;
-                if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
-            }
+            // `contentType` and `contentLength` are response-only metadata that don't survive
+            // the markdown round trip. Strip them so that content with and without metadata
+            // normalizes to the same form.
+            if (hasOwnProperty(element, "contentType")) delete element.contentType;
+            if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
             break;
         }
         case "Preview": {
-            if (!options.isResponse) {
-                // The preview title is only sometimes included as a convenience. It isn't
-                // essential to the preview element.
-                if (hasOwnProperty(element.target, "title")) delete element.target.title;
-            }
+            // The preview title is only sometimes included as a convenience. It isn't
+            // essential to the preview element.
+            if (hasOwnProperty(element.target, "title")) delete element.target.title;
+            if (hasOwnProperty(element.target, "status")) delete element.target.status;
             break;
         }
         case "FileFloat": {
-            normalizeApiContentBlockElement(element.element, options);
+            normalizeApiContentBlockElement(element.element);
             break;
         }
         case "FileGallery": {
@@ -388,13 +335,8 @@ function normalizeApiContentBlockElement(
             // items, `contentType` on File elements).
             for (const row of element.rows) {
                 for (const item of row.items) {
-                    if (
-                        (!options.isResponse || options.withoutFileGalleryElementRowItemWidth) &&
-                        hasOwnProperty(item, "width")
-                    ) {
-                        delete item.width;
-                    }
-                    normalizeApiContentBlockElement(item.element, options);
+                    if (hasOwnProperty(item, "width")) delete item.width;
+                    normalizeApiContentBlockElement(item.element);
                 }
             }
             break;
@@ -406,7 +348,6 @@ function normalizeApiContentBlockElement(
 
 function normalizeApiContentInlineElements(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
-    options: ApiContentNormalizationOptions,
 ) {
     let index = 0;
     let lastElement: Draft<ApiContentInlineElement> | undefined;
@@ -421,14 +362,12 @@ function normalizeApiContentInlineElements(
         }
 
         if (element.type === "Mention") {
-            if (!options.isResponse) {
-                // Cleanup response properties that aren't compared when determining content
-                // equality.
-                if (hasOwnProperty(element.target, "title")) delete element.target.title;
-                if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
-                if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
-                if (hasOwnProperty(element.target, "status")) delete element.target.status;
-            }
+            // Cleanup response properties that aren't compared when determining content
+            // equality.
+            if (hasOwnProperty(element.target, "title")) delete element.target.title;
+            if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
+            if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
+            if (hasOwnProperty(element.target, "status")) delete element.target.status;
 
             // `isAccountShortName` can only be true for account targets. Otherwise set to
             // undefined.

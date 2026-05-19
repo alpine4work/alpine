@@ -69,10 +69,6 @@ declare module "mdast" {
         fileElement?: ApiContentFileBlockElement;
         previewElement?: ApiContentPreviewBlockElement;
         fileGalleryElementRow?: ApiContentFileGalleryBlockElementRow;
-        fileOrPreviewElementByUrl?: Map<
-            string,
-            ApiContentFileBlockElement | ApiContentPreviewBlockElement
-        >;
     }
 }
 
@@ -128,7 +124,10 @@ export function printMarkdownTree(root: Root): string {
             // NOTE(calebmer, 2025-08-08): We don't currently support math symbols in content
             // but we might want to support math in the future. So make sure we escape `$` and
             // `$$` to reserve them.
-            mathToMarkdown(),
+            //
+            // We disable single dollar syntax so dollar signs like $4.2 in text don't need to
+            // be escaped.
+            mathToMarkdown({singleDollarTextMath: false}),
             // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
             // Markdown but we want to reserve the syntax so we have the ability to use
             // frontmatter in the future.

@@ -558,13 +558,6 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                                     },
                                 ],
                                 position: node.position,
-                                data: {
-                                    mentionElement: {
-                                        type: "Mention",
-                                        target: mentionTargetResult.target,
-                                        isAccountShortName: isAccountShortName || undefined,
-                                    },
-                                },
                             };
                         }
                         default:
@@ -586,14 +579,6 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                         url: printApiFileContentUrl(storage.spaceId, pageLink.id),
                         alt: null,
                         position: node.position,
-                        data: {
-                            fileElement: {
-                                type: "File",
-                                id: pageLink.id,
-                                contentType: pageLink.contentType,
-                                contentLength: pageLink.contentLength,
-                            },
-                        },
                     };
                 }
 
@@ -605,12 +590,6 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     url: printApiPreviewTargetToPreviewUrl(storage.spaceId, previewTarget),
                     alt: printApiMentionTargetToMentionLinkLabel(previewTarget),
                     position: node.position,
-                    data: {
-                        previewElement: {
-                            type: "Preview",
-                            target: previewTarget,
-                        },
-                    },
                 };
             }
             default:
@@ -1004,11 +983,7 @@ async function traverseMarkdownHtmlNode(
         newValue = newValue.slice(0, startIndex) + string + newValue.slice(endIndex);
     }
 
-    return {
-        ...node,
-        value: newValue,
-        data: fileOrPreviewElementByUrl ? {fileOrPreviewElementByUrl} : undefined,
-    };
+    return {...node, value: newValue};
 }
 
 function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockContent>> {
