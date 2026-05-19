@@ -1,8 +1,11 @@
+import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPageBase,
     agentWebMessagingPageMessageNouns,
+    printAgentWebMessagingPageBase,
     readAgentWebMessagingPageBase,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -38,7 +41,7 @@ export async function readAgentWebChatPage(
         agentWebMessagingPageMessageNouns,
         {
             room: {type: "Chat", id},
-            from: "End",
+            defaultDirection: "End",
             searchParams,
             limitLength,
             computeLength,
@@ -83,4 +86,12 @@ export async function readAgentWebChatPage(
     );
 
     return page;
+}
+
+export function printAgentWebChatPage(
+    storage: AgentWebSessionStorage,
+    id: ChatId,
+    page: AgentWebChatPage,
+): Promise<Root> {
+    return printAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, storage, null, page);
 }

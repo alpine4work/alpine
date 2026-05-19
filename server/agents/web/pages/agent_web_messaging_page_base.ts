@@ -96,7 +96,7 @@ export async function readAgentWebMessagingPageBase<Page>(
     {
         room,
         roomMetadataPromise,
-        from,
+        defaultDirection,
         searchParams,
         limitLength,
         computeLength,
@@ -107,7 +107,7 @@ export async function readAgentWebMessagingPageBase<Page>(
             pathname: string;
             description: ReadonlyArray<ApiContentInlineElementResponse>;
         }>;
-        from: "Start" | "End";
+        defaultDirection: "Start" | "End";
         searchParams: URLSearchParams;
         limitLength: number;
         computeLength: (page: Page) => Promise<number>;
@@ -132,7 +132,7 @@ export async function readAgentWebMessagingPageBase<Page>(
             throw new InvalidArgumentError(
                 "Expected `before` search param to be a positive integer",
                 {
-                    displayMessage: errorDisplayMessage`Expected \`before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting the \`before\` URL search param. We recommend using a value for \`before\` that you\u2019ve seen previously in a pagination link.`,
+                    displayMessage: errorDisplayMessage`Expected \`before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`before\`. We recommend using a value for \`before\` that you\u2019ve seen previously in a pagination link.`,
                 },
             );
         }
@@ -150,14 +150,28 @@ export async function readAgentWebMessagingPageBase<Page>(
             throw new InvalidArgumentError(
                 "Expected `after` search param to be a positive integer",
                 {
-                    displayMessage: errorDisplayMessage`Expected \`after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting the \`after\` URL search param. We recommend using a value for \`after\` that you\u2019ve seen previously in a pagination link.`,
+                    displayMessage: errorDisplayMessage`Expected \`after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`after\`. We recommend using a value for \`after\` that you\u2019ve seen previously in a pagination link.`,
                 },
             );
         }
     }
 
-    let cursor: number | null = from === "Start" ? afterMessageIndex : beforeMessageIndex;
+    if (beforeMessageIndex !== null && afterMessageIndex !== null) {
+        throw new InvalidArgumentError("Expected only one pagination search param", {
+            displayMessage: errorDisplayMessage`Expected only one of \`before\` or \`after\` URL search params. Try again with only one of \`before\` or \`after\`. We recommend using a value for \`before\` or \`after\` that you\u2019ve seen previously in a pagination link.`,
+        });
+    }
+
+    const direction: "Start" | "End" =
+        afterMessageIndex !== null
+            ? "Start"
+            : beforeMessageIndex !== null
+              ? "End"
+              : defaultDirection;
+
+    let cursor: number | null = direction === "Start" ? afterMessageIndex : beforeMessageIndex;
     let totalLengthEstimate = 0;
+    let hasMoreMessages = false;
     const messages: Array<ApiMessageResponse> = [];
 
     // Load messages until we reach our token limit.
@@ -165,7 +179,7 @@ export async function readAgentWebMessagingPageBase<Page>(
         const {
             data: {nextCursor, messages: currentMessages},
         } =
-            from === "Start"
+            direction === "Start"
                 ? await getApiMessagesFromStart(context.span, context.api, room, {
                       limit: agentWebMessagingPageApiMessagesBatchCount,
                       cursor,
@@ -176,12 +190,12 @@ export async function readAgentWebMessagingPageBase<Page>(
                   });
 
         cursor = nextCursor;
+        hasMoreMessages = cursor !== null;
 
-        for (const message of from === "Start"
+        for (const message of direction === "Start"
             ? currentMessages
             : reverseIterable(currentMessages)) {
             const lengthEstimate = estimateApiMessageLength(message);
-            totalLengthEstimate += lengthEstimate;
 
             // If this message would put us over our limit then DO NOT add the message and
             // instead return the messages we have.
@@ -199,16 +213,19 @@ export async function readAgentWebMessagingPageBase<Page>(
                 totalLengthEstimate > limitLength / 2 &&
                 totalLengthEstimate + lengthEstimate > limitLength
             ) {
+                hasMoreMessages = true;
                 break outer;
             } else {
-                totalLengthEstimate += limitLength;
+                totalLengthEstimate += lengthEstimate;
                 messages.push(message);
             }
         }
+
+        if (cursor === null) break;
     }
 
     // Make sure messages are in the right order.
-    if (from !== "Start") messages.reverse();
+    if (direction !== "Start") messages.reverse();
 
     // Await the room metadata after we've fetched all our messages. We should have
     // been loading the room metadata in parallel.
@@ -226,12 +243,15 @@ export async function readAgentWebMessagingPageBase<Page>(
         const messagingPage = buildAgentWebMessagingPageFromApiMessages({
             timeZone: context.timeZone,
             messageNouns,
-            from,
+            direction,
             roomMetadata,
             messages,
+            hasMoreMessages,
         });
 
         page = buildPage(messagingPage);
+
+        if (messages.length === 0) break;
 
         // If there's only one message left then we have to return it. We can't return a
         // page with no messages. This likely means the one message is larger than our
@@ -241,7 +261,9 @@ export async function readAgentWebMessagingPageBase<Page>(
         const length = await computeLength(page);
         if (length <= limitLength) break;
 
-        if (from === "Start") {
+        hasMoreMessages = true;
+
+        if (direction === "Start") {
             messages.pop();
         } else {
             messages.shift();
@@ -402,18 +424,20 @@ function estimateApiMessageLength(message: ApiMessageResponse): number {
 function buildAgentWebMessagingPageFromApiMessages({
     timeZone,
     messageNouns,
-    from,
+    direction,
     roomMetadata,
     messages,
+    hasMoreMessages,
 }: {
     timeZone: TimeZone;
     messageNouns: AgentWebMessagingPageNouns;
-    from: "Start" | "End";
+    direction: "Start" | "End";
     roomMetadata: {
         pathname: string;
         description: ReadonlyArray<ApiContentInlineElementResponse>;
     };
     messages: ReadonlyArray<ApiMessageResponse>;
+    hasMoreMessages: boolean;
 }): AgentWebMessagingPageBase {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, timeZone));
@@ -510,27 +534,47 @@ function buildAgentWebMessagingPageFromApiMessages({
     // Flush any remaining block
     flushCurrentBlock();
 
-    return {
-        preamble: [
+    const preamble: Array<ApiContentInlineElement> = [
+        {
+            type: "Text",
+            text:
+                messages.length > 0
+                    ? `Some ${messageNouns.pluralNoun} `
+                    : `No ${messageNouns.pluralNoun} `,
+        },
+        ...roomMetadata.description,
+        {
+            type: "Text",
+            text: ".",
+        },
+    ];
+
+    if (hasMoreMessages && messages.length > 0) {
+        preamble.push(
             {
                 type: "Text",
-                text: `Some ${messageNouns.pluralNoun} `,
+                text: " ",
             },
-            ...roomMetadata.description,
             {
                 type: "Text",
-                text: `${from === "Start" ? "Next" : "Previous"} page »`,
+                text: `${direction === "Start" ? "Next" : "Previous"} page »`,
                 marks: [
                     {
                         type: "Link",
                         url:
-                            from === "Start"
-                                ? `${roomMetadata.pathname}?after=${messages[messages.length - 1]!.index}`
+                            direction === "Start"
+                                ? `${roomMetadata.pathname}?after=${
+                                      messages[messages.length - 1]!.index
+                                  }`
                                 : `${roomMetadata.pathname}?before=${messages[0]!.index}`,
                     },
                 ],
             },
-        ],
+        );
+    }
+
+    return {
+        preamble,
         blocks,
     };
 

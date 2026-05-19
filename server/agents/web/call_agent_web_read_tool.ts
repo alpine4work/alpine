@@ -19,6 +19,10 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
+    printAgentWebChatPage,
+    readAgentWebChatPage,
+} from "~/server/agents/web/pages/agent_web_chat_page.js";
+import {
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -213,6 +217,9 @@ function readAgentWebPageLink(
         case "Document": {
             return readAgentWebDocumentPage(context, pageLink.id);
         }
+        case "Chat": {
+            return readAgentWebChatPage(context, pageLink.id, options);
+        }
         default:
             throw exhaustive(pageLink);
     }
@@ -225,6 +232,9 @@ function printAgentWebPage(
     switch (page.type) {
         case "Document": {
             return printAgentWebDocumentPage(storage, page.metadata.id, page);
+        }
+        case "Chat": {
+            return printAgentWebChatPage(storage, page.metadata.id, page);
         }
         default:
             throw exhaustive(page);
