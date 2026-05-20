@@ -139,7 +139,7 @@ export function truncateAgentWebReadResponse(
             isTruncatedAtNewline = false;
         }
 
-        let truncationString = `Response truncated, ${printAgentWebBytes(response.length - offsetIndex - truncatedResponse.length)} remaining.`;
+        let truncationString = `Page truncated, ${printAgentWebBytes(response.length - offsetIndex - truncatedResponse.length)} remaining.`;
 
         if (offsetNewline === lastNewline) {
             truncationString += ` Showing line ${offsetNewline + 1}`;
@@ -149,10 +149,13 @@ export function truncateAgentWebReadResponse(
 
         truncationString += ` of ${newlineIndexes.length}.`;
 
+        const offsetHint =
+            !isTruncatedAtNewline && offsetNewline === lastNewline ? lastNewline : lastNewline + 1;
+
         if (!isScrollTool) {
-            truncationString += ` Call the \`scroll\` tool with an \`offset\` of ${lastNewline + 1}`;
+            truncationString += ` Call the \`scroll\` tool with an \`offset\` of ${offsetHint}`;
         } else {
-            truncationString += ` Use \`offset\` of ${lastNewline + 1}`;
+            truncationString += ` Use \`offset\` of ${offsetHint}`;
         }
 
         if (!isTruncatedAtNewline && offsetNewline === lastNewline) {

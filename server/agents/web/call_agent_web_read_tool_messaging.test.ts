@@ -813,7 +813,7 @@ Some messages in Engineering Room.
 
 Paragraph 1.
 
-(Response truncated, 135b remaining. Showing lines 1-8 of 27. Call the \`scroll\` tool with an \`offset\` of 8 to continue.)`);
+(Page truncated, 135b remaining. Showing lines 1-8 of 27. Call the \`scroll\` tool with an \`offset\` of 8 to continue.)`);
 
     await expect(
         callAgentWebScrollTool(context, {
