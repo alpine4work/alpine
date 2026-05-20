@@ -3,10 +3,10 @@ import {
     encode as encodeO200kBase,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.js";
+import {normalizeApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentResponse,
@@ -2011,13 +2011,9 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 {documentId: contextDocumentId},
             );
 
-            expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent, {
-                    // Agent web markdown doesn't preserve file gallery `width`s across print and
-                    // parse. The agent doesn't need to know the visual width of files in a gallery.
-                    withoutFileGalleryElementRowItemWidth: true,
-                }),
-            );
+            // We expect `parseApiContentFromAgentWebMarkdown()` to produce normalized content
+            // so we don't call `normalizeApiContent()` on `actualContent`.
+            expect(actualContent).toEqual(normalizeApiContentForAgentWebMarkdown(expectedContent));
         });
 
         test("parses agent web markdown back to content with `AgentWebMarkdownStreamParser`", async () => {
@@ -2065,12 +2061,8 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             const actualContent: ApiContentResponse = {elements};
 
-            expect(normalizeApiContentResponse(actualContent)).toEqual(
-                normalizeApiContentResponse(expectedContent, {
-                    // Agent web markdown doesn't preserve file gallery `width`s across print and
-                    // parse. The agent doesn't need to know the visual width of files in a gallery.
-                    withoutFileGalleryElementRowItemWidth: true,
-                }),
+            expect(normalizeApiContentForAgentWebMarkdown(actualContent)).toEqual(
+                normalizeApiContentForAgentWebMarkdown(expectedContent),
             );
         });
     });

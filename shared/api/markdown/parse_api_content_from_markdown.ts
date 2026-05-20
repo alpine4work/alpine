@@ -84,6 +84,18 @@ export type ApiContentMarkdownParserOptions = {
      * are ignored.
      */
     readonly dangerouslyAllowImageContentType?: boolean;
+
+    /**
+     * When true, we add `width`s to `FileGallery` element rows that distribute the
+     * files equally within the row.
+     *
+     * This is used by `parseApiContentFromAgentWebMarkdown()` because the goal of that
+     * function is to return `ApiContentResponse` which requires the `width` property.
+     * `parseApiContentFromAgentWebMarkdown()` can't add widths itself because it
+     * doesn't save file gallery widths in storage (an agent doesn't care about file
+     * gallery widths).
+     */
+    readonly withDummyFileGalleryElementLayout?: boolean;
 };
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
@@ -123,7 +135,8 @@ function actuallyParseApiContentFromMarkdown(
     options: ApiContentMarkdownParserOptions,
 ): ApiContent {
     const root = parseMarkdownTree(markdown);
-    return parseApiContentFromMarkdown(root, options);
+    const content = parseApiContentFromMarkdown(root, options);
+    return content;
 }
 
 export function parseMarkdownTree(
@@ -214,57 +227,6 @@ function parseApiContentFromMarkdown(
     };
 }
 
-/**
- * Merge adjacent standalone File/Preview elements into a FileGallery in-place.
- * Each merged element becomes a single-item row.
- */
-function mergeAdjacentFileElements(elements: Array<ApiContentBlockElement>) {
-    let i = 0;
-
-    while (i < elements.length - 1) {
-        const element = elements[i]!;
-        const next = elements[i + 1]!;
-
-        if (
-            (element.type === "File" || element.type === "Preview") &&
-            (next.type === "File" || next.type === "Preview" || next.type === "FileGallery")
-        ) {
-            const gallery: ApiContentBlockElement =
-                next.type === "FileGallery"
-                    ? {type: "FileGallery", rows: [{items: [{element}]}, ...next.rows]}
-                    : {
-                          type: "FileGallery",
-                          rows: [{items: [{element}]}, {items: [{element: next}]}],
-                      };
-
-            elements.splice(i, 2, gallery);
-            continue;
-        }
-
-        if (element.type === "FileGallery") {
-            if (next.type === "FileGallery") {
-                elements.splice(i, 2, {
-                    type: "FileGallery",
-                    rows: [...element.rows, ...next.rows],
-                });
-
-                continue;
-            }
-
-            if (next.type === "File" || next.type === "Preview") {
-                elements.splice(i, 2, {
-                    type: "FileGallery",
-                    rows: [...element.rows, {items: [{element: next}]}],
-                });
-
-                continue;
-            }
-        }
-
-        i++;
-    }
-}
-
 function* parseApiContentBlockElementsFromMarkdown(
     contents: Array<BlockContent | DefinitionContent>,
     definitions: ApiContentMarkdownParserDefinitions,
@@ -340,7 +302,31 @@ function* parseApiContentBlockElementsFromMarkdown(
 
         const element = pending;
         pending = null;
-        yield element;
+
+        if (element.type !== "FileGallery" || !options.withDummyFileGalleryElementLayout) {
+            yield element;
+        } else {
+            // If requested then add dummy `width` properties to `FileGallery` items where the
+            // items are distributed evenly within their row.
+            //
+            // We have the same logic in `normalizeApiContent()`.
+            yield {
+                ...element,
+                rows: element.rows.map(row => ({
+                    ...row,
+                    items: row.items.map((item, index) => ({
+                        ...item,
+                        width:
+                            index !== row.items.length - 1
+                                ? Math.round((1 / row.items.length) * 100) / 100
+                                : (100 -
+                                      (row.items.length - 1) *
+                                          Math.round((1 / row.items.length) * 100)) /
+                                  100,
+                    })),
+                })),
+            };
+        }
     }
 
     for (const content of contents) {
@@ -1995,8 +1981,6 @@ class ApiContentBlockElementsMarkdownTableState {
                             ) {
                                 elements.pop();
                             }
-
-                            mergeAdjacentFileElements(elements);
 
                             return {elements};
                         }),

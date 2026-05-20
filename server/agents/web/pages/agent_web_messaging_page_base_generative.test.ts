@@ -1,5 +1,6 @@
 import fc, {Arbitrary} from "fast-check";
 import {produce} from "immer";
+import {normalizeDraftApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebMessagingPageBase,
     AgentWebMessagingPageBasePreamble,
@@ -15,10 +16,7 @@ import {
     visitDraftApiContent,
     visitDraftApiContentInlineElements,
 } from "~/shared/api/content/visit_and_produce_api_content.js";
-import {
-    normalizeDraftApiContentInlineElementsResponse,
-    normalizeDraftApiContentResponse,
-} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeDraftApiContentInlineElementsResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentArbitrary as ActualApiContentArbitrary,
     ApiContentInlineElementArbitrary as ActualApiContentInlineElementArbitrary,
@@ -37,7 +35,7 @@ const ApiContentArbitrary = ActualApiContentArbitrary.map(content => {
             },
         });
 
-        normalizeDraftApiContentResponse(content);
+        normalizeDraftApiContentForAgentWebMarkdown(content);
     });
 });
 

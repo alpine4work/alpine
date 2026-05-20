@@ -519,14 +519,12 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // mentionable content and we also need to swap the label so something more user
                     // friendly (`mentionLabel`).
                     const pageLink = await storage.pageLinkByPathname.get(pathname);
-                    console.log("pageLink", pageLink);
                     if (!pageLink) return node;
 
                     const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
                         storage.spaceId,
                         pageLink,
                     );
-                    console.log("mentionTargetResult", mentionTargetResult);
 
                     switch (mentionTargetResult.type) {
                         case "Url": {

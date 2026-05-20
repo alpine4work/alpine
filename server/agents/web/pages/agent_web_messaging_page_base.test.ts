@@ -13,7 +13,7 @@ import {
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
@@ -816,7 +816,6 @@ Hello there.
             },
         },
         {
-            only: "NOCOMMIT",
             name: "mention in preamble",
             pageLink: true,
             markdown: `\
@@ -833,9 +832,23 @@ Hello there.
                                 title: "",
                                 shortName: "",
                             },
-                            isAccountShortName: false,
-                            marks: [],
                         },
+                    ],
+                    paginationLink: null,
+                },
+                blocks: [],
+            },
+        },
+        {
+            name: "highlight in preamble",
+            pageLink: true,
+            markdown: `\
+<mark class="highlight-purple"> </mark>
+`,
+            page: {
+                preamble: {
+                    elements: [
+                        {type: "Text", text: " ", marks: [{type: "Highlight", color: "Purple"}]},
                     ],
                     paginationLink: null,
                 },

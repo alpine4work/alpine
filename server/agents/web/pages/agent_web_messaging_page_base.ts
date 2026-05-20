@@ -15,7 +15,6 @@ import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
-import {printApiContentToMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentInlineElementResponse,
@@ -1287,28 +1286,37 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                 // state. If `parseHtml()` succeeds then the partial paragraph needs to be at the
                 // end of our message content.
                 if (lastPushedIndex < index) {
-                    if (!state || !state.hasEndedOpenTag || state.startedAttribute) {
-                        throw createUnexpectedMarkdownError(messageNouns, node.position);
-                    }
+                    if (!hasFinishedPreamble) {
+                        preamble.push({
+                            type: "paragraph",
+                            children: node.children.slice(lastPushedIndex, index),
+                        });
 
-                    if (state.parent && !state.parent.hasCloseTag) {
-                        if (!state.parent.hasEndedOpenTag || state.parent.startedAttribute) {
+                        childrenToPop = preamble;
+                    } else {
+                        if (!state || !state.hasEndedOpenTag || state.startedAttribute) {
                             throw createUnexpectedMarkdownError(messageNouns, node.position);
                         }
 
-                        state.parent.children.push({
-                            type: "paragraph",
-                            children: node.children.slice(lastPushedIndex, index),
-                        });
+                        if (state.parent && !state.parent.hasCloseTag) {
+                            if (!state.parent.hasEndedOpenTag || state.parent.startedAttribute) {
+                                throw createUnexpectedMarkdownError(messageNouns, node.position);
+                            }
 
-                        childrenToPop = state.parent.children;
-                    } else {
-                        state.children.push({
-                            type: "paragraph",
-                            children: node.children.slice(lastPushedIndex, index),
-                        });
+                            state.parent.children.push({
+                                type: "paragraph",
+                                children: node.children.slice(lastPushedIndex, index),
+                            });
 
-                        childrenToPop = state.children;
+                            childrenToPop = state.parent.children;
+                        } else {
+                            state.children.push({
+                                type: "paragraph",
+                                children: node.children.slice(lastPushedIndex, index),
+                            });
+
+                            childrenToPop = state.children;
+                        }
                     }
                 }
 
@@ -1373,8 +1381,6 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
         pageLink,
         preamble,
     );
-
-    console.log("parse", JSON.stringify(preamble, null, 2));
 
     const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, {
         type: "root",

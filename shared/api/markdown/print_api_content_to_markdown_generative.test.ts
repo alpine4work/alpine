@@ -18,6 +18,8 @@ test("can parse exact same content that was printed", () => {
             });
 
             expect(
+                // The parser is expected to return content in normalized form. Do not wrap
+                // `parseApiContentFromMarkdown()` in a call to `normalizeApiContent()`!
                 parseApiContentFromMarkdown(markdown, {spaceId: apiContentArbitrarySpaceId}),
             ).toEqual(normalizeApiContent(content));
         }),

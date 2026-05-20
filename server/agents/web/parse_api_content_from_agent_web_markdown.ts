@@ -29,7 +29,11 @@ export async function parseApiContentFromAgentWebMarkdownTree(
     // make sure to provide enough information that our parse function can return
     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
     // `ApiContentMentionInlineElementResponse` object).
-    //
-    // NOCOMMIT: Revert PR which reverted this behavior
-    return parseApiContentFromMarkdownTree(root, {spaceId: storage.spaceId}) as ApiContentResponse;
+    return parseApiContentFromMarkdownTree(root, {
+        spaceId: storage.spaceId,
+        // Add dummy widths to `FileGallery` items since we need `width`s to match the
+        // `ApiContentResponse` type but we don't save old item widths in storage. We also
+        // set this in `normalizeApiContentForAgentWebMarkdown()`.
+        withDummyFileGalleryElementLayout: true,
+    }) as ApiContentResponse;
 }

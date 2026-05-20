@@ -25,7 +25,8 @@ export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
         normalizeDraftApiContentBlockElements(content.elements, {
             isResponse: false,
-            withoutFileGalleryElementRowItemWidth: false,
+            withinTableElement: false,
+            withDummyFileGalleryElementLayout: false,
         });
     });
 }
@@ -33,7 +34,8 @@ export function normalizeApiContent(content: ApiContent): ApiContent {
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
     normalizeDraftApiContentBlockElements(content.elements, {
         isResponse: false,
-        withoutFileGalleryElementRowItemWidth: false,
+        withinTableElement: false,
+        withDummyFileGalleryElementLayout: false,
     });
 }
 
@@ -47,31 +49,32 @@ export function normalizeDraftApiContent(content: Draft<ApiContent>) {
  */
 export function normalizeApiContentResponse(
     content: ApiContentResponse,
-    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+    options?: {withDummyFileGalleryElementLayout: boolean},
 ): ApiContentResponse {
     return produce(content, content => {
         normalizeDraftApiContentBlockElements(content.elements, {
             isResponse: true,
-            withoutFileGalleryElementRowItemWidth:
-                options?.withoutFileGalleryElementRowItemWidth ?? false,
+            withinTableElement: false,
+            withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
         });
     });
 }
 
 export function normalizeDraftApiContentResponse(
     content: Draft<ApiContentResponse>,
-    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+    options?: {withDummyFileGalleryElementLayout: boolean},
 ) {
     normalizeDraftApiContentBlockElements(content.elements, {
         isResponse: true,
-        withoutFileGalleryElementRowItemWidth:
-            options?.withoutFileGalleryElementRowItemWidth ?? false,
+        withinTableElement: false,
+        withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
     });
 }
 
 type ApiContentNormalizationOptions = {
     readonly isResponse: boolean;
-    readonly withoutFileGalleryElementRowItemWidth: boolean;
+    readonly withinTableElement: boolean;
+    readonly withDummyFileGalleryElementLayout: boolean;
 };
 
 function normalizeDraftApiContentBlockElements(
@@ -190,6 +193,9 @@ function normalizeDraftApiContentBlockElements(
         // into standalone elements.
         if (
             (element.type === "File" || element.type === "Preview") &&
+            // File galleries aren't supported inside table elements. So don't merge adjacent
+            // files/previews into file galleries when normalizing within a table.
+            !options.withinTableElement &&
             index < elements.length - 1
         ) {
             const nextElement = elements[index + 1]!;
@@ -243,7 +249,8 @@ export function normalizeApiContentBlockElement(
     return produce(element, element => {
         normalizeDraftApiContentBlockElement(element, {
             isResponse: false,
-            withoutFileGalleryElementRowItemWidth: false,
+            withinTableElement: false,
+            withDummyFileGalleryElementLayout: false,
         });
     });
 }
@@ -323,6 +330,8 @@ function normalizeDraftApiContentBlockElement(
             break;
         }
         case "Table": {
+            const optionsWithinTableElement = {...options, withinTableElement: true};
+
             if (element.hasHeaderRow === false) element.hasHeaderRow = undefined;
             if (element.hasHeaderColumn === false) element.hasHeaderColumn = undefined;
 
@@ -340,7 +349,7 @@ function normalizeDraftApiContentBlockElement(
                 columnCount = Math.max(columnCount, row.cells.length);
 
                 for (const cell of row.cells) {
-                    normalizeDraftApiContentBlockElements(cell.elements, options);
+                    normalizeDraftApiContentBlockElements(cell.elements, optionsWithinTableElement);
 
                     // A single empty paragraph is the default for empty cells. Remove it since the
                     // parser will recreate it.
@@ -398,20 +407,20 @@ function normalizeDraftApiContentBlockElement(
                 for (let index = 0; index < row.items.length; index++) {
                     const item = row.items[index]!;
 
-                    if (options.isResponse) {
-                        if (options.withoutFileGalleryElementRowItemWidth) {
-                            // We don't want to delete `width` since we want conform to the response type. So
-                            // instead set `width` to a dummy value where all widths are shared evenly across
-                            // the row.
-                            item.width =
-                                index !== row.items.length - 1
-                                    ? Math.round((1 / row.items.length) * 100) / 100
-                                    : (100 -
-                                          (row.items.length - 1) *
-                                              Math.round((1 / row.items.length) * 100)) /
-                                      100;
-                        }
-                    } else if (hasOwnProperty(item, "width")) {
+                    if (options.withDummyFileGalleryElementLayout) {
+                        // We don't want to delete `width` since we want conform to the response type. So
+                        // instead set `width` to a dummy value where all widths are shared evenly across
+                        // the row.
+                        //
+                        // We have the same logic in `parseApiContentBlockElementsFromMarkdown()`.
+                        item.width =
+                            index !== row.items.length - 1
+                                ? Math.round((1 / row.items.length) * 100) / 100
+                                : (100 -
+                                      (row.items.length - 1) *
+                                          Math.round((1 / row.items.length) * 100)) /
+                                  100;
+                    } else if (!options.isResponse && hasOwnProperty(item, "width")) {
                         delete item.width;
                     }
                     normalizeDraftApiContentBlockElement(item.element, options);
@@ -426,12 +435,12 @@ function normalizeDraftApiContentBlockElement(
 
 export function normalizeDraftApiContentInlineElementsResponse(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
-    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+    options?: {withDummyFileGalleryElementLayout: boolean},
 ) {
     normalizeDraftApiContentInlineElements(elements, {
         isResponse: true,
-        withoutFileGalleryElementRowItemWidth:
-            options?.withoutFileGalleryElementRowItemWidth ?? false,
+        withinTableElement: false,
+        withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
     });
 }
 
@@ -488,7 +497,8 @@ export function normalizeApiTarget(target: ApiMentionTarget): ApiMentionTarget {
     return produce(target, target => {
         normalizeDraftApiTarget(target, {
             isResponse: false,
-            withoutFileGalleryElementRowItemWidth: false,
+            withinTableElement: false,
+            withDummyFileGalleryElementLayout: false,
         });
     });
 }

@@ -2014,7 +2014,16 @@ test("streams file gallery rows as their HTML completes", async () => {
                             type: "FileGallery",
                             rows: [
                                 {
-                                    items: [{element: {type: "File", id: file1Id}}],
+                                    items: [
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file1Id,
+                                                contentType: "image/png",
+                                                contentLength: 100,
+                                            },
+                                        },
+                                    ],
                                 },
                             ],
                         },
@@ -2054,8 +2063,22 @@ test("streams file gallery rows as their HTML completes", async () => {
                             rows: [
                                 {
                                     items: [
-                                        {element: {type: "File", id: file2Id}},
-                                        {element: {type: "File", id: file3Id}},
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file2Id,
+                                                contentType: "image/png",
+                                                contentLength: 200,
+                                            },
+                                        },
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file3Id,
+                                                contentType: "image/png",
+                                                contentLength: 300,
+                                            },
+                                        },
                                     ],
                                 },
                             ],
@@ -2082,9 +2105,30 @@ test("streams file gallery rows as their HTML completes", async () => {
                             rows: [
                                 {
                                     items: [
-                                        {element: {type: "File", id: file4Id}},
-                                        {element: {type: "File", id: file5Id}},
-                                        {element: {type: "File", id: file6Id}},
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file4Id,
+                                                contentType: "image/png",
+                                                contentLength: 400,
+                                            },
+                                        },
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file5Id,
+                                                contentType: "image/png",
+                                                contentLength: 500,
+                                            },
+                                        },
+                                        {
+                                            element: {
+                                                type: "File",
+                                                id: file6Id,
+                                                contentType: "image/png",
+                                                contentLength: 600,
+                                            },
+                                        },
                                     ],
                                 },
                             ],

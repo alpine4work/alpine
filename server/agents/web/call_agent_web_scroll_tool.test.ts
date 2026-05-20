@@ -167,7 +167,7 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 
     const firstResponseString = truncateAgentWebReadResponse(
         createReadResponse(tableResponseString),
-        {offsetNewline: 0, limitBytes: 180, isScrollTool: false},
+        {offsetNewline: 0, limitLength: 180, isScrollTool: false},
     );
 
     expect(firstResponseString).toEqual(`\
@@ -384,7 +384,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with end-of-file line range", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("alpha\nbeta\ngamma"),
-            {offsetNewline: 0, limitBytes: 100, isScrollTool: true},
+            {offsetNewline: 0, limitLength: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("alpha\nbeta\ngamma\n\n(End of file. Showing lines 1-3 of 3.)");
@@ -393,7 +393,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("returns the full remaining response with singular end-of-file line text", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("alpha\nbeta\ngamma"),
-            {offsetNewline: 2, limitBytes: 100, isScrollTool: true},
+            {offsetNewline: 2, limitLength: 100, isScrollTool: true},
         );
 
         expect(responseString).toBe("gamma\n\n(End of file. Showing line 3 of 3.)");
@@ -402,7 +402,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates to a newline when the newline is after half the byte limit", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetNewline: 0, limitBytes: 10, isScrollTool: true},
+            {offsetNewline: 0, limitLength: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -413,7 +413,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates at the exact byte limit when newline would be too early", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("a\nbbbbbbbbbb\ncccc"),
-            {offsetNewline: 0, limitBytes: 10, isScrollTool: true},
+            {offsetNewline: 0, limitLength: 10, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -424,7 +424,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("trims adjacent newline candidates to avoid returning trailing blank lines", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("line1\n\n\nline2\nline3"),
-            {offsetNewline: 0, limitBytes: 8, isScrollTool: true},
+            {offsetNewline: 0, limitLength: 8, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -435,7 +435,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates correctly from a non-zero offset", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetNewline: 2, limitBytes: 12, isScrollTool: true},
+            {offsetNewline: 2, limitLength: 12, isScrollTool: true},
         );
 
         expect(responseString).toBe(
@@ -446,7 +446,7 @@ describe("truncateAgentWebReadResponse", () => {
     test("truncates correctly in the middle of a line", () => {
         const responseString = truncateAgentWebReadResponse(
             createReadResponse("aaaaaa\nbbbbbb\ncccccc\ndddddd"),
-            {offsetNewline: 2, limitBytes: 4, isScrollTool: true},
+            {offsetNewline: 2, limitLength: 4, isScrollTool: true},
         );
 
         expect(responseString).toBe(

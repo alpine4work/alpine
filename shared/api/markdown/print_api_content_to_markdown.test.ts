@@ -5741,6 +5741,51 @@ Value
 </table>
 `,
                 },
+                {
+                    description: "adjacent files in table",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                hasHeaderRow: false,
+                                hasHeaderColumn: false,
+                                columns: [],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {elements: []},
+                                            {
+                                                elements: [
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: printTestFixtureFileId},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+</td>
+<td>
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+![](https://alpine.inc/s/${spaceId}/files/${printTestFixtureFileId}/content)
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
             ],
         },
         {
@@ -7307,7 +7352,7 @@ Start<br />**<br />**_<br />_&#x45;nd
 `,
                 },
                 {
-                    description: "dollar signs are escaped for math",
+                    description: "dollar signs are not escaped for math",
                     content: {
                         elements: [
                             {
@@ -7317,7 +7362,7 @@ Start<br />**<br />**_<br />_&#x45;nd
                         ],
                     },
                     expectedMarkdown: `\
-Price is \\$100 or \\$\\$200
+Price is $100 or \\$$200
 `,
                 },
                 {
@@ -7822,7 +7867,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\[\\$
+$\\[$
 `,
                 },
                 {
@@ -7969,7 +8014,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\*\\$&#x20;
+$\\*$&#x20;
 `,
                 },
                 {
@@ -8073,7 +8118,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\_[Unknown document](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}?mention)\\$
+$\\_[Unknown document](https://alpine.inc/s/${spaceId}/documents/${printTestFixtureDocumentId}?mention)$
 `,
                 },
                 {
@@ -8087,7 +8132,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-a \\$ b
+a $ b
 `,
                 },
                 {
@@ -8101,7 +8146,7 @@ a \\$ b
                         ],
                     },
                     expectedMarkdown: `\
-\\$ b
+$ b
 `,
                 },
                 {
@@ -8115,7 +8160,7 @@ a \\$ b
                         ],
                     },
                     expectedMarkdown: `\
-a \\$
+a $
 `,
                 },
                 {
@@ -8129,7 +8174,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$ ab \\$
+$ ab $
 `,
                 },
                 {
@@ -8144,7 +8189,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\_ab\\_\\$
+$\\_ab\\_$
 `,
                 },
                 {
@@ -8159,7 +8204,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\*ab\\*\\$
+$\\*ab\\*$
 `,
                 },
                 {
@@ -8174,7 +8219,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-\\$(ab)\\$
+$(ab)$
 `,
                 },
                 {
@@ -9318,7 +9363,7 @@ a \\$
                         ],
                     },
                     expectedMarkdown: `\
-_-X_**[~~-y/@\\\`/\\$bz1~~](https://63o.kry)G**
+_-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
 `,
                 },
                 {
@@ -10913,10 +10958,10 @@ Use \`\` \`backticks\` \`\` for inline code
                     spaceId,
                 });
 
-                // The parser may include response-only fields (e.g. Preview title from alt text)
-                // that normalization strips. Normalize both sides so we compare canonical forms.
                 expect(
-                    normalizeApiContent(parseApiContentFromMarkdown(actualMarkdown, {spaceId})),
+                    // The parser is expected to return content in normalized form. Do not wrap
+                    // `parseApiContentFromMarkdown()` in a call to `normalizeApiContent()`!
+                    parseApiContentFromMarkdown(actualMarkdown, {spaceId}),
                 ).toEqual(normalizeApiContent(content));
             });
 
