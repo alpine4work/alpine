@@ -777,7 +777,7 @@ test("trims messages to fit the read limit and exposes a previous-page link", as
     ]);
 
     await expect(callAgentWebReadTool(context, {path, limit: "450b"})).resolves.toEqual(`\
-Some messages in Engineering Room. Previous page: [Engineering Room](/chat/engineering-room?before=1)
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=1)
 
 <time>May 14th at 11:05am EDT</time>
 

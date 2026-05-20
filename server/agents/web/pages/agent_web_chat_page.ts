@@ -88,5 +88,5 @@ export function printAgentWebChatPage(
     id: ChatId,
     page: AgentWebChatPage,
 ): Promise<Root> {
-    return printAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, storage, null, page);
+    return printAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, storage, id, page);
 }

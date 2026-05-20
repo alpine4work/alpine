@@ -10,6 +10,7 @@ import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -677,10 +678,10 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
     return {elements: [{type: "Paragraph", elements}]};
 }
 
-export async function printAgentWebMessagingPageBase(
+export async function printAgentWebMessagingPageBase<PageLink>(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
-    pageLink: null,
+    pageLink: PageLink,
     page: AgentWebMessagingPageBase,
 ): Promise<Root> {
     const children: Array<RootContent> = [];
@@ -811,10 +812,10 @@ export async function printAgentWebMessagingPageBase(
     return {type: "root", children};
 }
 
-export async function parseAgentWebMessagingPageBase(
+export async function parseAgentWebMessagingPageBase<PageLink>(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
-    pageLink: null,
+    pageLink: PageLink | null,
     root: Root,
 ): Promise<AgentWebMessagingPageBase> {
     const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>> = [];
@@ -1345,7 +1346,9 @@ export async function parseAgentWebMessagingPageBase(
     }
 
     const paginationLink = await takeAgentWebMessagingPagePaginationLinkFromPreamble(
+        messageNouns,
         storage,
+        pageLink,
         preamble,
     );
 
@@ -1375,8 +1378,10 @@ export async function parseAgentWebMessagingPageBase(
     };
 }
 
-async function takeAgentWebMessagingPagePaginationLinkFromPreamble(
+async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
+    messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
+    pageLink: PageLink | null,
     preamble: Array<RootContent>,
 ): Promise<AgentWebMessagingPageBasePreamble["paginationLink"]> {
     const lastNode = preamble[preamble.length - 1];
@@ -1388,17 +1393,25 @@ async function takeAgentWebMessagingPagePaginationLinkFromPreamble(
     const text = printMarkdownPhrasingContentText(lastChild.children);
     if (text !== "Previous page »" && text !== "Next page »") return null;
 
+    if (pageLink === null) {
+        const quotedText = quoteMarkdown(lastChild.children);
+
+        throw new InvalidArgumentError("Can\u2019t add pagination link to new messaging room", {
+            displayMessage: errorDisplayMessage`Can\u2019t add ${quotedText} link when creating ${messageNouns.pluralNoun} markdown. Try again without the ${quotedText} link.`,
+        });
+    }
+
     if (/^[a-zA-Z0-9]+:/.test(lastChild.url)) return null;
 
     const {pathname, searchParams} = normalizeAgentWebPath(lastChild.url);
     if (!searchParams.has("before") && !searchParams.has("after")) return null;
 
-    const pageLink = await storage.pageLinkByPathname.get(pathname);
-    if (!pageLink) return null;
+    const paginationPageLink = await storage.pageLinkByPathname.get(pathname);
+    if (!paginationPageLink) return null;
 
     const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
         storage.spaceId,
-        pageLink,
+        paginationPageLink,
     );
 
     if (mentionTargetResult.type !== "MentionTarget") return null;

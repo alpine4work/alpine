@@ -12,9 +12,12 @@ import {
     ApiContentResponse,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
+const paginationChatId = generateId<ChatId>();
 
 function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
     return {elements};
@@ -33,13 +36,13 @@ function text(
     return {type: "Text", text, marks};
 }
 
-runAgentWebPageTests<null, AgentWebMessagingPageBase>({
+runAgentWebPageTests<true, AgentWebMessagingPageBase>({
     print: printAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     tests: [
         {
             name: "simple message log",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <time>May 13, 2026 3:00 PM EDT</time>
 
@@ -50,7 +53,7 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Time",
@@ -70,7 +73,7 @@ Hello there.
         },
         {
             name: "preamble before message log",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 Viewing the **launch** thread for [Alpine](https://example.com/alpine).
 
@@ -81,13 +84,16 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: [
-                    text("Viewing the "),
-                    text("launch", [{type: "Bold"}]),
-                    text(" thread for "),
-                    text("Alpine", [{type: "Link", url: "https://example.com/alpine"}]),
-                    text("."),
-                ],
+                preamble: {
+                    elements: [
+                        text("Viewing the "),
+                        text("launch", [{type: "Bold"}]),
+                        text(" thread for "),
+                        text("Alpine", [{type: "Link", url: "https://example.com/alpine"}]),
+                        text("."),
+                    ],
+                    paginationLink: null,
+                },
                 blocks: [
                     {
                         type: "Message",
@@ -103,7 +109,7 @@ Hello there.
         },
         {
             name: "preamble before time block",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 The current page starts after the May planning sync.
 
@@ -116,7 +122,10 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: [text("The current page starts after the May planning sync.")],
+                preamble: {
+                    elements: [text("The current page starts after the May planning sync.")],
+                    paginationLink: null,
+                },
                 blocks: [
                     {
                         type: "Time",
@@ -136,18 +145,69 @@ Hello there.
         },
         {
             name: "preamble without message blocks",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 No messages matched the current filters.
 `,
             page: {
-                preamble: [text("No messages matched the current filters.")],
+                preamble: {
+                    elements: [text("No messages matched the current filters.")],
+                    paginationLink: null,
+                },
                 blocks: [],
             },
         },
         {
+            name: "preamble with previous page pagination link",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=3)
+`,
+            page: {
+                preamble: {
+                    elements: [text("Some messages in Engineering Room.")],
+                    paginationLink: {
+                        text: "Previous page »",
+                        target: {
+                            type: "Chat",
+                            id: paginationChatId,
+                            title: "Engineering Room",
+                        },
+                        searchParams: new URLSearchParams([["before", "3"]]),
+                    },
+                },
+                blocks: [],
+            },
+            createParseError:
+                "Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again without the \u201CPrevious page »\u201D link.",
+        },
+        {
+            name: "preamble with next page pagination link",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9)
+`,
+            page: {
+                preamble: {
+                    elements: [text("Some messages in Engineering Room.")],
+                    paginationLink: {
+                        text: "Next page »",
+                        target: {
+                            type: "Chat",
+                            id: paginationChatId,
+                            title: "Engineering Room",
+                        },
+                        searchParams: new URLSearchParams([["after", "9"]]),
+                    },
+                },
+                blocks: [],
+            },
+            createParseError:
+                "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+        },
+        {
             name: "bot message with reply preview and rich content",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <bot name="Assistant" time="12 minutes later">
 
@@ -168,7 +228,7 @@ const done = true;
 </bot>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Message",
@@ -215,7 +275,7 @@ const done = true;
         },
         {
             name: "escaped messaging html",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <time>May & \u0022Later\u0022 \\<soon></time>
 
@@ -232,7 +292,7 @@ Escaped attributes survive.
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Time",
@@ -255,7 +315,7 @@ Escaped attributes survive.
         },
         {
             name: "message content with html blocks",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -268,7 +328,7 @@ After the empty paragraph.
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Message",
@@ -288,7 +348,7 @@ After the empty paragraph.
         },
         {
             name: "content after message",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -303,7 +363,7 @@ Hello outside.
         },
         {
             name: "preamble with multiple paragraphs",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 First paragraph.
 
@@ -320,7 +380,7 @@ Hello.
         },
         {
             name: "preamble with non paragraph block",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 ## Thread context
 
@@ -335,7 +395,7 @@ Hello.
         },
         {
             name: "message without name attribute",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human>
 
@@ -348,7 +408,7 @@ Hello.
         },
         {
             name: "unclosed message",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <bot name="Assistant">
 
@@ -359,7 +419,7 @@ Hello.
         },
         {
             name: "nested message",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -377,7 +437,7 @@ Nested.
         },
         {
             name: "close message without open tag",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 </human>
 `,
@@ -387,7 +447,7 @@ Nested.
         },
         {
             name: "close mismatched message tag",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -399,7 +459,7 @@ Nested.
         },
         {
             name: "blockquote outside message",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <blockquote cite="Alice">
 
@@ -412,7 +472,7 @@ Hello.
         },
         {
             name: "blockquote after message content",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -431,7 +491,7 @@ Late reply.
         },
         {
             name: "second blockquote after reply preview",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -454,7 +514,7 @@ Second reply.
         },
         {
             name: "nested blockquote",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -477,7 +537,7 @@ Nested reply.
         },
         {
             name: "unclosed blockquote",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -492,7 +552,7 @@ Quoted.
         },
         {
             name: "blockquote without cite attribute",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -509,7 +569,7 @@ Quoted.
         },
         {
             name: "close blockquote without open tag",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 </blockquote>
 `,
@@ -519,7 +579,7 @@ Quoted.
         },
         {
             name: "close blockquote without reply preview",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -533,7 +593,7 @@ Quoted.
         },
         {
             name: "close blockquote twice",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -553,7 +613,7 @@ Quoted.
         },
         {
             name: "message with inline html content",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">Hello.</human>
 `,
@@ -565,7 +625,7 @@ Hello.
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Message",
@@ -581,7 +641,7 @@ Hello.
         },
         {
             name: "message without newline between tags",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 Hello there.
@@ -592,7 +652,7 @@ Hello there.
         },
         {
             name: "message without newline between tags (attached to open tag)",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 foo
@@ -606,7 +666,7 @@ bar
         },
         {
             name: "message without newline between tags (attached to closed tag)",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -625,7 +685,7 @@ bar&#x20;
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Message",
@@ -641,7 +701,7 @@ bar&#x20;
         },
         {
             name: "parent on one line",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -656,7 +716,7 @@ Hello there.
         },
         {
             name: "parent without newline between tags",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -673,7 +733,7 @@ Hello there.
         },
         {
             name: "parent without newline between tags (attached to open tag)",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -693,7 +753,7 @@ Hello there.
         },
         {
             name: "parent without newline between tags (attached to closed tag)",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <human name="Alice">
 
@@ -724,7 +784,7 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [
                     {
                         type: "Message",
@@ -746,12 +806,12 @@ Hello there.
         },
         {
             name: "empty time",
-            pageLink: null,
+            pageLink: true,
             markdown: `\
 <time></time>
 `,
             page: {
-                preamble: [],
+                preamble: {elements: [], paginationLink: null},
                 blocks: [{type: "Time", timeContent: ""}],
             },
         },
