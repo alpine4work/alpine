@@ -7,7 +7,9 @@ ts_project(
         "//:node_modules/supertest",
         "//server/api/internal/test_helpers",
         "//server/bots/test_helpers",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
     ],
@@ -15,6 +17,7 @@ ts_project(
     deps = [
         "//server/api/internal/files",
         "//server/api/internal/shared",
+        "//server/files/data",
         "//server/forum/data",
         "//server/search/data/index",
         "//shared/api/markdown",

@@ -475,6 +475,7 @@ async function getPostAgentMessage(
         payload: {
             type: "Content",
             content: post.content,
+            files: [],
         },
     });
 }

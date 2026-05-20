@@ -1482,6 +1482,10 @@ components:
                                 $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
+                            files:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/MessageContentPayloadFile"
 
         # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
         # bodies for objects of the same type. So `GetMessageStreamPart` should be
@@ -2753,6 +2757,70 @@ components:
                     $ref: "#/components/schemas/MessageContentPayloadParent"
                 content:
                     $ref: "#/components/schemas/Content"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile"
+
+        MessageContentPayload_Response:
+            type: object
+            required: [type, content, files]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile_Response"
+
+        MessageContentPayloadFile:
+            type: object
+            required: [element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        MessageContentPayloadFile_Response:
+            type: object
+            required: [rowIndex, width, element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
 
         MessageContentPayloadParent:
             oneOf:
@@ -2763,8 +2831,6 @@ components:
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent"
                     Post: "#/components/schemas/MessageContentPayloadPostParent"
-
-        # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
 
         MessageContentPayloadMessageParent:
             type: object

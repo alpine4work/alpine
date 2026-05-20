@@ -2,6 +2,7 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {resolveFilesForApiResponse} from "~/server/files/data/resolve_files_for_api_response.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     ApiMessageContentPayloadParentResponse,
@@ -116,15 +117,17 @@ async function intoApiMessagePayload(
             return {type: "Deleted"};
         }
         case "Content":
-            const [contentWithReferences, parent] = await runAllPromises([
+            const [contentWithReferences, parent, files] = await runAllPromises([
                 intoApiMessageContentWithReferences(context, spaceId, payload.content),
                 payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
+                resolveFilesForApiResponse(context, spaceId, payload.fileIds),
             ]);
 
             return {
                 type: "Content",
                 parent: parent ?? undefined,
                 content: contentWithReferences,
+                files,
             };
         default:
             throw exhaustive(payload);

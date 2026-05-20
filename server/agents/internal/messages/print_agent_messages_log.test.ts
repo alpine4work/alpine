@@ -109,7 +109,7 @@ function createTestAgentMessage({
             },
             createdTime: serializeDateString(createdTime),
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
-            payload: {type: "Content", content, parent: parentPayload ?? undefined},
+            payload: {type: "Content", content, files: [], parent: parentPayload ?? undefined},
         });
     });
 }

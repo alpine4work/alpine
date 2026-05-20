@@ -37,7 +37,7 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -104,7 +104,7 @@ export function MessageViewFiles({
             return computeStore(get => {
                 let suppressHydrationWarning = false;
 
-                const maxFileCount = 3;
+                const maxFileCount = fileRowMaxFileCount;
 
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{

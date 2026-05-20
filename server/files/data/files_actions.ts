@@ -1497,20 +1497,14 @@ export async function getFileIfExistsFromAttachment(
         getFileItemIfExistsWithCache(context, fileId, {consistency}),
 
         // 1. Make sure we have access to the file's attachment target
-        targetAuthorizer.authorizeTargetAccess(context, accessLevel),
+        targetAuthorizer.authorizeTargetAccess(context, accessLevel, {consistency}),
 
         // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
                 getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
-                {
-                    consistency,
-                    // It's ok to call this function when expecting strong read consistency. This
-                    // authorization check is mostly strongly consistent since we retry with strong
-                    // consistency below if our eventually consistent read fails.
-                    allowsEventualReadConsistency: true,
-                },
+                {consistency},
             );
 
             if (!targetItem && consistency === "Eventual") {

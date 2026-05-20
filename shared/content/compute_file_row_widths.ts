@@ -67,6 +67,11 @@ export const fileRowBlockWidthPxForServerAndClipboard =
 export const fileRowDefaultPreviewHeightPx =
     parseRemLength(spacing["48"]) * remPxBySpacingScale.small;
 
+/**
+ * Maximum number of items we lay out in a single file row.
+ */
+export const fileRowMaxFileCount = 3;
+
 // Round numbers to 3 decimal places so we send less data over the network in our
 // generated HTML.
 function round3(n: number) {
@@ -119,7 +124,7 @@ export function computeFileRowLayout(
     },
 ): ReadonlyArray<ContentFileLayout> {
     assert(files.length >= 1);
-    assert(files.length <= 3);
+    assert(files.length <= fileRowMaxFileCount);
 
     const {containerWidth, spacingScale} = options;
     const remPx = remPxBySpacingScale[spacingScale];

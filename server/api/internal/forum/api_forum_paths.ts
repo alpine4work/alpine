@@ -10,7 +10,9 @@ import {
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
@@ -38,6 +40,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {isId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -104,27 +108,28 @@ export const apiForumPaths: Pick<
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
-            const [post, author, {content: contentWithReferences, references}] =
-                await runAllPromises([
-                    createPost(context, {
-                        channelId,
-                        createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
-                        content,
-                        consistency: "Strong",
-                        getFileAttachmentTargetAuthorizer,
-                    }),
-                    getApiAccount(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        referencesContext.actor.getBotAccountId(),
-                    ),
-                    intoApiContentWithReferencesAndReturnReferences(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        "AssertHasNoFiles",
-                        content,
-                    ),
-                ]);
+            const [post, author] = await runAllPromises([
+                createPost(context, {
+                    channelId,
+                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    content,
+                    consistency: "Strong",
+                    getFileAttachmentTargetAuthorizer,
+                }),
+                getApiAccount(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    referencesContext.actor.getBotAccountId(),
+                ),
+            ]);
+
+            const {content: contentWithReferences, references} =
+                await intoApiContentWithReferencesAndReturnReferences(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+                    content,
+                );
 
             return {
                 content: {
@@ -326,13 +331,31 @@ export const apiForumPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            // Attach files before creating the message, matching the app client flow. The
+            // service function validates attachments exist.
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
+                        {getFileAttachmentTargetAuthorizer},
+                    ),
+                ),
+            );
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
                 parent,
                 content,
                 createdTimeZone,
-                fileIds: [],
+                fileIds,
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
@@ -342,7 +365,7 @@ export const apiForumPaths: Pick<
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };

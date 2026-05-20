@@ -8,6 +8,7 @@ import {
     ApiMentionResponse,
     ApiMentionTarget,
     ApiMentionTargetResponse,
+    ApiMessageContentPayloadFileResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
     ApiMessageStreamToolCallPartCreateCallTarget,
@@ -79,6 +80,14 @@ test("all `_Response` schemas are assignable to the corresponding base schema", 
     function assertAssignableReturnType(left: Left): Right {
         return left;
     }
+});
+
+test("response file elements are assignable to `CreateMessage` request body files", () => {
+    type CreateMessageFiles = NonNullable<
+        ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"]["files"]
+    >[number];
+
+    assertAssignableTypes<ApiMessageContentPayloadFileResponse, CreateMessageFiles>();
 });
 
 test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookNewMessageEventParent`", () => {

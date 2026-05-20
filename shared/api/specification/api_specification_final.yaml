@@ -1608,6 +1608,10 @@ components:
                                 $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
+                            files:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/MessageContentPayloadFile"
         PutMessageStreamPart:
             required: true
             content:
@@ -3045,6 +3049,74 @@ components:
                     $ref: "#/components/schemas/MessageContentPayloadParent"
                 content:
                     $ref: "#/components/schemas/Content"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile"
+        MessageContentPayload_Response:
+            type: object
+            required:
+                - type
+                - content
+                - files
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent_Response"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile_Response"
+        MessageContentPayloadFile:
+            type: object
+            required:
+                - element
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+        MessageContentPayloadFile_Response:
+            type: object
+            required:
+                - rowIndex
+                - width
+                - element
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
@@ -3882,6 +3954,15 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement_Response"
+        MessagePayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
         MessageContentPayloadParent_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
@@ -3969,19 +4050,27 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response"
-        MessageContentPayload_Response:
+        Message_Response:
             type: object
             required:
-                - type
-                - content
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
             additionalProperties: false
             properties:
-                type:
-                    const: Content
-                parent:
-                    $ref: "#/components/schemas/MessageContentPayloadParent_Response"
-                content:
-                    $ref: "#/components/schemas/Content_Response"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
         MessageStreamToolCallPartPayloadReadCall_Response:
             type: object
             required:
@@ -4212,15 +4301,6 @@ components:
                         - Urgent
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        MessagePayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageContentPayload_Response"
-                    Deleted: "#/components/schemas/MessageDeletedPayload"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -4356,27 +4436,6 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
-        Message_Response:
-            type: object
-            required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"

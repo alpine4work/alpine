@@ -1397,3 +1397,93 @@ test("can read document with file attachment", async () => {
         },
     });
 });
+
+test("can create document comment with file attachments", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session);
+    const {range} = await document.type(session, "Hello");
+    const commentThread = await document.createCommentThread(session, range, "test");
+
+    // Upload and attach the file to the document so the bot can access it through the
+    // attachment authorizer.
+    const file = await TestFile.create(session);
+    await document.attachFile(session, file);
+
+    const response = await server.POST(
+        `/documents/${document.id}/threads/${commentThread.id}/messages`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Comment with file"}],
+                        },
+                    ],
+                },
+                files: [{element: {type: "File", id: file.id}}],
+            },
+        },
+    );
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "File",
+                                id: file.id,
+                                contentType: expect.any(String),
+                                contentLength: expect.any(Number),
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("document comment with invalid file object returns 400", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session);
+    const {range} = await document.type(session, "Hello");
+    const commentThread = await document.createCommentThread(session, range, "test");
+
+    const response = await server.POST(
+        `/documents/${document.id}/threads/${commentThread.id}/messages`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Bad file"}],
+                        },
+                    ],
+                },
+                files: [{element: {type: "File", id: "not-a-valid-id"}}],
+            },
+        },
+    );
+
+    expect(response).toMatchObject({status: 400});
+});

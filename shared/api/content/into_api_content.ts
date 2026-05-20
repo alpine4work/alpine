@@ -1,4 +1,5 @@
 import {Mark, Node} from "prosemirror-model";
+import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
@@ -19,11 +20,6 @@ import {
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
     ApiPreviewTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {
-    computeFileRowWidths,
-    fileRowBlockWidthPxForServerAndClipboard,
-    fileRowDefaultPreviewHeightPx,
-} from "~/shared/content/compute_file_row_widths.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentBlockNodeTypeName,
@@ -32,8 +28,6 @@ import {
     ContentMarkTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
-import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
-import {getFilePreviewSizeForLayout} from "~/shared/content/get_file_preview_size.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
@@ -163,7 +157,7 @@ function* intoApiContentBlockElements(
                     );
 
                     if (rowElements.length > 0) {
-                        const widths = computeGalleryRowWidths(rowElements, options);
+                        const widths = computeApiContentFileRowWidths(rowElements, options);
                         rows.push({
                             items: rowElements.map((element, i) => ({
                                 width: widths[i]!,
@@ -550,48 +544,6 @@ function fileEntityIdObjectToPreviewTarget(
         default:
             throw exhaustive(entityIdObject);
     }
-}
-
-/**
- * Compute fractional widths (0 to 1) for a gallery row using the Cassowary
- * constraint solver. Uses `getFilePreviewSizeForLayout` so that audio, code, and
- * image files get content-type-appropriate aspect ratios matching the client-side
- * renderer.
- */
-function computeGalleryRowWidths(
-    elements: ReadonlyArray<
-        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
-    >,
-    options: ApiContentMarkdownIntoOptions,
-): Array<number> {
-    const files = elements.map(element => {
-        if (element.type === "File" && element.id !== null) {
-            const file = options.getFileIfExists(element.id);
-            if (file) {
-                return getFilePreviewSizeForLayout({
-                    contentType: file.contentType,
-                    size: file.size,
-                });
-            }
-        }
-        // File entity previews and files without data have flexible width. Use null width
-        // so the layout solver treats them as flexible, with a height that varies by how
-        // many items are in the row (matching client-side
-        // `getFileOrFileEntityPreviewSize`).
-        return {
-            width: null,
-            height: getFileEntityPreviewHeight({
-                fileCount: elements.length,
-                maxFileCount: 3,
-                blockWidth: fileRowBlockWidthPxForServerAndClipboard,
-                defaultPreviewHeight: fileRowDefaultPreviewHeightPx,
-            }),
-        };
-    });
-
-    return computeFileRowWidths(files, {
-        containerWidth: fileRowBlockWidthPxForServerAndClipboard,
-    });
 }
 
 function intoApiContentInlineElements(
