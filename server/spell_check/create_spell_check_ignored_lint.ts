@@ -4,7 +4,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {authorizeSpellCheckEntityIdAccess} from "~/server/spell_check/authorize_spell_check_entity_id_access.js";
 import {SpellCheckTable} from "~/server/spell_check/internal/spell_check_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {SpellCheckEntityId} from "~/shared/spell_check/spell_check_entity_id.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 
@@ -14,9 +14,9 @@ export async function createSpellCheckIgnoredLint(
     key: string,
     kind: string,
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>>;
 }> {
     await authorizeSpellCheckEntityIdAccess(context, spellCheckEntityId, "Edit");
 
@@ -34,6 +34,6 @@ export async function createSpellCheckIgnoredLint(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async context => [await getEvent(context)],
+        getRynamoEventTransaction: async context => [await getEvent(context)],
     };
 }

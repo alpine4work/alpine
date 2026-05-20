@@ -1,11 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ChannelPostsIndex} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeIndexQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor, DynamoIndexPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoBackfillResult, RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
@@ -34,7 +31,7 @@ export async function getChannelPosts(
         limit: number;
         beforeCursor: DynamoIndexCursor | null;
     },
-): Promise<DynamoGeneralRealtimeIndexQueryResult<PostModel>> {
+): Promise<RynamoIndexQueryResult<PostModel>> {
     const [, result] = await runAllPromises([
         authorizeChannelAccess(context, channelId, "View"),
         ChannelPostsIndex.realtimeQuery(context, {
@@ -54,7 +51,7 @@ export async function getChannelPosts(
 export async function backfillChannelPosts(
     context: ServerActionContext,
     {channelId, checkpoint}: {channelId: ChannelId; checkpoint: ServerSynchronizationCheckpoint},
-): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
+): Promise<RynamoBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
         authorizeChannelAccess(context, channelId, "View"),
         ChannelPostsIndex.backfillRealtimeQuery(context, {

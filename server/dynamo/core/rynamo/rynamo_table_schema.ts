@@ -1,5 +1,5 @@
 import {addDays, subDays, subMinutes} from "date-fns";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -24,16 +24,6 @@ import {
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {getActorContextModuleKey} from "~/server/helpers/actor_context_module.js";
 import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeDeleteItemEvent,
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeEventStub,
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimePutItemEvent,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,
     DynamoItemKey,
@@ -41,6 +31,16 @@ import {
     DynamoItemPartitionKey,
     DynamoItemSortKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    RynamoBackfillResult,
+    RynamoDeleteItemEvent,
+    RynamoEvent,
+    RynamoEventStub,
+    RynamoIndexQueryResult,
+    RynamoItem,
+    RynamoPutItemEvent,
+    RynamoQueryResult,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     InternalError,
     InvalidArgumentError,
@@ -75,37 +75,36 @@ import {
     generateServerSynchronizationCheckpoint,
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-export type DynamoGeneralRealtimeTableSchemaGetTypes<
-    Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
-> = Schema extends DynamoGeneralRealtimeTableSchema<infer Types, any> ? Types : never;
+export type RynamoTableSchemaGetTypes<Schema extends RynamoTableSchema<any, any>> =
+    Schema extends RynamoTableSchema<infer Types, any> ? Types : never;
 
-export type DynamoGeneralRealtimeTableItemKeyType<
-    Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
+export type RynamoTableItemKeyType<
+    Schema extends RynamoTableSchema<any, any>,
     PartitionType extends string,
     SortRangeType extends string,
 > = MergeObjectIntersection<
-    DynamoGeneralRealtimeTableSchemaGetTypes<Schema>["ItemKey"] & {
+    RynamoTableSchemaGetTypes<Schema>["ItemKey"] & {
         readonly partitionType: PartitionType;
         readonly sortRangeType: SortRangeType;
     }
 >;
 
-export type DynamoGeneralRealtimeTableItemType<
-    Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
+export type RynamoTableItemType<
+    Schema extends RynamoTableSchema<any, any>,
     PartitionType extends string,
     SortRangeType extends string,
 > = MergeObjectIntersection<
-    DynamoGeneralRealtimeTableSchemaGetTypes<Schema>["Item"] & {
+    RynamoTableSchemaGetTypes<Schema>["Item"] & {
         readonly partitionType: PartitionType;
         readonly sortRangeType: SortRangeType;
     }
 >;
 
-export type DynamoGeneralRealtimeTableDeletedItem = {
+export type RynamoTableDeletedItem = {
     readonly updateLockVersion: number | undefined;
 };
 
-type DynamoGeneralRealtimeTableSchemaPartitionShallowFeatureConfigType<
+type RynamoTableSchemaPartitionShallowFeatureConfigType<
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = Partial<
     ObjectFromEntries<{
@@ -113,20 +112,18 @@ type DynamoGeneralRealtimeTableSchemaPartitionShallowFeatureConfigType<
     }>
 >;
 
-type DynamoGeneralRealtimeTableSchemaPartitionFeatureConfigType<
+type RynamoTableSchemaPartitionFeatureConfigType<
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = Partial<
     ObjectFromEntries<{
         [Index in keyof PartitionsConfig]: [
             PartitionsConfig[Index]["name"],
-            DynamoGeneralRealtimeTableSchemaSortRangeFeatureConfigType<
-                PartitionsConfig[Index]["sortRanges"]
-            >,
+            RynamoTableSchemaSortRangeFeatureConfigType<PartitionsConfig[Index]["sortRanges"]>,
         ];
     }>
 >;
 
-type DynamoGeneralRealtimeTableSchemaSortRangeFeatureConfigType<
+type RynamoTableSchemaSortRangeFeatureConfigType<
     SortRangesConfig extends ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
 > = Partial<
     ObjectFromEntries<{
@@ -134,19 +131,19 @@ type DynamoGeneralRealtimeTableSchemaSortRangeFeatureConfigType<
     }>
 >;
 
-type DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+type RynamoTableSchemaPartitionModelConfigType<
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = ObjectFromEntries<{
     [Index in keyof PartitionsConfig]: [
         PartitionsConfig[Index]["name"],
-        DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
+        RynamoTableSchemaSortRangeModelConfigType<
             PartitionsConfig[Index],
             PartitionsConfig[Index]["sortRanges"]
         >,
     ];
 }>;
 
-type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
+type RynamoTableSchemaSortRangeModelConfigType<
     PartitionConfig extends DynamoTableSchemaTypes.Partition.ConfigBase,
     SortRangesConfig extends ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
 > = ObjectFromEntries<{
@@ -161,7 +158,7 @@ type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
     ];
 }>;
 
-type DynamoGeneralRealtimeTableSchemaModelMapType<
+type RynamoTableSchemaModelMapType<
     ModelsConfig extends {
         [partitionType: string]: {[sortRangeType: string]: {build: () => Promise<any>}};
     },
@@ -171,7 +168,7 @@ type DynamoGeneralRealtimeTableSchemaModelMapType<
     };
 };
 
-type DynamoGeneralRealtimeTableSchemaModelType<
+type RynamoTableSchemaModelType<
     ModelsConfig extends {
         [partitionType: string]: {[sortRangeType: string]: {build: () => Promise<any>}};
     },
@@ -181,17 +178,17 @@ type DynamoGeneralRealtimeTableSchemaModelType<
     }[keyof ModelsConfig[Key1]];
 }[keyof ModelsConfig];
 
-type DynamoGeneralRealtimePrivateRealtimePartitionItem = DynamoTableSchemaTypes.Partition.ItemTypes<
-    [typeof dynamoGeneralRealtimePrivateRealtimePartitionConfig]
+type RynamoPrivateRealtimePartitionItem = DynamoTableSchemaTypes.Partition.ItemTypes<
+    [typeof rynamoPrivatePartitionConfig]
 >;
 
-type DynamoGeneralRealtimePrivateRealtimePartitionEvent =
-    DynamoGeneralRealtimePrivateRealtimePartitionItem["eventTransaction"][number];
+type RynamoPrivateRealtimePartitionEvent =
+    RynamoPrivateRealtimePartitionItem["eventTransaction"][number];
 
-const dynamoGeneralRealtimePrivateRealtimePartitionName = "Realtime";
+const rynamoPrivatePartitionName = "Realtime";
 
-const dynamoGeneralRealtimePrivateRealtimePartitionConfig = {
-    name: dynamoGeneralRealtimePrivateRealtimePartitionName,
+const rynamoPrivatePartitionConfig = {
+    name: rynamoPrivatePartitionName,
     partitionKeyAttributes: {
         realtimeKey: DynamoKeyAttributeSchema.labelString({maxLength: null}),
     },
@@ -222,20 +219,18 @@ const dynamoGeneralRealtimePrivateRealtimePartitionConfig = {
     ],
 } as const satisfies DynamoTableSchemaTypes.Partition.ConfigBase;
 
-type DynamoGeneralRealtimePrivateGraveyardPartitionItem =
-    DynamoTableSchemaTypes.Partition.ItemTypes<
-        [typeof dynamoGeneralRealtimePrivateGraveyardPartitionConfig]
-    >;
+type RynamoPrivateGraveyardPartitionItem = DynamoTableSchemaTypes.Partition.ItemTypes<
+    [typeof rynamoPrivateGraveyardPartitionConfig]
+>;
 
-type DynamoGeneralRealtimePrivateGraveyardPartitionItemKey =
-    DynamoTableSchemaTypes.Partition.ItemKeyTypes<
-        [typeof dynamoGeneralRealtimePrivateGraveyardPartitionConfig]
-    >;
+type RynamoPrivateGraveyardPartitionItemKey = DynamoTableSchemaTypes.Partition.ItemKeyTypes<
+    [typeof rynamoPrivateGraveyardPartitionConfig]
+>;
 
-const dynamoGeneralRealtimePrivateGraveyardPartitionName = "Graveyard";
+const rynamoPrivateGraveyardPartitionName = "Graveyard";
 
-const dynamoGeneralRealtimePrivateGraveyardPartitionConfig = {
-    name: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+const rynamoPrivateGraveyardPartitionConfig = {
+    name: rynamoPrivateGraveyardPartitionName,
     partitionKeyAttributes: {
         deletedPartitionKey: DynamoKeyAttributeSchema.labelString<DynamoItemPartitionKey>({
             maxLength: null,
@@ -265,7 +260,7 @@ const dynamoGeneralRealtimePrivateGraveyardPartitionConfig = {
  * We set to a week. That way if a client goes offline for the weekend then comes
  * back online we will be able to backfill.
  */
-const dynamoGeneralRealtimePrivatePartitionEventExpirationDays = 7;
+const rynamoPrivatePartitionEventExpirationDays = 7;
 
 /**
  * The maximum number of minutes we expect DynamoDB to return stale data from an
@@ -277,43 +272,41 @@ const dynamoGeneralRealtimePrivatePartitionEventExpirationDays = 7;
  * [1]:
  *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
  */
-export const dynamoGeneralRealtimeBackfillSafetyWindowMinutes = 3;
+export const rynamoBackfillSafetyWindowMinutes = 3;
 
-type DynamoGeneralRealtimeInternalIndex = {
+type RynamoInternalIndex = {
     readonly canReuseTablePartitionKeyForRealtimeKey: boolean;
     readonly dynamicPartitionKeyAttributeNames: ReadonlyArray<string>;
     readonly serializeOpaquePartitionKey: (partitionKey: unknown) => DynamoIndexPartitionKey;
     readonly serializeOpaqueCursor: (itemKey: unknown) => DynamoIndexCursor;
 };
 
-type DynamoGeneralRealtimeAction<ItemKey, Model> =
-    | DynamoGeneralRealtimePutItemAction<ItemKey, Model>
-    | DynamoGeneralRealtimeDeleteItemAction<ItemKey>;
+type RynamoAction<ItemKey, Model> =
+    | RynamoPutItemAction<ItemKey, Model>
+    | RynamoDeleteItemAction<ItemKey>;
 
-type DynamoGeneralRealtimePutItemAction<ItemKey, Model> = {
+type RynamoPutItemAction<ItemKey, Model> = {
     readonly type: "PutItem";
     readonly itemKey: ItemKey;
     readonly getPartitionKey: () => DynamoItemPartitionKey;
     readonly getSortKey: () => DynamoItemSortKey;
-    readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
+    readonly indexByName: ReadonlyMap<string, RynamoInternalIndex> | undefined;
     readonly oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
     readonly newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
-    readonly eventStub: DynamoGeneralRealtimeEventStub;
-    readonly getEvent: (
-        context: ServerActionContext,
-    ) => Promise<DynamoGeneralRealtimePutItemEvent<Model>>;
+    readonly eventStub: RynamoEventStub;
+    readonly getEvent: (context: ServerActionContext) => Promise<RynamoPutItemEvent<Model>>;
 };
 
-type DynamoGeneralRealtimeDeleteItemAction<ItemKey> = {
+type RynamoDeleteItemAction<ItemKey> = {
     readonly type: "DeleteItem";
     readonly itemKey: ItemKey;
     readonly getPartitionKey: () => DynamoItemPartitionKey;
     readonly getSortKey: () => DynamoItemSortKey;
-    readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
+    readonly indexByName: ReadonlyMap<string, RynamoInternalIndex> | undefined;
     readonly oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
     readonly newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
-    readonly eventStub: DynamoGeneralRealtimeEventStub;
-    readonly event: DynamoGeneralRealtimeDeleteItemEvent;
+    readonly eventStub: RynamoEventStub;
+    readonly event: RynamoDeleteItemEvent;
 };
 
 /**
@@ -385,7 +378,7 @@ type DynamoGeneralRealtimeDeleteItemAction<ItemKey> = {
 //
 // - `addExpensiveFullIndex()` with items in different partitions
 // - Certain `DynamoKeyAttributeSchema`s which don't support binary encoding
-export class DynamoGeneralRealtimeTableSchema<
+export class RynamoTableSchema<
     Types extends DynamoTableSchemaTypesBase,
     ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
 > {
@@ -400,31 +393,27 @@ export class DynamoGeneralRealtimeTableSchema<
               };
           }
         | undefined;
-    private readonly _models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+    private readonly _models: RynamoTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
     private readonly _broadcastEventTransactionCallback: (
         context: ServerActionContext,
         eventTransaction: ReadonlyArray<{
             itemKey: Types["ItemKey"];
-            eventStub: DynamoGeneralRealtimeEventStub;
+            eventStub: RynamoEventStub;
             getEvent: (
                 context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
+            ) => Promise<RynamoEvent<ModelMap[string][string]>>;
             oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
             newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
         }>,
     ) => Promise<void>;
 
-    private readonly _indexByNameByItemType = new Map<
-        string,
-        Map<string, DynamoGeneralRealtimeInternalIndex>
-    >();
+    private readonly _indexByNameByItemType = new Map<string, Map<string, RynamoInternalIndex>>();
 
     public static new<
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
-        const ModelsConfig extends
-            DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
+        const ModelsConfig extends RynamoTableSchemaPartitionModelConfigType<PartitionsConfig>,
     >({
         name,
         partitions,
@@ -454,7 +443,7 @@ export class DynamoGeneralRealtimeTableSchema<
              * backfilled. In other words, enabling `realtimeQuery()` incurs an additional 1
              * WCU minimum on every update.
              */
-            realtimeQuery?: DynamoGeneralRealtimeTableSchemaPartitionShallowFeatureConfigType<PartitionsConfig>;
+            realtimeQuery?: RynamoTableSchemaPartitionShallowFeatureConfigType<PartitionsConfig>;
 
             /**
              * Enable `deleteItem()` for a partition. By default items aren't deletable. When
@@ -471,7 +460,7 @@ export class DynamoGeneralRealtimeTableSchema<
              * `transactionDangerouslyCreateItemWithoutExistenceConditionCheck()` which skips
              * the existence condition check to avoid extra RCUs that check for a gravestone.
              */
-            deleteItem?: DynamoGeneralRealtimeTableSchemaPartitionFeatureConfigType<PartitionsConfig>;
+            deleteItem?: RynamoTableSchemaPartitionFeatureConfigType<PartitionsConfig>;
         };
 
         /**
@@ -490,9 +479,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // NOTE(calebmer, 2023-04-24): For whatever reason, TypeScript doesn't seem to like
         // the full `Schema` type here but works just fine with an interface that has a
         // limited set of methods. I think it has something to do with variance. Shrug.
-        modelSchema: SchemaWithoutValidation<
-            DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>
-        >;
+        modelSchema: SchemaWithoutValidation<RynamoTableSchemaModelType<ModelsConfig>>;
 
         /**
          * Whenever data within the realtime DynamoDB table is updated we call this
@@ -507,14 +494,10 @@ export class DynamoGeneralRealtimeTableSchema<
             context: ServerActionContext,
             eventTransaction: ReadonlyArray<{
                 itemKey: DynamoTableSchemaTypes.Partition.ItemKeyTypes<PartitionsConfig>;
-                eventStub: DynamoGeneralRealtimeEventStub;
+                eventStub: RynamoEventStub;
                 getEvent: (
                     context: ServerActionContext,
-                ) => Promise<
-                    DynamoGeneralRealtimeEvent<
-                        DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>
-                    >
-                >;
+                ) => Promise<RynamoEvent<RynamoTableSchemaModelType<ModelsConfig>>>;
                 oldPartitionKeyByIndexName:
                     | ReadonlyMap<string, DynamoIndexPartitionKey>
                     | undefined;
@@ -523,9 +506,9 @@ export class DynamoGeneralRealtimeTableSchema<
                     | undefined;
             }>,
         ) => Promise<void>;
-    }): DynamoGeneralRealtimeTableSchema<
+    }): RynamoTableSchema<
         DynamoTableSchemaTypes.Types<{name: string; partitions: PartitionsConfig}>,
-        DynamoGeneralRealtimeTableSchemaModelMapType<ModelsConfig>
+        RynamoTableSchemaModelMapType<ModelsConfig>
     > {
         assert(modelSchema instanceof Schema);
 
@@ -537,13 +520,13 @@ export class DynamoGeneralRealtimeTableSchema<
                 // serialization/deserialization probably needs to be updated.
                 if (sortRange.childSortRanges) {
                     throw new UnimplementedError(
-                        "Child sort range support isn\u2019t implemented for `DynamoGeneralRealtimeTableSchema`",
+                        "Child sort range support isn\u2019t implemented for `RynamoTableSchema`",
                     );
                 }
             }
         }
 
-        return new DynamoGeneralRealtimeTableSchema({
+        return new RynamoTableSchema({
             table: DynamoTableSchema.new({
                 name,
                 // Add a private partition for storing realtime information but don't include it in
@@ -551,8 +534,8 @@ export class DynamoGeneralRealtimeTableSchema<
                 // partition so we don't include it in the types.
                 partitions: [
                     ...partitions,
-                    dynamoGeneralRealtimePrivateRealtimePartitionConfig,
-                    dynamoGeneralRealtimePrivateGraveyardPartitionConfig,
+                    rynamoPrivatePartitionConfig,
+                    rynamoPrivateGraveyardPartitionConfig,
                 ] as any as PartitionsConfig,
                 withoutCompatibilityErrorsForTest,
             }),
@@ -579,17 +562,17 @@ export class DynamoGeneralRealtimeTableSchema<
                   };
               }
             | undefined;
-        models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+        models: RynamoTableSchemaPartitionModelConfigType<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >;
         broadcastEventTransaction: (
             context: ServerActionContext,
             eventTransaction: ReadonlyArray<{
                 itemKey: Types["ItemKey"];
-                eventStub: DynamoGeneralRealtimeEventStub;
+                eventStub: RynamoEventStub;
                 getEvent: (
                     context: ServerActionContext,
-                ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
+                ) => Promise<RynamoEvent<ModelMap[string][string]>>;
                 oldPartitionKeyByIndexName:
                     | ReadonlyMap<string, DynamoIndexPartitionKey>
                     | undefined;
@@ -658,9 +641,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     private _broadcastActionTransaction(
         context: ServerActionContext,
-        actionTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeAction<Types["ItemKey"], ModelMap[string][string]>
-        >,
+        actionTransaction: ReadonlyArray<RynamoAction<Types["ItemKey"], ModelMap[string][string]>>,
     ): Promise<void> {
         return context.tracer.withSpan("Send general realtime event transaction", async context => {
             const eventTransaction = actionTransaction.map(
@@ -668,10 +649,10 @@ export class DynamoGeneralRealtimeTableSchema<
                     action,
                 ): {
                     itemKey: Types["ItemKey"];
-                    eventStub: DynamoGeneralRealtimeEventStub;
+                    eventStub: RynamoEventStub;
                     getEvent: (
                         context: ServerActionContext,
-                    ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
+                    ) => Promise<RynamoEvent<ModelMap[string][string]>>;
                     oldPartitionKeyByIndexName:
                         | ReadonlyMap<string, DynamoIndexPartitionKey>
                         | undefined;
@@ -707,7 +688,7 @@ export class DynamoGeneralRealtimeTableSchema<
             const realtimeKeys = new Set<string>();
 
             const dynamoEventTransaction = actionTransaction.map(
-                (action): DynamoGeneralRealtimePrivateRealtimePartitionEvent => {
+                (action): RynamoPrivateRealtimePartitionEvent => {
                     // Add the realtime event transaction to every partition affected by the
                     // transaction. That way we can search to find the transaction later using any
                     // partition key implicated in the transaction.
@@ -749,10 +730,7 @@ export class DynamoGeneralRealtimeTableSchema<
 
             // Expire events after a couple days. If we are trying to backfill data from longer
             // ago then we'll need a full refresh.
-            const expirationTime = addDays(
-                eventTime,
-                dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
-            );
+            const expirationTime = addDays(eventTime, rynamoPrivatePartitionEventExpirationDays);
 
             // Add the event transaction to every affected realtime key. When backfilling, we
             // only query events from realtime keys we care about. If a transaction affected
@@ -760,8 +738,8 @@ export class DynamoGeneralRealtimeTableSchema<
             // query.
             await runAllPromises(
                 mapIterable(realtimeKeys, realtimeKey => {
-                    const item: DynamoGeneralRealtimePrivateRealtimePartitionItem = {
-                        partitionType: dynamoGeneralRealtimePrivateRealtimePartitionName,
+                    const item: RynamoPrivateRealtimePartitionItem = {
+                        partitionType: rynamoPrivatePartitionName,
                         sortRangeType: "Events",
                         realtimeKey,
                         eventTime,
@@ -794,7 +772,7 @@ export class DynamoGeneralRealtimeTableSchema<
         oldItem: Item | null;
         newItem: Item;
         newVersion: number;
-    }): DynamoGeneralRealtimePutItemAction<
+    }): RynamoPutItemAction<
         Item & Types["ItemKey"],
         ModelMap[Item["partitionType"]][Item["sortRangeType"]]
     > {
@@ -809,7 +787,7 @@ export class DynamoGeneralRealtimeTableSchema<
             );
             assert(
                 oldItem.updateLockVersion === newItem.updateLockVersion,
-                "Can\u2019t update `updateLockVersion`, `DynamoGeneralRealtimeTableSchema` will update `updateLockVersion` for you",
+                "Can\u2019t update `updateLockVersion`, `RynamoTableSchema` will update `updateLockVersion` for you",
             );
         }
 
@@ -890,7 +868,7 @@ export class DynamoGeneralRealtimeTableSchema<
 
     private _createDeleteItemAction<Item extends Types["Item"]>(
         item: Item,
-    ): DynamoGeneralRealtimeDeleteItemAction<Item & Types["ItemKey"]> {
+    ): RynamoDeleteItemAction<Item & Types["ItemKey"]> {
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
@@ -920,7 +898,7 @@ export class DynamoGeneralRealtimeTableSchema<
             indexes.add(indexName);
         }
 
-        const event: DynamoGeneralRealtimeDeleteItemEvent = {
+        const event: RynamoDeleteItemEvent = {
             type: "DeleteItem",
             item: {key, version},
             indexes,
@@ -954,15 +932,11 @@ export class DynamoGeneralRealtimeTableSchema<
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     }> {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -989,8 +963,8 @@ export class DynamoGeneralRealtimeTableSchema<
             await DynamoTableSchema.executeTransaction(context, [
                 this._table.transactionCreateItem(item, options),
                 this._table.transactionDoesNotExistConditionCheck(
-                    cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
-                        partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    cast<RynamoPrivateGraveyardPartitionItemKey>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
                         deletedPartitionKey: action.getPartitionKey(),
                         deletedSortKey: action.getSortKey(),
@@ -1019,8 +993,8 @@ export class DynamoGeneralRealtimeTableSchema<
         wasCreated: boolean;
     }> {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1050,11 +1024,7 @@ export class DynamoGeneralRealtimeTableSchema<
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     }> {
         const action = await this._directlyUpdateItem(context, newItem);
 
@@ -1079,14 +1049,14 @@ export class DynamoGeneralRealtimeTableSchema<
         context: DynamoContext,
         newItem: Item,
     ): Promise<
-        DynamoGeneralRealtimePutItemAction<
+        RynamoPutItemAction<
             Item & Types["ItemKey"],
             ModelMap[Item["partitionType"]][Item["sortRangeType"]]
         >
     > {
         assert(
-            newItem.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                newItem.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            newItem.partitionType !== rynamoPrivatePartitionName &&
+                newItem.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1147,8 +1117,8 @@ export class DynamoGeneralRealtimeTableSchema<
             await DynamoTableSchema.executeTransaction(context, [
                 this._table.transactionDirectlyUpdateItem(newItem, {condition}),
                 this._table.transactionDoesNotExistConditionCheck(
-                    cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
-                        partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    cast<RynamoPrivateGraveyardPartitionItemKey>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
                         deletedPartitionKey: action.getPartitionKey(),
                         deletedSortKey: action.getSortKey(),
@@ -1184,9 +1154,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getEvent: (
             context: ServerActionContext,
         ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]
-            >
+            RynamoPutItemEvent<ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]>
         >;
     }>;
     public async updateItem<ItemKey extends Types["ItemKey"]>(
@@ -1200,9 +1168,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getEvent: (
             context: ServerActionContext,
         ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]
-            >
+            RynamoPutItemEvent<ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]>
         >;
     }>;
     public async updateItem<ItemKey extends Types["ItemKey"]>(
@@ -1216,9 +1182,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getEvent: (
             context: ServerActionContext,
         ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]
-            >
+            RynamoPutItemEvent<ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]>
         >;
     }> {
         let hasAttempted = false;
@@ -1292,15 +1256,15 @@ export class DynamoGeneralRealtimeTableSchema<
      * version number.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
     public async deleteItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
     ): Promise<void> {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1333,8 +1297,8 @@ export class DynamoGeneralRealtimeTableSchema<
         await DynamoTableSchema.executeTransaction(context, [
             this._table.transactionDeleteItem(item, {condition}),
             this._table.transactionCreateOrReplaceItem(
-                cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
-                    partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                cast<RynamoPrivateGraveyardPartitionItem>({
+                    partitionType: rynamoPrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
                     deletedPartitionKey: action.getPartitionKey(),
                     deletedSortKey: action.getSortKey(),
@@ -1353,7 +1317,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * See `deleteItem()` for more information.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
     public async getDeletedItemIfExists<ItemKey extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1362,10 +1326,10 @@ export class DynamoGeneralRealtimeTableSchema<
             consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
-    ): Promise<DynamoGeneralRealtimeTableDeletedItem | null> {
+    ): Promise<RynamoTableDeletedItem | null> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1380,8 +1344,8 @@ export class DynamoGeneralRealtimeTableSchema<
 
         const gravestoneItem = await this._table.getItemIfExists(
             context,
-            cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
-                partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            cast<RynamoPrivateGraveyardPartitionItemKey>({
+                partitionType: rynamoPrivateGraveyardPartitionName,
                 sortRangeType: "Gravestone",
                 deletedPartitionKey: partitionKey,
                 deletedSortKey: sortKey,
@@ -1403,24 +1367,20 @@ export class DynamoGeneralRealtimeTableSchema<
      * See `deleteItem()` for more information.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
     public async undeleteItem<Item extends Types["Item"]>(
         context: ServerActionContext,
-        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
+        deletedItem: RynamoTableDeletedItem,
         item: Item,
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     }> {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1443,8 +1403,8 @@ export class DynamoGeneralRealtimeTableSchema<
 
         await DynamoTableSchema.executeTransaction(context, [
             this._table.transactionDeleteItem(
-                cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
-                    partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                cast<RynamoPrivateGraveyardPartitionItem>({
+                    partitionType: rynamoPrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
                     deletedPartitionKey: action.getPartitionKey(),
                     deletedSortKey: action.getSortKey(),
@@ -1470,7 +1430,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public static async executeTransaction(
         context: ServerActionContext,
-        entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
+        entries: ReadonlyArray<DynamoTransactionEntry | RynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<{
         getEventTransaction: <
@@ -1478,15 +1438,15 @@ export class DynamoGeneralRealtimeTableSchema<
             ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
         >(
             context: ServerActionContext,
-            schema: DynamoGeneralRealtimeTableSchema<Types, ModelMap>,
-        ) => Promise<Array<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>>;
+            schema: RynamoTableSchema<Types, ModelMap>,
+        ) => Promise<Array<RynamoEvent<ModelMap[string][string]>>>;
     }> {
         const actionsBySchema = new Map<
-            DynamoGeneralRealtimeTableSchema<
+            RynamoTableSchema<
                 DynamoTableSchemaTypesBase,
                 {[partitionType: string]: {[sortRangeType: string]: any}}
             >,
-            Array<DynamoGeneralRealtimeAction<any, any>>
+            Array<RynamoAction<any, any>>
         >();
 
         await DynamoTableSchema.executeTransaction(
@@ -1495,10 +1455,10 @@ export class DynamoGeneralRealtimeTableSchema<
                 if (entry instanceof DynamoTransactionEntry) return entry;
                 // The parameter is typed as the opaque handle from `~/shared`. At runtime every
                 // non-`DynamoTransactionEntry` value is constructed by
-                // `DynamoGeneralRealtimeTransactionEntry._new()` in this file, so it's always an
-                // instance of the class. Assert to narrow back to the implementation type and
-                // unlock `_get(privateSymbol)`.
-                assert(entry instanceof DynamoGeneralRealtimeTransactionEntryInternal);
+                // `RynamoTransactionEntry._new()` in this file, so it's always an instance of the
+                // class. Assert to narrow back to the implementation type and unlock
+                // `_get(privateSymbol)`.
+                assert(entry instanceof RynamoTransactionEntryInternal);
                 const {entry: actualEntry, schema, action} = entry._get(privateSymbol);
                 getOrSetDefaultMapValue(actionsBySchema, schema, () => []).push(action);
                 return actualEntry;
@@ -1545,13 +1505,10 @@ export class DynamoGeneralRealtimeTableSchema<
      * either all entries succeed or all entries fail. See the documentation on
      * `createItem()` for more information.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionCreateItem<Item extends Types["Item"]>(
-        item: Item,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    public transactionCreateItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
         return this.transactionCreateItemWithEvent(item).transactionEntry;
     }
 
@@ -1563,25 +1520,20 @@ export class DynamoGeneralRealtimeTableSchema<
      * This function also returns methods to get the realtime item we create for this
      * transaction. This is useful if you need to use the realtime item afterwards.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionCreateItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
     ): {
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        transactionEntry: RynamoTransactionEntry;
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     } {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1605,20 +1557,20 @@ export class DynamoGeneralRealtimeTableSchema<
         let transactionEntry;
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+            transactionEntry = RynamoTransactionEntryInternal._new(
                 privateSymbol,
                 this._table.transactionCreateItem(item),
                 this,
                 action,
             );
         } else {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+            transactionEntry = RynamoTransactionEntryInternal._new(
                 privateSymbol,
                 [
                     this._table.transactionCreateItem(item),
                     this._table.transactionDoesNotExistConditionCheck(
-                        cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
-                            partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                        cast<RynamoPrivateGraveyardPartitionItemKey>({
+                            partitionType: rynamoPrivateGraveyardPartitionName,
                             sortRangeType: "Gravestone",
                             deletedPartitionKey: action.getPartitionKey(),
                             deletedSortKey: action.getSortKey(),
@@ -1641,13 +1593,12 @@ export class DynamoGeneralRealtimeTableSchema<
      * either all entries succeed or all entries fail. See the documentation on
      * `directlyUpdateItem()` for more information.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         newItem: DynamoItem<Item>,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    ): RynamoTransactionEntry {
         return this.transactionDirectlyUpdateItemWithEvent(newItem).transactionEntry;
     }
 
@@ -1659,25 +1610,20 @@ export class DynamoGeneralRealtimeTableSchema<
      * This function also returns methods to get the realtime item we create for this
      * transaction. This is useful if you need to use the realtime item afterwards.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
         newItem: DynamoItem<Item>,
     ): {
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        transactionEntry: RynamoTransactionEntry;
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     } {
         assert(
-            newItem.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                newItem.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            newItem.partitionType !== rynamoPrivatePartitionName &&
+                newItem.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1731,7 +1677,7 @@ export class DynamoGeneralRealtimeTableSchema<
             !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
             (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
         ) {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+            transactionEntry = RynamoTransactionEntryInternal._new(
                 privateSymbol,
                 this._table.transactionDirectlyUpdateItem(newItem, {condition}),
                 this,
@@ -1741,13 +1687,13 @@ export class DynamoGeneralRealtimeTableSchema<
         // If we're creating the item then we need to make sure it doesn't have a
         // gravestone.
         else {
-            transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+            transactionEntry = RynamoTransactionEntryInternal._new(
                 privateSymbol,
                 [
                     this._table.transactionDirectlyUpdateItem(newItem, {condition}),
                     this._table.transactionDoesNotExistConditionCheck(
-                        cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
-                            partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                        cast<RynamoPrivateGraveyardPartitionItemKey>({
+                            partitionType: rynamoPrivateGraveyardPartitionName,
                             sortRangeType: "Gravestone",
                             deletedPartitionKey: action.getPartitionKey(),
                             deletedSortKey: action.getSortKey(),
@@ -1774,16 +1720,13 @@ export class DynamoGeneralRealtimeTableSchema<
      * either all entries succeed or all entries fail. See the documentation on
      * `deleteItem()` for more information.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
-    public transactionDeleteItem<Item extends Types["Item"]>(
-        item: Item,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    public transactionDeleteItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
         return this.transactionDeleteItemWithEvent(item).transactionEntry;
     }
 
@@ -1792,22 +1735,21 @@ export class DynamoGeneralRealtimeTableSchema<
      * either all entries succeed or all entries fail. See the documentation on
      * `deleteItem()` for more information.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
     public transactionDeleteItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
     ): {
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
-        event: DynamoGeneralRealtimeDeleteItemEvent;
+        transactionEntry: RynamoTransactionEntry;
+        event: RynamoDeleteItemEvent;
     } {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1837,13 +1779,13 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        const transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+        const transactionEntry = RynamoTransactionEntryInternal._new(
             privateSymbol,
             [
                 this._table.transactionDeleteItem(item, {condition}),
                 this._table.transactionCreateOrReplaceItem(
-                    cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
-                        partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    cast<RynamoPrivateGraveyardPartitionItem>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
                         deletedPartitionKey: action.getPartitionKey(),
                         deletedSortKey: action.getSortKey(),
@@ -1866,36 +1808,31 @@ export class DynamoGeneralRealtimeTableSchema<
      * transaction. In a transaction either all entries succeed or all entries fail.
      * See the documentation on `deleteItem()` for more information.
      *
-     * You execute realtime transactions with
-     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
-     * with `DynamoTableSchema.executeTransaction()`.
+     * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
+     * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      *
      * To use this function you must enable it with the `features.deleteItem` object
-     * passed into `DynamoGeneralRealtimeTableSchema`.
+     * passed into `RynamoTableSchema`.
      */
     public transactionUndeleteItem<Item extends Types["Item"]>(
-        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
+        deletedItem: RynamoTableDeletedItem,
         item: Item,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    ): RynamoTransactionEntry {
         return this.transactionUndeleteItemWithEvent(deletedItem, item).transactionEntry;
     }
 
     public transactionUndeleteItemWithEvent<const Item extends Types["Item"]>(
-        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
+        deletedItem: RynamoTableDeletedItem,
         item: Item,
     ): {
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        transactionEntry: RynamoTransactionEntry;
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        >;
+        ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     } {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1916,12 +1853,12 @@ export class DynamoGeneralRealtimeTableSchema<
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        const transactionEntry = DynamoGeneralRealtimeTransactionEntryInternal._new(
+        const transactionEntry = RynamoTransactionEntryInternal._new(
             privateSymbol,
             [
                 this._table.transactionDeleteItem(
-                    cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
-                        partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    cast<RynamoPrivateGraveyardPartitionItem>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
                         deletedPartitionKey: action.getPartitionKey(),
                         deletedSortKey: action.getSortKey(),
@@ -1949,8 +1886,8 @@ export class DynamoGeneralRealtimeTableSchema<
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1965,8 +1902,8 @@ export class DynamoGeneralRealtimeTableSchema<
         itemKey: Key,
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1982,8 +1919,8 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {isConditionCheckErrorRetriable?: boolean},
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -1999,8 +1936,8 @@ export class DynamoGeneralRealtimeTableSchema<
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2023,10 +1960,10 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionDangerouslyCreateItemWithoutExistenceConditionCheck<
         Item extends Types["Item"],
-    >(item: Item): DynamoGeneralRealtimeTransactionEntry {
+    >(item: Item): RynamoTransactionEntry {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2036,7 +1973,7 @@ export class DynamoGeneralRealtimeTableSchema<
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        return DynamoGeneralRealtimeTransactionEntryInternal._new(
+        return RynamoTransactionEntryInternal._new(
             privateSymbol,
             this._table.transactionCreateOrReplaceItem(item),
             this,
@@ -2062,8 +1999,8 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {onAfterTransactionExecutedSuccessfully?: () => void},
     ): DynamoTransactionEntry {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2092,8 +2029,8 @@ export class DynamoGeneralRealtimeTableSchema<
         options: {updateLockVersion: number | undefined},
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2124,8 +2061,8 @@ export class DynamoGeneralRealtimeTableSchema<
         Item extends Types["Item"],
     >(item: Item): DynamoTransactionEntry {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            item.partitionType !== rynamoPrivatePartitionName &&
+                item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2144,8 +2081,8 @@ export class DynamoGeneralRealtimeTableSchema<
         },
     ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>> | null> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2189,8 +2126,8 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {allowsEventualReadConsistency?: boolean},
     ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>>> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2223,8 +2160,8 @@ export class DynamoGeneralRealtimeTableSchema<
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2247,8 +2184,8 @@ export class DynamoGeneralRealtimeTableSchema<
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2264,12 +2201,10 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<DynamoGeneralRealtimeItem<
-        ModelMap[Key["partitionType"]][Key["sortRangeType"]]
-    > | null> {
+    ): Promise<RynamoItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]> | null> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2292,10 +2227,10 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
+    ): Promise<RynamoItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
         assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            itemKey.partitionType !== rynamoPrivatePartitionName &&
+                itemKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2314,7 +2249,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public async buildRealtimeItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
-    ): Promise<DynamoGeneralRealtimeItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
+    ): Promise<RynamoItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
         return {
             key: this._table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
@@ -2357,10 +2292,8 @@ export class DynamoGeneralRealtimeTableSchema<
         >
     > {
         assert(
-            options.partitionKey.partitionType !==
-                dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                options.partitionKey.partitionType !==
-                    dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            options.partitionKey.partitionType !== rynamoPrivatePartitionName &&
+                options.partitionKey.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
@@ -2406,7 +2339,7 @@ export class DynamoGeneralRealtimeTableSchema<
                   type: "FromEnd";
                   beforeItemKey?: DynamoItemKey | null;
               };
-    }): DynamoGeneralRealtimeQueryResult<
+    }): RynamoQueryResult<
         ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
     > {
         if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
@@ -2529,13 +2462,13 @@ export class DynamoGeneralRealtimeTableSchema<
             // Fires after the model has been built for an item. Use this when you need the
             // parsed model.
             onModel?: (
-                item: DynamoGeneralRealtimeItem<
+                item: RynamoItem<
                     ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
                 >,
             ) => void;
         },
     ): Promise<
-        DynamoGeneralRealtimeQueryResult<
+        RynamoQueryResult<
             ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
         >
     > {
@@ -2690,7 +2623,7 @@ export class DynamoGeneralRealtimeTableSchema<
             checkpoint,
         }: {partitionKey: PartitionKey; checkpoint: ServerSynchronizationCheckpoint},
     ): Promise<
-        DynamoGeneralRealtimeBackfillResult<
+        RynamoBackfillResult<
             ModelMap[PartitionKey["partitionType"]][keyof ModelMap[PartitionKey["partitionType"]]]
         >
     > {
@@ -2726,8 +2659,8 @@ export class DynamoGeneralRealtimeTableSchema<
         } = {},
     ): AsyncIterableIterator<DynamoItem<MergeObjectIntersection<Types["Item"]>>> {
         for await (const item of this._table._expensiveScanWithOldItems(context, options)) {
-            if (item.partitionType === dynamoGeneralRealtimePrivateRealtimePartitionName) continue;
-            if (item.partitionType === dynamoGeneralRealtimePrivateGraveyardPartitionName) continue;
+            if (item.partitionType === rynamoPrivatePartitionName) continue;
+            if (item.partitionType === rynamoPrivateGraveyardPartitionName) continue;
             yield item;
         }
     }
@@ -2770,7 +2703,7 @@ export class DynamoGeneralRealtimeTableSchema<
             >,
             "includePrimaryKeyInSortKey"
         >,
-    ): DynamoGeneralRealtimeTableSchemaIndex<
+    ): RynamoTableSchemaIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
@@ -2778,8 +2711,8 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             config.itemTypes.every(
                 itemType =>
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    itemType.partitionType !== rynamoPrivatePartitionName &&
+                    itemType.partitionType !== rynamoPrivateGraveyardPartitionName,
             ),
             "Can\u2019t access private realtime partition",
         );
@@ -2876,7 +2809,7 @@ export class DynamoGeneralRealtimeTableSchema<
                     limit,
                 },
             ): Promise<
-                DynamoGeneralRealtimeIndexQueryResult<
+                RynamoIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
@@ -3105,7 +3038,7 @@ export class DynamoGeneralRealtimeTableSchema<
             >,
             "includePrimaryKeyInSortKey"
         >,
-    ): DynamoGeneralRealtimeTableSchemaIndex<
+    ): RynamoTableSchemaIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
@@ -3113,8 +3046,8 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             config.itemTypes.every(
                 itemType =>
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    itemType.partitionType !== rynamoPrivatePartitionName &&
+                    itemType.partitionType !== rynamoPrivateGraveyardPartitionName,
             ),
             "Can\u2019t access private realtime partition",
         );
@@ -3211,7 +3144,7 @@ export class DynamoGeneralRealtimeTableSchema<
                     limit,
                 },
             ): Promise<
-                DynamoGeneralRealtimeIndexQueryResult<
+                RynamoIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
@@ -3438,8 +3371,8 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             config.itemTypes.every(
                 itemType =>
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                    itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                    itemType.partitionType !== rynamoPrivatePartitionName &&
+                    itemType.partitionType !== rynamoPrivateGraveyardPartitionName,
             ),
             "Can\u2019t access private realtime partition",
         );
@@ -3539,7 +3472,7 @@ export class DynamoGeneralRealtimeTableSchema<
                       partitionKey: DynamoIndexPartitionKey;
                   };
         },
-    ): Promise<DynamoGeneralRealtimeBackfillResult<any>> {
+    ): Promise<RynamoBackfillResult<any>> {
         // `checkpoint` may be for an eventually consistent read. Eventually consistent
         // reads may contain stale data. So here we backfill events that happened a short
         // window before our `checkpoint` in case the read returned stale data.
@@ -3550,14 +3483,11 @@ export class DynamoGeneralRealtimeTableSchema<
         //
         // [1]:
         //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
-        checkpoint = subMinutes(checkpoint, dynamoGeneralRealtimeBackfillSafetyWindowMinutes);
+        checkpoint = subMinutes(checkpoint, rynamoBackfillSafetyWindowMinutes);
 
         // We have deleted events before this time to reduce our storage needs. That means
         // we can't backfill reads that ocurred before this time.
-        const expiredEventsTime = subDays(
-            new Date(),
-            dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
-        );
+        const expiredEventsTime = subDays(new Date(), rynamoPrivatePartitionEventExpirationDays);
 
         // If our read happened before the expiration time, we may be missing some events
         // that happened between the read and now. The client should fully reload their
@@ -3575,7 +3505,7 @@ export class DynamoGeneralRealtimeTableSchema<
             DynamoItemKey,
             {
                 itemKey: Types["ItemKey"];
-                index: DynamoGeneralRealtimeInternalIndex | undefined;
+                index: RynamoInternalIndex | undefined;
                 version: number;
                 eventType: "PutItem" | "DeleteItem";
             }
@@ -3594,7 +3524,7 @@ export class DynamoGeneralRealtimeTableSchema<
             // Use a strong read consistency when backfilling events!
             consistency: "Strong",
         })) {
-            const item: DynamoGeneralRealtimePrivateRealtimePartitionItem = unknownItem as any;
+            const item: RynamoPrivateRealtimePartitionItem = unknownItem as any;
 
             for (const event of item.eventTransaction) {
                 const itemKey = this._table.deserializeOpaqueItemKey(event.key);
@@ -3637,7 +3567,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const eventTransaction = await runAllPromises(
             Array.from(
                 backfillItemByKey,
-                async ([key, backfillItem]): Promise<DynamoGeneralRealtimeEvent<unknown>> => {
+                async ([key, backfillItem]): Promise<RynamoEvent<unknown>> => {
                     const {itemKey} = backfillItem;
 
                     const result = await this._getRealtimeEventItem(context, backfillItem);
@@ -3720,17 +3650,14 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
-     * Turn a realtime event stub (`DynamoGeneralRealtimeEventStub`) into a full
-     * realtime event (`DynamoGeneralRealtimeEvent`). Gets a version of each item later
-     * than the version declared in the stub and builds models for the items which
-     * loads any referenced data.
+     * Turn a realtime event stub (`RynamoEventStub`) into a full realtime event
+     * (`RynamoEvent`). Gets a version of each item later than the version declared in
+     * the stub and builds models for the items which loads any referenced data.
      */
     public getRealtimeEvent(
         context: ServerActionContext,
-        eventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeEventStub & {readonly itemKey?: Types["ItemKey"]}
-        >,
-    ): Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>> {
+        eventTransaction: ReadonlyArray<RynamoEventStub & {readonly itemKey?: Types["ItemKey"]}>,
+    ): Promise<ReadonlyArray<RynamoEvent<ModelMap[string][string]>>> {
         return runAllPromises(
             eventTransaction.map(async event => {
                 const {key} = event.item;
@@ -3794,7 +3721,7 @@ export class DynamoGeneralRealtimeTableSchema<
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
     readonly name: string;
 
     readonly partitionKeyAttributes: {
@@ -3850,7 +3777,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
             // everything you have to say so.
             limit: number | "All";
         },
-    ): Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>;
+    ): Promise<RynamoIndexQueryResult<Model>>;
 
     /**
      * Backfill any updates that happened since the query was read and now. Useful when
@@ -3859,7 +3786,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
     backfillRealtimeQuery(
         context: ServerActionContext,
         options: {partitionKey: IndexPartitionKey; checkpoint: ServerSynchronizationCheckpoint},
-    ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
+    ): Promise<RynamoBackfillResult<Model>>;
 
     /**
      * Get the value of an attribute in our index's partition key from an event that
@@ -3882,33 +3809,32 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
 }
 
 // Do not export this symbol! It lets us have methods that are private within this
-// file. Notably we want to construct `DynamoGeneralRealtimeTransactionEntry`
-// within this file but have the class be opaque to the outside world.
+// file. Notably we want to construct `RynamoTransactionEntry` within this file but
+// have the class be opaque to the outside world.
 const privateSymbol = Symbol("private");
 
 /**
  * Wrapper around a `DynamoTransactionEntry` that includes extra information we
  * need for updating a realtime table.
  *
- * Implements the opaque `DynamoGeneralRealtimeTransactionEntry` handle from
- * `~/shared/dynamo/dynamo_general_realtime_types.js` so that consumers (like
- * injection slots in `//server/context`) can hold a reference to a transaction
- * entry without taking a Bazel dependency on this package. The branded
- * `_DynamoGeneralRealtimeTransactionEntry` field is `declare`-only so it has no
- * runtime cost — it exists purely to make the class nominally compatible with the
- * shared handle type.
+ * Implements the opaque `RynamoTransactionEntry` handle from
+ * `~/shared/dynamo/rynamo_types.js` so that consumers (like injection slots in
+ * `//server/context`) can hold a reference to a transaction entry without taking a
+ * Bazel dependency on this package. The branded `_RynamoTransactionEntry` field is
+ * `declare`-only so it has no runtime cost — it exists purely to make the class
+ * nominally compatible with the shared handle type.
  */
-class DynamoGeneralRealtimeTransactionEntryInternal implements DynamoGeneralRealtimeTransactionEntry {
-    declare readonly _DynamoGeneralRealtimeTransactionEntry: never;
+class RynamoTransactionEntryInternal implements RynamoTransactionEntry {
+    declare readonly _RynamoTransactionEntry: never;
 
     private readonly _entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>;
-    private readonly _schema: DynamoGeneralRealtimeTableSchema<any, any>;
-    private readonly _action: DynamoGeneralRealtimeAction<unknown, unknown>;
+    private readonly _schema: RynamoTableSchema<any, any>;
+    private readonly _action: RynamoAction<unknown, unknown>;
 
     private constructor(
         entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
-        schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        action: DynamoGeneralRealtimeAction<unknown, unknown>,
+        schema: RynamoTableSchema<any, any>,
+        action: RynamoAction<unknown, unknown>,
     ) {
         this._entry = entry;
         this._schema = schema;
@@ -3918,14 +3844,14 @@ class DynamoGeneralRealtimeTransactionEntryInternal implements DynamoGeneralReal
     public static _new(
         symbol: typeof privateSymbol,
         entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
-        schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        event: DynamoGeneralRealtimeAction<unknown, unknown>,
-    ): DynamoGeneralRealtimeTransactionEntryInternal {
+        schema: RynamoTableSchema<any, any>,
+        event: RynamoAction<unknown, unknown>,
+    ): RynamoTransactionEntryInternal {
         // `privateSymbol` is only accessible in this module so this assert makes sure we
         // don't call this method from outside of this module.
         assert(symbol === privateSymbol);
 
-        return new DynamoGeneralRealtimeTransactionEntryInternal(entry, schema, event);
+        return new RynamoTransactionEntryInternal(entry, schema, event);
     }
 
     public _get(symbol: typeof privateSymbol) {

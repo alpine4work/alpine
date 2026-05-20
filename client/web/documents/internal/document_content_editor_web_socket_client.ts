@@ -21,7 +21,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -725,7 +725,7 @@ export class DocumentContentEditorWebSocketClient {
 
     public subscribeToSpellCheckIgnoredLints(
         subscriber: (
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
+            eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>,
         ) => void,
     ) {
         return this._client.subscribeToEvents(event => {

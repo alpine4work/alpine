@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useRef} from "react";
 import {usePress} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/web/forum/get_initial_channel_files_view_load_count.js";
 import {ChannelViewContentFilePreview} from "~/client/web/forum/internal/channel_view_content_file_preview.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -40,7 +40,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelModel,
     ChannelOrMetadataModel,
@@ -60,7 +60,7 @@ export function ChannelFilesView({
     initialChannelResult,
     isFromChannelView,
 }: {
-    initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
+    initialChannelResult: RynamoQueryResult<ChannelOrMetadataModel>;
     isFromChannelView: boolean;
 }) {
     const context = useAppContext();
@@ -87,7 +87,7 @@ export function ChannelFilesView({
     const {
         query: channelAndMetadataQuery,
         handleLoadMore: handleLoadMoreIntoChannelAndMetadataQuery,
-    } = useDynamoGeneralRealtimeQuery(initialChannelResult, {
+    } = useRynamoQuery(initialChannelResult, {
         isConnected,
         subscribeToPongs,
         subscribeToEvents: useCallback(

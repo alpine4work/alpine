@@ -49,7 +49,7 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -106,7 +106,7 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
 export type SubscribeToSpellCheckIgnoredLintEventsFunction = Memo<
     (
         subscriber: (
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
+            eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>,
         ) => void,
     ) => () => void
 >;

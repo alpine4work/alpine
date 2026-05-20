@@ -15,7 +15,7 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
-import {dynamoGeneralRealtimeBackfillSafetyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {rynamoBackfillSafetyWindowMinutes} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -3020,7 +3020,7 @@ test("can backfill realtime updates in a channel", async () => {
 
     const checkpoint2: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
-        dynamoGeneralRealtimeBackfillSafetyWindowMinutes,
+        rynamoBackfillSafetyWindowMinutes,
     );
 
     const channel1PostsResult = await getChannelPosts(session.action(), {
@@ -3826,7 +3826,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
 
     const checkpoint3: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
-        dynamoGeneralRealtimeBackfillSafetyWindowMinutes,
+        rynamoBackfillSafetyWindowMinutes,
     );
 
     const post1g = (await getPost(session.action(), post.id)).model;

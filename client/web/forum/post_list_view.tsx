@@ -124,7 +124,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -314,7 +314,7 @@ function PostListView(
          *   realtime updates from `ChannelRealtimeService`.
          */
         onPostRealtimeEventTransaction: Memo<
-            (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
+            (eventTransaction: ReadonlyArray<RynamoEvent<PostModel>>) => void
         >;
 
         /**
@@ -327,7 +327,7 @@ function PostListView(
          */
         onOptimisticPostRealtimeEventTransaction: Memo<
             (
-                promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+                promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
                 postId: PostId,
                 update: (post: PostModel) => PostModel,
             ) => void

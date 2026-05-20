@@ -9,12 +9,12 @@ import {metaTitleSeparator} from "~/client/web/remix/use_update_meta_title.js";
 import {getChannelAndMetadata} from "~/server/forum/data/get_channel_and_metadata.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
-    channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
+    channelResult: createRynamoQuerySchema(ChannelOrMetadataModelSchema),
 });
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {

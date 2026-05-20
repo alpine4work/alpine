@@ -1,5 +1,5 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -12,7 +12,7 @@ import {
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     FailedPreconditionError,
@@ -47,10 +47,10 @@ export async function validateAccessPolicyUpdateForServer(
 ): Promise<{
     resolvedAccessPolicy: ResolvedAccessPolicy;
     transactionEntries: Array<{
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        transactionEntry: RynamoTransactionEntry;
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+        ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
     }>;
 }> {
     // We only schedule a "site add" transaction when the new access policy is a Site
@@ -112,10 +112,10 @@ export async function validateAccessPolicyUpdateForServer(
     ]);
 
     const transactionEntries: Array<{
-        transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+        transactionEntry: RynamoTransactionEntry;
         getEvent: (
             context: ServerActionContext,
-        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+        ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
     }> = [];
 
     for (const entry of addToSiteTransactionEntries ?? []) {

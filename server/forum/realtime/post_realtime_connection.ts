@@ -19,7 +19,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -52,7 +52,7 @@ export type PostRealtimeEventStub =
       }
     | {
           readonly type: "RealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>;
+          readonly eventTransaction: ReadonlyArray<RynamoEventStub>;
       };
 
 export class PostRealtimeConnection {

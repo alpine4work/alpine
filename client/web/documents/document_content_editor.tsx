@@ -166,7 +166,7 @@ import {
     encodeDocumentCommentRoomKey,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -273,7 +273,7 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
-    initialSpellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
+    initialSpellCheckIgnoredLints: RynamoQueryResult<SpellCheckIgnoredLintModel>;
     initialIsFavorite: boolean;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;

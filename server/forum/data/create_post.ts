@@ -10,7 +10,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
@@ -34,10 +34,7 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimePutItemEvent,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoPutItemEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
@@ -87,9 +84,9 @@ export async function createPost(
     createdTime: Date;
     createdTimeZone: TimeZone;
     channelName: string;
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<PostModel>>>;
 }> {
     // You can only manually set a created time when building scenarios or in tests.
     if (overrideCreatedTimeForTest) {
@@ -169,9 +166,7 @@ export async function createPost(
     );
 
     let result: {
-        getEvent: (
-            context: ServerActionContext,
-        ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
+        getEvent: (context: ServerActionContext) => Promise<RynamoPutItemEvent<PostModel>>;
     };
 
     if (fileIds.size === 0) {
@@ -182,7 +177,7 @@ export async function createPost(
 
         result = {getEvent};
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        await RynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
             // We create the `PostFiles` item in a transaction instead of asynchronously with
@@ -219,7 +214,7 @@ export async function createPost(
         createdTime: postItem.createdTime,
         createdTimeZone: postItem.createdTimeZone,
         channelName,
-        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
+        getRynamoEventTransaction: async context => [await result.getEvent(context)],
     };
 }
 

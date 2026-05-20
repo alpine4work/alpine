@@ -13,7 +13,7 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -35,9 +35,9 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     attachFileFromAttachment,
@@ -130,7 +130,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     ErrorBase,
@@ -409,9 +409,9 @@ export async function createDocument(
     createdTime: Date;
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     // If we have an `ImpersonatedAccount` actor we know the "parent" actor is a system
     // actor. Only allow system actors to set the `from` field.
@@ -499,7 +499,7 @@ export async function createDocument(
                 : null),
     };
 
-    await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+    await RynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
             partitionType: "Document",
             sortRangeType: "Attributes",
@@ -606,7 +606,7 @@ export async function createDocument(
         createdTime,
         version,
         creator,
-        getDynamoGeneralRealtimeEventTransactionForSite: async (context: ServerActionContext) =>
+        getRynamoEventTransactionForSite: async (context: ServerActionContext) =>
             runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
@@ -2898,9 +2898,9 @@ export async function updateDocumentContent(
      * through the document collaboration WebSocket protocol, so only site events are
      * surfaced here.
      */
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
@@ -3115,10 +3115,10 @@ export async function updateDocumentContent(
 
         let newEffectiveAccessPolicy: EffectiveAccessPolicy | null = null;
         const intentionallyUpdatedAccessPolicyTransactionEntries: Array<{
-            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            transactionEntry: RynamoTransactionEntry;
             getEvent: (
                 context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
         }> = [];
         // Make sure the access policy update is valid and the actor isn't removing access
         // from accounts with a lower manage generation.
@@ -3138,12 +3138,11 @@ export async function updateDocumentContent(
             newEffectiveAccessPolicy = resolvedAccessPolicy;
 
             // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. The entries
-            // are `DynamoGeneralRealtimeTransactionEntry` instances; we cast via `unknown` to
+            // are `RynamoTransactionEntry` instances; we cast via `unknown` to
             // `DynamoTransactionEntry` so we can push them onto the shared transaction array.
-            // The commit below switches to
-            // `DynamoGeneralRealtimeTableSchema.executeTransaction` when any site entries are
-            // present — that variant accepts both entry types and broadcasts realtime events
-            // for the site entries.
+            // The commit below switches to `RynamoTableSchema.executeTransaction` when any
+            // site entries are present — that variant accepts both entry types and broadcasts
+            // realtime events for the site entries.
             for (const entry of transactionEntries) {
                 intentionallyUpdatedAccessPolicyTransactionEntries.push(entry);
             }
@@ -3300,8 +3299,7 @@ export async function updateDocumentContent(
             clientId,
         });
 
-        const transaction: Array<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry> =
-            [];
+        const transaction: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;
@@ -3771,7 +3769,7 @@ export async function updateDocumentContent(
 
         const execute = async () => {
             if (transaction.length > 0) {
-                await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transaction, {
+                await RynamoTableSchema.executeTransaction(context, transaction, {
                     clientRequestToken,
                 });
             }
@@ -3864,9 +3862,9 @@ export async function updateDocumentContent(
          * committed — used by the `addEntityToSite` RPC to surface site sidebar events
          * back to the client.
          */
-        getDynamoGeneralRealtimeEventTransactionForSite: (
+        getRynamoEventTransactionForSite: (
             eventContext: ServerActionContext,
-        ): Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>> =>
+        ): Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>> =>
             runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
     };
 }
@@ -3881,16 +3879,13 @@ export async function updateDocumentContentIdempotently(
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
-    eventTransactionForSite: ReadonlyArray<
-        DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>
-    >;
+    eventTransactionForSite: ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
 }> {
     try {
-        const {newVersion, updatedCommentThreads, getDynamoGeneralRealtimeEventTransactionForSite} =
+        const {newVersion, updatedCommentThreads, getRynamoEventTransactionForSite} =
             await updateDocumentContent(context, options);
 
-        const eventTransactionForSite =
-            await getDynamoGeneralRealtimeEventTransactionForSite(context);
+        const eventTransactionForSite = await getRynamoEventTransactionForSite(context);
 
         return {newVersion, updatedCommentThreads, eventTransactionForSite};
     } catch (error) {

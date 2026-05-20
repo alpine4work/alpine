@@ -47,13 +47,14 @@ export default implementRpcs(definitions, {
     createChannel: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime, getDynamoGeneralRealtimeEventTransactionForSite} =
-                await createChannel(context.actor.authorizeSession(), input);
+            const {id, createdTime, getRynamoEventTransactionForSite} = await createChannel(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {
                 channelId: id,
                 createdTime,
-                eventTransactionForSite:
-                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                eventTransactionForSite: await getRynamoEventTransactionForSite(context),
             };
         },
     },
@@ -61,43 +62,39 @@ export default implementRpcs(definitions, {
     updateChannelName: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelName(
-                context,
-                input,
-            );
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            const {getRynamoEventTransaction} = await updateChannelName(context, input);
+            return {eventTransaction: await getRynamoEventTransaction(context)};
         },
     },
 
     updateChannelDescription: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelDescription(
-                context,
-                input,
-            );
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            const {getRynamoEventTransaction} = await updateChannelDescription(context, input);
+            return {eventTransaction: await getRynamoEventTransaction(context)};
         },
     },
 
     updateChannelNameAndDescription: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} =
-                await updateChannelNameAndDescription(context, input);
-            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
+            const {getRynamoEventTransaction} = await updateChannelNameAndDescription(
+                context,
+                input,
+            );
+            return {eventTransaction: await getRynamoEventTransaction(context)};
         },
     },
 
     updateChannelAccessPolicy: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelAccessPolicy(
+            const {getRynamoEventTransaction} = await updateChannelAccessPolicy(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                eventTransaction: await getRynamoEventTransaction(context),
             };
         },
     },
@@ -105,13 +102,12 @@ export default implementRpcs(definitions, {
     addAccountGrantsToChannelAccessPolicy: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEventTransaction} =
-                await addAccountGrantsToChannelAccessPolicy(
-                    context.actor.authorizeSession(),
-                    input,
-                );
+            const {getRynamoEventTransaction} = await addAccountGrantsToChannelAccessPolicy(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                eventTransaction: await getRynamoEventTransaction(context),
             };
         },
     },
@@ -201,15 +197,17 @@ export default implementRpcs(definitions, {
     createPost: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, spaceId, createdTime, getDynamoGeneralRealtimeEventTransaction} =
-                await createPost(context.actor.authorizeSession(), input);
+            const {id, spaceId, createdTime, getRynamoEventTransaction} = await createPost(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {
                 post: {
                     id,
                     spaceId,
                     createdTime,
                 },
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                eventTransaction: await getRynamoEventTransaction(context),
             };
         },
     },
@@ -217,11 +215,13 @@ export default implementRpcs(definitions, {
     updatePostContent: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {contentUpdatedTime, getDynamoGeneralRealtimeEventTransaction} =
-                await updatePostContent(context.actor.authorizeSession(), input);
+            const {contentUpdatedTime, getRynamoEventTransaction} = await updatePostContent(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {
                 contentUpdatedTime,
-                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
+                eventTransaction: await getRynamoEventTransaction(context),
             };
         },
     },
@@ -387,25 +387,25 @@ export default implementRpcs(definitions, {
     setPostReaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEvent} = await setPostReaction(
+            const {getRynamoEvent} = await setPostReaction(
                 context.actor.authorizeSession(),
                 input.postId,
                 input.reaction,
             );
 
-            return {eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
+            return {eventTransaction: [await getRynamoEvent(context)]};
         },
     },
 
     deletePostReaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getDynamoGeneralRealtimeEvent} = await deletePostReaction(
+            const {getRynamoEvent} = await deletePostReaction(
                 context.actor.authorizeSession(),
                 input.postId,
             );
 
-            return {eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
+            return {eventTransaction: [await getRynamoEvent(context)]};
         },
     },
 });

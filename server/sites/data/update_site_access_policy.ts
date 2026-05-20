@@ -8,7 +8,7 @@ import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/aut
 import {createSitePreviewModelFromItem} from "~/server/sites/data/internal/create_site_preview_model_from_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
@@ -37,9 +37,9 @@ export async function updateSiteAccessPolicy(
     },
 ): Promise<{
     site: SitePreviewModel;
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel>>;
+    ) => Promise<RynamoEvent<SitePreviewModel>>;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const siteAttributesItem = await authorizeSiteAccessAndReturnItem(
@@ -86,7 +86,7 @@ export async function updateSiteAccessPolicy(
 
         return {
             site: createSitePreviewModelFromItem(newItem),
-            getDynamoGeneralRealtimeEventTransaction: getEvent,
+            getRynamoEventTransaction: getEvent,
         };
     });
 }

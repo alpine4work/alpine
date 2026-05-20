@@ -1704,10 +1704,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `getItemIfExists()` except we return a `DynamoItem` object. Currently
-     * this is only used by `DynamoGeneralRealtimeTableSchema`. In the future, however,
-     * we may use `DynamoItem` for all `getItem()` calls from `DynamoTableSchema` too!
-     * Since it's core feature (keeping track of `oldItem`) is useful for
-     * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
+     * this is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `getItem()` calls from `DynamoTableSchema` too! Since it's
+     * core feature (keeping track of `oldItem`) is useful for `directlyUpdateItem()`
+     * calls which need the old item's `updateLockVersion`.
      */
     public async _getItemWithOldItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -3664,10 +3664,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `query()` except we return a `DynamoItem` object. Currently this is only
-     * used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we may use
-     * `DynamoItem` for all `query()` calls from `DynamoTableSchema` too! Since it's
-     * core feature (keeping track of `oldItem`) is useful for `directlyUpdateItem()`
-     * calls which need the old item's `updateLockVersion`.
+     * used by `RynamoTableSchema`. In the future, however, we may use `DynamoItem` for
+     * all `query()` calls from `DynamoTableSchema` too! Since it's core feature
+     * (keeping track of `oldItem`) is useful for `directlyUpdateItem()` calls which
+     * need the old item's `updateLockVersion`.
      */
     public async *_queryWithOldItems<
         const PartitionKey extends Types["PartitionKey"],
@@ -3932,9 +3932,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Same as `expensiveScan()` except we return a `DynamoItem` object. Currently this
-     * is only used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we
-     * may use `DynamoItem` for all `expensiveScan()` calls from `DynamoTableSchema`
-     * too! Since it's core feature (keeping track of `oldItem`) is useful for
+     * is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `expensiveScan()` calls from `DynamoTableSchema` too! Since
+     * it's core feature (keeping track of `oldItem`) is useful for
      * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
      */
     public async *_expensiveScanWithOldItems(

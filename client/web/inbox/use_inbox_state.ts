@@ -1,8 +1,8 @@
 import {useCallback, useEffect, useReducer, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
-import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/web/dynamo/use_dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
+import {useRynamoIndexQueryBase} from "~/client/web/dynamo/use_rynamo_index_query.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {
@@ -24,11 +24,8 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/web/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
@@ -38,17 +35,17 @@ import {
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 
 type InboxState = {
-    readonly query: StateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>>;
+    readonly query: StateWithOptimisticUpdates<RynamoIndexQuery<InboxEntryModel>>;
     readonly withoutAnimation: boolean;
     readonly itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
-        readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+        readonly item: RynamoItem<InboxEntryModel>;
     }>;
 };
 
 type InboxStateAction =
-    | (ActionForStateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>> & {
+    | (ActionForStateWithOptimisticUpdates<RynamoIndexQuery<InboxEntryModel>> & {
           readonly withAnimation: boolean;
       })
     | {
@@ -60,10 +57,10 @@ function getInitialInboxState({
     initialEntriesResult,
     withoutAnimation = false,
 }: {
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     withoutAnimation?: boolean;
 }): InboxState {
-    const query = DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult);
+    const query = RynamoIndexQuery.new(initialEntriesResult);
 
     return {
         query: getInitialStateWithOptimisticUpdates(query),
@@ -102,7 +99,7 @@ function reduceInboxState(state: InboxState, action: InboxStateAction): InboxSta
  */
 export function useInboxState(props: {
     filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     withoutAnimation?: boolean;
 }) {
     const {filter} = props;
@@ -142,9 +139,7 @@ export function useInboxState(props: {
     const updateQueryOptimistically = useCallback(
         (
             event: {promise: Promise<unknown>; withAnimation: boolean},
-            update: (
-                query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+            update: (query: RynamoIndexQuery<InboxEntryModel>) => RynamoIndexQuery<InboxEntryModel>,
         ) => {
             dispatch({
                 type: "OptimisticUpdate",
@@ -184,14 +179,14 @@ export function useInboxState(props: {
         }
     }, [filter, space.id, updateQueryOptimistically]);
 
-    useDynamoGeneralRealtimeIndexQueryBase(
+    useRynamoIndexQueryBase(
         {
             query,
             onUpdateQuery: useCallback(
                 (
                     update: (
-                        query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-                    ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+                        query: RynamoIndexQuery<InboxEntryModel>,
+                    ) => RynamoIndexQuery<InboxEntryModel>,
                 ) => dispatch({type: "Update", update, withAnimation: true}),
                 [],
             ),

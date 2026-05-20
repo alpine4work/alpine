@@ -13,7 +13,7 @@ import {
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {
     useArchiveInboxEntry,
@@ -35,10 +35,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -62,9 +59,7 @@ export function SpaceLayoutSideBarInboxOverlay({
     onClose,
 }: {
     filter: "New" | "Archive";
-    initialEntriesResultPromise: PromiseImmediate<
-        DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
-    >;
+    initialEntriesResultPromise: PromiseImmediate<RynamoIndexQueryResult<InboxEntryModel>>;
     onNewPress: () => MaybePromise<void>;
     onArchivePress: () => MaybePromise<void>;
     onClose: Memo<() => void>;
@@ -221,7 +216,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
 }
 
 type SpaceLayoutTopBarInboxOverlayEntriesRef = {
-    getFirstItemIfExists(): DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    getFirstItemIfExists(): RynamoItem<InboxEntryModel> | null;
 };
 
 const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
@@ -232,7 +227,7 @@ const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
             onClose,
         }: {
             filter: "New" | "Archive";
-            initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+            initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
             onClose: Memo<() => void>;
         },
         ref: Ref<SpaceLayoutTopBarInboxOverlayEntriesRef>,
@@ -273,7 +268,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     onClose,
 }: {
     filter: "New" | "Archive";
-    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
@@ -400,7 +395,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
     onClose,
 }: {
     filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     onClose: () => void;

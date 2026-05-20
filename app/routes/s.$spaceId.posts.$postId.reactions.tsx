@@ -10,7 +10,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -18,7 +18,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const LoaderSchema = Schema.object({
-    post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
+    post: createRynamoItemSchema(PostModel.schema()),
     accounts: Schema.array(AccountModel.schema),
 });
 

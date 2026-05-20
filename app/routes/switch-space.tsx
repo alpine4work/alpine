@@ -14,7 +14,7 @@ import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -24,7 +24,7 @@ const LoaderSchema = Schema.object({
     otherSpaces: Schema.array(
         Schema.object({
             space: SpaceModel.schema(),
-            inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
+            inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
         }),
     ),
 });

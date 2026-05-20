@@ -2,7 +2,7 @@
 import {useMatches} from "@remix-run/react";
 import {Memo, ReactNode, createContext, useCallback, useContext, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -14,10 +14,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -75,7 +72,7 @@ export type SiteActiveState = {
 // produced by `ActiveSiteDataProvider`, which in turn owns:
 //
 // - a WebSocket connection to the site's realtime durable object
-// - the `useDynamoGeneralRealtimeQuery` hook tracking server state
+// - the `useRynamoQuery` hook tracking server state
 // - the `useStateWithOptimisticUpdates` state tracking pending-RPC overlays
 //
 // If we mounted `ActiveSiteDataProvider` _inside_ the entity route (e.g. from
@@ -181,7 +178,7 @@ export type SiteActiveState = {
 type SiteActivationState = {
     readonly site: {
         readonly siteId: SiteId;
-        readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+        readonly initialQueryResult: RynamoQueryResult<SiteOrSiteEntryModel>;
     };
     readonly activeEntityId: SiteItemSearchEntityId | null;
 };
@@ -277,7 +274,7 @@ type SiteDataContextValue = {
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;
     readonly handleEventForSite: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SiteOrSiteEntryModel>>) => void
+        (eventTransaction: ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>) => void
     >;
 
     readonly updateTreeOptimistically: Memo<
@@ -366,7 +363,7 @@ function ActiveSiteDataProvider({
     children,
 }: {
     readonly siteId: SiteId;
-    readonly initialQueryResult: DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>;
+    readonly initialQueryResult: RynamoQueryResult<SiteOrSiteEntryModel>;
     readonly activeEntityId: SiteItemSearchEntityId | null;
     readonly children: ReactNode;
 }) {
@@ -389,41 +386,38 @@ function ActiveSiteDataProvider({
     // during a pause) doesn't pay for an array.
     const pauseCountRef = useRef(0);
     const pausedEventQueueRef = useRef<Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SiteOrSiteEntryModel>>
+        ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>
     > | null>(null);
 
-    const {query, handleEvent: handleEventForSite} = useDynamoGeneralRealtimeQuery(
-        initialQueryResult,
-        {
-            isConnected,
-            subscribeToPongs,
-            subscribeToEvents: useCallback(
-                subscriber =>
-                    subscribeToEvents(event => {
-                        if (pauseCountRef.current > 0) {
-                            (pausedEventQueueRef.current ??= []).push(event.eventTransaction);
-                            return;
-                        }
-                        subscriber(event.eventTransaction);
-                    }),
-                [subscribeToEvents],
-            ),
-            backfillQuery: useCallback(
-                async checkpoint => {
-                    const {backfillResult} = await backfillSite(context, {
-                        siteId,
-                        checkpoint,
-                    });
-                    return backfillResult;
-                },
-                [context, siteId],
-            ),
-            reloadQuery: useCallback(async () => {
-                const {siteResult} = await getSite(context, {siteId});
-                return siteResult;
-            }, [context, siteId]),
-        },
-    );
+    const {query, handleEvent: handleEventForSite} = useRynamoQuery(initialQueryResult, {
+        isConnected,
+        subscribeToPongs,
+        subscribeToEvents: useCallback(
+            subscriber =>
+                subscribeToEvents(event => {
+                    if (pauseCountRef.current > 0) {
+                        (pausedEventQueueRef.current ??= []).push(event.eventTransaction);
+                        return;
+                    }
+                    subscriber(event.eventTransaction);
+                }),
+            [subscribeToEvents],
+        ),
+        backfillQuery: useCallback(
+            async checkpoint => {
+                const {backfillResult} = await backfillSite(context, {
+                    siteId,
+                    checkpoint,
+                });
+                return backfillResult;
+            },
+            [context, siteId],
+        ),
+        reloadQuery: useCallback(async () => {
+            const {siteResult} = await getSite(context, {siteId});
+            return siteResult;
+        }, [context, siteId]),
+    });
 
     // Derive server-authoritative site + entries from the realtime query
     const queryDerived = useMemo(() => {

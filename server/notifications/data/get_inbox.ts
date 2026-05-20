@@ -4,7 +4,7 @@ import {getInitialInboxItem} from "~/server/notifications/data/internal/get_init
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
@@ -21,7 +21,7 @@ export async function getInbox(
         spaceId: SpaceId;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
+): Promise<RynamoItem<InboxModel>> {
     const accountId = context.actor.getAccountId();
 
     const spaceAuthorizationPromise = authorizeSpaceAccess(context, spaceId);

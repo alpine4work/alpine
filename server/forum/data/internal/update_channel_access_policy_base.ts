@@ -1,12 +1,12 @@
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {
@@ -17,7 +17,7 @@ import {
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -39,38 +39,32 @@ export async function updateChannelAccessPolicyBase(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
-    >;
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const currentTime = new Date();
 
     const {
         channelItem,
         shouldAddFeedCandidateEntry,
-        getDynamoGeneralRealtimeEventTransaction,
-        getDynamoGeneralRealtimeEventTransactionForSite,
+        getRynamoEventTransaction,
+        getRynamoEventTransactionForSite,
     } = await context.dynamo.retryTransaction(
         async (
             context,
         ): Promise<{
             channelItem: ChannelAttributesItem;
             shouldAddFeedCandidateEntry: boolean;
-            getDynamoGeneralRealtimeEventTransaction: (
+            getRynamoEventTransaction: (
                 context: ServerActionContext,
-            ) => Promise<
-                ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
-            >;
-            getDynamoGeneralRealtimeEventTransactionForSite: (
+            ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
+            getRynamoEventTransactionForSite: (
                 context: ServerActionContext,
-            ) => Promise<
-                ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
-            >;
+            ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
         }> => {
             const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
                 partitionType: "Channel",
@@ -139,18 +133,18 @@ export async function updateChannelAccessPolicyBase(
                     channelItem,
                     shouldAddFeedCandidateEntry:
                         newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                    getDynamoGeneralRealtimeEventTransaction: async (
-                        context: ServerActionContext,
-                    ) => [await getEvent(context)],
-                    getDynamoGeneralRealtimeEventTransactionForSite: async () => emptyArray,
+                    getRynamoEventTransaction: async (context: ServerActionContext) => [
+                        await getEvent(context),
+                    ],
+                    getRynamoEventTransactionForSite: async () => emptyArray,
                 };
             }
 
             const forumEntries: Array<{
-                transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+                transactionEntry: RynamoTransactionEntry;
                 getEvent: (
                     context: ServerActionContext,
-                ) => Promise<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>;
+                ) => Promise<RynamoEvent<ChannelModel | ChannelContributorsModel>>;
             }> = [ForumRealtimeTable.transactionDirectlyUpdateItemWithEvent(updatedChannelItem)];
 
             if (contributorsChanged) {
@@ -178,7 +172,7 @@ export async function updateChannelAccessPolicyBase(
                 );
             }
 
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            await RynamoTableSchema.executeTransaction(context, [
                 ...forumEntries.map(entry => entry.transactionEntry),
                 ...transactionEntries.map(entry => entry.transactionEntry),
             ]);
@@ -187,11 +181,10 @@ export async function updateChannelAccessPolicyBase(
                 channelItem,
                 shouldAddFeedCandidateEntry:
                     newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                getDynamoGeneralRealtimeEventTransaction: async (context: ServerActionContext) =>
+                getRynamoEventTransaction: async (context: ServerActionContext) =>
                     runAllPromises(forumEntries.map(entry => entry.getEvent(context))),
-                getDynamoGeneralRealtimeEventTransactionForSite: async (
-                    context: ServerActionContext,
-                ) => runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
+                getRynamoEventTransactionForSite: async (context: ServerActionContext) =>
+                    runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
             };
         },
     );
@@ -240,7 +233,7 @@ export async function updateChannelAccessPolicyBase(
     }
 
     return {
-        getDynamoGeneralRealtimeEventTransaction,
-        getDynamoGeneralRealtimeEventTransactionForSite,
+        getRynamoEventTransaction,
+        getRynamoEventTransactionForSite,
     };
 }

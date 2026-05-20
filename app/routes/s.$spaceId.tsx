@@ -78,7 +78,7 @@ import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
@@ -124,7 +124,7 @@ export const LoaderSchema = Schema.union({
         space: SpaceModel.schema(),
         currentAccount: AccountModel.schema,
         settings: AccountSettingsSchema,
-        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+        inbox: createRynamoItemSchema(InboxModel.schema()),
     }),
     WithoutAccess: Schema.object({
         type: Schema.value("WithoutAccess"),

@@ -1,11 +1,11 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
-import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeEventSchema,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKeySchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    RynamoEventStubSchema,
+    createRynamoBackfillResultSchema,
+    createRynamoEventSchema,
+    createRynamoQuerySchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     SiteId,
     SiteSideBarId,
@@ -24,7 +24,7 @@ import {
     SiteSideBarSectionContainerId,
 } from "~/shared/sites/site_entry_id.js";
 import {SiteOrSiteEntryModelSchema, SitePreviewModel} from "~/shared/sites/site_model.js";
-import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
@@ -55,7 +55,7 @@ export const createSite = defineRpc({
         }),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -70,7 +70,7 @@ export const updateSiteName = defineRpc({
         name: Schema.string,
     },
     output: {
-        eventTransaction: createDynamoGeneralRealtimeEventSchema(SitePreviewModel.schema),
+        eventTransaction: createRynamoEventSchema(SitePreviewModel.schema),
     },
 });
 
@@ -86,7 +86,7 @@ export const updateSiteAccessPolicy = defineRpc({
         accessPolicy: LocalAccessPolicySchema,
     },
     output: {
-        eventTransaction: createDynamoGeneralRealtimeEventSchema(SitePreviewModel.schema),
+        eventTransaction: createRynamoEventSchema(SitePreviewModel.schema),
     },
 });
 
@@ -138,7 +138,7 @@ export const createSiteContainer = defineRpc({
         orderKey: OrderKeySchema,
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -159,7 +159,7 @@ export const updateSiteContainerLabel = defineRpc({
         label: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -196,7 +196,7 @@ export const moveSiteEntry = defineRpc({
         /**
          * The moved item with its new orderKey.
          */
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -225,7 +225,7 @@ export const deleteSiteContainer = defineRpc({
         }),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -240,7 +240,7 @@ export const addEntityToSite = defineRpc({
         orderKey: OrderKeySchema,
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -253,7 +253,7 @@ export const removeEntityFromSite = defineRpc({
         entityId: SiteItemSearchEntityIdSchema,
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -282,10 +282,10 @@ export const getSiteRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         siteId: Schema.id<SiteId>(),
-        eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+        eventTransaction: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeSiteEventSchema),
+        eventTransaction: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -302,7 +302,7 @@ export const getSite = defineRpc({
         consistency: Schema.enum(["Eventual", "Strong"]).optional(),
     },
     output: {
-        siteResult: createDynamoGeneralRealtimeQuerySchema(SiteOrSiteEntryModelSchema),
+        siteResult: createRynamoQuerySchema(SiteOrSiteEntryModelSchema),
     },
 });
 
@@ -318,7 +318,7 @@ export const backfillSite = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillResult: createDynamoGeneralRealtimeBackfillResultSchema(SiteOrSiteEntryModelSchema),
+        backfillResult: createRynamoBackfillResultSchema(SiteOrSiteEntryModelSchema),
     },
 });
 

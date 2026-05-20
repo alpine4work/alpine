@@ -18,7 +18,7 @@ ts_project(
         "//server/context",
         "//server/documents/data",
         "//server/dynamo/core",
-        "//server/dynamo/core/general_realtime",
+        "//server/dynamo/core/rynamo",
         "//server/spaces",
         "//server/tasks/data",
         "//shared/accounts",

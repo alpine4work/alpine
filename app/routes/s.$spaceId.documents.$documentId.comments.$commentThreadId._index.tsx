@@ -31,7 +31,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
@@ -47,7 +47,7 @@ const LoaderSchema = Schema.object({
     initialCheckpoint: ServerSynchronizationCheckpointSchema,
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {

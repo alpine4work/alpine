@@ -6,7 +6,7 @@ import {Box} from "~/client/web/design/box.js";
 import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {Switch} from "~/client/web/design/switch.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {SlackLogo} from "~/client/web/icons/socials/slack_logo.js";
 import {getOrPromptForBrowserPushNotificationPermission} from "~/client/web/notifications/get_or_prompt_for_browser_push_notification_permission.js";
 import {subscribeToPushNotificationsInBrowser} from "~/client/web/notifications/subscribe_to_push_notifications_in_browser.js";
@@ -18,10 +18,7 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeItem,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
@@ -38,7 +35,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     browserId: Schema.id<BrowserId>(),
-    inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+    inbox: createRynamoItemSchema(InboxModel.schema()),
     isOptedOutOfWebPush: Schema.boolean,
 });
 
@@ -75,7 +72,7 @@ export default function SpaceNotificationSettingsRoute() {
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
             subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
@@ -111,7 +108,7 @@ export default function SpaceNotificationSettingsRoute() {
     );
 }
 
-function DigestNotificationsSection({inbox}: {inbox: DynamoGeneralRealtimeItem<InboxModel>}) {
+function DigestNotificationsSection({inbox}: {inbox: RynamoItem<InboxModel>}) {
     const context = useAppContext();
     const {currentAccount, space} = useSpaceContextAndRequireSpaceAccess();
 

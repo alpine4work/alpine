@@ -554,7 +554,7 @@ export const DocumentsTable = DynamoTableSchema.new({
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more

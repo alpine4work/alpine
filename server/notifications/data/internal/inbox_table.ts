@@ -13,11 +13,11 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
-    DynamoGeneralRealtimeTableItemKeyType,
-    DynamoGeneralRealtimeTableItemType,
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+    RynamoTableItemKeyType,
+    RynamoTableItemType,
+    RynamoTableSchema,
+    RynamoTableSchemaGetTypes,
+} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {dangerouslyGetPostAuthorWithoutAuthorization} from "~/server/forum/data/dangerously_get_post_author_without_authorization.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getPostAuthorAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_author_and_channel_preview.js";
@@ -39,7 +39,7 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -86,7 +86,7 @@ import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/no
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
-type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
+type InboxTableTypes = RynamoTableSchemaGetTypes<typeof InboxTable>;
 
 export type InboxAttributesItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & {
@@ -103,49 +103,49 @@ export type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
 
-export type InboxChannelPostsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxChannelPostsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "ChannelPostsEntry"
 >;
 
-export type InboxChannelPostsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxChannelPostsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "ChannelPostsEntry"
 >;
 
-export type InboxPostCommentsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxPostCommentsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "PostCommentsEntry"
 >;
 
-export type InboxPostCommentsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxPostCommentsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "PostCommentsEntry"
 >;
 
-export type InboxDocumentNewCommentThreadsEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxDocumentNewCommentThreadsEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "DocumentNewCommentThreadsEntry"
 >;
 
-export type InboxDocumentNewCommentThreadsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxDocumentNewCommentThreadsEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "DocumentNewCommentThreadsEntry"
 >;
 
-export type InboxDocumentCommentThreadEntryItem = DynamoGeneralRealtimeTableItemType<
+export type InboxDocumentCommentThreadEntryItem = RynamoTableItemType<
     typeof InboxTable,
     "Inbox",
     "DocumentCommentThreadEntry"
 >;
 
-export type InboxDocumentCommentThreadEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+export type InboxDocumentCommentThreadEntryItemKey = RynamoTableItemKeyType<
     typeof InboxTable,
     "Inbox",
     "DocumentCommentThreadEntry"
@@ -165,7 +165,7 @@ const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "TaskEntry"},
 ] as const;
 
-export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
+export const InboxTable = RynamoTableSchema.new({
     name: "Inbox",
     features: {
         deleteItem: {
@@ -1339,7 +1339,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
         // impossible but would be weird and doesn't currently happen in practice.
         const eventTransactionBySpaceIdAndAccountId = new Map<
             `${SpaceId}:${AccountId}`,
-            Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
+            Array<RynamoEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
         await runAllPromises(

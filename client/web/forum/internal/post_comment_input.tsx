@@ -52,7 +52,7 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
@@ -104,7 +104,7 @@ export function PostCommentInput(props: {
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
     onPostRealtimeEventTransaction: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
+        (eventTransaction: ReadonlyArray<RynamoEvent<PostModel>>) => void
     >;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -261,7 +261,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
     // case we missed any realtime updates while we were disconnected. Going forward we
     // should receive realtime updates from `subscribeToEvents()`.
     //
-    // This code was copied from `useDynamoGeneralRealtimeItem()`.
+    // This code was copied from `useRynamoItem()`.
     const lastReloadedPostIdRef = useRef<PostId | null>(null);
     useEffect(() => {
         // If we're connected to channel realtime, we don't need to backfill realtime

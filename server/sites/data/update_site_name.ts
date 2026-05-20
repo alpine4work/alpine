@@ -6,7 +6,7 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/authorize_site_access_and_return_item.js";
 import {createSitePreviewModelFromItem} from "~/server/sites/data/internal/create_site_preview_model_from_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
@@ -23,9 +23,9 @@ export async function updateSiteName(
         name: string;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel>>;
+    ) => Promise<RynamoEvent<SitePreviewModel>>;
     site: SitePreviewModel;
 }> {
     return context.dynamo.retryTransaction(async context => {
@@ -62,7 +62,7 @@ export async function updateSiteName(
 
         return {
             site: createSitePreviewModelFromItem(newItem),
-            getDynamoGeneralRealtimeEventTransaction: getEvent,
+            getRynamoEventTransaction: getEvent,
         };
     });
 }

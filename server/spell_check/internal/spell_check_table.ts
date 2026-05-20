@@ -1,8 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,7 +36,7 @@ export async function createSpellCheckIgnoredLintModelFromItem(
     });
 }
 
-export const SpellCheckTable = DynamoGeneralRealtimeTableSchema.new({
+export const SpellCheckTable = RynamoTableSchema.new({
     // Enable optional features we use that may incur extra costs.
     features: {
         realtimeQuery: {IgnoredLint: true},
@@ -71,7 +71,7 @@ export const SpellCheckTable = DynamoGeneralRealtimeTableSchema.new({
     broadcastEventTransaction: async (context, eventTransaction) => {
         const eventTransactionBySpellCheckEntityId = new Map<
             SpellCheckEntityId,
-            Array<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>
+            Array<RynamoEvent<SpellCheckIgnoredLintModel>>
         >();
 
         await runAllPromises(

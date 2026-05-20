@@ -40,10 +40,7 @@ import {
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {
-    DynamoGeneralRealtimeQueryResult,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult, createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -68,9 +65,7 @@ const LoaderSchema = Schema.object({
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     }).nullable(),
     isFavorite: Schema.boolean,
-    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
-        SpellCheckIgnoredLintModel.schema(),
-    ),
+    spellCheckIgnoredLints: createRynamoQuerySchema(SpellCheckIgnoredLintModel.schema()),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
@@ -122,7 +117,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         ? unwrapResult(commentThreadResultResult)
         : null;
 
-    let spellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
+    let spellCheckIgnoredLints: RynamoQueryResult<SpellCheckIgnoredLintModel>;
 
     if (!document) {
         // Must have the `create` search param to load a document that doesn't exist.

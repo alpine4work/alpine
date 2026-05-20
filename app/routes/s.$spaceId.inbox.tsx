@@ -22,7 +22,7 @@ import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js"
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {loadInitialPeekDataForServer} from "~/server/remix/load_initial_peek_data_for_server.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoIndexQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -33,7 +33,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),
-    entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
+    entriesResult: createRynamoIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
         spacePath: Schema.string,
         hydrationData: Schema.object({

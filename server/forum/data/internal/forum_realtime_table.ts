@@ -4,10 +4,10 @@ import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/s
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
-    DynamoGeneralRealtimeTableItemType,
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+    RynamoTableItemType,
+    RynamoTableSchema,
+    RynamoTableSchemaGetTypes,
+} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
@@ -21,7 +21,7 @@ import {
     MessageContentSchema,
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -57,7 +57,7 @@ import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_s
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
+export const ForumRealtimeTable = RynamoTableSchema.new({
     // Enable optional features we use that may incur extra costs.
     features: {
         realtimeQuery: {Channel: true},
@@ -459,10 +459,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // This means clients may see a glitch where an atomic update across two channels
         // is applied separately. This is fine as in practice we don't have any
         // cross-channel updates it's critical for users to see atomically.
-        const eventTransactionByChannelId = new Map<
-            ChannelId,
-            Array<DynamoGeneralRealtimeEventStub>
-        >();
+        const eventTransactionByChannelId = new Map<ChannelId, Array<RynamoEventStub>>();
 
         // We also send post updates to the corresponding post durable object. That way
         // single post views that have a WebSocket connection to `PostRealtimeService` will
@@ -487,7 +484,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // meaningful.
         //
         // [1]: https://developers.cloudflare.com/workers/platform/pricing/#durable-objects
-        const eventTransactionByPostId = new Map<PostId, Array<DynamoGeneralRealtimeEventStub>>();
+        const eventTransactionByPostId = new Map<PostId, Array<RynamoEventStub>>();
 
         await runAllPromises(
             mapIterable(
@@ -742,25 +739,25 @@ async function createPostModelFromItem(
     });
 }
 
-export type ChannelAttributesItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelAttributesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "Attributes"
 >;
 
-export type ChannelContributorsItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelContributorsItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "Contributors"
 >;
 
-export type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
+export type PostAttributesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Post",
     "Attributes"
 >;
 
-export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
+export type ChannelPostFilesItem = RynamoTableItemType<
     typeof ForumRealtimeTable,
     "Channel",
     "PostFiles"
@@ -769,7 +766,7 @@ export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
 // Uses TypeScript to make sure if a new channel sort range is added we consider
 // whether `getChannelRealtimeEvent()` is allowed to return it or not.
 export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
-    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+    (RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Channel";
     })["sortRangeType"],
     boolean
@@ -782,7 +779,7 @@ export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
 // Uses TypeScript to make sure if a new post sort range is added we consider
 // whether `getPostRealtimeEvent()` is allowed to return it or not.
 export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
-    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+    (RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
         readonly partitionType: "Post";
     })["sortRangeType"],
     boolean
@@ -791,7 +788,7 @@ export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
 };
 
 export function serializeForumRealtimeTableOpaqueItemKeyForTest(
-    itemKey: DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
+    itemKey: RynamoTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
 ) {
     assert(import.meta.jest);
     return ForumRealtimeTable.serializeOpaqueItemKey(itemKey);

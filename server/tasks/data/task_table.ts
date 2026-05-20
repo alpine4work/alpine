@@ -11,7 +11,7 @@ import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -34,7 +34,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
@@ -125,7 +125,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     ErrorBase,
     FailedPreconditionError,
@@ -938,7 +938,7 @@ const TaskTable = DynamoTableSchema.new({
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more
@@ -1416,9 +1416,9 @@ export function commitTaskActionTransaction(
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
@@ -1454,11 +1454,8 @@ export function commitTaskActionTransaction(
             );
         }
 
-        const {
-            actionTransactionItem,
-            extraActions,
-            getDynamoGeneralRealtimeEventTransactionForSite,
-        } = await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
+        const {actionTransactionItem, extraActions, getRynamoEventTransactionForSite} =
+            await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
 
         span.addData({
             tasks: {
@@ -1529,7 +1526,7 @@ export function commitTaskActionTransaction(
 
         return {
             extraActions,
-            getDynamoGeneralRealtimeEventTransactionForSite,
+            getRynamoEventTransactionForSite,
         };
     });
 }
@@ -1703,7 +1700,7 @@ class TaskActionTransactionCommitState {
     >();
 
     private readonly _additionalTransactionEntries: Array<
-        DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
+        DynamoTransactionEntry | RynamoTransactionEntry
     > = [];
 
     /**
@@ -1712,9 +1709,7 @@ class TaskActionTransactionCommitState {
      * `commitTaskActionTransaction` to surface the events back to the caller.
      */
     private readonly _additionalSiteEventCallbacks: Array<
-        (
-            context: ServerActionContext,
-        ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+        (context: ServerActionContext) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>
     > = [];
 
     private readonly _actionTransactionLeaseTransactionEntries: Array<TaskAccountActionTransactionLeaseItem> =
@@ -1760,9 +1755,9 @@ class TaskActionTransactionCommitState {
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
-        getDynamoGeneralRealtimeEventTransactionForSite: (
+        getRynamoEventTransactionForSite: (
             context: ServerActionContext,
-        ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+        ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
     }> {
         return context.dynamo.retryTransaction(async context => {
             await authorizeSpaceAccess(context, spaceId);
@@ -1911,9 +1906,7 @@ class TaskActionTransactionCommitState {
             maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
         }
 
-        const transactionEntries: Array<
-            DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
-        > = [];
+        const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
         const extraActions: Array<TaskAction> = [];
 
         for (const transactionEntry of this._transactionEntryByTaskId.values()) {
@@ -2056,15 +2049,12 @@ class TaskActionTransactionCommitState {
             );
 
             // Use the general-realtime variant of `executeTransaction` so we can mix task
-            // entries (`DynamoTransactionEntry`) with site entries
-            // (`DynamoGeneralRealtimeTransactionEntry`) in a single atomic write. The
-            // general-realtime variant accepts both types and only broadcasts entries that
-            // came through general-realtime schemas, so task entries continue to flow through
-            // their existing realtime broadcast path unchanged.
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(
-                this._context,
-                transactionEntries,
-            );
+            // entries (`DynamoTransactionEntry`) with site entries (`RynamoTransactionEntry`)
+            // in a single atomic write. The general-realtime variant accepts both types and
+            // only broadcasts entries that came through general-realtime schemas, so task
+            // entries continue to flow through their existing realtime broadcast path
+            // unchanged.
+            await RynamoTableSchema.executeTransaction(this._context, transactionEntries);
         } else {
             await TaskActionTable.createOrReplaceItem(this._context, actionTransactionItem);
         }
@@ -2082,7 +2072,7 @@ class TaskActionTransactionCommitState {
         return {
             actionTransactionItem,
             extraActions,
-            getDynamoGeneralRealtimeEventTransactionForSite: (eventContext: ServerActionContext) =>
+            getRynamoEventTransactionForSite: (eventContext: ServerActionContext) =>
                 runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
         };
     }
@@ -2495,8 +2485,8 @@ class TaskActionTransactionCommitState {
         // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. Push the raw
         // `transactionEntry` (cast through `unknown` because the injection module declares
         // an opaque marker class to avoid a circular Bazel dependency between
-        // `//server/context` and `//server/dynamo/core/general_realtime`) and store the
-        // `getEvent` callback so we can produce realtime events at commit time.
+        // `//server/context` and `//server/dynamo/core/rynamo`) and store the `getEvent`
+        // callback so we can produce realtime events at commit time.
         for (const entry of transactionEntries) {
             this._additionalTransactionEntries.push(entry.transactionEntry);
             this._additionalSiteEventCallbacks.push(entry.getEvent);

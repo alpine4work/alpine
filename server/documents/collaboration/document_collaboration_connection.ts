@@ -39,7 +39,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -129,9 +129,7 @@ export type DocumentCollaborationEventStub =
       }
     | {
           readonly type: "SpellCheckRealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<
-              DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>
-          >;
+          readonly eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>;
       };
 
 export class DocumentCollaborationConnection {
@@ -431,7 +429,7 @@ export class DocumentCollaborationConnection {
                     presenceState,
                     hasSentPresenceState,
                     newVersion,
-                    getDynamoGeneralRealtimeEventTransactionForSite,
+                    getRynamoEventTransactionForSite,
                 } = await this._contentManager.updateAndWaitForPersistence(
                     context,
                     this.connectionId,
@@ -448,8 +446,7 @@ export class DocumentCollaborationConnection {
 
                 stateRef.current.presenceState = presenceState;
 
-                const eventTransactionForSite =
-                    await getDynamoGeneralRealtimeEventTransactionForSite();
+                const eventTransactionForSite = await getRynamoEventTransactionForSite();
 
                 return {newVersion, eventTransactionForSite};
             });

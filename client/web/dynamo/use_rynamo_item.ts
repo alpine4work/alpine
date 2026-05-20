@@ -1,10 +1,7 @@
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
@@ -20,8 +17,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * If the item is deleted then we'll set an `isDeleted` flag and update the version
  * but we'll keep the old item around to avoid breaking the UI.
  */
-export function useDynamoGeneralRealtimeItem<Model>(
-    initialItem: DynamoGeneralRealtimeItem<Model>,
+export function useRynamoItem<Model>(
+    initialItem: RynamoItem<Model>,
     options: {
         /**
          * Are we connected to a WebSocket or other push-based realtime service that will
@@ -40,9 +37,7 @@ export function useDynamoGeneralRealtimeItem<Model>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-                ) => void,
+                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
             ) => () => void
         >;
 
@@ -60,17 +55,15 @@ export function useDynamoGeneralRealtimeItem<Model>(
          * It's important to use strong read consistency in your reload function. Eventual
          * consistency may still miss some updates.
          */
-        reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model>>;
+        reloadItemWithStrongReadConsistency: () => Promise<RynamoItem<Model>>;
     },
 ): {
-    item: DynamoGeneralRealtimeItem<Model>;
-    handleEventTransaction: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
-    >;
+    item: RynamoItem<Model>;
+    handleEventTransaction: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
-    const [itemFromState, setItem] = useState<
-        DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true}
-    >(initialItem);
+    const [itemFromState, setItem] = useState<RynamoItem<Model> & {readonly isDeleted?: true}>(
+        initialItem,
+    );
     let item = itemFromState;
 
     // If the item provided via props is a newer version then use it in our state. Or
@@ -83,19 +76,19 @@ export function useDynamoGeneralRealtimeItem<Model>(
         item = initialItem;
     }
 
-    return useDynamoGeneralRealtimeItemBase(
+    return useRynamoItemBase(
         {item, onUpdateItem: useCallback(update => setItem(update), [])},
         options,
     );
 }
 
 /**
- * The same as `useDynamoGeneralRealtimeItem()` but you can bring your own state.
+ * The same as `useRynamoItem()` but you can bring your own state.
  *
  * If the item is deleted then we'll set an `isDeleted` flag and update the version
  * but we'll keep the old item around to avoid breaking the UI.
  */
-export function useDynamoGeneralRealtimeItemBase<Model>(
+export function useRynamoItemBase<Model>(
     {
         item,
         onUpdateItem,
@@ -103,7 +96,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
         /**
          * The current realtime item.
          */
-        item: DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true};
+        item: RynamoItem<Model> & {readonly isDeleted?: true};
 
         /**
          * Update the realtime item with an updater function that takes as input the
@@ -112,8 +105,8 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
         onUpdateItem: Memo<
             (
                 update: (
-                    item: DynamoGeneralRealtimeItem<Model>,
-                ) => DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true},
+                    item: RynamoItem<Model>,
+                ) => RynamoItem<Model> & {readonly isDeleted?: true},
             ) => void
         >;
     },
@@ -139,9 +132,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-                ) => void,
+                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
             ) => (() => void) | void
         >;
 
@@ -159,18 +150,16 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
          * It's important to use strong read consistency in your reload function. Eventual
          * consistency may still miss some updates.
          */
-        reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model> | void>;
+        reloadItemWithStrongReadConsistency: () => Promise<RynamoItem<Model> | void>;
     },
 ): {
-    item: DynamoGeneralRealtimeItem<Model>;
-    handleEventTransaction: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
-    >;
+    item: RynamoItem<Model>;
+    handleEventTransaction: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
     const context = useAppContext();
 
     const handleEventTransaction = useCallback(
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
+        (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => {
             for (const event of eventTransaction) {
                 if (event.item.key !== item.key) continue;
 
@@ -199,7 +188,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
                             // If our event transaction has a higher versioned item of the same key then update
                             // our state.
                             if (event.item.key === item.key && event.item.version > item.version) {
-                                return event.item as DynamoGeneralRealtimeItem<Model>;
+                                return event.item as RynamoItem<Model>;
                             }
 
                             return item;

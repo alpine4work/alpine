@@ -1,11 +1,11 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {authorizeSiteAccess} from "~/server/sites/data/authorize_site_access.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
-import {DynamoGeneralRealtimeSiteEvent} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEvent} from "~/shared/sites/site_realtime_protocol.js";
 
 /**
  * Allowed sort range types we may return from `getSiteRealtimeEvent`. Using a
@@ -35,8 +35,8 @@ const allowedSiteSortRangeTypesForGetSiteRealtimeEvent: Record<
 export async function getSiteRealtimeEvent(
     context: ServerSessionActionContext,
     siteId: SiteId,
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
-): Promise<ReadonlyArray<DynamoGeneralRealtimeSiteEvent>> {
+    eventTransaction: ReadonlyArray<RynamoEventStub>,
+): Promise<ReadonlyArray<RynamoSiteEvent>> {
     const [, actualEventTransaction] = await runAllPromises([
         // Authorizing in parallel means the site read in `authorizeSiteAccess()` batches
         // with any DynamoDB reads from `SitesTable.getRealtimeEvent()`.
@@ -63,5 +63,5 @@ export async function getSiteRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<DynamoGeneralRealtimeSiteEvent>;
+    return actualEventTransaction as ReadonlyArray<RynamoSiteEvent>;
 }

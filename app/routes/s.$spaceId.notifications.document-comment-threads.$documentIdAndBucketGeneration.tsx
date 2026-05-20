@@ -51,10 +51,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {
-    DynamoGeneralRealtimeItem,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -84,7 +81,7 @@ const LoaderSchema = Schema.object({
     checkpoint: ServerSynchronizationCheckpointSchema,
     document: DocumentModel.schema(),
     bucketGeneration: Schema.integer,
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+    inboxEntry: createRynamoItemSchema(InboxEntryModelSchema),
     commentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     initialCommentsByCommentThreadId: Schema.map(
         Schema.id<DocumentCommentThreadId>(),
@@ -208,7 +205,7 @@ function DocumentNewCommentThreadsRouteInner2({
         "This route should only render an `InboxDocumentNewCommentThreadsEntryModel` or `InboxDocumentCommentThreadEntryModel`",
     );
 
-    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<
+    const inboxEntry = originalInboxEntry as RynamoItem<
         InboxDocumentNewCommentThreadsEntryModel | InboxDocumentCommentThreadEntryModel
     >;
 

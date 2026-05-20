@@ -1,11 +1,11 @@
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {DynamoGeneralRealtimeQuery} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoQuery} from "~/client/web/dynamo/rynamo_query.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+    RynamoBackfillResult,
+    RynamoEvent,
+    RynamoQueryResult,
+} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
@@ -20,8 +20,8 @@ import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
  * this hook and then pass in relevant `isConnected` and `subscribeToEvents` props
  * to wire up this hook to a WebSocket.
  */
-export function useDynamoGeneralRealtimeQuery<Model>(
-    initialQueryResult: DynamoGeneralRealtimeQueryResult<Model>,
+export function useRynamoQuery<Model>(
+    initialQueryResult: RynamoQueryResult<Model>,
     options: {
         /**
          * Are we connected to a WebSocket or other push-based realtime service that will
@@ -47,9 +47,7 @@ export function useDynamoGeneralRealtimeQuery<Model>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-                ) => void,
+                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
             ) => () => void
         >;
 
@@ -65,9 +63,7 @@ export function useDynamoGeneralRealtimeQuery<Model>(
          * doesn't miss any realtime updates.
          */
         backfillQuery: Memo<
-            (
-                checkpoint: ServerSynchronizationCheckpoint,
-            ) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
+            (checkpoint: ServerSynchronizationCheckpoint) => Promise<RynamoBackfillResult<Model>>
         >;
 
         /**
@@ -75,35 +71,29 @@ export function useDynamoGeneralRealtimeQuery<Model>(
          * function to completely reload the query. Our internal query state will be
          * completely reset and the user scrolled to the top.
          */
-        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeQueryResult<Model>>>;
+        reloadQuery: Memo<() => Promise<RynamoQueryResult<Model>>>;
     },
 ): {
-    query: DynamoGeneralRealtimeQuery<Model>;
-    handleEvent: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
-    >;
-    handleLoadMore: Memo<(result: DynamoGeneralRealtimeQueryResult<Model>) => void>;
+    query: RynamoQuery<Model>;
+    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleLoadMore: Memo<(result: RynamoQueryResult<Model>) => void>;
 } {
-    const [query, setQuery] = useState(() => DynamoGeneralRealtimeQuery.new(initialQueryResult));
+    const [query, setQuery] = useState(() => RynamoQuery.new(initialQueryResult));
 
-    return useDynamoGeneralRealtimeQueryBase({query, onUpdateQuery: setQuery}, options);
+    return useRynamoQueryBase({query, onUpdateQuery: setQuery}, options);
 }
 
 /**
- * The same as `useDynamoGeneralRealtimeQuery()` but you can bring your own state.
+ * The same as `useRynamoQuery()` but you can bring your own state.
  */
-export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
+export function useRynamoQueryBase<Model, Extra>(
     {
         query,
         onUpdateQuery,
     }: {
-        query: DynamoGeneralRealtimeQuery<Model, Extra>;
+        query: RynamoQuery<Model, Extra>;
         onUpdateQuery: Memo<
-            (
-                update: (
-                    query: DynamoGeneralRealtimeQuery<Model, Extra>,
-                ) => DynamoGeneralRealtimeQuery<Model, Extra>,
-            ) => void
+            (update: (query: RynamoQuery<Model, Extra>) => RynamoQuery<Model, Extra>) => void
         >;
     },
     {
@@ -137,9 +127,7 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-                ) => void,
+                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
             ) => () => void
         >;
 
@@ -155,9 +143,7 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
          * doesn't miss any realtime updates.
          */
         backfillQuery: Memo<
-            (
-                checkpoint: ServerSynchronizationCheckpoint,
-            ) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
+            (checkpoint: ServerSynchronizationCheckpoint) => Promise<RynamoBackfillResult<Model>>
         >;
 
         /**
@@ -165,19 +151,17 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
          * function to completely reload the query. Our internal query state will be
          * completely reset and the user scrolled to the top.
          */
-        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeQueryResult<Model>>>;
+        reloadQuery: Memo<() => Promise<RynamoQueryResult<Model>>>;
     },
 ): {
-    query: DynamoGeneralRealtimeQuery<Model, Extra>;
-    handleEvent: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
-    >;
-    handleLoadMore: Memo<(result: DynamoGeneralRealtimeQueryResult<Model>) => void>;
+    query: RynamoQuery<Model, Extra>;
+    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleLoadMore: Memo<(result: RynamoQueryResult<Model>) => void>;
 } {
     const setErrorState = useErrorState();
 
     const handleEvent = useCallback(
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
+        (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => {
             onUpdateQuery(query => query.handleEventTransaction(eventTransaction));
         },
         [onUpdateQuery],
@@ -233,7 +217,7 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
                                 // like we were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
-                                onUpdateQuery(() => DynamoGeneralRealtimeQuery.new(result));
+                                onUpdateQuery(() => RynamoQuery.new(result));
                             },
                             error => setErrorState(error),
                         );
@@ -248,7 +232,7 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
     }, [backfillQuery, isConnected, onUpdateQuery, query, reloadQuery, setErrorState]);
 
     const handleLoadMore = useCallback(
-        (result: DynamoGeneralRealtimeQueryResult<Model>) => {
+        (result: RynamoQueryResult<Model>) => {
             onUpdateQuery(query => query.loadMore(result));
         },
         [onUpdateQuery],

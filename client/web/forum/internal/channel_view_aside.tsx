@@ -9,7 +9,7 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
-import {DynamoGeneralRealtimeQuery} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoQuery} from "~/client/web/dynamo/rynamo_query.js";
 import {ChannelViewContentFilePreview} from "~/client/web/forum/internal/channel_view_content_file_preview.js";
 import {ChannelViewContributorsSection} from "~/client/web/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -67,7 +67,7 @@ export function ChannelViewAside({
     onAddAccountGrantsToAccessPolicy,
 }: {
     channel: ChannelModel;
-    channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
+    channelAndMetadataQuery: RynamoQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;

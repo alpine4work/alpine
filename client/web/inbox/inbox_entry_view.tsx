@@ -36,7 +36,7 @@ import {
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -94,7 +94,7 @@ export function InboxEntryView({
     "aria-posinset"?: number;
     deletedItemAnimation?: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
     onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;

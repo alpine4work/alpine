@@ -62,7 +62,7 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -1622,7 +1622,7 @@ export async function getPostAndInitialComments(
         commentLimit: number;
     },
 ): Promise<{
-    post: DynamoGeneralRealtimeItem<PostModel>;
+    post: RynamoItem<PostModel>;
     initialComments: Array<PostCommentModel>;
     initialOtherReferencedComments: Array<PostCommentModel>;
 }> {

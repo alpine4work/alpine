@@ -18,7 +18,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -34,10 +34,10 @@ import {
 
 const LoaderSchema = Schema.object({
     checkpoint: ServerSynchronizationCheckpointSchema,
-    post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
+    post: createRynamoItemSchema(PostModel.schema()),
     initialPostComments: Schema.array(PostCommentModel.schema()),
     initialOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {

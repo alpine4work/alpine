@@ -123,7 +123,7 @@ describe("createSiteContainer", () => {
             },
         });
 
-        const events = await result.getDynamoGeneralRealtimeEventTransaction(session.action());
+        const events = await result.getRynamoEventTransaction(session.action());
 
         expect(events).toHaveLength(2);
     });

@@ -69,7 +69,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -148,7 +148,7 @@ export function PostContentView({
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
     onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -555,7 +555,7 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
     onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;

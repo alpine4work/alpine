@@ -20,7 +20,7 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     AccountId,
@@ -46,7 +46,7 @@ import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SiteContainerIdSchema} from "~/shared/sites/site_entry_id.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
-import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -85,7 +85,7 @@ export const createDocument = defineRpc({
         documentId: Schema.id<DocumentId>(),
         createdTime: Schema.date,
         eventTransactionForSite: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(SiteOrSiteEntryModelSchema),
+            createRynamoEventSchema(SiteOrSiteEntryModelSchema),
         ).default([]),
     },
 });
@@ -200,7 +200,7 @@ export const updateDocumentContent = defineRpc({
          * same dynamo transaction as the document update. Empty when the update didn't
          * touch a site.
          */
-        eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).default([]),
+        eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
     },
 });
 

@@ -5,8 +5,8 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
-import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/web/dynamo/use_dynamo_general_realtime_index_query.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useRynamoIndexQueryBase} from "~/client/web/dynamo/use_rynamo_index_query.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {ChannelMobileEditor} from "~/client/web/forum/channel_mobile_editor.js";
 import {channelAccessLevelText} from "~/client/web/forum/internal/channel_access_level_text.js";
 import {ChannelViewAside} from "~/client/web/forum/internal/channel_view_aside.js";
@@ -16,7 +16,7 @@ import {optimisticCreatePostEventEmitter} from "~/client/web/forum/internal/opti
 import {
     PostListHeader,
     PostQueryList,
-    PostQueryListDynamoGeneralRealtimeIndexQuery,
+    PostQueryListRynamoIndexQuery,
 } from "~/client/web/forum/post_list.js";
 import {PostListView} from "~/client/web/forum/post_list_view.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
@@ -49,10 +49,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
@@ -80,8 +77,8 @@ export function ChannelView({
     initialIsSubscribed,
     initialIsFavorite,
 }: {
-    initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
-    initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
+    initialChannelResult: RynamoQueryResult<ChannelOrMetadataModel>;
+    initialPostsResult: RynamoIndexQueryResult<PostModel>;
     initialIsSubscribed: boolean;
     initialIsFavorite: boolean;
 }) {
@@ -105,8 +102,9 @@ export function ChannelView({
         shouldConnectToChannelRealtime ? `/api/durable-objects/channels/${channelId}` : null,
     );
 
-    const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} =
-        useDynamoGeneralRealtimeQuery(initialChannelResult, {
+    const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} = useRynamoQuery(
+        initialChannelResult,
+        {
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
@@ -130,7 +128,8 @@ export function ChannelView({
                 });
                 return channelResult;
             }, [channelId, context]),
-        });
+        },
+    );
 
     const channelItem = channelAndMetadataQuery.getFirstItemIfExists();
     assert(channelItem?.model instanceof ChannelModel);
@@ -187,15 +186,12 @@ export function ChannelView({
         toggleShouldConnect,
     }));
 
-    useDynamoGeneralRealtimeIndexQueryBase(
+    useRynamoIndexQueryBase(
         {
             query: posts.query,
             onUpdateQuery: useCallback(
-                (
-                    update: (
-                        query: PostQueryListDynamoGeneralRealtimeIndexQuery,
-                    ) => PostQueryListDynamoGeneralRealtimeIndexQuery,
-                ) => setPosts(posts => posts.updateQuery(update)),
+                (update: (query: PostQueryListRynamoIndexQuery) => PostQueryListRynamoIndexQuery) =>
+                    setPosts(posts => posts.updateQuery(update)),
                 [setPosts],
             ),
         },

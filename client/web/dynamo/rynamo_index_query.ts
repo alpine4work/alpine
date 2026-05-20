@@ -1,14 +1,10 @@
 import createTree, {Tree, Iterator as TreeIterator} from "functional-red-black-tree";
 import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,
     DynamoItemKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -21,7 +17,7 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-type DynamoGeneralRealtimeIndexQueryLoadedPageInfo =
+type RynamoIndexQueryLoadedPageInfo =
     | {
           readonly type: "FromStart";
           readonly endCursor: DynamoIndexCursor;
@@ -31,11 +27,11 @@ type DynamoGeneralRealtimeIndexQueryLoadedPageInfo =
           readonly startCursor: DynamoIndexCursor;
       };
 
-export type DynamoGeneralRealtimeIndexQueryItem<Model, Extra = never> =
+export type RynamoIndexQueryItem<Model, Extra = never> =
     | {
           readonly type: "Loaded";
           readonly cursor: DynamoIndexCursor;
-          readonly item: DynamoGeneralRealtimeItem<Model> & {
+          readonly item: RynamoItem<Model> & {
               readonly extra: Extra | null;
           };
       }
@@ -50,7 +46,7 @@ export type DynamoGeneralRealtimeIndexQueryItem<Model, Extra = never> =
  *
  * Realtime queries should be eventually correct within a few seconds.
  */
-export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
+export class RynamoIndexQuery<Model, Extra = never> {
     /**
      * The name of the index we are querying. Cursors are only meaningful for a
      * specific index. Can not load results across indexes.
@@ -93,7 +89,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     private readonly _itemByCursor: Tree<
         DynamoIndexCursor,
-        DynamoGeneralRealtimeItem<Model> & {
+        RynamoItem<Model> & {
             // Remove `cursor` property before adding to this map. It's not strictly necessary
             // but makes debugging a little cleaner.
             readonly cursor?: undefined;
@@ -147,7 +143,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * since we will need to apply it after step 5. So our solution is to keep the item
      * around in our list data structure but not render it.
      */
-    private readonly _loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
+    private readonly _loadedPageInfo: RynamoIndexQueryLoadedPageInfo | null;
 
     /**
      * This is a mutable piece of state inside our otherwise immutable data type. A
@@ -200,7 +196,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         endCursorBound: string | null;
         itemByCursor: Tree<
             DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly cursor?: undefined;
                 readonly extra: Extra | null;
             }
@@ -210,7 +206,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             | {readonly isVisible: true; readonly cursor: DynamoIndexCursor}
             | {readonly isVisible: false; readonly version: number}
         >;
-        loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
+        loadedPageInfo: RynamoIndexQueryLoadedPageInfo | null;
         mutableCheckpoint: ServerSynchronizationCheckpoint;
     }) {
         // Run some data validity assertions to verify assumptions about our data in
@@ -257,11 +253,11 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Does not currently support initializing data in the middle of the query.
      */
     public static new<Model, Extra = never>(
-        result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        result: RynamoIndexQueryResult<Model>,
+    ): RynamoIndexQuery<Model, Extra> {
         let itemByCursor = createTree<
             DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly cursor?: undefined;
                 readonly extra: Extra | null;
             }
@@ -281,13 +277,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 isVisible: true,
                 cursor: item.cursor,
             });
-            itemByCursor = itemByCursor.insert(
-                item.cursor,
-                massageDynamoGeneralRealtimeItem(item, null),
-            );
+            itemByCursor = itemByCursor.insert(item.cursor, massageRynamoItem(item, null));
         }
 
-        let loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
+        let loadedPageInfo: RynamoIndexQueryLoadedPageInfo | null;
 
         switch (result.pageInfo.type) {
             case "FromStart": {
@@ -337,7 +330,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 throw exhaustive(result.pageInfo);
         }
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: result.indexName,
             partitionKey: result.partitionKey,
             startCursorBound,
@@ -356,16 +349,16 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Throws an error if the data is from a different index partition.
      */
     public loadMore(
-        result: Omit<DynamoGeneralRealtimeIndexQueryResult<Model>, "checkpoint">,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
-        return DynamoGeneralRealtimeIndexQuery._loadMore(this, result);
+        result: Omit<RynamoIndexQueryResult<Model>, "checkpoint">,
+    ): RynamoIndexQuery<Model, Extra> {
+        return RynamoIndexQuery._loadMore(this, result);
     }
 
     // Use a static method so we can reassign `this` within the function.
     private static _loadMore<Model, Extra>(
-        query: DynamoGeneralRealtimeIndexQuery<Model, Extra>,
-        result: Omit<DynamoGeneralRealtimeIndexQueryResult<Model>, "checkpoint">,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        query: RynamoIndexQuery<Model, Extra>,
+        result: Omit<RynamoIndexQueryResult<Model>, "checkpoint">,
+    ): RynamoIndexQuery<Model, Extra> {
         if (query._indexName !== result.indexName) {
             throw new InternalError("Tried to load more data from a different index");
         }
@@ -448,7 +441,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         // Optimization: If nothing changed, don't update our instance.
         if (loadedPageInfo === query._loadedPageInfo) return query;
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: query._indexName,
             partitionKey: query._partitionKey,
             startCursorBound: query._startCursorBound,
@@ -465,8 +458,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
+    ): RynamoIndexQuery<Model, Extra> {
         return this._putItems(
             filterMapIterable(eventTransaction, event => {
                 switch (event.type) {
@@ -486,7 +479,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                             cursor: index.cursor,
                             // Items outside of our index will not have the `Model` type. We assume the server
                             // implementation is correct and the types will all work out.
-                            item: event.item as DynamoGeneralRealtimeItem<Model>,
+                            item: event.item as RynamoItem<Model>,
                         };
                     }
                     case "DeleteItem": {
@@ -514,7 +507,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                   cursor: DynamoIndexCursor;
                   item: {
                       readonly cursor?: DynamoIndexCursor;
-                  } & DynamoGeneralRealtimeItem<Model>;
+                  } & RynamoItem<Model>;
               }
             | {
                   isDeleted: true;
@@ -524,7 +517,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                   };
               }
         >,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+    ): RynamoIndexQuery<Model, Extra> {
         let itemByCursor = this._itemByCursor;
         let itemVisibilityByKey = this._itemVisibilityByKey;
 
@@ -543,7 +536,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 if (isVisible) {
                     itemByCursor = itemByCursor.insert(
                         itemEntry.cursor,
-                        massageDynamoGeneralRealtimeItem(itemEntry.item, null),
+                        massageRynamoItem(itemEntry.item, null),
                     );
                     itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                         isVisible: true,
@@ -569,7 +562,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                                 const iterator = itemByCursor.find(itemEntry.cursor);
 
                                 itemByCursor = iterator.update(
-                                    massageDynamoGeneralRealtimeItem(
+                                    massageRynamoItem(
                                         itemEntry.item,
                                         // Preserve the `extra` data currently in our query object.
                                         iterator.value!.extra,
@@ -581,7 +574,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                                 itemByCursor = iterator.remove();
                                 itemByCursor = itemByCursor.insert(
                                     itemEntry.cursor,
-                                    massageDynamoGeneralRealtimeItem(
+                                    massageRynamoItem(
                                         itemEntry.item,
                                         // Preserve the `extra` data currently in our query object.
                                         iterator.value!.extra,
@@ -596,7 +589,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                         } else {
                             itemByCursor = itemByCursor.insert(
                                 itemEntry.cursor,
-                                massageDynamoGeneralRealtimeItem(itemEntry.item, null),
+                                massageRynamoItem(itemEntry.item, null),
                             );
                             itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                                 isVisible: true,
@@ -629,7 +622,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             return this;
         }
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: this._indexName,
             partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
@@ -688,7 +681,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     public getLoadedItemByCursor(): Tree<
         DynamoIndexCursor,
-        DynamoGeneralRealtimeItem<Model> & {
+        RynamoItem<Model> & {
             readonly cursor?: undefined;
             readonly extra: Extra | null;
         }
@@ -742,7 +735,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     private _getIteratorIndex(
         iterator: TreeIterator<
             DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly cursor?: undefined;
                 readonly extra: Extra | null;
             }
@@ -791,7 +784,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         index: number;
         iterator: TreeIterator<
             DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly cursor?: undefined;
                 readonly extra: Extra | null;
             }
@@ -801,7 +794,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Get the item at the provided index.
      */
-    public getItem(index: number): DynamoGeneralRealtimeIndexQueryItem<Model, Extra> {
+    public getItem(index: number): RynamoIndexQueryItem<Model, Extra> {
         if (this._loadedPageInfo) {
             switch (this._loadedPageInfo.type) {
                 case "FromStart": {
@@ -901,7 +894,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     public getItemByKeyIfExists(key: DynamoItemKey): {
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
-        readonly item: DynamoGeneralRealtimeItem<Model> & {
+        readonly item: RynamoItem<Model> & {
             readonly extra: Extra | null;
         };
     } | null {
@@ -921,7 +914,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Gets the first loaded item in the query if there are items in the query.
      */
-    public getFirstItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+    public getFirstItemIfExists(): RynamoItem<Model> | null {
         if (this._itemByCursor.length === 0) return null;
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -931,7 +924,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Gets the first loaded item in the query if there are items in the query.
      */
-    public getLastItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+    public getLastItemIfExists(): RynamoItem<Model> | null {
         if (this._itemByCursor.length === 0) return null;
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -947,9 +940,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Get the item after the provided cursor if an item exists.
      */
-    public getItemAfterCursorIfExists(
-        cursor: DynamoIndexCursor,
-    ): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemAfterCursorIfExists(cursor: DynamoIndexCursor): RynamoItem<Model> | null {
         const iterator = this._itemByCursor.gt(cursor);
         if (!iterator.node) return null;
 
@@ -971,9 +962,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     /**
      * Get the item before the provided cursor if an item exists.
      */
-    public getItemBeforeCursorIfExists(
-        cursor: DynamoIndexCursor,
-    ): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemBeforeCursorIfExists(cursor: DynamoIndexCursor): RynamoItem<Model> | null {
         const iterator = this._itemByCursor.lt(cursor);
         if (!iterator.node) return null;
 
@@ -1043,15 +1032,15 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Get items that were deleted from the provided `oldQuery` in this query. So any
      * items that were in `oldQuery` but are not in this query.
      */
-    public getDeletedItems(oldQuery: DynamoGeneralRealtimeIndexQuery<Model, Extra>): Iterable<{
+    public getDeletedItems(oldQuery: RynamoIndexQuery<Model, Extra>): Iterable<{
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
-        readonly item: DynamoGeneralRealtimeItem<Model>;
+        readonly item: RynamoItem<Model>;
     }> {
         const createdItemKeys = new Set<DynamoItemKey>();
         const deletedOldItemByKey = new Map<
             DynamoItemKey,
-            {index: number; cursor: DynamoIndexCursor; item: DynamoGeneralRealtimeItem<Model>}
+            {index: number; cursor: DynamoIndexCursor; item: RynamoItem<Model>}
         >();
 
         for (const change of symmetricDiffTree(oldQuery._itemByCursor, this._itemByCursor)) {
@@ -1115,10 +1104,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     public updateItemExtraByKeyIfExists(
         key: DynamoItemKey,
-        update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
-        ) => Extra | null,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        update: (item: RynamoItem<Model> & {readonly extra: Extra | null}) => Extra | null,
+    ): RynamoIndexQuery<Model, Extra> {
         const cursor = this.getCursorByKeyIfExists(key);
         if (cursor === null) return this;
         return this.updateItemExtraByCursorIfExists(cursor, update);
@@ -1135,10 +1122,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     public updateItemExtraByCursorIfExists(
         cursor: DynamoIndexCursor,
-        update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
-        ) => Extra | null,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        update: (item: RynamoItem<Model> & {readonly extra: Extra | null}) => Extra | null,
+    ): RynamoIndexQuery<Model, Extra> {
         let itemByCursor = this._itemByCursor;
 
         const iterator = itemByCursor.find(cursor);
@@ -1152,7 +1137,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             extra: newExtra,
         });
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: this._indexName,
             partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
@@ -1172,10 +1157,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     public updateAllItemExtras(
         update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
+            item: RynamoItem<Model> & {readonly extra: Extra | null},
             cursor: DynamoIndexCursor,
         ) => Extra | null,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+    ): RynamoIndexQuery<Model, Extra> {
         let itemByCursor = this._itemByCursor;
 
         let iterator = itemByCursor.begin;
@@ -1199,7 +1184,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         // Optimization: Nothing changed, return a referentially equal query.
         if (itemByCursor === this._itemByCursor) return this;
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: this._indexName,
             partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
@@ -1220,7 +1205,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      */
     public optimisticallyDeleteItemByKeyIfExists(
         key: DynamoItemKey,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+    ): RynamoIndexQuery<Model, Extra> {
         return this.optimisticallyUpdateItemByKeyIfExists(key, () => null);
     }
 
@@ -1237,9 +1222,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     public optimisticallyUpdateItemByKeyIfExists(
         key: DynamoItemKey,
         update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
-        ) => (DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null}) | null,
-    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+            item: RynamoItem<Model> & {readonly extra: Extra | null},
+        ) => (RynamoItem<Model> & {readonly extra: Extra | null}) | null,
+    ): RynamoIndexQuery<Model, Extra> {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility) return this;
 
@@ -1278,7 +1263,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             return this;
         }
 
-        return new DynamoGeneralRealtimeIndexQuery({
+        return new RynamoIndexQuery({
             indexName: this._indexName,
             partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
@@ -1300,12 +1285,12 @@ function* iterateTreeEntries<Key, Value>(tree: Tree<Key, Value>): IterableIterat
     }
 }
 
-function massageDynamoGeneralRealtimeItem<Model, Extra>(
+function massageRynamoItem<Model, Extra>(
     item: {
         readonly cursor?: DynamoIndexCursor;
-    } & DynamoGeneralRealtimeItem<Model>,
+    } & RynamoItem<Model>,
     extra: Extra | null,
-): DynamoGeneralRealtimeItem<Model> & {
+): RynamoItem<Model> & {
     readonly cursor?: undefined;
     readonly extra: Extra | null;
 } {

@@ -4,9 +4,9 @@ import {
     ForumRealtimeTable,
     allowedPostSortRangeTypesForGetPostRealtimeEvent,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {DynamoGeneralRealtimePostEvent} from "~/shared/forum/post_realtime_protocol.js";
+import {RynamoPostEvent} from "~/shared/forum/post_realtime_protocol.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
@@ -16,8 +16,8 @@ import {PostId} from "~/shared/id/types/id_types.js";
 export async function getPostRealtimeEvent(
     context: ServerSessionActionContext,
     postId: PostId,
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
-): Promise<ReadonlyArray<DynamoGeneralRealtimePostEvent>> {
+    eventTransaction: ReadonlyArray<RynamoEventStub>,
+): Promise<ReadonlyArray<RynamoPostEvent>> {
     const [, actualEventTransaction] = await runAllPromises([
         // Authorizing in parallel means we'll batch the post read in
         // `authorizePostAccess()` with any DynamoDB reads from the
@@ -47,5 +47,5 @@ export async function getPostRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<DynamoGeneralRealtimePostEvent>;
+    return actualEventTransaction as ReadonlyArray<RynamoPostEvent>;
 }

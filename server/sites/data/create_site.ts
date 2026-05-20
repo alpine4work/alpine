@@ -3,7 +3,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     SiteAttributesItem,
@@ -13,7 +13,7 @@ import {
 } from "~/server/sites/data/internal/sites_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -58,11 +58,9 @@ export async function createSite(
     },
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<
-        [DynamoGeneralRealtimeEvent<SitePreviewModel>, DynamoGeneralRealtimeEvent<SiteEntryModel>]
-    >;
+    ) => Promise<[RynamoEvent<SitePreviewModel>, RynamoEvent<SiteEntryModel>]>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -100,7 +98,7 @@ export async function createSite(
     const createSiteAttributesEntry = SitesTable.transactionCreateItemWithEvent(siteAttributesItem);
     const createRootContainerEntry = SitesTable.transactionCreateItemWithEvent(rootContainerItem);
 
-    await DynamoGeneralRealtimeTableSchema.executeTransaction(
+    await RynamoTableSchema.executeTransaction(
         context,
         [createSiteAttributesEntry.transactionEntry, createRootContainerEntry.transactionEntry],
         {clientRequestToken},
@@ -129,7 +127,7 @@ export async function createSite(
     );
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async eventContext =>
+        getRynamoEventTransaction: async eventContext =>
             runAllPromises([
                 createSiteAttributesEntry.getEvent(eventContext),
                 createRootContainerEntry.getEvent(eventContext),

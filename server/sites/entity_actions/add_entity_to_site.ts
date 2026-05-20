@@ -8,7 +8,7 @@ import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_acce
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -30,9 +30,9 @@ export async function addEntityToSite(
         orderKey: OrderKey;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const newAccessPolicy = {
         type: "Site",
@@ -75,9 +75,9 @@ async function runAddEntityToSiteByEntityType(
         position: {parentId: SiteContainerId; orderKey: OrderKey};
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     switch (entity.type) {
         case "Channel": {
@@ -97,8 +97,10 @@ async function runAddEntityToSiteByEntityType(
             });
         }
         case "Task": {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} =
-                await commitTaskActionTransaction(context, input.spaceId, [
+            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+                context,
+                input.spaceId,
+                [
                     {
                         type: "UpdateTask",
                         time: [Date.now(), 0],
@@ -108,15 +110,18 @@ async function runAddEntityToSiteByEntityType(
                             accessPolicy: newAccessPolicy,
                         },
                     },
-                ]);
+                ],
+            );
 
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite,
+                getRynamoEventTransactionForSite,
             };
         }
         case "TaskCollection": {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} =
-                await commitTaskActionTransaction(context, input.spaceId, [
+            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+                context,
+                input.spaceId,
+                [
                     {
                         type: "UpdateCollection",
                         time: [Date.now(), 0],
@@ -126,10 +131,11 @@ async function runAddEntityToSiteByEntityType(
                             accessPolicy: newAccessPolicy,
                         },
                     },
-                ]);
+                ],
+            );
 
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite,
+                getRynamoEventTransactionForSite,
             };
         }
         case "Document": {
@@ -187,8 +193,7 @@ async function runAddEntityToSiteByEntityType(
                 );
 
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite: async () =>
-                    eventTransactionForSite,
+                getRynamoEventTransactionForSite: async () => eventTransactionForSite,
             };
         }
         default:

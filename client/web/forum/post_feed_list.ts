@@ -12,10 +12,7 @@ import {
 } from "~/client/web/forum/post_list.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/web/virtualized/helpers/virtualized_tree.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -143,9 +140,7 @@ export class PostFeedList implements PostListInterface {
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         return this._entries.getPostRealtimeItemIfExists(postId);
     }
 
@@ -183,9 +178,7 @@ export class PostFeedList implements PostListInterface {
         });
     }
 
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ) {
+    public handleEventTransaction(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) {
         const newEntries = this._entries.handleEventTransaction(eventTransaction);
 
         if (newEntries === this._entries) return this;
@@ -241,7 +234,7 @@ type PostFeedListVirtualizedTreeNode =
     | Exclude<FeedEntryModel, FeedPostEntryModel>
     | {
           readonly type: "Post";
-          readonly post: DynamoGeneralRealtimeItem<PostModel> & {
+          readonly post: RynamoItem<PostModel> & {
               readonly extra: PostListItemExtra | null;
           };
       };
@@ -264,7 +257,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         // TODO(calebmer): We could throw away unreferenced posts after a timeout when
         // we're confident the server won't return us stale data for the post (~3 minutes).
         // For now we don't think `postVisibilityById` will get unreasonably large.
-        | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+        | {isVisible: false; item: RynamoItem<PostModel>}
     >;
 
     private constructor({
@@ -276,8 +269,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         openPostCommentsCount: number;
         postVisibilityById: ImmutableMap<
             PostId,
-            | {isVisible: true; index: number}
-            | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+            {isVisible: true; index: number} | {isVisible: false; item: RynamoItem<PostModel>}
         >;
         nodeByOrderKey: Tree<number, PostFeedListVirtualizedTreeNode>;
         itemCountSubtreeCache: WeakMap<TreeNode<number, PostFeedListVirtualizedTreeNode>, number>;
@@ -371,9 +363,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         const nodeKey = this._postVisibilityById.get(postId);
         if (!nodeKey?.isVisible) return null;
 
@@ -399,7 +389,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
 
                 let oldPostVisibility:
                     | {isVisible: true; index: number}
-                    | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                    | {isVisible: false; item: RynamoItem<PostModel>}
                     | undefined;
 
                 postVisibilityById = postVisibilityById.update(
@@ -464,7 +454,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
      * with a stale version then we'll actually have the latest version.
      */
     public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
     ): PostFeedListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
         let nodeByOrderKey = this._nodeByOrderKey;
@@ -482,11 +472,11 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
 
             // We only care about posts...
             if (!(event.item.model instanceof PostModel)) continue;
-            const item = event.item as DynamoGeneralRealtimeItem<PostModel>;
+            const item = event.item as RynamoItem<PostModel>;
 
             let postVisibility:
                 | {isVisible: true; index: number}
-                | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                | {isVisible: false; item: RynamoItem<PostModel>}
                 | undefined;
 
             postVisibilityById = postVisibilityById.update(item.model.id, _postVisibility => {

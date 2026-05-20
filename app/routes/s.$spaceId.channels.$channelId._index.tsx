@@ -42,12 +42,12 @@ import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_ac
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
 import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimeQueryResult,
-    createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+    RynamoIndexQueryResult,
+    RynamoItem,
+    RynamoQueryResult,
+    createRynamoIndexQuerySchema,
+    createRynamoQuerySchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -70,8 +70,8 @@ import {
 
 const LoaderSchema = Schema.object({
     key: Schema.id(),
-    channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
-    postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
+    channelResult: createRynamoQuerySchema(ChannelOrMetadataModelSchema),
+    postsResult: createRynamoIndexQuerySchema(PostModel.schema()),
     isSubscribed: Schema.boolean,
     isFavorite: Schema.boolean,
 });
@@ -110,9 +110,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     let created:
         | {
               checkpoint: ServerSynchronizationCheckpoint;
-              getDynamoGeneralRealtimeItem: (
-                  context: ServerActionContext,
-              ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
+              getRynamoItem: (context: ServerActionContext) => Promise<RynamoItem<ChannelModel>>;
           }
         | undefined;
 
@@ -120,16 +118,13 @@ export async function loader({request, params, context: unauthenticatedContext}:
         try {
             const checkpoint = generateServerSynchronizationCheckpoint();
 
-            const {getDynamoGeneralRealtimeItem} = await createChannel(
-                context.actor.authorizeSession(),
-                {
-                    spaceId,
-                    channelId,
-                    name: createSearchParam,
-                },
-            );
+            const {getRynamoItem} = await createChannel(context.actor.authorizeSession(), {
+                spaceId,
+                channelId,
+                name: createSearchParam,
+            });
 
-            created = {checkpoint, getDynamoGeneralRealtimeItem};
+            created = {checkpoint, getRynamoItem};
         } catch (error) {
             if (!isDynamoConditionCheckError(error)) {
                 throw error;
@@ -168,13 +163,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
                   const sessionContext = context.actor.authorizeSession();
 
                   return runAllPromises([
-                      created.getDynamoGeneralRealtimeItem(sessionContext),
+                      created.getRynamoItem(sessionContext),
                       getAccount(sessionContext, spaceId, sessionContext.actor.getAccountId()),
                   ]).then(
-                      ([
-                          item,
-                          account,
-                      ]): DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel> => ({
+                      ([item, account]): RynamoQueryResult<ChannelOrMetadataModel> => ({
                           checkpoint: created.checkpoint,
                           partitionKey: getChannelAndMetadataPartitionKey(channelId),
                           startItemKey: null,
@@ -207,7 +199,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         // If we're creating the channel then create an empty query since there are no
         // posts yet:
         created
-            ? cast<DynamoGeneralRealtimeIndexQueryResult<PostModel>>({
+            ? cast<RynamoIndexQueryResult<PostModel>>({
                   checkpoint: created.checkpoint,
                   indexName: getChannelPostsIndexName(),
                   partitionKey: getChannelPostsPartitionKey(channelId),

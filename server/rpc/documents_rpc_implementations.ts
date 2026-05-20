@@ -55,18 +55,19 @@ export default implementRpcs(definitions, {
     createDocument: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime, getDynamoGeneralRealtimeEventTransactionForSite} =
-                await createDocument(context.actor.authorizeSession(), {
+            const {id, createdTime, getRynamoEventTransactionForSite} = await createDocument(
+                context.actor.authorizeSession(),
+                {
                     id: input.documentId,
                     spaceId: input.spaceId,
                     content: input.content,
                     sitePosition: input.sitePosition,
-                });
+                },
+            );
             return {
                 documentId: id,
                 createdTime,
-                eventTransactionForSite:
-                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                eventTransactionForSite: await getRynamoEventTransactionForSite(context),
             };
         },
     },

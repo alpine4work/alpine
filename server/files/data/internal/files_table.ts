@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
 import {
     FileAttachmentTarget,
@@ -579,7 +579,7 @@ class FileAuthorizer<Bound extends boolean = true> {
     }
 
     public static new<Area extends keyof FileAttachmentTargetByArea>(
-        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        tableSchema: DynamoTableSchema<any> | RynamoTableSchema<any, any>,
         area: Area,
         authorizeTargetAccessIfPossible: (
             context: ServerActionContext,
@@ -608,7 +608,7 @@ class FileAuthorizerUnbound<
     ) => Promise<Result<void, Error>>;
 
     constructor(
-        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        tableSchema: DynamoTableSchema<any> | RynamoTableSchema<any, any>,
         area: Area,
         authorizeTargetAccessIfPossible: (
             context: ServerActionContext,
@@ -628,8 +628,7 @@ class FileAuthorizerUnbound<
         //
         // Authorizers may be exported.
         assert(
-            tableSchema instanceof DynamoTableSchema ||
-                tableSchema instanceof DynamoGeneralRealtimeTableSchema,
+            tableSchema instanceof DynamoTableSchema || tableSchema instanceof RynamoTableSchema,
         );
         assert(!tableSchema.isInitialized());
 

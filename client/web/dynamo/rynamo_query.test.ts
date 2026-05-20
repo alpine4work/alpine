@@ -1,7 +1,4 @@
-import {
-    DynamoGeneralRealtimeQuery,
-    DynamoGeneralRealtimeQueryItem,
-} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoQuery, RynamoQueryItem} from "~/client/web/dynamo/rynamo_query.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -21,10 +18,8 @@ function testPartitionKey(string: string): DynamoItemPartitionKey {
     ) as DynamoItemPartitionKey;
 }
 
-function testItems<Model>(
-    query: DynamoGeneralRealtimeQuery<Model>,
-): Array<DynamoGeneralRealtimeQueryItem<Model>> {
-    const items: Array<DynamoGeneralRealtimeQueryItem<Model>> = [];
+function testItems<Model>(query: RynamoQuery<Model>): Array<RynamoQueryItem<Model>> {
+    const items: Array<RynamoQueryItem<Model>> = [];
 
     for (let index = 0; index < query.getItemCount(); index++) {
         items.push(query.getItem(index));
@@ -38,7 +33,7 @@ function testItems<Model>(
 }
 
 test("initializes an empty query", () => {
-    const query = DynamoGeneralRealtimeQuery.new({
+    const query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -55,7 +50,7 @@ test("initializes an empty query", () => {
 });
 
 test("initializes a query with items from start", () => {
-    const query = DynamoGeneralRealtimeQuery.new({
+    const query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -116,7 +111,7 @@ test("initializes a query with items from start", () => {
 });
 
 test("initializes a query with items from end", () => {
-    const query = DynamoGeneralRealtimeQuery.new({
+    const query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -177,7 +172,7 @@ test("initializes a query with items from end", () => {
 });
 
 test("initializes a query with items from start and a next page", () => {
-    const query = DynamoGeneralRealtimeQuery.new({
+    const query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -241,7 +236,7 @@ test("initializes a query with items from start and a next page", () => {
 });
 
 test("initializes a query with items from end and a previous page", () => {
-    const query = DynamoGeneralRealtimeQuery.new({
+    const query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -305,7 +300,7 @@ test("initializes a query with items from end and a previous page", () => {
 });
 
 test("items update after receiving a realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -492,7 +487,7 @@ test("items update after receiving a realtime event", () => {
 });
 
 test("items update after receiving a realtime event out-of-order", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -679,7 +674,7 @@ test("items update after receiving a realtime event out-of-order", () => {
 });
 
 test("adds new items after receiving a realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -791,7 +786,7 @@ test("adds new items after receiving a realtime event", () => {
 });
 
 test("adds and deletes items out of bounds after receiving a realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: testItemKey("p0-Zz"),
         endItemKey: testItemKey("p0-a3"),
@@ -935,7 +930,7 @@ test("adds and deletes items out of bounds after receiving a realtime event", ()
 });
 
 test("item created within the query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -1047,7 +1042,7 @@ test("item created within the query", () => {
 });
 
 test("can load more at the end of a query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -1311,7 +1306,7 @@ test("can load more at the end of a query", () => {
 });
 
 test("can load more at the start of a query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -1575,7 +1570,7 @@ test("can load more at the start of a query", () => {
 });
 
 test("can load more at the end of a query that overlaps a bit with the previous query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -1729,7 +1724,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
 });
 
 test("can load more at the end in a way that doesn\u2019t overlap with the last query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -1849,7 +1844,7 @@ test("can load more at the end in a way that doesn\u2019t overlap with the last 
 });
 
 test("can load more at the start of a query that overlaps a bit with the previous query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2003,7 +1998,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
 });
 
 test("can load more at the start in a way that doesn\u2019t overlap with the last query", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2123,7 +2118,7 @@ test("can load more at the start in a way that doesn\u2019t overlap with the las
 });
 
 test("ignores items with a different partition key in realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2267,7 +2262,7 @@ test("ignores items with a different partition key in realtime event", () => {
 });
 
 test("item is deleted after receiving a delete realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2383,7 +2378,7 @@ test("item is deleted after receiving a delete realtime event", () => {
 });
 
 test("item is deleted after receiving an out-of-order delete realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2547,7 +2542,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
 });
 
 test("item is deleted after receiving a delete realtime event after being created by a realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2668,7 +2663,7 @@ test("item is deleted after receiving a delete realtime event after being create
 });
 
 test("item is deleted after receiving an out-of-order delete realtime event after being created by a realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2780,7 +2775,7 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
 });
 
 test("can undelete deleted item after receiving a delete realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -2915,7 +2910,7 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
 });
 
 test("can delete an undeleted deleted item after receiving a delete realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,
@@ -3082,7 +3077,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
 });
 
 test("can delete an undeleted deleted item after receiving an out-of-order delete realtime event", () => {
-    let query = DynamoGeneralRealtimeQuery.new({
+    let query = RynamoQuery.new({
         partitionKey: testPartitionKey("p0"),
         startItemKey: null,
         endItemKey: null,

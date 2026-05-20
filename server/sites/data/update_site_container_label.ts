@@ -2,12 +2,12 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/authorize_site_access_and_return_item.js";
 import {dangerouslyGetSiteEntryItem} from "~/server/sites/data/internal/dangerously_get_site_entry_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
@@ -32,9 +32,9 @@ export async function updateSiteContainerLabel(
         label: string;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<Array<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<Array<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     return context.dynamo.retryTransaction(async context => {
         // Fetch site attributes for authorization
@@ -53,7 +53,7 @@ export async function updateSiteContainerLabel(
                 siteAttributesItem.update({updatedTime: new Date()}),
             );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        await RynamoTableSchema.executeTransaction(context, [
             updateContainerTransactionEntry.transactionEntry,
             updateSiteAttributesTransactionEntry.transactionEntry,
         ]);
@@ -68,7 +68,7 @@ export async function updateSiteContainerLabel(
         );
 
         return {
-            getDynamoGeneralRealtimeEventTransaction: context =>
+            getRynamoEventTransaction: context =>
                 runAllPromises([
                     updateContainerTransactionEntry.getEvent(context),
                     updateSiteAttributesTransactionEntry.getEvent(context),

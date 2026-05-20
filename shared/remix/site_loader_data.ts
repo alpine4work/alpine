@@ -1,4 +1,4 @@
-import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
@@ -21,7 +21,7 @@ export const SiteLoaderDataSchema = Schema.union({
     UseNewSite: Schema.object({
         type: Schema.value("UseNewSite"),
         siteId: Schema.id<SiteId>(),
-        initialQueryResult: createDynamoGeneralRealtimeQuerySchema(SiteOrSiteEntryModelSchema),
+        initialQueryResult: createRynamoQuerySchema(SiteOrSiteEntryModelSchema),
         /**
          * The entity rendered by this route, if any. The provider reads this from the
          * matched route tree to derive the site's active-entity state — so child routes

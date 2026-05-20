@@ -1,10 +1,6 @@
 import createTree, {Tree, Iterator as TreeIterator} from "functional-red-black-tree";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoItem, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,7 +12,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-type DynamoGeneralRealtimeQueryLoadedPageInfo =
+type RynamoQueryLoadedPageInfo =
     | {
           readonly type: "FromStart";
           readonly endItemKey: DynamoItemKey;
@@ -26,10 +22,10 @@ type DynamoGeneralRealtimeQueryLoadedPageInfo =
           readonly startItemKey: DynamoItemKey;
       };
 
-export type DynamoGeneralRealtimeQueryItem<Model, Extra = never> =
+export type RynamoQueryItem<Model, Extra = never> =
     | {
           readonly type: "Loaded";
-          readonly item: DynamoGeneralRealtimeItem<Model> & {
+          readonly item: RynamoItem<Model> & {
               readonly extra: Extra | null;
           };
       }
@@ -44,7 +40,7 @@ export type DynamoGeneralRealtimeQueryItem<Model, Extra = never> =
  *
  * Realtime queries should be eventually correct within a few seconds.
  */
-export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
+export class RynamoQuery<Model, Extra = never> {
     /**
      * The partition key this query result is for. A query can only cover one
      * partition. All items will be a part of the same partition.
@@ -76,7 +72,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      */
     private readonly _itemByKey: Tree<
         DynamoItemKey,
-        DynamoGeneralRealtimeItem<Model> & {
+        RynamoItem<Model> & {
             // Allow clients to add extra data to each item.
             readonly extra: Extra | null;
         }
@@ -119,7 +115,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * since we will need to apply it after step 5. So our solution is to keep the item
      * around in our list data structure but not render it.
      */
-    private readonly _loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
+    private readonly _loadedPageInfo: RynamoQueryLoadedPageInfo | null;
 
     /**
      * This is a mutable piece of state inside our otherwise immutable data type. A
@@ -170,13 +166,13 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         endItemKey: DynamoItemKey | null;
         itemByKey: Tree<
             DynamoItemKey,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 // Allow clients to add extra data to each item.
                 readonly extra: Extra | null;
             }
         >;
         deletedItemByKey: ImmutableMap<DynamoItemKey, {readonly version: number}>;
-        loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
+        loadedPageInfo: RynamoQueryLoadedPageInfo | null;
         mutableCheckpoint: ServerSynchronizationCheckpoint;
     }) {
         // Run some data validity assertions to verify assumptions about our data in
@@ -215,11 +211,11 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * Does not currently support initializing data in the middle of the query.
      */
     public static new<Model, Extra = never>(
-        result: DynamoGeneralRealtimeQueryResult<Model>,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+        result: RynamoQueryResult<Model>,
+    ): RynamoQuery<Model, Extra> {
         let itemByKey = createTree<
             DynamoItemKey,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly extra: Extra | null;
             }
         >();
@@ -231,7 +227,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             itemByKey = itemByKey.insert(item.key, {...item, extra: null});
         }
 
-        let loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
+        let loadedPageInfo: RynamoQueryLoadedPageInfo | null;
 
         switch (result.pageInfo.type) {
             case "FromStart": {
@@ -281,7 +277,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                 throw exhaustive(result.pageInfo);
         }
 
-        return new DynamoGeneralRealtimeQuery({
+        return new RynamoQuery({
             partitionKey: result.partitionKey,
             startItemKey,
             endItemKey,
@@ -297,16 +293,16 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * query result overlaps with data we already have.
      */
     public loadMore(
-        result: Omit<DynamoGeneralRealtimeQueryResult<Model>, "checkpoint">,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
-        return DynamoGeneralRealtimeQuery._loadMore(this, result);
+        result: Omit<RynamoQueryResult<Model>, "checkpoint">,
+    ): RynamoQuery<Model, Extra> {
+        return RynamoQuery._loadMore(this, result);
     }
 
     // Use a static method so we can reassign `this` within the function.
     private static _loadMore<Model, Extra>(
-        query: DynamoGeneralRealtimeQuery<Model, Extra>,
-        result: Omit<DynamoGeneralRealtimeQueryResult<Model>, "checkpoint">,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+        query: RynamoQuery<Model, Extra>,
+        result: Omit<RynamoQueryResult<Model>, "checkpoint">,
+    ): RynamoQuery<Model, Extra> {
         if (query._partitionKey !== result.partitionKey) {
             throw new InternalError("Tried to load more data from a different table partition");
         }
@@ -319,7 +315,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
                 // Ignore items that aren't in our query's range. An item's primary key will never
                 // change so we don't need to store the item in a `itemVisibilityByKey` map with
-                // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
+                // `isVisible: false` like we need to in `RynamoIndexQuery`.
                 if (!isInRange) return;
 
                 return {
@@ -395,7 +391,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         // Optimization: If nothing changed, don't update our instance.
         if (loadedPageInfo === query._loadedPageInfo) return query;
 
-        return new DynamoGeneralRealtimeQuery({
+        return new RynamoQuery({
             partitionKey: query._partitionKey,
             startItemKey: query._startItemKey,
             endItemKey: query._endItemKey,
@@ -411,8 +407,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
+    ): RynamoQuery<Model, Extra> {
         const partitionKeyBytes = decodeBase64(
             this._partitionKey,
             "Rfc4648UrlWithOrderPreservation",
@@ -428,7 +424,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
                         // Ignore items that aren't in our query's range. An item's primary key will never
                         // change so we don't need to store the item in a `itemVisibilityByKey` map with
-                        // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
+                        // `isVisible: false` like we need to in `RynamoIndexQuery`.
                         if (!isInRange) {
                             return;
                         }
@@ -451,7 +447,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                             partitionKey: this._partitionKey,
                             // Items outside of our index will not have the `Model` type. We assume the server
                             // implementation is correct and the types will all work out.
-                            item: event.item as DynamoGeneralRealtimeItem<Model>,
+                            item: event.item as RynamoItem<Model>,
                         };
                     }
                     case "DeleteItem": {
@@ -461,7 +457,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
 
                         // Ignore items that aren't in our query's range. An item's primary key will never
                         // change so we don't need to store the item in a `itemVisibilityByKey` map with
-                        // `isVisible: false` like we need to in `DynamoGeneralRealtimeIndexQuery`.
+                        // `isVisible: false` like we need to in `RynamoIndexQuery`.
                         if (!isInRange) {
                             return;
                         }
@@ -495,7 +491,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         itemEntries: Iterable<
             | {
                   isDeleted: false;
-                  item: DynamoGeneralRealtimeItem<Model>;
+                  item: RynamoItem<Model>;
               }
             | {
                   isDeleted: true;
@@ -505,7 +501,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                   };
               }
         >,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+    ): RynamoQuery<Model, Extra> {
         let itemByKey = this._itemByKey;
         let deletedItemByKey = this._deletedItemByKey;
 
@@ -588,7 +584,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             return this;
         }
 
-        return new DynamoGeneralRealtimeQuery({
+        return new RynamoQuery({
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,
@@ -646,7 +642,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      */
     public getLoadedItemByKey(): Tree<
         DynamoItemKey,
-        DynamoGeneralRealtimeItem<Model> & {
+        RynamoItem<Model> & {
             readonly cursor?: undefined;
             readonly extra: Extra | null;
         }
@@ -700,7 +696,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     private _getIteratorIndex(
         iterator: TreeIterator<
             DynamoItemKey,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly extra: Extra | null;
             }
         >,
@@ -748,7 +744,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         index: number;
         iterator: TreeIterator<
             DynamoItemKey,
-            DynamoGeneralRealtimeItem<Model> & {
+            RynamoItem<Model> & {
                 readonly extra: Extra | null;
             }
         >;
@@ -757,7 +753,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Get the item at the provided index.
      */
-    public getItem(index: number): DynamoGeneralRealtimeQueryItem<Model, Extra> {
+    public getItem(index: number): RynamoQueryItem<Model, Extra> {
         if (this._loadedPageInfo) {
             switch (this._loadedPageInfo.type) {
                 case "FromStart": {
@@ -824,7 +820,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      */
     public getItemByKeyIfExists(key: DynamoItemKey): {
         readonly index: number;
-        readonly item: DynamoGeneralRealtimeItem<Model> & {
+        readonly item: RynamoItem<Model> & {
             readonly extra: Extra | null;
         };
     } | null {
@@ -840,7 +836,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Gets the first loaded item in the query if there are items in the query.
      */
-    public getFirstItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+    public getFirstItemIfExists(): RynamoItem<Model> | null {
         if (this._itemByKey.length === 0) return null;
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -850,7 +846,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Gets the first loaded item in the query if there are items in the query.
      */
-    public getLastItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+    public getLastItemIfExists(): RynamoItem<Model> | null {
         if (this._itemByKey.length === 0) return null;
 
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -864,7 +860,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Get the item after the provided cursor if an item exists.
      */
-    public getItemAfterKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemAfterKeyIfExists(key: DynamoItemKey): RynamoItem<Model> | null {
         const iterator = this._itemByKey.gt(key);
         if (!iterator.value) return null;
 
@@ -886,7 +882,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     /**
      * Get the item before the provided cursor if an item exists.
      */
-    public getItemBeforeKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemBeforeKeyIfExists(key: DynamoItemKey): RynamoItem<Model> | null {
         const iterator = this._itemByKey.lt(key);
         if (!iterator.value) return null;
 
@@ -981,10 +977,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      */
     public updateItemExtraByKeyIfExists(
         key: DynamoItemKey,
-        update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
-        ) => Extra | null,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+        update: (item: RynamoItem<Model> & {readonly extra: Extra | null}) => Extra | null,
+    ): RynamoQuery<Model, Extra> {
         let itemByKey = this._itemByKey;
 
         const iterator = itemByKey.find(key);
@@ -998,7 +992,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             extra: newExtra,
         });
 
-        return new DynamoGeneralRealtimeQuery({
+        return new RynamoQuery({
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,
@@ -1016,10 +1010,8 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * of the query's loaded range that realtime tells us about.
      */
     public updateAllItemExtras(
-        update: (
-            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
-        ) => Extra | null,
-    ): DynamoGeneralRealtimeQuery<Model, Extra> {
+        update: (item: RynamoItem<Model> & {readonly extra: Extra | null}) => Extra | null,
+    ): RynamoQuery<Model, Extra> {
         let itemByKey = this._itemByKey;
 
         let iterator = itemByKey.begin;
@@ -1041,7 +1033,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         // Optimization: Nothing changed, return a referentially equal query.
         if (itemByKey === this._itemByKey) return this;
 
-        return new DynamoGeneralRealtimeQuery({
+        return new RynamoQuery({
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,

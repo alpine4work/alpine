@@ -36,7 +36,7 @@ ts_project(
         "//server/context",
         "//server/documents/data",
         "//server/dynamo/core",
-        "//server/dynamo/core/general_realtime",
+        "//server/dynamo/core/rynamo",
         "//server/forum/data",
         "//server/helpers",
         "//server/integrations",

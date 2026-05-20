@@ -23,7 +23,7 @@ import {
  * as it may contain private internal data. Instead clients have access to a
  * "model" which is a nicely formatted object for use on the client.
  */
-export type DynamoGeneralRealtimeItem<Model> = {
+export type RynamoItem<Model> = {
     /**
      * Unique identifier for the item within the DynamoDB table the item came from.
      */
@@ -43,9 +43,9 @@ export type DynamoGeneralRealtimeItem<Model> = {
     readonly model: Model;
 };
 
-export function createDynamoGeneralRealtimeItemSchema<Model>(
+export function createRynamoItemSchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeItem<Model>> {
+): Schema<RynamoItem<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -66,7 +66,7 @@ export function createDynamoGeneralRealtimeItemSchema<Model>(
  * Queries can be run in descending order. In this case the order of `items` is
  * reversed from how they are stored is in the table.
  */
-export type DynamoGeneralRealtimeQueryResult<Model> = {
+export type RynamoQueryResult<Model> = {
     /**
      * At what point in time is this data up-to-date? When we connect to realtime on
      * the client we should load all changes between the `checkpoint` and the current
@@ -118,12 +118,12 @@ export type DynamoGeneralRealtimeQueryResult<Model> = {
      * You can run a query in descending mode. In that case items will be in reverse
      * order from how they're actually stored.
      */
-    readonly items: ReadonlyArray<DynamoGeneralRealtimeItem<Model>>;
+    readonly items: ReadonlyArray<RynamoItem<Model>>;
 };
 
-export function createDynamoGeneralRealtimeQuerySchema<Model>(
+export function createRynamoQuerySchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeQueryResult<Model>> {
+): Schema<RynamoQueryResult<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -164,7 +164,7 @@ export function createDynamoGeneralRealtimeQuerySchema<Model>(
  * Queries can be run in descending order. In this case the order of `items` is
  * reversed from how they are stored is in the base index.
  */
-export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
+export type RynamoIndexQueryResult<Model> = {
     /**
      * At what point in time is this data up-to-date? When we connect to realtime on
      * the client we should load all changes between the `checkpoint` and the current
@@ -176,8 +176,8 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
 
     /**
      * What is the name of the index that provides the order for this query? You will
-     * compare this against the index names in `event.indexes` from
-     * `DynamoGeneralRealtimeEvent`. You can not compare cursors across indexes.
+     * compare this against the index names in `event.indexes` from `RynamoEvent`. You
+     * can not compare cursors across indexes.
      */
     readonly indexName: string;
 
@@ -234,13 +234,13 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     readonly items: ReadonlyArray<
         {
             readonly cursor: DynamoIndexCursor;
-        } & DynamoGeneralRealtimeItem<Model>
+        } & RynamoItem<Model>
     >;
 };
 
-export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
+export function createRynamoIndexQuerySchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeIndexQueryResult<Model>> {
+): Schema<RynamoIndexQueryResult<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -280,42 +280,40 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
  * for items so that you can apply the events in the correct order no matter the
  * order in which they arrive.
  */
-export type DynamoGeneralRealtimeEvent<Model> =
-    | DynamoGeneralRealtimePutItemEvent<Model>
-    | DynamoGeneralRealtimeDeleteItemEvent;
+export type RynamoEvent<Model> = RynamoPutItemEvent<Model> | RynamoDeleteItemEvent;
 
-export function createDynamoGeneralRealtimeEventSchema<Model>(
+export function createRynamoEventSchema<Model>(
     ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeEvent<Model>> {
+): Schema<RynamoEvent<Model>> {
     return Schema.union({
-        PutItem: createDynamoGeneralRealtimePutItemEventSchema(ModelSchema),
-        DeleteItem: DynamoGeneralRealtimeDeleteItemEventSchema,
+        PutItem: createRynamoPutItemEventSchema(ModelSchema),
+        DeleteItem: RynamoDeleteItemEventSchema,
     });
 }
 
 /**
  * Event for when a new item is created or updated.
  */
-export type DynamoGeneralRealtimePutItemEvent<Model> = {
+export type RynamoPutItemEvent<Model> = {
     readonly type: "PutItem";
-    readonly item: DynamoGeneralRealtimeItem<Model>;
-    readonly indexes: DynamoGeneralRealtimePutItemEventIndexes;
+    readonly item: RynamoItem<Model>;
+    readonly indexes: RynamoPutItemEventIndexes;
 };
 
-export type DynamoGeneralRealtimePutItemEventIndexes = ReadonlyMap<
+export type RynamoPutItemEventIndexes = ReadonlyMap<
     string,
     {readonly partitionKey: DynamoIndexPartitionKey; readonly cursor: DynamoIndexCursor}
 >;
 
-function createDynamoGeneralRealtimePutItemEventSchema<Model>(
+function createRynamoPutItemEventSchema<Model>(
     _ModelSchema: Schema<Model>,
-): ObjectSchema<DynamoGeneralRealtimePutItemEvent<Model>> {
+): ObjectSchema<RynamoPutItemEvent<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
         type: Schema.value("PutItem"),
-        item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
+        item: createRynamoItemSchema(ModelSchema),
         indexes: Schema.map(
             Schema.string,
             Schema.object({
@@ -329,7 +327,7 @@ function createDynamoGeneralRealtimePutItemEventSchema<Model>(
 /**
  * Event for when an item is deleted.
  */
-export type DynamoGeneralRealtimeDeleteItemEvent = {
+export type RynamoDeleteItemEvent = {
     readonly type: "DeleteItem";
     readonly item: {
         readonly key: DynamoItemKey;
@@ -338,7 +336,7 @@ export type DynamoGeneralRealtimeDeleteItemEvent = {
     readonly indexes: ReadonlySet<string>;
 };
 
-const DynamoGeneralRealtimeDeleteItemEventSchema = Schema.object({
+const RynamoDeleteItemEventSchema = Schema.object({
     type: Schema.value("DeleteItem"),
     item: Schema.object({
         key: DynamoItemKeySchema,
@@ -348,15 +346,13 @@ const DynamoGeneralRealtimeDeleteItemEventSchema = Schema.object({
 });
 
 /**
- * A stub event. Implies the existence of a `DynamoGeneralRealtimeEvent` but
- * doesn't include the full data associated with the `DynamoGeneralRealtimeEvent`
- * in case the receiver of a stub is not allowed to view that data.
+ * A stub event. Implies the existence of a `RynamoEvent` but doesn't include the
+ * full data associated with the `RynamoEvent` in case the receiver of a stub is
+ * not allowed to view that data.
  */
-export type DynamoGeneralRealtimeEventStub = SchemaType<
-    typeof DynamoGeneralRealtimeEventStubSchema
->;
+export type RynamoEventStub = SchemaType<typeof RynamoEventStubSchema>;
 
-export const DynamoGeneralRealtimeEventStubSchema = Schema.object({
+export const RynamoEventStubSchema = Schema.object({
     type: Schema.enum(["PutItem", "DeleteItem"]),
     item: Schema.object({
         key: DynamoItemKeySchema,
@@ -366,21 +362,21 @@ export const DynamoGeneralRealtimeEventStubSchema = Schema.object({
 
 // NOTE(calebmer): I don't think any code actually depends on this relationship
 // between the event type and event stub type but it's nice in theory.
-assertAssignableTypes<DynamoGeneralRealtimeEvent<unknown>, DynamoGeneralRealtimeEventStub>();
+assertAssignableTypes<RynamoEvent<unknown>, RynamoEventStub>();
 
-export type DynamoGeneralRealtimeBackfillResult<Model> =
+export type RynamoBackfillResult<Model> =
     | {
           readonly type: "Unavailable";
       }
     | {
           readonly type: "Available";
           readonly checkpoint: ServerSynchronizationCheckpoint;
-          readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>;
+          readonly eventTransaction: ReadonlyArray<RynamoEvent<Model>>;
       };
 
-export function createDynamoGeneralRealtimeBackfillResultSchema<Model>(
+export function createRynamoBackfillResultSchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeBackfillResult<Model>> {
+): Schema<RynamoBackfillResult<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -391,7 +387,7 @@ export function createDynamoGeneralRealtimeBackfillResultSchema<Model>(
         Available: Schema.object({
             type: Schema.value("Available"),
             checkpoint: ServerSynchronizationCheckpointSchema,
-            eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(ModelSchema)),
+            eventTransaction: Schema.array(createRynamoEventSchema(ModelSchema)),
         }),
     });
 }

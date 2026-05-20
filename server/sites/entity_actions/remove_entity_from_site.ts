@@ -10,7 +10,7 @@ import {dangerouslyGetSiteAccessPolicyWithoutAuthorization} from "~/server/sites
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -28,9 +28,9 @@ export async function removeEntityFromSite(
         entityId: SiteItemSearchEntityId;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     // When removing an entity from a site, we copy the site's local access policy into
     // the entity.
@@ -76,9 +76,9 @@ async function runRemoveEntityFromSiteByEntityType(
     entity: ReturnType<typeof parseSiteItemSearchEntityId>,
     newAccessPolicy: LocalAccessPolicy,
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     switch (entity.type) {
         case "Channel": {
@@ -98,8 +98,10 @@ async function runRemoveEntityFromSiteByEntityType(
             });
         }
         case "Task": {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} =
-                await commitTaskActionTransaction(context.actor.authorizeSession(), input.spaceId, [
+            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                [
                     {
                         type: "UpdateTask",
                         time: [Date.now(), 0],
@@ -109,14 +111,17 @@ async function runRemoveEntityFromSiteByEntityType(
                             accessPolicy: newAccessPolicy,
                         },
                     },
-                ]);
+                ],
+            );
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite,
+                getRynamoEventTransactionForSite,
             };
         }
         case "TaskCollection": {
-            const {getDynamoGeneralRealtimeEventTransactionForSite} =
-                await commitTaskActionTransaction(context.actor.authorizeSession(), input.spaceId, [
+            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                [
                     {
                         type: "UpdateCollection",
                         time: [Date.now(), 0],
@@ -126,10 +131,11 @@ async function runRemoveEntityFromSiteByEntityType(
                             accessPolicy: newAccessPolicy,
                         },
                     },
-                ]);
+                ],
+            );
 
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite,
+                getRynamoEventTransactionForSite,
             };
         }
         case "Document": {
@@ -181,8 +187,7 @@ async function runRemoveEntityFromSiteByEntityType(
                     ),
                 );
             return {
-                getDynamoGeneralRealtimeEventTransactionForSite: async () =>
-                    eventTransactionForSite,
+                getRynamoEventTransactionForSite: async () => eventTransactionForSite,
             };
         }
         default:

@@ -33,7 +33,7 @@ export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {extraActions, getDynamoGeneralRealtimeEventTransactionForSite} =
+            const {extraActions, getRynamoEventTransactionForSite} =
                 await commitTaskActionTransaction(
                     context.actor.authorizeSession(),
                     input.spaceId,
@@ -69,8 +69,7 @@ export default implementRpcs(definitions, {
                 extraActions,
                 referencedAccounts,
                 referencedSites: referencedSites.filter(isNonNullable),
-                eventTransactionForSite:
-                    await getDynamoGeneralRealtimeEventTransactionForSite(context),
+                eventTransactionForSite: await getRynamoEventTransactionForSite(context),
             };
         },
     },

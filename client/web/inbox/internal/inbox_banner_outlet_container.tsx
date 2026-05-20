@@ -8,7 +8,7 @@ import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
-import {useDynamoGeneralRealtimeItemBase} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItemBase} from "~/client/web/dynamo/use_rynamo_item.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -33,7 +33,7 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
 import {createInboxPostCommentsEntryDynamoItemKey} from "~/shared/notifications/create_inbox_post_comments_entry_dynamo_item_key.js";
@@ -56,8 +56,8 @@ export function InboxBannerOutletContainer({
     withoutArchiveButton,
     children,
 }: {
-    initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-    parentEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    initialEntry: RynamoItem<InboxEntryModel>;
+    parentEntry: RynamoItem<InboxEntryModel> | null;
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
     withoutArchiveButton?: boolean;
@@ -81,9 +81,9 @@ export function InboxBannerOutletContainer({
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const [entry, updateEntry, actuallyUpdateEntryOptimistically, entryWithoutOptimisticUpdates] =
-        useStateWithOptimisticUpdates<
-            DynamoGeneralRealtimeItem<InboxEntryModel> & {readonly isDeleted?: true}
-        >(parentEntry ?? initialEntry);
+        useStateWithOptimisticUpdates<RynamoItem<InboxEntryModel> & {readonly isDeleted?: true}>(
+            parentEntry ?? initialEntry,
+        );
 
     // If the parent provided a newer version of the entry we're rendering then use the
     // parent's version.
@@ -105,9 +105,7 @@ export function InboxBannerOutletContainer({
     const updateEntryOptimistically = useCallback(
         (
             promise: Promise<unknown>,
-            update: (
-                entry: DynamoGeneralRealtimeItem<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeItem<InboxEntryModel>,
+            update: (entry: RynamoItem<InboxEntryModel>) => RynamoItem<InboxEntryModel>,
         ) => {
             actuallyUpdateEntryOptimistically(
                 promise.then(() =>
@@ -273,7 +271,7 @@ export function InboxBannerOutletContainer({
     const withoutReloadItem: boolean =
         !!parentEntry && parentEntry.key === entryWithoutOptimisticUpdates.key;
 
-    useDynamoGeneralRealtimeItemBase(
+    useRynamoItemBase(
         {item: entryWithoutOptimisticUpdates, onUpdateItem: updateEntry},
         {
             isConnected,

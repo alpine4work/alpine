@@ -1,9 +1,9 @@
-import {
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    createRynamoBackfillResultSchema,
+    createRynamoIndexQuerySchema,
+    createRynamoItemSchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     AccountId,
     BrowserId,
@@ -30,7 +30,7 @@ export const getInboxWithStrongReadConsistency = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {
-        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+        inbox: createRynamoItemSchema(InboxModel.schema()),
     },
 });
 
@@ -44,7 +44,7 @@ export const getInboxEntries = defineRpc({
         afterCursor: DynamoIndexCursorSchema.nullable(),
     },
     output: {
-        entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
+        entriesResult: createRynamoIndexQuerySchema(InboxEntryModelSchema),
     },
 });
 
@@ -56,7 +56,7 @@ export const getInboxEntryWithStrongReadConsistency = defineRpc({
         key: InboxEntryKeySchema,
     },
     output: {
-        entry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+        entry: createRynamoItemSchema(InboxEntryModelSchema),
     },
 });
 
@@ -68,8 +68,7 @@ export const backfillInboxEntries = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillEntriesResult:
-            createDynamoGeneralRealtimeBackfillResultSchema(InboxEntryModelSchema),
+        backfillEntriesResult: createRynamoBackfillResultSchema(InboxEntryModelSchema),
     },
 });
 

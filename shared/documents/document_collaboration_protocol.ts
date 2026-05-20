@@ -16,7 +16,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
@@ -36,7 +36,7 @@ import {
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
@@ -166,9 +166,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             },
             output: {
                 newVersion: Schema.integer,
-                eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).default(
-                    [],
-                ),
+                eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
             },
         },
 
@@ -457,7 +455,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         SpellCheckRealtimeEventTransaction: Schema.object({
             type: Schema.value("SpellCheckRealtimeEventTransaction"),
             eventTransaction: Schema.array(
-                createDynamoGeneralRealtimeEventSchema(SpellCheckIgnoredLintModel.schema()),
+                createRynamoEventSchema(SpellCheckIgnoredLintModel.schema()),
             ),
         }),
     },

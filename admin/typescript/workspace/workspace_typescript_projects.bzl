@@ -131,7 +131,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/documents/data:data",
     "//server/documents/test_helpers:test_helpers",
     "//server/dynamo/core:core",
-    "//server/dynamo/core/general_realtime:general_realtime",
+    "//server/dynamo/core/rynamo:rynamo",
     "//server/dynamo/test_helpers:test_helpers",
     "//server/edge:edge_lib",
     "//server/edge:upload_file",

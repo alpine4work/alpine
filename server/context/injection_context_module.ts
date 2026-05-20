@@ -20,7 +20,7 @@
  * circular dependency. And there's no way to refactor Bazel packages such that you
  * can eliminate the circular dependency.
  */
-import {DynamoGeneralRealtimeTransactionEntry} from "~/server/context/dynamo_general_realtime_transaction_entry.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerActionContext,
     ServerActionContextModules,
@@ -52,12 +52,8 @@ import {Context, ContextModulesType} from "~/shared/context/context.js";
 import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoItem, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
 import {ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -197,7 +193,7 @@ export type ForumInjection = {
             afterItemKey?: DynamoItemKey | null;
             consistency?: DynamoReadConsistency;
         },
-    ): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null>;
+    ): Promise<Result<RynamoQueryResult<ChannelOrMetadataModel>, ErrorBase> | null>;
 
     isSubscribedToChannel(
         context: ServerSessionActionContext,
@@ -209,7 +205,7 @@ export type ForumInjection = {
         context: ServerActionContext,
         postId: PostId,
         options?: {consistency?: DynamoReadConsistency},
-    ): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>>;
+    ): Promise<Result<RynamoItem<PostModel>, ErrorBase>>;
 
     getPostAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
@@ -371,10 +367,10 @@ export type SitesInjection = {
         },
     ): Promise<
         Array<{
-            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            transactionEntry: RynamoTransactionEntry;
             getEvent: (
                 context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
         }>
     >;
 
@@ -384,10 +380,10 @@ export type SitesInjection = {
         entityId: SiteItemSearchEntityId,
     ): Promise<
         Array<{
-            transactionEntry: DynamoGeneralRealtimeTransactionEntry;
+            transactionEntry: RynamoTransactionEntry;
             getEvent: (
                 context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>;
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
         }>
     >;
 };

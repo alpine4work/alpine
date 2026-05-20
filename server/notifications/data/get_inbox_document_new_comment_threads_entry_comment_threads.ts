@@ -12,7 +12,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -47,7 +47,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         commentThreadCountAgainstLimit: number;
     },
 ): Promise<{
-    inboxEntry: DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
+    inboxEntry: RynamoItem<InboxDocumentNewCommentThreadsEntryModel>;
     document: DocumentModel;
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
     initialCommentsByCommentThreadId: Map<

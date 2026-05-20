@@ -3,7 +3,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     SiteTreeItem,
@@ -14,7 +14,7 @@ import {
     SiteEntryItem,
     SitesTable,
 } from "~/server/sites/data/internal/sites_table.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -58,9 +58,9 @@ export async function moveSiteEntry(
               });
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEventTransaction: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const newParentId = item.newPosition.parentId;
     const newOrderKey = item.newPosition.orderKey;
@@ -98,7 +98,7 @@ export async function moveSiteEntry(
             //    From the server's perspective, the item is already in the new position. If it
             //    were to throw, the client's move from B back to A would fail.
             return {
-                getDynamoGeneralRealtimeEventTransaction: async () => [],
+                getRynamoEventTransaction: async () => [],
             };
         }
 
@@ -118,7 +118,7 @@ export async function moveSiteEntry(
             item.newPosition,
         );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        await RynamoTableSchema.executeTransaction(context, [
             updateSiteAttributesEntry.transactionEntry,
             updateSiteItemEntry.transactionEntry,
         ]);
@@ -133,7 +133,7 @@ export async function moveSiteEntry(
         );
 
         return {
-            getDynamoGeneralRealtimeEventTransaction: async (eventContext: ServerActionContext) =>
+            getRynamoEventTransaction: async (eventContext: ServerActionContext) =>
                 runAllPromises([
                     updateSiteAttributesEntry.getEvent(eventContext),
                     updateSiteItemEntry.getEvent(eventContext),

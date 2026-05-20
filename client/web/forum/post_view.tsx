@@ -9,7 +9,7 @@ import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
@@ -28,7 +28,7 @@ export function PostView({
     initialParent,
 }: {
     initialCheckpoint: ServerSynchronizationCheckpoint;
-    initialPost: DynamoGeneralRealtimeItem<PostModel>;
+    initialPost: RynamoItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScroll: Memo<PostViewInitialScroll> | null;

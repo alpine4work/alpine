@@ -153,8 +153,9 @@ describe("createSite", () => {
             root: {type: "SideBar"},
         });
 
-        const [sitePreviewEvent, siteEntryEvent] =
-            await result.getDynamoGeneralRealtimeEventTransaction(session.action());
+        const [sitePreviewEvent, siteEntryEvent] = await result.getRynamoEventTransaction(
+            session.action(),
+        );
 
         expect(sitePreviewEvent.type).toBe("PutItem");
         if (sitePreviewEvent.type === "PutItem") {

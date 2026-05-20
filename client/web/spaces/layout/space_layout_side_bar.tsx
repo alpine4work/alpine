@@ -21,7 +21,7 @@ import {SpaceLayoutSideBarSearchEducationHint} from "~/client/web/spaces/layout/
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {createLifetimeAccessCheckoutSessionUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -37,7 +37,7 @@ export function SpaceLayoutSideBar({
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
     isSearchModalOpen: boolean;
     onSearchPress: () => void;
 }) {

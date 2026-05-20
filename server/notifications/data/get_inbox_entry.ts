@@ -4,7 +4,7 @@ import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inb
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryKey, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
@@ -23,7 +23,7 @@ export async function getInboxEntry(
         key: InboxEntryKey;
         consistency?: DynamoReadConsistency;
     },
-): Promise<DynamoGeneralRealtimeItem<InboxEntryModel>> {
+): Promise<RynamoItem<InboxEntryModel>> {
     const accountId = context.actor.getAccountId();
 
     await runAllPromises([

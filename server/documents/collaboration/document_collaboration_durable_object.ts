@@ -522,15 +522,14 @@ class DocumentCollaborationDurableObject {
                         await request.json(),
                     );
 
-                const {newVersion, getDynamoGeneralRealtimeEventTransactionForSite} =
+                const {newVersion, getRynamoEventTransactionForSite} =
                     await this._contentManager.updateAndWaitForPersistence(
                         accountContext,
                         null,
                         requestBody,
                     );
 
-                const eventTransactionForSite =
-                    await getDynamoGeneralRealtimeEventTransactionForSite();
+                const eventTransactionForSite = await getRynamoEventTransactionForSite();
 
                 return new Response(
                     JSON.stringify(

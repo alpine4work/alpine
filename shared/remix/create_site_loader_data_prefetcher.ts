@@ -1,4 +1,4 @@
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
@@ -57,7 +57,7 @@ export function createSiteLoaderDataPrefetcher({
 }: {
     request: Request;
     entityId: SiteItemSearchEntityId;
-    fetchSite: (siteId: SiteId) => Promise<DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>>;
+    fetchSite: (siteId: SiteId) => Promise<RynamoQueryResult<SiteOrSiteEntryModel>>;
 }): SiteLoaderDataPrefetcher {
     // Ref-shaped on purpose. A plain `let value: ... | null = null` would get narrowed
     // to `null` by TS's flow analysis, and TS doesn't widen back through closures
@@ -70,9 +70,7 @@ export function createSiteLoaderDataPrefetcher({
             | {
                   type: "UseNewSite";
                   siteId: SiteId;
-                  initialQueryResultPromise: Promise<
-                      DynamoGeneralRealtimeQueryResult<SiteOrSiteEntryModel>
-                  >;
+                  initialQueryResultPromise: Promise<RynamoQueryResult<SiteOrSiteEntryModel>>;
                   activeEntityId: SiteItemSearchEntityId;
               }
             | null;

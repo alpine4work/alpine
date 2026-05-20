@@ -1,6 +1,6 @@
 import {AvatarThemeSchema} from "~/shared/avatar/avatar_schema.js";
 import {selectableSpaceThemeColors} from "~/shared/design/core/theme_colors.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -71,7 +71,7 @@ export const getOurAccountSpaces = defineRpc({
         spaces: Schema.array(
             Schema.object({
                 space: SpaceModel.schema(),
-                inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
+                inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
             }),
         ),
     },

@@ -6,23 +6,23 @@ import {
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
 import {
-    DynamoGeneralRealtimeEventStubSchema,
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeEventSchema,
-    createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeItemSchema,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {
     DynamoIndexCursorSchema,
     DynamoItemKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    RynamoEventStubSchema,
+    createRynamoBackfillResultSchema,
+    createRynamoEventSchema,
+    createRynamoIndexQuerySchema,
+    createRynamoItemSchema,
+    createRynamoQuerySchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
-import {DynamoGeneralRealtimeChannelOrPostEventSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {RynamoChannelOrPostEventSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostContentSchema, PostContentStepSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
+import {RynamoPostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
@@ -35,7 +35,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {DynamoGeneralRealtimeSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -54,7 +54,7 @@ export const createChannel = defineRpc({
     output: {
         channelId: Schema.id<ChannelId>(),
         createdTime: Schema.date,
-        eventTransactionForSite: Schema.array(DynamoGeneralRealtimeSiteEventSchema).default([]),
+        eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
     },
 });
 
@@ -66,9 +66,7 @@ export const updateChannelName = defineRpc({
         name: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
-        ),
+        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -80,9 +78,7 @@ export const updateChannelDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
-        ),
+        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -95,9 +91,7 @@ export const updateChannelNameAndDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
-        ),
+        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -111,9 +105,7 @@ export const updateChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
-        ),
+        eventTransaction: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
     },
 });
 
@@ -130,9 +122,7 @@ export const addAccountGrantsToChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
-        ),
+        eventTransaction: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
     },
 });
 
@@ -143,7 +133,7 @@ export const getChannelWithStrongReadConsistency = defineRpc({
         channelId: Schema.id<ChannelId>(),
     },
     output: {
-        channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
+        channel: createRynamoItemSchema(ChannelModel.schema()),
     },
 });
 
@@ -156,7 +146,7 @@ export const getChannelAndMetadata = defineRpc({
         afterItemKey: DynamoItemKeySchema.optional(),
     },
     output: {
-        channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
+        channelResult: createRynamoQuerySchema(ChannelOrMetadataModelSchema),
     },
 });
 
@@ -168,9 +158,7 @@ export const backfillChannelAndMetadata = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillChannelResult: createDynamoGeneralRealtimeBackfillResultSchema(
-            ChannelOrMetadataModelSchema,
-        ),
+        backfillChannelResult: createRynamoBackfillResultSchema(ChannelOrMetadataModelSchema),
     },
 });
 
@@ -212,7 +200,7 @@ export const getChannelPosts = defineRpc({
         beforeCursor: DynamoIndexCursorSchema.nullable(),
     },
     output: {
-        postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
+        postsResult: createRynamoIndexQuerySchema(PostModel.schema()),
     },
 });
 
@@ -224,7 +212,7 @@ export const backfillChannelPosts = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillPostsResult: createDynamoGeneralRealtimeBackfillResultSchema(PostModel.schema()),
+        backfillPostsResult: createRynamoBackfillResultSchema(PostModel.schema()),
     },
 });
 
@@ -235,7 +223,7 @@ export const getPostWithStrongReadConsistency = defineRpc({
         postId: Schema.id<PostId>(),
     },
     output: {
-        post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
+        post: createRynamoItemSchema(PostModel.schema()),
     },
 });
 
@@ -255,7 +243,7 @@ export const createPost = defineRpc({
             spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
         }),
-        eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
+        eventTransaction: Schema.array(createRynamoEventSchema(PostModel.schema())),
     },
 });
 
@@ -270,7 +258,7 @@ export const updatePostContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
+        eventTransaction: Schema.array(createRynamoEventSchema(PostModel.schema())),
     },
 });
 
@@ -477,10 +465,10 @@ export const getPostRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
-        eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+        eventTransaction: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+        eventTransaction: Schema.array(RynamoPostEventSchema),
     },
 });
 
@@ -489,10 +477,10 @@ export const getChannelRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
-        eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+        eventTransaction: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
+        eventTransaction: Schema.array(RynamoChannelOrPostEventSchema),
     },
 });
 
@@ -504,7 +492,7 @@ export const setPostReaction = defineRpc({
         reaction: ReactionOrGenericLikeSchema,
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+        eventTransaction: Schema.array(RynamoPostEventSchema),
     },
 });
 
@@ -515,6 +503,6 @@ export const deletePostReaction = defineRpc({
         postId: Schema.id<PostId>(),
     },
     output: {
-        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+        eventTransaction: Schema.array(RynamoPostEventSchema),
     },
 });

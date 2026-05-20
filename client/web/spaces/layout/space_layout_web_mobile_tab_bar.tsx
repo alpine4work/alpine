@@ -5,7 +5,7 @@ import {usePress} from "react-aria";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useLocation} from "react-router";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/script_before_initial_app_render.js";
 import {useSessionStorage} from "~/client/web/helpers/use_local_storage.js";
@@ -28,7 +28,7 @@ import {
     spaceLayoutStyles,
 } from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -41,11 +41,7 @@ import {
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
-export function SpaceLayoutWebMobileTabBar({
-    initialInbox,
-}: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-}) {
+export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: RynamoItem<InboxModel>}) {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
 
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
@@ -64,7 +60,7 @@ export function SpaceLayoutWebMobileTabBar({
     // which would be inefficient.
     assert(platform === "mobile" && !isNativeMobile);
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
             subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),

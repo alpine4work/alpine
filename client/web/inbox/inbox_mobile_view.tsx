@@ -22,10 +22,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,7 +33,7 @@ export function InboxMobileView({
     initialEntriesResult,
 }: {
     filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
 }) {
     // This component only supports rendering on mobile platforms. Unlike
     // `<SearchMobileView>` where the `/s/:spaceId/search` route also renders the
@@ -288,12 +285,12 @@ function InboxMobileEntryView({
     deletedItemAnimation,
 }: {
     filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     deletedItemAnimation: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
 }) {
     const navigate = useNavigate();

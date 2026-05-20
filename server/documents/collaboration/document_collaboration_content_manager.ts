@@ -27,7 +27,7 @@ import {
     DocumentContentProsemirrorSchema,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -836,8 +836,8 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
         newVersion: number;
-        getDynamoGeneralRealtimeEventTransactionForSite: () => Promise<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+        getRynamoEventTransactionForSite: () => Promise<
+            ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
         >;
     }> {
         const {
@@ -983,8 +983,8 @@ export class DocumentCollaborationContentManager {
             };
         });
 
-        const getDynamoGeneralRealtimeEventTransactionForSite = async (): Promise<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>
+        const getRynamoEventTransactionForSite = async (): Promise<
+            ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
         > => eventTransactionForSite;
 
         if (steps.length === 0) {
@@ -992,7 +992,7 @@ export class DocumentCollaborationContentManager {
                 presenceState,
                 hasSentPresenceState: false,
                 newVersion: oldVersion,
-                getDynamoGeneralRealtimeEventTransactionForSite,
+                getRynamoEventTransactionForSite,
             };
         }
 
@@ -1132,7 +1132,7 @@ export class DocumentCollaborationContentManager {
             presenceState,
             hasSentPresenceState: true,
             newVersion,
-            getDynamoGeneralRealtimeEventTransactionForSite,
+            getRynamoEventTransactionForSite,
         };
     }
 

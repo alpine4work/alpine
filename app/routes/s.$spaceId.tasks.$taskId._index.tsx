@@ -53,7 +53,7 @@ import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_f
 import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_table.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -125,7 +125,7 @@ const LoaderSchema = Schema.object({
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     }),
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
     initialFieldsAssignee: AccountModel.schema.nullable(),
     filterReferences: TaskQueryFilterReferencesSchema,

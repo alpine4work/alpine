@@ -9,7 +9,7 @@ import {
     OverlayTriggerButtonRef,
 } from "~/client/web/design/overlay_trigger_button.js";
 import {defaultTooltipOffset} from "~/client/web/design/tooltip.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {inboxEntryWidth} from "~/client/web/inbox/inbox_entry_view.js";
 import {LoudNotificationBadgeSvg} from "~/client/web/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -33,10 +33,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -50,7 +47,7 @@ import {
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
 }) {
     const spacingScale = useSpacingScale();
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
@@ -69,7 +66,7 @@ export function SpaceLayoutSideBarInboxButton({
     // inefficient.
     assert(platform !== "mobile" && !isNativeMobile);
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
             subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
@@ -89,7 +86,7 @@ export function SpaceLayoutSideBarInboxButton({
               isAnimatingOut: boolean;
               filter: "New" | "Archive";
               initialEntriesResultPromise: PromiseImmediate<
-                  DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
+                  RynamoIndexQueryResult<InboxEntryModel>
               >;
           }
     >({isVisible: false});

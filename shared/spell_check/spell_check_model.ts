@@ -1,4 +1,4 @@
-import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintSchema} from "~/shared/spell_check/spell_check_schema.js";
@@ -21,10 +21,10 @@ export class SpellCheckIgnoredLintModel extends Model(
     }
 }
 
-const DynamoGeneralRealtimeSpellCheckIgnoredEventSchema = createDynamoGeneralRealtimeEventSchema(
+const RynamoSpellCheckIgnoredEventSchema = createRynamoEventSchema(
     SpellCheckIgnoredLintModel.schema(),
 );
 
 export const SpellCheckIgnoredLintRealtimeTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(DynamoGeneralRealtimeSpellCheckIgnoredEventSchema),
+    eventTransaction: Schema.array(RynamoSpellCheckIgnoredEventSchema),
 });

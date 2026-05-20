@@ -29,10 +29,7 @@ import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_in
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
-import {
-    DynamoGeneralRealtimeItem,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -61,10 +58,10 @@ import {
 
 const LoaderSchema = Schema.object({
     checkpoint: ServerSynchronizationCheckpointSchema,
-    channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
+    channel: createRynamoItemSchema(ChannelModel.schema()),
     bucketGeneration: Schema.integer,
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
-    posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
+    inboxEntry: createRynamoItemSchema(InboxEntryModelSchema),
+    posts: Schema.array(createRynamoItemSchema(PostModel.schema())),
     initialCommentsByPostId: Schema.map(
         Schema.id<PostId>(),
         Schema.object({
@@ -211,7 +208,7 @@ function ChannelPostsRoute({
         "This route should only render an `InboxChannelPostsEntryModel` or `InboxPostCommentsEntryModel`",
     );
 
-    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<
+    const inboxEntry = originalInboxEntry as RynamoItem<
         InboxChannelPostsEntryModel | InboxPostCommentsEntryModel
     >;
 

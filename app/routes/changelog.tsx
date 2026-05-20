@@ -16,7 +16,7 @@ import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -54,9 +54,7 @@ const changelogDocumentId = "5fcpht8pr6mh52v5z6cscj08gw" as DocumentId;
 const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     document: DocumentModel.schema(),
-    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
-        SpellCheckIgnoredLintModel.schema(),
-    ),
+    spellCheckIgnoredLints: createRynamoQuerySchema(SpellCheckIgnoredLintModel.schema()),
 });
 
 export function links(): Array<LinkDescriptor> {

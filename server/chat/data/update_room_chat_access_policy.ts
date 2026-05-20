@@ -6,12 +6,12 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -45,9 +45,9 @@ export async function updateRoomChatAccessPolicy(
      * general-realtime table so chat-side events flow through a separate mechanism —
      * only site events are surfaced here.
      */
-    getDynamoGeneralRealtimeEventTransactionForSite: (
+    getRynamoEventTransactionForSite: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const currentTime = new Date();
 
@@ -56,7 +56,7 @@ export async function updateRoomChatAccessPolicy(
         creatorId,
         shouldAddFeedCandidateEntry,
         getChatModel,
-        getDynamoGeneralRealtimeEventTransactionForSite,
+        getRynamoEventTransactionForSite,
     } = await context.dynamo.retryTransaction(async context => {
         const attributesItem = await authorizeChatAccessAndReturnItem(context, chatId, "Manage");
 
@@ -105,14 +105,14 @@ export async function updateRoomChatAccessPolicy(
                         attributesItem: newAttributesItem,
                         accountItems: emptyArray,
                     }),
-                getDynamoGeneralRealtimeEventTransactionForSite: async () => emptyArray,
+                getRynamoEventTransactionForSite: async () => emptyArray,
             };
         } else {
             const updateAttrtibutesTransactionEntry =
                 ChatTable.transactionDirectlyUpdateItem(updatedAttributesItem);
             // Commit the chat update and the site item writes in a single transaction so the
             // chat's access policy and the site membership stay consistent.
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            await RynamoTableSchema.executeTransaction(context, [
                 updateAttrtibutesTransactionEntry,
                 ...transactionEntries.map(entry => entry.transactionEntry),
             ]);
@@ -127,9 +127,8 @@ export async function updateRoomChatAccessPolicy(
                         attributesItem: updateAttrtibutesTransactionEntry.newItem,
                         accountItems: emptyArray,
                     }),
-                getDynamoGeneralRealtimeEventTransactionForSite: async (
-                    eventContext: ServerActionContext,
-                ) => runAllPromises(transactionEntries.map(entry => entry.getEvent(eventContext))),
+                getRynamoEventTransactionForSite: async (eventContext: ServerActionContext) =>
+                    runAllPromises(transactionEntries.map(entry => entry.getEvent(eventContext))),
             };
         }
     });
@@ -170,5 +169,5 @@ export async function updateRoomChatAccessPolicy(
         });
     }
 
-    return {get: getChatModel, getDynamoGeneralRealtimeEventTransactionForSite};
+    return {get: getChatModel, getRynamoEventTransactionForSite};
 }

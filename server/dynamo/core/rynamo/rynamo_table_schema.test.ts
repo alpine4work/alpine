@@ -4,11 +4,11 @@ import {
     DynamoItem,
     finishInitializingDynamoTableSchemas,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -32,9 +32,8 @@ test("can delete and undelete items", async () => {
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
-    > = [];
+    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
+        [];
 
     const takeEventTransactions = () => {
         const currentEventTransactions = eventTransactions;
@@ -42,7 +41,7 @@ test("can delete and undelete items", async () => {
         return currentEventTransactions;
     };
 
-    const TestTable = DynamoGeneralRealtimeTableSchema.new({
+    const TestTable = RynamoTableSchema.new({
         withoutCompatibilityErrorsForTest: true,
         name: `Test_${generateId()}`,
         features: {
@@ -1720,9 +1719,8 @@ test("can delete and undelete items (with transactions)", async () => {
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
-    > = [];
+    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
+        [];
 
     const takeEventTransactions = () => {
         const currentEventTransactions = eventTransactions;
@@ -1730,7 +1728,7 @@ test("can delete and undelete items (with transactions)", async () => {
         return currentEventTransactions;
     };
 
-    const TestTable = DynamoGeneralRealtimeTableSchema.new({
+    const TestTable = RynamoTableSchema.new({
         withoutCompatibilityErrorsForTest: true,
         name: `Test_${generateId()}`,
         features: {
@@ -1928,7 +1926,7 @@ test("can delete and undelete items (with transactions)", async () => {
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionCreateItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA1",
@@ -1959,7 +1957,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionCreateItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -1990,7 +1988,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionCreateItem({
                 partitionType: "PartitionB",
                 sortRangeType: "SortRangeB1",
@@ -2021,7 +2019,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionCreateItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -2061,7 +2059,7 @@ test("can delete and undelete items (with transactions)", async () => {
             sortA2Key: 5,
         });
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(oldItem.update({attribute: 13})),
         ]);
 
@@ -2087,7 +2085,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(oldItem.update({attribute: 14})),
             ]),
         ).rejects.toThrow(
@@ -2098,7 +2096,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -2310,7 +2308,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -2337,7 +2335,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -2358,7 +2356,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -2379,7 +2377,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -2399,7 +2397,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -2426,7 +2424,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -2611,7 +2609,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 1},
                     {
@@ -2633,7 +2631,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 2},
                 {
@@ -2668,7 +2666,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 3},
                     {
@@ -2690,7 +2688,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 4},
                 {
@@ -2725,7 +2723,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 4},
                     {
@@ -2748,7 +2746,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 5},
                     {
@@ -2910,7 +2908,7 @@ test("can delete and undelete items (with transactions)", async () => {
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -2947,7 +2945,7 @@ test("can delete and undelete items (with transactions)", async () => {
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(
                     DynamoItem.create({
                         partitionType: "PartitionA",
@@ -2967,7 +2965,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -2993,7 +2991,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -3169,7 +3167,7 @@ test("can delete and undelete items (with transactions)", async () => {
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -3216,7 +3214,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionCreateItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -3236,7 +3234,7 @@ test("can delete and undelete items (with transactions)", async () => {
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionCreateItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -3256,7 +3254,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 7},
                 {
@@ -3333,9 +3331,8 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
-    > = [];
+    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
+        [];
 
     const takeEventTransactions = () => {
         const currentEventTransactions = eventTransactions;
@@ -3343,7 +3340,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         return currentEventTransactions;
     };
 
-    const TestTable = DynamoGeneralRealtimeTableSchema.new({
+    const TestTable = RynamoTableSchema.new({
         withoutCompatibilityErrorsForTest: true,
         name: `Test_${generateId()}`,
         features: {
@@ -5050,9 +5047,8 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
-    > = [];
+    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
+        [];
 
     const takeEventTransactions = () => {
         const currentEventTransactions = eventTransactions;
@@ -5060,7 +5056,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         return currentEventTransactions;
     };
 
-    const TestTable = DynamoGeneralRealtimeTableSchema.new({
+    const TestTable = RynamoTableSchema.new({
         withoutCompatibilityErrorsForTest: true,
         name: `Test_${generateId()}`,
         features: {
@@ -5258,7 +5254,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 DynamoItem.create({
                     partitionType: "PartitionA",
@@ -5291,7 +5287,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 DynamoItem.create({
                     partitionType: "PartitionA",
@@ -5324,7 +5320,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 DynamoItem.create({
                     partitionType: "PartitionB",
@@ -5357,7 +5353,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ],
         ]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 DynamoItem.create({
                     partitionType: "PartitionA",
@@ -5399,7 +5395,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             sortA2Key: 5,
         });
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(oldItem.update({attribute: 13})),
         ]);
 
@@ -5425,7 +5421,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(oldItem.update({attribute: 14})),
             ]),
         ).rejects.toThrow(
@@ -5436,7 +5432,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -5650,7 +5646,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -5677,7 +5673,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -5698,7 +5694,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -5719,7 +5715,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -5739,7 +5735,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -5766,7 +5762,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -5953,7 +5949,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 1},
                     {
@@ -5975,7 +5971,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 2},
                 {
@@ -6010,7 +6006,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 3},
                     {
@@ -6032,7 +6028,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 4},
                 {
@@ -6067,7 +6063,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 4},
                     {
@@ -6090,7 +6086,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionUndeleteItem(
                     {updateLockVersion: 5},
                     {
@@ -6254,7 +6250,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -6291,7 +6287,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         ]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(
                     DynamoItem.create({
                         partitionType: "PartitionA",
@@ -6311,7 +6307,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -6337,7 +6333,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
                 (
                     await TestTable.getItem(context, {
@@ -6515,7 +6511,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
     }
 
     {
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "PartitionA",
                 sortRangeType: "SortRangeA2",
@@ -6562,7 +6558,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(
                     DynamoItem.create({
                         partitionType: "PartitionA",
@@ -6584,7 +6580,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         expect(takeEventTransactions()).toEqual([]);
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem({
                     partitionType: "PartitionA",
                     sortRangeType: "SortRangeA2",
@@ -6612,7 +6608,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         expect(takeEventTransactions()).toEqual([]);
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
                 {updateLockVersion: 7},
                 {
@@ -6693,7 +6689,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         });
 
         let eventTransactions: Array<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
+            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
         > = [];
 
         const takeEventTransactions = () => {
@@ -6702,7 +6698,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             return currentEventTransactions;
         };
 
-        const TestTable = DynamoGeneralRealtimeTableSchema.new({
+        const TestTable = RynamoTableSchema.new({
             withoutCompatibilityErrorsForTest: true,
             name: `Test_${generateId()}`,
             partitions: [
@@ -7117,7 +7113,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         });
 
         let eventTransactions: Array<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
+            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
         > = [];
 
         const takeEventTransactions = () => {
@@ -7126,7 +7122,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             return currentEventTransactions;
         };
 
-        const TestTable = DynamoGeneralRealtimeTableSchema.new({
+        const TestTable = RynamoTableSchema.new({
             withoutCompatibilityErrorsForTest: true,
             features: {deleteItem: {Partition: {SortRange: true}}},
             name: `Test_${generateId()}`,
@@ -7465,7 +7461,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         });
 
         let eventTransactions: Array<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
+            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
         > = [];
 
         const takeEventTransactions = () => {
@@ -7474,7 +7470,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             return currentEventTransactions;
         };
 
-        const TestTable = DynamoGeneralRealtimeTableSchema.new({
+        const TestTable = RynamoTableSchema.new({
             withoutCompatibilityErrorsForTest: true,
             name: `Test_${generateId()}`,
             partitions: [
@@ -7657,7 +7653,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         });
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem(
                     DynamoItem.create({
                         partitionType: "Partition",
@@ -7676,7 +7672,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         );
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem({
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
@@ -7702,7 +7698,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         );
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDirectlyUpdateItem({
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
@@ -7727,7 +7723,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             ),
         );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem({
                 partitionType: "Partition",
                 sortRangeType: "SortRange",
@@ -7896,7 +7892,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         });
 
         let eventTransactions: Array<
-            ReadonlyArray<DynamoGeneralRealtimeEvent<SchemaType<typeof TestModelSchema>>>
+            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
         > = [];
 
         const takeEventTransactions = () => {
@@ -7905,7 +7901,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             return currentEventTransactions;
         };
 
-        const TestTable = DynamoGeneralRealtimeTableSchema.new({
+        const TestTable = RynamoTableSchema.new({
             withoutCompatibilityErrorsForTest: true,
             features: {deleteItem: {Partition: {SortRange: true}}},
             name: `Test_${generateId()}`,
@@ -8089,7 +8085,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         });
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
@@ -8106,7 +8102,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         );
 
         await expect(
-            DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+            RynamoTableSchema.executeTransaction(space.systemAction(), [
                 TestTable.transactionDeleteItem({
                     partitionType: "Partition",
                     sortRangeType: "SortRange",
@@ -8122,7 +8118,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             ),
         );
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(space.systemAction(), [
+        await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
                 partitionType: "Partition",
                 sortRangeType: "SortRange",

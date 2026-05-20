@@ -8,11 +8,8 @@ import {
     ChannelPreviewItemAuthorizationCache,
     convertChannelModelToChannelPreviewAttributesItem,
 } from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
-import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoBackfillResult, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -47,7 +44,7 @@ export function getChannelAndMetadataIfPossible(
         consistency?: DynamoReadConsistency;
         onSiteId?: (siteId: SiteId) => void;
     },
-): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
+): Promise<Result<RynamoQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
     if (afterItemKey) {
         return (async () => {
             const [channelResult, queryResult] = await runAllPromises([
@@ -73,7 +70,7 @@ export function getChannelAndMetadataIfPossible(
         const channelPromiseResolver = createPromiseResolver<ChannelModel | null>();
 
         const promise = (async (): Promise<Result<
-            DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>,
+            RynamoQueryResult<ChannelOrMetadataModel>,
             ErrorBase
         > | null> => {
             const result = await ForumRealtimeTable.realtimeQuery(context, {
@@ -188,7 +185,7 @@ export async function getChannelAndMetadata(
         consistency?: DynamoReadConsistency;
         onSiteId?: (siteId: SiteId) => void;
     },
-): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
+): Promise<RynamoQueryResult<ChannelOrMetadataModel>> {
     const result = await getChannelAndMetadataIfPossible(context, options);
     if (!result) throw createChannelNotFoundError(options.channelId);
     return unwrapResult(result);
@@ -207,7 +204,7 @@ export async function backfillChannelAndMetadata(
         channelId: ChannelId;
         checkpoint: ServerSynchronizationCheckpoint;
     },
-): Promise<DynamoGeneralRealtimeBackfillResult<ChannelOrMetadataModel>> {
+): Promise<RynamoBackfillResult<ChannelOrMetadataModel>> {
     const [, result] = await runAllPromises([
         authorizeChannelAccess(context, channelId, "View"),
 

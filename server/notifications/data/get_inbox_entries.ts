@@ -2,11 +2,8 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeIndexQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoBackfillResult, RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -29,7 +26,7 @@ export async function getInboxEntries(
         limit: number;
         afterCursor: DynamoIndexCursor | null;
     },
-): Promise<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>> {
+): Promise<RynamoIndexQueryResult<InboxEntryModel>> {
     const accountId = context.actor.getAccountId();
 
     await runAllPromises([
@@ -110,7 +107,7 @@ export async function getInboxEntries(
 export async function backfillInboxEntries(
     context: ServerSessionActionContext,
     {spaceId, checkpoint}: {spaceId: SpaceId; checkpoint: ServerSynchronizationCheckpoint},
-): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
+): Promise<RynamoBackfillResult<InboxEntryModel>> {
     const accountId = context.actor.getAccountId();
 
     await runAllPromises([

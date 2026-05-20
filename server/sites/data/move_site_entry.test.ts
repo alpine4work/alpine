@@ -71,7 +71,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEventTransaction).toBeDefined();
     });
 
     test("moves a SideBarSection to a different parent", async () => {
@@ -101,7 +101,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEventTransaction).toBeDefined();
     });
 
     test("moves an Entity to a different container", async () => {
@@ -134,7 +134,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEventTransaction).toBeDefined();
 
         // Verify the entity was actually re-parented under the section.
         const movedItem = await SitesTable.getItem(session.action(), {
@@ -201,7 +201,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        const events = await result.getDynamoGeneralRealtimeEventTransaction(session.action());
+        const events = await result.getRynamoEventTransaction(session.action());
         expect(events).toEqual([]);
     });
 
@@ -381,7 +381,7 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEventTransaction).toBeDefined();
     });
 
     test("moving entity to same parent but different orderKey succeeds", async () => {
@@ -447,6 +447,6 @@ describe("moveSiteEntry", () => {
             },
         });
 
-        expect(result.getDynamoGeneralRealtimeEventTransaction).toBeDefined();
+        expect(result.getRynamoEventTransaction).toBeDefined();
     });
 });
