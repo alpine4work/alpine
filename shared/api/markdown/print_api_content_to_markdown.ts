@@ -56,6 +56,7 @@ declare module "mdast" {
 
     export interface LinkData {
         mentionElement?: ApiContentMentionInlineElement;
+        mentionTarget?: ApiMentionTarget;
     }
 
     export interface ImageData {
@@ -69,6 +70,10 @@ declare module "mdast" {
         fileElement?: ApiContentFileBlockElement;
         previewElement?: ApiContentPreviewBlockElement;
         fileGalleryElementRow?: ApiContentFileGalleryBlockElementRow;
+        fileOrPreviewElementByUrl?: Map<
+            string,
+            ApiContentFileBlockElement | ApiContentPreviewBlockElement
+        >;
     }
 }
 

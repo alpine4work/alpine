@@ -3,6 +3,7 @@ import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
+    HtmlData,
     List,
     ListItem,
     PhrasingContent,
@@ -24,7 +25,11 @@ import {
     ApiContentFileOrPreviewBlockElement,
     parseApiContentFileOrPreviewBlockElementFromUrl,
 } from "~/shared/api/markdown/internal/parse_api_content_file_or_preview_block_element_from_url.js";
-import {normalizeDraftApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
+import {
+    normalizeApiContentBlockElement,
+    normalizeApiTarget,
+    normalizeDraftApiContentInlineElementMarks,
+} from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiContent,
@@ -398,13 +403,43 @@ function* parseApiContentBlockElementFromMarkdown(
             ) {
                 const imageNode = firstChild;
 
-                const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
+                const fileOrPreviewElement = parseApiContentFileOrPreviewBlockElementFromUrl(
                     options.spaceId,
                     imageNode.url,
                 );
 
-                if (fileOrPreview !== null) {
-                    yield fileOrPreview;
+                if (firstChild.data?.fileElement) {
+                    // If we were provided a `fileElement` then use it. Since it may have response
+                    // properties like `contentType` and `contentLength`. Though make sure it matches
+                    // the parsed file element first.
+                    assert(
+                        isDeepEqual(
+                            fileOrPreviewElement,
+                            normalizeApiContentBlockElement(firstChild.data.fileElement),
+                        ),
+                    );
+
+                    yield firstChild.data.fileElement;
+                    break;
+                }
+
+                if (firstChild.data?.previewElement) {
+                    // If we were provided a `previewElement` then use it. Since it may have response
+                    // properties like `target.title`. Though make sure it matches the parsed preview
+                    // element first.
+                    assert(
+                        isDeepEqual(
+                            fileOrPreviewElement,
+                            normalizeApiContentBlockElement(firstChild.data.previewElement),
+                        ),
+                    );
+
+                    yield firstChild.data.previewElement;
+                    break;
+                }
+
+                if (fileOrPreviewElement !== null) {
+                    yield fileOrPreviewElement;
                     break;
                 }
             }
@@ -456,10 +491,18 @@ function* parseApiContentBlockElementFromMarkdown(
                     // Concatenate all adjacent html children into a single string for the block HTML
                     // parser.
                     let combinedHtml = "";
+                    let combinedData: HtmlData | undefined;
                     for (let i = mediaStartIndex; i <= mediaEndIndex; i++) {
                         const child = content.children[i]!;
                         if (child.type === "html") {
                             combinedHtml += child.value;
+                            if (child.data?.fileOrPreviewElementByUrl) {
+                                combinedData ??= {};
+                                combinedData.fileOrPreviewElementByUrl ??= new Map();
+                                for (const [key, value] of child.data.fileOrPreviewElementByUrl) {
+                                    combinedData.fileOrPreviewElementByUrl.set(key, value);
+                                }
+                            }
                         }
                     }
 
@@ -480,7 +523,7 @@ function* parseApiContentBlockElementFromMarkdown(
 
                     // Parse the combined inline HTML as block-level HTML to extract the media element.
                     yield* parseApiContentBlockElementFromMarkdown(
-                        {type: "html", value: combinedHtml},
+                        {type: "html", value: combinedHtml, data: combinedData},
                         definitions,
                         tableState,
                         options,
@@ -826,10 +869,20 @@ function* parseApiContentBlockElementFromMarkdown(
                 }
 
                 if (mediaUrl && options.spaceId !== null) {
-                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
+                    let element = parseApiContentFileOrPreviewBlockElementFromUrl(
                         options.spaceId,
                         mediaUrl,
                     );
+
+                    const dataElement = content.data?.fileOrPreviewElementByUrl?.get(mediaUrl);
+                    if (dataElement) {
+                        // If we were provided a `fileElement` then use it. Since it may have response
+                        // properties like `contentType` and `contentLength`. Though make sure it matches
+                        // the parsed file element first.
+                        assert(isDeepEqual(element, normalizeApiContentBlockElement(dataElement)));
+
+                        element = dataElement;
+                    }
 
                     if (element !== null) {
                         if (divFileState?.containerType === "file-gallery-row") {
@@ -2374,10 +2427,18 @@ function* parseApiContentInlineElementFromMarkdown(
                 // Noop
             }
 
-            const mentionTarget =
+            let mentionTarget =
                 url !== undefined && options.spaceId !== null
                     ? parseApiMentionTargetIfPossible(options.spaceId, url)
                     : null;
+
+            // If a mention target was already parsed for us then let's use that instead. It
+            // may be a response specialization and contain additional properties like `title`.
+            if (content.data?.mentionTarget) {
+                assert(isDeepEqual(mentionTarget, normalizeApiTarget(content.data.mentionTarget)));
+
+                mentionTarget = content.data.mentionTarget;
+            }
 
             if (mentionTarget === null) {
                 markStack.push({type: "Link", url: content.url});

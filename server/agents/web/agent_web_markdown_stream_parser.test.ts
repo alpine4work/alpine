@@ -2951,7 +2951,11 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                             ],
                         },
@@ -2979,7 +2983,11 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                                 {
                                     type: "Text",
@@ -3115,7 +3123,12 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Task", id: taskId},
+                                    target: {
+                                        type: "Task",
+                                        id: taskId,
+                                        title: "Brown Fox Jumps Over The",
+                                        status: {type: "Open", isActive: true},
+                                    },
                                 },
                             ],
                         },
@@ -3143,7 +3156,12 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Task", id: taskId},
+                                    target: {
+                                        type: "Task",
+                                        id: taskId,
+                                        title: "Brown Fox Jumps Over The",
+                                        status: {type: "Open", isActive: true},
+                                    },
                                 },
                                 {
                                     type: "Text",
@@ -3790,7 +3808,11 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                             ],
                         },
@@ -3818,7 +3840,11 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {type: "Document", id: documentId},
+                                    target: {
+                                        type: "Document",
+                                        id: documentId,
+                                        title: "Brown Fox Jumps Over The",
+                                    },
                                 },
                                 {
                                     type: "Text",

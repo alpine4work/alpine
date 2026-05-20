@@ -560,6 +560,9 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                                     },
                                 ],
                                 position: node.position,
+                                data: {
+                                    mentionTarget: mentionTargetResult.target,
+                                },
                             };
                         }
                         default:
@@ -581,6 +584,14 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                         url: printApiFileContentUrl(storage.spaceId, pageLink.id),
                         alt: null,
                         position: node.position,
+                        data: {
+                            fileElement: {
+                                type: "File",
+                                id: pageLink.id,
+                                contentType: pageLink.contentType,
+                                contentLength: pageLink.contentLength,
+                            },
+                        },
                     };
                 }
 
@@ -592,6 +603,12 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     url: printApiPreviewTargetToPreviewUrl(storage.spaceId, previewTarget),
                     alt: printApiMentionTargetToMentionLinkLabel(previewTarget),
                     position: node.position,
+                    data: {
+                        previewElement: {
+                            type: "Preview",
+                            target: previewTarget,
+                        },
+                    },
                 };
             }
             default:
@@ -656,8 +673,6 @@ async function traverseMarkdownHtmlNode(
         string: Promise<string | null>;
     }> = [];
 
-    // NOCOMMIT: Can I get rid of all the machinery to parse response-only properties?
-    // It's unnatural and may lead to bugs. I also don't think it's necessary?
     let fileOrPreviewElementByUrl: Map<
         string,
         ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
@@ -985,7 +1000,11 @@ async function traverseMarkdownHtmlNode(
         newValue = newValue.slice(0, startIndex) + string + newValue.slice(endIndex);
     }
 
-    return {...node, value: newValue};
+    return {
+        ...node,
+        value: newValue,
+        data: fileOrPreviewElementByUrl ? {fileOrPreviewElementByUrl} : undefined,
+    };
 }
 
 function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockContent>> {

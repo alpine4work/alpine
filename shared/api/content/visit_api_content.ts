@@ -141,7 +141,7 @@ export function visitApiContentBlockElement(
     }
 }
 
-function visitApiContentInlineElements(
+export function visitApiContentInlineElements(
     elements: ReadonlyArray<ApiContentInlineElement>,
     visitor: ApiContentVisitor,
 ) {
@@ -152,7 +152,7 @@ function visitApiContentInlineElements(
     }
 }
 
-export function visitApiContentInlineElement(
+function visitApiContentInlineElement(
     element: ApiContentInlineElement,
     visitor: ApiContentVisitor,
 ) {

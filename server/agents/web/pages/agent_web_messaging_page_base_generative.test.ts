@@ -12,17 +12,16 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {
-    visitAndProduceApiContentInlineElement,
     visitDraftApiContent,
+    visitDraftApiContentInlineElements,
 } from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
-    normalizeDraftApiContent,
-    normalizeDraftApiContentInlineElements,
-    normalizeDraftApiContentTarget,
+    normalizeDraftApiContentInlineElementsResponse,
+    normalizeDraftApiContentResponse,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentArbitrary as ActualApiContentArbitrary,
-    ApiContentInlineElementArbitrary,
+    ApiContentInlineElementArbitrary as ActualApiContentInlineElementArbitrary,
     ApiContentTextArbitrary,
     ApiMentionTargetArbitrary,
     createUnionArbitrary,
@@ -37,8 +36,26 @@ const ApiContentArbitrary = ActualApiContentArbitrary.map(content => {
                 }
             },
         });
+
+        normalizeDraftApiContentResponse(content);
     });
 });
+
+const ApiContentInlineElementsArbitrary = fc
+    .array(ActualApiContentInlineElementArbitrary, {maxLength: 4})
+    .map(elements => {
+        return produce(elements, elements => {
+            visitDraftApiContentInlineElements(elements, {
+                visitInlineElement: element => {
+                    if (element.marks?.some(mark => mark.type === "Comment")) {
+                        element.marks = element.marks.filter(mark => mark.type !== "Comment");
+                    }
+                },
+            });
+
+            normalizeDraftApiContentInlineElementsResponse(elements);
+        });
+    });
 
 const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({
@@ -99,18 +116,7 @@ const AgentWebMessagingPagePaginationLinkArbitrary: Arbitrary<
 
 const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> = fc.record({
     preamble: fc.record({
-        elements: fc.array(
-            ApiContentInlineElementArbitrary.map(element => {
-                return visitAndProduceApiContentInlineElement(element, {
-                    visitInlineElement: element => {
-                        if (element.marks?.some(mark => mark.type === "Comment")) {
-                            element.marks = element.marks.filter(mark => mark.type !== "Comment");
-                        }
-                    },
-                });
-            }),
-            {maxLength: 4},
-        ),
+        elements: ApiContentInlineElementsArbitrary,
         paginationLink: AgentWebMessagingPagePaginationLinkArbitrary,
     }),
     blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
@@ -121,17 +127,4 @@ runAgentWebPageGenerativeTests({
     parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     pageLink: fc.constant(true),
     page: AgentWebMessagingPageBaseArbitrary,
-    normalize: page => {
-        normalizeDraftApiContentInlineElements(page.preamble.elements);
-
-        if (page.preamble.paginationLink !== null) {
-            normalizeDraftApiContentTarget(page.preamble.paginationLink.target);
-        }
-
-        for (const block of page.blocks) {
-            if (block.type !== "Message") continue;
-            if (block.parent) normalizeDraftApiContent(block.parent.previewContent);
-            normalizeDraftApiContent(block.content);
-        }
-    },
 });

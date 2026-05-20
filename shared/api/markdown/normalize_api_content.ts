@@ -6,6 +6,7 @@ import {
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentResponse,
     ApiMentionTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -22,16 +23,60 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  */
 export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
-        normalizeDraftApiContentBlockElements(content.elements);
+        normalizeDraftApiContentBlockElements(content.elements, {
+            isResponse: false,
+            withoutFileGalleryElementRowItemWidth: false,
+        });
     });
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeDraftApiContentBlockElements(content.elements);
+    normalizeDraftApiContentBlockElements(content.elements, {
+        isResponse: false,
+        withoutFileGalleryElementRowItemWidth: false,
+    });
 }
+
+/**
+ * If two `ApiContentResponse` objects normalize to the same object (based on an
+ * `isDeepEqual()` check) then the two `ApiContentResponse`s are considered to be
+ * equivalent.
+ *
+ * Does not clean response-only properties. `normalizeApiContent()` will clean
+ * response-only properties.
+ */
+export function normalizeApiContentResponse(
+    content: ApiContentResponse,
+    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+): ApiContentResponse {
+    return produce(content, content => {
+        normalizeDraftApiContentBlockElements(content.elements, {
+            isResponse: true,
+            withoutFileGalleryElementRowItemWidth:
+                options?.withoutFileGalleryElementRowItemWidth ?? false,
+        });
+    });
+}
+
+export function normalizeDraftApiContentResponse(
+    content: Draft<ApiContentResponse>,
+    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+) {
+    normalizeDraftApiContentBlockElements(content.elements, {
+        isResponse: true,
+        withoutFileGalleryElementRowItemWidth:
+            options?.withoutFileGalleryElementRowItemWidth ?? false,
+    });
+}
+
+type ApiContentNormalizationOptions = {
+    readonly isResponse: boolean;
+    readonly withoutFileGalleryElementRowItemWidth: boolean;
+};
 
 function normalizeDraftApiContentBlockElements(
     elements: Draft<ReadonlyArray<ApiContentBlockElement>>,
+    options: ApiContentNormalizationOptions,
 ) {
     let index = 0;
     while (index < elements.length) {
@@ -187,15 +232,29 @@ function normalizeDraftApiContentBlockElements(
             }
         }
 
-        normalizeDraftApiContentBlockElement(elements[index]!);
+        normalizeDraftApiContentBlockElement(elements[index]!, options);
         index++;
     }
 }
 
-function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElement>) {
+export function normalizeApiContentBlockElement(
+    element: ApiContentBlockElement,
+): ApiContentBlockElement {
+    return produce(element, element => {
+        normalizeDraftApiContentBlockElement(element, {
+            isResponse: false,
+            withoutFileGalleryElementRowItemWidth: false,
+        });
+    });
+}
+
+function normalizeDraftApiContentBlockElement(
+    element: Draft<ApiContentBlockElement>,
+    options: ApiContentNormalizationOptions,
+) {
     switch (element.type) {
         case "Paragraph": {
-            normalizeDraftApiContentInlineElements(element.elements);
+            normalizeDraftApiContentInlineElements(element.elements, options);
             break;
         }
         case "UnorderedList":
@@ -203,7 +262,7 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
         case "CheckList": {
             for (const item of element.items) {
                 if (item.elements.length > 0) {
-                    normalizeDraftApiContentBlockElements(item.elements);
+                    normalizeDraftApiContentBlockElements(item.elements, options);
                 } else if (element.type !== "UnorderedList") {
                     // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
                     // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
@@ -232,7 +291,7 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
                 }
 
                 if (item.nestedListElements !== undefined) {
-                    normalizeDraftApiContentBlockElements(item.nestedListElements);
+                    normalizeDraftApiContentBlockElements(item.nestedListElements, options);
 
                     if (item.nestedListElements.length === 0) {
                         item.nestedListElements = undefined;
@@ -242,11 +301,11 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
             break;
         }
         case "Quote": {
-            normalizeDraftApiContentBlockElements(element.elements);
+            normalizeDraftApiContentBlockElements(element.elements, options);
             break;
         }
         case "Heading": {
-            normalizeDraftApiContentInlineElements(element.elements);
+            normalizeDraftApiContentInlineElements(element.elements, options);
             break;
         }
         case "Divider": {
@@ -258,7 +317,7 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
                 element.lines.push({elements: []});
             } else {
                 for (const line of element.lines) {
-                    normalizeDraftApiContentInlineElements(line.elements);
+                    normalizeDraftApiContentInlineElements(line.elements, options);
                 }
             }
             break;
@@ -281,7 +340,7 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
                 columnCount = Math.max(columnCount, row.cells.length);
 
                 for (const cell of row.cells) {
-                    normalizeDraftApiContentBlockElements(cell.elements);
+                    normalizeDraftApiContentBlockElements(cell.elements, options);
 
                     // A single empty paragraph is the default for empty cells. Remove it since the
                     // parser will recreate it.
@@ -311,19 +370,21 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
             break;
         }
         case "File": {
-            // `contentType` and `contentLength` are response-only metadata that don't survive
-            // the markdown round trip. Strip them so that content with and without metadata
-            // normalizes to the same form.
-            if (hasOwnProperty(element, "contentType")) delete element.contentType;
-            if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+            if (!options.isResponse) {
+                // `contentType` and `contentLength` are response-only metadata that don't survive
+                // the markdown round trip. Strip them so that content with and without metadata
+                // normalizes to the same form.
+                if (hasOwnProperty(element, "contentType")) delete element.contentType;
+                if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+            }
             break;
         }
         case "Preview": {
-            normalizeDraftApiContentTarget(element.target);
+            normalizeDraftApiTarget(element.target, options);
             break;
         }
         case "FileFloat": {
-            normalizeDraftApiContentBlockElement(element.element);
+            normalizeDraftApiContentBlockElement(element.element, options);
             break;
         }
         case "FileGallery": {
@@ -334,9 +395,26 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
             // Normalize elements inside each row and strip response-only metadata (`width` on
             // items, `contentType` on File elements).
             for (const row of element.rows) {
-                for (const item of row.items) {
-                    if (hasOwnProperty(item, "width")) delete item.width;
-                    normalizeDraftApiContentBlockElement(item.element);
+                for (let index = 0; index < row.items.length; index++) {
+                    const item = row.items[index]!;
+
+                    if (options.isResponse) {
+                        if (options.withoutFileGalleryElementRowItemWidth) {
+                            // We don't want to delete `width` since we want conform to the response type. So
+                            // instead set `width` to a dummy value where all widths are shared evenly across
+                            // the row.
+                            item.width =
+                                index !== row.items.length - 1
+                                    ? Math.round((1 / row.items.length) * 100) / 100
+                                    : (100 -
+                                          (row.items.length - 1) *
+                                              Math.round((1 / row.items.length) * 100)) /
+                                      100;
+                        }
+                    } else if (hasOwnProperty(item, "width")) {
+                        delete item.width;
+                    }
+                    normalizeDraftApiContentBlockElement(item.element, options);
                 }
             }
             break;
@@ -346,8 +424,20 @@ function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElem
     }
 }
 
-export function normalizeDraftApiContentInlineElements(
+export function normalizeDraftApiContentInlineElementsResponse(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
+    options?: {withoutFileGalleryElementRowItemWidth: boolean},
+) {
+    normalizeDraftApiContentInlineElements(elements, {
+        isResponse: true,
+        withoutFileGalleryElementRowItemWidth:
+            options?.withoutFileGalleryElementRowItemWidth ?? false,
+    });
+}
+
+function normalizeDraftApiContentInlineElements(
+    elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
+    options: ApiContentNormalizationOptions,
 ) {
     let index = 0;
     let lastElement: Draft<ApiContentInlineElement> | undefined;
@@ -362,7 +452,7 @@ export function normalizeDraftApiContentInlineElements(
         }
 
         if (element.type === "Mention") {
-            normalizeDraftApiContentTarget(element.target);
+            normalizeDraftApiTarget(element.target, options);
 
             // `isAccountShortName` can only be true for account targets. Otherwise set to
             // undefined.
@@ -394,13 +484,27 @@ export function normalizeDraftApiContentInlineElements(
     }
 }
 
-export function normalizeDraftApiContentTarget(target: Draft<ApiMentionTarget>) {
-    // Cleanup response properties that aren't compared when determining content
-    // equality.
-    if (hasOwnProperty(target, "title")) delete target.title;
-    if (hasOwnProperty(target, "shortName")) delete target.shortName;
-    if (hasOwnProperty(target, "botId")) delete target.botId;
-    if (hasOwnProperty(target, "status")) delete target.status;
+export function normalizeApiTarget(target: ApiMentionTarget): ApiMentionTarget {
+    return produce(target, target => {
+        normalizeDraftApiTarget(target, {
+            isResponse: false,
+            withoutFileGalleryElementRowItemWidth: false,
+        });
+    });
+}
+
+function normalizeDraftApiTarget(
+    target: Draft<ApiMentionTarget>,
+    options: ApiContentNormalizationOptions,
+) {
+    if (!options.isResponse) {
+        // Cleanup response properties that aren't compared when determining content
+        // equality.
+        if (hasOwnProperty(target, "title")) delete target.title;
+        if (hasOwnProperty(target, "shortName")) delete target.shortName;
+        if (hasOwnProperty(target, "botId")) delete target.botId;
+        if (hasOwnProperty(target, "status")) delete target.status;
+    }
 }
 
 export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithKeyofType(

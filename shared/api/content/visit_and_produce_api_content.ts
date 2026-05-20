@@ -4,7 +4,7 @@ import {
     ApiContentVisitor,
     visitApiContent,
     visitApiContentBlockElement,
-    visitApiContentInlineElement,
+    visitApiContentInlineElements,
 } from "~/shared/api/content/visit_api_content.js";
 import {
     ApiContent,
@@ -57,18 +57,18 @@ export function visitDraftApiContentBlockElement(
     visitApiContentBlockElement(element, visitor as ApiContentVisitor);
 }
 
-export function visitAndProduceApiContentInlineElement<Element extends ApiContentInlineElement>(
-    element: Element,
+export function visitAndProduceApiContentInlineElements<Element extends ApiContentInlineElement>(
+    elements: ReadonlyArray<Element>,
     visitor: ApiContentDraftVisitor,
-): Element {
-    return produce(element, element => {
-        visitApiContentInlineElement(element, visitor as ApiContentVisitor);
+): ReadonlyArray<Element> {
+    return produce(elements, elements => {
+        visitApiContentInlineElements(elements, visitor as ApiContentVisitor);
     });
 }
 
-export function visitDraftApiContentInlineElement(
-    element: Draft<ApiContentInlineElement>,
+export function visitDraftApiContentInlineElements(
+    elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
     visitor: ApiContentDraftVisitor,
 ) {
-    visitApiContentInlineElement(element, visitor as ApiContentVisitor);
+    visitApiContentInlineElements(elements, visitor as ApiContentVisitor);
 }
