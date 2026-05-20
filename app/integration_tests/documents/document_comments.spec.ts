@@ -20,7 +20,7 @@ test("can comment on a document and use the comment thread sidebar", async ({
     context: browserContext1,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -114,7 +114,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeVisible();
-    await page1.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page1.getByRole("textbox", {name: "New comment"}).blur();
+        await page1.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page1.getByRole("button", {name: "Save comment"}).click();
+    }
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeHidden();
 
     await expect(
@@ -230,7 +235,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     await page1.getByRole("textbox", {name: "New comment"}).fill("Test comment content 2");
-    await page1.getByRole("button", {name: "Send comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page1.getByRole("textbox", {name: "New comment"}).blur();
+        await page1.getByRole("button", {name: "Send comment"}).tap();
+    } else {
+        await page1.getByRole("button", {name: "Send comment"}).click();
+    }
     await expect(page1.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
@@ -343,7 +353,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
 
     await page2.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
     await expect(page2.getByRole("button", {name: "Send comment"})).toBeEnabled();
-    await page2.getByRole("button", {name: "Send comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page2.getByRole("textbox", {name: "New comment"}).blur();
+        await page2.getByRole("button", {name: "Send comment"}).tap();
+    } else {
+        await page2.getByRole("button", {name: "Send comment"}).click();
+    }
     await expect(page2.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
@@ -506,7 +521,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
     context: browserContext,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -562,7 +577,12 @@ test("can leave multiple comments on a document and navigate between them", asyn
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 1");
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     await expect(page.getByText("Test comment content 1")).toBeHidden();
 
@@ -615,7 +635,12 @@ test("can leave multiple comments on a document and navigate between them", asyn
             .fill("Test comment content 2");
     }
 
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     if (isMobile) {
         // On mobile we closed the comment thread so reopen it now.
@@ -679,7 +704,7 @@ test("can leave a document comment across multiple paragraphs", async ({
     context: browserContext,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -735,7 +760,12 @@ test("can leave a document comment across multiple paragraphs", async ({
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     await expect(page.getByText("Test comment content 3")).toBeHidden();
 
