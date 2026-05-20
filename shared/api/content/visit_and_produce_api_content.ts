@@ -1,6 +1,11 @@
 import {Draft, produce} from "immer";
 
-import {ApiContentVisitor, visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {
+    ApiContentVisitor,
+    visitApiContent,
+    visitApiContentBlockElement,
+    visitApiContentInlineElement,
+} from "~/shared/api/content/visit_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -34,4 +39,36 @@ export function visitAndProduceApiContent<Content extends ApiContent>(
 
 export function visitDraftApiContent(content: Draft<ApiContent>, visitor: ApiContentDraftVisitor) {
     visitApiContent(content, visitor as ApiContentVisitor);
+}
+
+export function visitAndProduceApiContentBlockElement<Element extends ApiContentBlockElement>(
+    element: Element,
+    visitor: ApiContentDraftVisitor,
+): Element {
+    return produce(element, element => {
+        visitApiContentBlockElement(element, visitor as ApiContentVisitor);
+    });
+}
+
+export function visitDraftApiContentBlockElement(
+    element: Draft<ApiContentBlockElement>,
+    visitor: ApiContentDraftVisitor,
+) {
+    visitApiContentBlockElement(element, visitor as ApiContentVisitor);
+}
+
+export function visitAndProduceApiContentInlineElement<Element extends ApiContentInlineElement>(
+    element: Element,
+    visitor: ApiContentDraftVisitor,
+): Element {
+    return produce(element, element => {
+        visitApiContentInlineElement(element, visitor as ApiContentVisitor);
+    });
+}
+
+export function visitDraftApiContentInlineElement(
+    element: Draft<ApiContentInlineElement>,
+    visitor: ApiContentDraftVisitor,
+) {
+    visitApiContentInlineElement(element, visitor as ApiContentVisitor);
 }

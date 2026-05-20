@@ -52,11 +52,30 @@ export type AgentWebMessagingPageBase = {
 export type AgentWebMessagingPageBasePreamble = {
     readonly elements: ReadonlyArray<ApiContentInlineElementResponse>;
     readonly paginationLink: {
-        readonly text: string;
+        readonly text: AgentWebMessagingPageBasePreamblePaginationLinkText;
         readonly target: ApiMentionTargetResponse;
         readonly searchParams: URLSearchParams;
     } | null;
 };
+
+type AgentWebMessagingPageBasePreamblePaginationLinkText =
+    (typeof agentWebMessagingPageBasePreamblePaginationLinkTextArray)[number];
+
+const agentWebMessagingPageBasePreamblePaginationLinkTextArray = [
+    "Next page »",
+    "Previous page »",
+] as const;
+
+const agentWebMessagingPageBasePreamblePaginationLinkTexts = new Set(
+    agentWebMessagingPageBasePreamblePaginationLinkTextArray,
+);
+
+function isAgentWebMessagingPageBasePreamblePaginationLinkText(
+    text: string,
+): text is AgentWebMessagingPageBasePreamblePaginationLinkText {
+    // @ts-expect-error: Annoying TypeScript variance quirk for `Set.has()`
+    return agentWebMessagingPageBasePreamblePaginationLinkTexts.has(text);
+}
 
 export type AgentWebMessagingPageBlock =
     | AgentWebMessagingPageTimeBlock
@@ -686,38 +705,41 @@ export async function printAgentWebMessagingPageBase<PageLink>(
 ): Promise<Root> {
     const children: Array<RootContent> = [];
 
-    if (page.preamble.elements.length > 0) {
-        for (const node of printApiContentToMarkdownTree(
-            {elements: [{type: "Paragraph", elements: page.preamble.elements}]},
-            {spaceId: storage.spaceId},
-        ).children) {
-            children.push(node);
-        }
-    }
-
     const [, blocks] = await runAllPromises([
         (async () => {
-            if (page.preamble.paginationLink === null) return;
+            if (page.preamble.elements.length > 0) {
+                const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
+                    elements: [{type: "Paragraph", elements: page.preamble.elements}],
+                });
 
-            const pageLink = createApiTargetAgentWebPageLink(page.preamble.paginationLink.target);
-            let url = await createAgentWebPageLinkPathname(storage, pageLink);
-
-            if (page.preamble.paginationLink.searchParams.size > 0) {
-                url += `?${page.preamble.paginationLink.searchParams.toString()}`;
+                for (const node of preambleTree.children) {
+                    children.push(node);
+                }
             }
 
-            const node: Link = {
-                type: "link",
-                url,
-                children: [{type: "text", value: page.preamble.paginationLink.text}],
-            };
+            if (page.preamble.paginationLink !== null) {
+                const pageLink = createApiTargetAgentWebPageLink(
+                    page.preamble.paginationLink.target,
+                );
+                let url = await createAgentWebPageLinkPathname(storage, pageLink);
 
-            const lastChild = children[children.length - 1]!;
+                if (page.preamble.paginationLink.searchParams.size > 0) {
+                    url += `?${page.preamble.paginationLink.searchParams.toString()}`;
+                }
 
-            if (lastChild?.type === "paragraph") {
-                lastChild.children.push({type: "text", value: " "}, node);
-            } else {
-                children.push({type: "paragraph", children: [node]});
+                const node: Link = {
+                    type: "link",
+                    url,
+                    children: [{type: "text", value: page.preamble.paginationLink.text}],
+                };
+
+                const lastChild = children[children.length - 1]!;
+
+                if (lastChild?.type === "paragraph") {
+                    lastChild.children.push({type: "text", value: " "}, node);
+                } else {
+                    children.push({type: "paragraph", children: [node]});
+                }
             }
         })(),
         runAllPromises(
@@ -1352,6 +1374,8 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
         preamble,
     );
 
+    console.log("parse", JSON.stringify(preamble, null, 2));
+
     const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, {
         type: "root",
         children: preamble,
@@ -1391,7 +1415,7 @@ async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
     if (lastChild?.type !== "link") return null;
 
     const text = printMarkdownPhrasingContentText(lastChild.children);
-    if (text !== "Previous page »" && text !== "Next page »") return null;
+    if (!isAgentWebMessagingPageBasePreamblePaginationLinkText(text)) return null;
 
     if (pageLink === null) {
         const quotedText = quoteMarkdown(lastChild.children);

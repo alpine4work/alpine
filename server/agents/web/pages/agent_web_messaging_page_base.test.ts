@@ -12,8 +12,8 @@ import {
     ApiContentResponse,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {assertId, generateId} from "~/shared/id/id.js";
+import {AccountId, ChatId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
@@ -813,6 +813,33 @@ Hello there.
             page: {
                 preamble: {elements: [], paginationLink: null},
                 blocks: [{type: "Time", timeContent: ""}],
+            },
+        },
+        {
+            only: "NOCOMMIT",
+            name: "mention in preamble",
+            pageLink: true,
+            markdown: `\
+[](/human/unknown)
+`,
+            page: {
+                preamble: {
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: assertId<AccountId>("00000000000000000000000000"),
+                                title: "",
+                                shortName: "",
+                            },
+                            isAccountShortName: false,
+                            marks: [],
+                        },
+                    ],
+                    paginationLink: null,
+                },
+                blocks: [],
             },
         },
     ],

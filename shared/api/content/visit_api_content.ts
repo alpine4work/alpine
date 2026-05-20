@@ -39,7 +39,10 @@ function visitApiContentBlockElements(
     }
 }
 
-function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: ApiContentVisitor) {
+export function visitApiContentBlockElement(
+    element: ApiContentBlockElement,
+    visitor: ApiContentVisitor,
+) {
     switch (element.type) {
         case "Paragraph": {
             visitApiContentInlineElements(element.elements, visitor);
@@ -149,7 +152,7 @@ function visitApiContentInlineElements(
     }
 }
 
-function visitApiContentInlineElement(
+export function visitApiContentInlineElement(
     element: ApiContentInlineElement,
     visitor: ApiContentVisitor,
 ) {

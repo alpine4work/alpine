@@ -24,7 +24,7 @@ import {
     ApiContentFileOrPreviewBlockElement,
     parseApiContentFileOrPreviewBlockElementFromUrl,
 } from "~/shared/api/markdown/internal/parse_api_content_file_or_preview_block_element_from_url.js";
-import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeDraftApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiContent,
@@ -2109,7 +2109,7 @@ class ApiContentInlineElementsMarkdownParserMarkStack {
 
     public getMarks() {
         if (this._cachedMarks === null) {
-            this._cachedMarks = normalizeApiContentInlineElementMarks(
+            this._cachedMarks = normalizeDraftApiContentInlineElementMarks(
                 mapIterable(this._stack, ({mark}) => mark),
             );
         }
@@ -2943,7 +2943,7 @@ function* intoApiContentTableBlockElementCellElement(
                 type: "Paragraph",
                 elements: element.elements.map(childElement => ({
                     ...childElement,
-                    marks: normalizeApiContentInlineElementMarks([
+                    marks: normalizeDraftApiContentInlineElementMarks([
                         ...(childElement.marks ?? []),
                         {type: "Bold"},
                     ]),
@@ -3019,7 +3019,7 @@ function* intoApiContentQuoteBlockElementBlockElement(
                         type: "Paragraph",
                         elements: line.elements.map(element => ({
                             ...element,
-                            marks: normalizeApiContentInlineElementMarks([
+                            marks: normalizeDraftApiContentInlineElementMarks([
                                 ...(element.marks ?? []),
                                 {type: "Code"},
                             ]),

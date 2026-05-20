@@ -6,6 +6,7 @@ import {
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiMentionTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -21,15 +22,17 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  */
 export function normalizeApiContent(content: ApiContent): ApiContent {
     return produce(content, content => {
-        normalizeApiContentBlockElements(content.elements);
+        normalizeDraftApiContentBlockElements(content.elements);
     });
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeApiContentBlockElements(content.elements);
+    normalizeDraftApiContentBlockElements(content.elements);
 }
 
-function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+function normalizeDraftApiContentBlockElements(
+    elements: Draft<ReadonlyArray<ApiContentBlockElement>>,
+) {
     let index = 0;
     while (index < elements.length) {
         const element = elements[index]!;
@@ -184,15 +187,15 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
             }
         }
 
-        normalizeApiContentBlockElement(elements[index]!);
+        normalizeDraftApiContentBlockElement(elements[index]!);
         index++;
     }
 }
 
-function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>) {
+function normalizeDraftApiContentBlockElement(element: Draft<ApiContentBlockElement>) {
     switch (element.type) {
         case "Paragraph": {
-            normalizeApiContentInlineElements(element.elements);
+            normalizeDraftApiContentInlineElements(element.elements);
             break;
         }
         case "UnorderedList":
@@ -200,7 +203,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
         case "CheckList": {
             for (const item of element.items) {
                 if (item.elements.length > 0) {
-                    normalizeApiContentBlockElements(item.elements);
+                    normalizeDraftApiContentBlockElements(item.elements);
                 } else if (element.type !== "UnorderedList") {
                     // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
                     // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
@@ -229,7 +232,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 }
 
                 if (item.nestedListElements !== undefined) {
-                    normalizeApiContentBlockElements(item.nestedListElements);
+                    normalizeDraftApiContentBlockElements(item.nestedListElements);
 
                     if (item.nestedListElements.length === 0) {
                         item.nestedListElements = undefined;
@@ -239,11 +242,11 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             break;
         }
         case "Quote": {
-            normalizeApiContentBlockElements(element.elements);
+            normalizeDraftApiContentBlockElements(element.elements);
             break;
         }
         case "Heading": {
-            normalizeApiContentInlineElements(element.elements);
+            normalizeDraftApiContentInlineElements(element.elements);
             break;
         }
         case "Divider": {
@@ -255,7 +258,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 element.lines.push({elements: []});
             } else {
                 for (const line of element.lines) {
-                    normalizeApiContentInlineElements(line.elements);
+                    normalizeDraftApiContentInlineElements(line.elements);
                 }
             }
             break;
@@ -278,7 +281,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
                 columnCount = Math.max(columnCount, row.cells.length);
 
                 for (const cell of row.cells) {
-                    normalizeApiContentBlockElements(cell.elements);
+                    normalizeDraftApiContentBlockElements(cell.elements);
 
                     // A single empty paragraph is the default for empty cells. Remove it since the
                     // parser will recreate it.
@@ -316,14 +319,11 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             break;
         }
         case "Preview": {
-            // The preview title is only sometimes included as a convenience. It isn't
-            // essential to the preview element.
-            if (hasOwnProperty(element.target, "title")) delete element.target.title;
-            if (hasOwnProperty(element.target, "status")) delete element.target.status;
+            normalizeDraftApiContentTarget(element.target);
             break;
         }
         case "FileFloat": {
-            normalizeApiContentBlockElement(element.element);
+            normalizeDraftApiContentBlockElement(element.element);
             break;
         }
         case "FileGallery": {
@@ -336,7 +336,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             for (const row of element.rows) {
                 for (const item of row.items) {
                     if (hasOwnProperty(item, "width")) delete item.width;
-                    normalizeApiContentBlockElement(item.element);
+                    normalizeDraftApiContentBlockElement(item.element);
                 }
             }
             break;
@@ -346,7 +346,7 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
     }
 }
 
-export function normalizeApiContentInlineElements(
+export function normalizeDraftApiContentInlineElements(
     elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
 ) {
     let index = 0;
@@ -362,12 +362,7 @@ export function normalizeApiContentInlineElements(
         }
 
         if (element.type === "Mention") {
-            // Cleanup response properties that aren't compared when determining content
-            // equality.
-            if (hasOwnProperty(element.target, "title")) delete element.target.title;
-            if (hasOwnProperty(element.target, "shortName")) delete element.target.shortName;
-            if (hasOwnProperty(element.target, "botId")) delete element.target.botId;
-            if (hasOwnProperty(element.target, "status")) delete element.target.status;
+            normalizeDraftApiContentTarget(element.target);
 
             // `isAccountShortName` can only be true for account targets. Otherwise set to
             // undefined.
@@ -379,7 +374,7 @@ export function normalizeApiContentInlineElements(
             }
         }
 
-        const normalizedMarks = normalizeApiContentInlineElementMarks(element.marks);
+        const normalizedMarks = normalizeDraftApiContentInlineElementMarks(element.marks);
         if (!isDeepEqual(normalizedMarks, element.marks))
             element.marks = castDraft(normalizedMarks);
 
@@ -397,6 +392,15 @@ export function normalizeApiContentInlineElements(
         lastElement = element;
         index++;
     }
+}
+
+export function normalizeDraftApiContentTarget(target: Draft<ApiMentionTarget>) {
+    // Cleanup response properties that aren't compared when determining content
+    // equality.
+    if (hasOwnProperty(target, "title")) delete target.title;
+    if (hasOwnProperty(target, "shortName")) delete target.shortName;
+    if (hasOwnProperty(target, "botId")) delete target.botId;
+    if (hasOwnProperty(target, "status")) delete target.status;
 }
 
 export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithKeyofType(
@@ -431,9 +435,9 @@ export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithK
     }),
 );
 
-export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInlineElementMark>(
-    marks: Iterable<Mark> | undefined,
-): Array<Mark> | undefined {
+export function normalizeDraftApiContentInlineElementMarks<
+    Mark extends ApiContentInlineElementMark,
+>(marks: Iterable<Mark> | undefined): Array<Mark> | undefined {
     if (marks === undefined) return undefined;
 
     const markByKey = new Map<string, Mark>();
