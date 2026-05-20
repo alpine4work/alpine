@@ -3,6 +3,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/authorize_site_access_and_return_item.js";
 import {dangerouslyGetSiteEntryItem} from "~/server/sites/data/internal/dangerously_get_site_entry_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
@@ -56,6 +57,15 @@ export async function updateSiteContainerLabel(
             updateContainerTransactionEntry.transactionEntry,
             updateSiteAttributesTransactionEntry.transactionEntry,
         ]);
+
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "LowIntentUpdate"},
+                siteId: null,
+            }),
+        );
 
         return {
             getDynamoGeneralRealtimeEventTransaction: context =>

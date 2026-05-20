@@ -3,6 +3,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_for_update.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -71,6 +72,15 @@ export async function deleteSiteContainer(
             context,
             [deleteItemEntry.transactionEntry, updateSiteAttributesEntry.transactionEntry],
             {clientRequestToken},
+        );
+
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "MediumIntentUpdate"},
+                siteId: null,
+            }),
         );
 
         return {

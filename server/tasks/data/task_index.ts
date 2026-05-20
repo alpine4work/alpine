@@ -55,6 +55,7 @@ import {
     TaskRealtimeSessionActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
@@ -1107,6 +1108,11 @@ class TaskActionTransactionIndexState {
                                                 accountId: actorId,
                                                 entityId: `TaskCollection:${collectionId}`,
                                                 interaction: {type: "LowIntentUpdate"},
+                                                // We don't have the collection's access policy in scope here. Skipping the cascade
+                                                // is a small inaccuracy: if a user adds a task to a collection that lives in a
+                                                // site, the site won't get the cascade points from _this_ interaction. The site
+                                                // will still accrue points from the task's own update.
+                                                siteId: null,
                                             },
                                         );
                                     });
@@ -1206,6 +1212,9 @@ class TaskActionTransactionIndexState {
                                 accountId: actorId,
                                 entityId: `TaskCollection:${newCollection.id}`,
                                 interaction: {type: "HighIntentUpdate"},
+                                siteId: getSiteIdFromAccessPolicyIfExists(
+                                    newCollection.accessPolicy.value,
+                                ),
                             });
                         });
                     }

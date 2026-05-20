@@ -32,6 +32,8 @@ import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contr
 import {getNotificationPostContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimePutItemEvent,
@@ -94,7 +96,11 @@ export async function createPost(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    const {spaceId, channelName} = await authorizeChannelAccess(context, channelId, "Edit", {
+    const {
+        spaceId,
+        channelName,
+        accessPolicy: channelAccessPolicy,
+    } = await authorizeChannelAccess(context, channelId, "Edit", {
         consistency,
     });
 
@@ -200,6 +206,7 @@ export async function createPost(
     afterCreatePost(context, {
         spaceId,
         channelId,
+        channelAccessPolicy,
         postId,
         postItem,
         content,
@@ -221,6 +228,7 @@ function afterCreatePost(
     {
         spaceId,
         channelId,
+        channelAccessPolicy,
         postId,
         postItem,
         content,
@@ -228,6 +236,7 @@ function afterCreatePost(
     }: {
         spaceId: SpaceId;
         channelId: ChannelId;
+        channelAccessPolicy: AccessPolicy;
         postId: PostId;
         postItem: PostAttributesItem;
         content: PostContent;
@@ -428,6 +437,7 @@ function afterCreatePost(
                     spaceId,
                     entityId: `Channel:${channelId}`,
                     interaction: {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(channelAccessPolicy),
                 },
             ),
         );
@@ -449,6 +459,8 @@ function afterCreatePost(
                             spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         },
                     );
                 }

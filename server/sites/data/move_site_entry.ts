@@ -4,6 +4,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     SiteTreeItem,
     getSiteTreeForUpdate,
@@ -121,6 +122,15 @@ export async function moveSiteEntry(
             updateSiteAttributesEntry.transactionEntry,
             updateSiteItemEntry.transactionEntry,
         ]);
+
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "LowIntentUpdate"},
+                siteId: null,
+            }),
+        );
 
         return {
             getDynamoGeneralRealtimeEventTransaction: async (eventContext: ServerActionContext) =>

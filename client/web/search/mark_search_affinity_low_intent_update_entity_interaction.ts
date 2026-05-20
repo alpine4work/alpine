@@ -2,7 +2,7 @@ import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
@@ -38,6 +38,7 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
     context: AppContext,
     spaceId: SpaceId,
     entityId: SearchAffinityEntityId,
+    siteId: SiteId | null,
     {
         isVeryLow = false,
     }: {
@@ -73,6 +74,7 @@ export function markSearchAffinityLowIntentUpdateEntityInteraction(
             spaceId,
             entityId,
             interaction: {type: isVeryLow ? "VeryLowIntentUpdate" : "LowIntentUpdate"},
+            siteId,
         });
 
         sessionStorageBySearchAffinityEntityId.set(entityId, {lastUpdateTime: currentTime, count});

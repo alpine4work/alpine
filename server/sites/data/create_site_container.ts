@@ -3,6 +3,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/authorize_site_access_and_return_item.js";
 import {dangerouslyGetSiteEntryItemIfExists} from "~/server/sites/data/internal/dangerously_get_site_entry_item.js";
 import {
@@ -111,6 +112,15 @@ export async function createSiteContainer(
                 createContainerTransactionEntry.transactionEntry,
             ],
             {clientRequestToken},
+        );
+
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributes.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "MediumIntentUpdate"},
+                siteId: null,
+            }),
         );
 
         return {

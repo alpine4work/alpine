@@ -3,6 +3,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/authorize_site_access_and_return_item.js";
 import {createSitePreviewModelFromItem} from "~/server/sites/data/internal/create_site_preview_model_from_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
@@ -73,6 +74,15 @@ export async function updateSiteAccessPolicy(
                 updatedTraits: {type: "Some", traits: ["Preview"]},
             },
         });
+
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(context, {
+                spaceId: siteAttributesItem.spaceId,
+                entityId: `Site:${siteId}`,
+                interaction: {type: "MediumIntentUpdate"},
+                siteId: null,
+            }),
+        );
 
         return {
             site: createSitePreviewModelFromItem(newItem),

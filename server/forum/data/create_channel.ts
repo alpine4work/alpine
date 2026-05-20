@@ -13,6 +13,7 @@ import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {
@@ -156,6 +157,7 @@ export async function createChannel(
             spaceId,
             entityId: `Channel:${channelItem.channelId}`,
             interaction: {type: "HighIntentUpdate"},
+            siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
         }),
     );
 

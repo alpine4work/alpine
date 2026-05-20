@@ -1882,6 +1882,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection1.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1890,6 +1891,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection2.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1898,6 +1900,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection3.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1906,6 +1909,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection4.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1914,6 +1918,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection5.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1922,6 +1927,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection6.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 

@@ -54,6 +54,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -146,11 +147,11 @@ export async function createPostComment(
     return context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
-        const [postItem, parentForEvent] = await runAllPromises([
+        const [{postItem, channelAccessPolicy}, parentForEvent] = await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
 
-                await runAllPromises([
+                const [{accessPolicy: channelAccessPolicy}] = await runAllPromises([
                     authorizeChannelAccess(context, postItem.channelId, "Comment", {consistency}),
 
                     // Make sure all the provided files exist.
@@ -168,7 +169,7 @@ export async function createPostComment(
                     ),
                 ]);
 
-                return postItem;
+                return {postItem, channelAccessPolicy};
             }),
 
             (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
@@ -472,6 +473,7 @@ export async function createPostComment(
                         content.nodeSize < 50
                             ? {type: "LowIntentUpdate"}
                             : {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(channelAccessPolicy),
                 }),
             );
 
@@ -490,6 +492,8 @@ export async function createPostComment(
                             spaceId: postItem.spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });

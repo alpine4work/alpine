@@ -35,6 +35,7 @@ ts_project(
         "//client/web/rpc",
         "//client/web/search",
         "//client/web/search/core",
+        "//client/web/sites",
         "//client/web/sites/context",
         "//client/web/shimmer",
         "//client/web/spaces",

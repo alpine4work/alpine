@@ -79,6 +79,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -594,6 +595,7 @@ export async function createDocument(
                     spaceId,
                     documentId,
                     creatorId,
+                    siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
                 },
             ),
         );
@@ -4950,99 +4952,101 @@ export async function createDocumentComment(
     }
 
     return context.dynamo.retryTransaction(async context => {
-        const [spaceId, commentThreadItem, parentForEvent] = await runAllPromises([
-            (async () => {
-                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
+        const [{spaceId, documentAccessPolicy}, commentThreadItem, parentForEvent] =
+            await runAllPromises([
+                (async () => {
+                    const {spaceId, accessPolicy: documentAccessPolicy} =
+                        await authorizeDocumentAccess(context, documentId, "Comment", {
+                            consistency,
+                        });
+
+                    // Make sure all the provided files exist.
+                    await runAllPromises(
+                        fileIds.map(fileId =>
+                            isId<FileId>(fileId)
+                                ? getFileFromAttachment(
+                                      context,
+                                      fileId,
+                                      FileDocumentAuthorizer.bind({
+                                          type: "DocumentComments",
+                                          documentId,
+                                      }),
+                                      {consistency},
+                                  )
+                                : null,
+                        ),
+                    );
+
+                    return {spaceId, documentAccessPolicy};
+                })(),
+                getDocumentCommentThreadItemIfExists(context, {
+                    documentId,
+                    commentThreadId,
                     consistency,
-                });
+                }),
+                (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                    if (!parent) return null;
 
-                // Make sure all the provided files exist.
-                await runAllPromises(
-                    fileIds.map(fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  fileId,
-                                  FileDocumentAuthorizer.bind({
-                                      type: "DocumentComments",
-                                      documentId,
-                                  }),
-                                  {consistency},
-                              )
-                            : null,
-                    ),
-                );
+                    switch (parent.type) {
+                        case "Message": {
+                            const commentItem = await DocumentsTable.getItem(
+                                context,
+                                {
+                                    partitionType: "DocumentCommentThread",
+                                    sortRangeType: "Comments",
+                                    documentId,
+                                    commentThreadId,
+                                    commentIndex: parent.index,
+                                },
+                                {consistency},
+                            );
+                            return {
+                                type: "Message",
+                                index: parent.index,
+                                author: {id: commentItem.authorId},
+                            };
+                        }
+                        case "MessagesRange": {
+                            const commentItems = await arrayFromAsyncIterable(
+                                runCommentsQuery(context, {
+                                    cache: DocumentCommentItemContextCache,
+                                    cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                                    consistency,
+                                    startIndex: parent.startIndex,
+                                    endIndex: parent.endIndex,
+                                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                        DocumentsTable.query(context, {
+                                            consistency,
+                                            limit,
+                                            partitionKey: {
+                                                partitionType: "DocumentCommentThread",
+                                                documentId,
+                                                commentThreadId,
+                                            },
+                                            startSortKey,
+                                            endSortKey,
+                                        }),
+                                }),
+                            );
 
-                return spaceId;
-            })(),
-            getDocumentCommentThreadItemIfExists(context, {
-                documentId,
-                commentThreadId,
-                consistency,
-            }),
-            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
-                if (!parent) return null;
+                            validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
 
-                switch (parent.type) {
-                    case "Message": {
-                        const commentItem = await DocumentsTable.getItem(
-                            context,
-                            {
-                                partitionType: "DocumentCommentThread",
-                                sortRangeType: "Comments",
-                                documentId,
-                                commentThreadId,
-                                commentIndex: parent.index,
-                            },
-                            {consistency},
-                        );
-                        return {
-                            type: "Message",
-                            index: parent.index,
-                            author: {id: commentItem.authorId},
-                        };
+                            return {
+                                type: "Message",
+                                index: parent.startIndex,
+                                author: {id: commentItems[0]!.authorId},
+                            };
+                        }
+                        case "PostRange": {
+                            throw new InvalidArgumentError(
+                                "Post range parent can only be used with post comments",
+                            );
+                        }
+                        default:
+                            throw exhaustive(parent);
                     }
-                    case "MessagesRange": {
-                        const commentItems = await arrayFromAsyncIterable(
-                            runCommentsQuery(context, {
-                                cache: DocumentCommentItemContextCache,
-                                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
-                                consistency,
-                                startIndex: parent.startIndex,
-                                endIndex: parent.endIndex,
-                                query: ({consistency, limit, startSortKey, endSortKey}) =>
-                                    DocumentsTable.query(context, {
-                                        consistency,
-                                        limit,
-                                        partitionKey: {
-                                            partitionType: "DocumentCommentThread",
-                                            documentId,
-                                            commentThreadId,
-                                        },
-                                        startSortKey,
-                                        endSortKey,
-                                    }),
-                            }),
-                        );
-
-                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
-
-                        return {
-                            type: "Message",
-                            index: parent.startIndex,
-                            author: {id: commentItems[0]!.authorId},
-                        };
-                    }
-                    case "PostRange": {
-                        throw new InvalidArgumentError(
-                            "Post range parent can only be used with post comments",
-                        );
-                    }
-                    default:
-                        throw exhaustive(parent);
-                }
-            })(),
-        ]);
+                })(),
+            ]);
 
         if (!commentThreadItem)
             throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
@@ -5192,6 +5196,7 @@ export async function createDocumentComment(
                     spaceId,
                     entityId: `Document:${documentId}`,
                     interaction: {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(documentAccessPolicy),
                 }),
             );
 
@@ -5208,6 +5213,8 @@ export async function createDocumentComment(
                             spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });

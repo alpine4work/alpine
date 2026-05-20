@@ -105,6 +105,7 @@ import {
     hasAccessLevel,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -6187,88 +6188,95 @@ export async function createTaskComment(
     }
 
     return context.dynamo.retryTransaction(async context => {
-        const [{spaceId, commentsSummaryItem}, parentForEvent] = await runAllPromiseThunks(
-            async () => {
-                const {item, commentsSummaryItem} =
-                    await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {
-                        consistency,
-                    });
-                const spaceId = item.spaceId;
-
-                // Make sure all the provided files exist.
-                await runAllPromises(
-                    fileIds.map(fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  fileId,
-                                  FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
-                                  {consistency},
-                              )
-                            : null,
-                    ),
-                );
-
-                return {spaceId, commentsSummaryItem};
-            },
-            async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
-                if (!parent) return null;
-
-                switch (parent.type) {
-                    case "Message": {
-                        const commentItem = await TaskTable.getItem(
+        const [{spaceId, commentsSummaryItem, taskAccessPolicy}, parentForEvent] =
+            await runAllPromiseThunks(
+                async () => {
+                    const {item, commentsSummaryItem} =
+                        await authorizeTaskAccessAndGetCommentsSummaryItem(
                             context,
+                            taskId,
+                            "Comment",
                             {
-                                partitionType: "Task",
-                                sortRangeType: "Comments",
-                                taskId,
-                                commentIndex: parent.index,
-                            },
-                            {consistency},
-                        );
-                        return {
-                            type: "Message",
-                            index: parent.index,
-                            author: {id: commentItem.authorId},
-                        };
-                    }
-                    case "MessagesRange": {
-                        const commentItems = await arrayFromAsyncIterable(
-                            runCommentsQuery(context, {
-                                cache: TaskCommentItemContextCache,
-                                cacheKeyPrefix: taskId,
                                 consistency,
-                                startIndex: parent.startIndex,
-                                endIndex: parent.endIndex,
-                                query: ({consistency, limit, startSortKey, endSortKey}) =>
-                                    TaskTable.query(context, {
-                                        consistency,
-                                        limit,
-                                        partitionKey: {partitionType: "Task", taskId},
-                                        startSortKey,
-                                        endSortKey,
-                                    }),
-                            }),
+                            },
                         );
+                    const spaceId = item.spaceId;
+                    const taskAccessPolicy = item.accessPolicy?.value ?? null;
 
-                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+                    // Make sure all the provided files exist.
+                    await runAllPromises(
+                        fileIds.map(fileId =>
+                            isId<FileId>(fileId)
+                                ? getFileFromAttachment(
+                                      context,
+                                      fileId,
+                                      FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
+                                      {consistency},
+                                  )
+                                : null,
+                        ),
+                    );
 
-                        return {
-                            type: "Message",
-                            index: parent.startIndex,
-                            author: {id: commentItems[0]!.authorId},
-                        };
+                    return {spaceId, commentsSummaryItem, taskAccessPolicy};
+                },
+                async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                    if (!parent) return null;
+
+                    switch (parent.type) {
+                        case "Message": {
+                            const commentItem = await TaskTable.getItem(
+                                context,
+                                {
+                                    partitionType: "Task",
+                                    sortRangeType: "Comments",
+                                    taskId,
+                                    commentIndex: parent.index,
+                                },
+                                {consistency},
+                            );
+                            return {
+                                type: "Message",
+                                index: parent.index,
+                                author: {id: commentItem.authorId},
+                            };
+                        }
+                        case "MessagesRange": {
+                            const commentItems = await arrayFromAsyncIterable(
+                                runCommentsQuery(context, {
+                                    cache: TaskCommentItemContextCache,
+                                    cacheKeyPrefix: taskId,
+                                    consistency,
+                                    startIndex: parent.startIndex,
+                                    endIndex: parent.endIndex,
+                                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                        TaskTable.query(context, {
+                                            consistency,
+                                            limit,
+                                            partitionKey: {partitionType: "Task", taskId},
+                                            startSortKey,
+                                            endSortKey,
+                                        }),
+                                }),
+                            );
+
+                            validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+
+                            return {
+                                type: "Message",
+                                index: parent.startIndex,
+                                author: {id: commentItems[0]!.authorId},
+                            };
+                        }
+                        case "PostRange": {
+                            throw new InvalidArgumentError(
+                                "Post range parent can only be used with post comments",
+                            );
+                        }
+                        default:
+                            throw exhaustive(parent);
                     }
-                    case "PostRange": {
-                        throw new InvalidArgumentError(
-                            "Post range parent can only be used with post comments",
-                        );
-                    }
-                    default:
-                        throw exhaustive(parent);
-                }
-            },
-        );
+                },
+            );
 
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
         // and override the time that is returned.
@@ -6423,6 +6431,9 @@ export async function createTaskComment(
                         content.nodeSize < 50
                             ? {type: "LowIntentUpdate"}
                             : {type: "MediumIntentUpdate"},
+                    siteId: taskAccessPolicy
+                        ? getSiteIdFromAccessPolicyIfExists(taskAccessPolicy)
+                        : null,
                 }),
             );
 
@@ -6433,6 +6444,8 @@ export async function createTaskComment(
                             spaceId: spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });

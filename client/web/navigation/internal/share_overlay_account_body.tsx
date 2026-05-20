@@ -163,6 +163,8 @@ export function ShareOverlayAccountBody({
                                             spaceId: space.id,
                                             entityId: `Account:${account.id}`,
                                             interaction: {type: "HighIntentUpdate"},
+                                            // Accounts cannot live in a site.
+                                            siteId: null,
                                         });
                                     }
                                 }}
@@ -276,6 +278,8 @@ export function ShareOverlayAccountBody({
                                         spaceId: space.id,
                                         entityId: `Account:${account.id}`,
                                         interaction: {type: "HighIntentUpdate"},
+                                        // Accounts cannot live in a site.
+                                        siteId: null,
                                     });
                                 }
                             }}

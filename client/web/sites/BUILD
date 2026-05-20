@@ -7,9 +7,11 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
+        "//:node_modules/react",
         "//:node_modules/@types/scheduler",
         "//:node_modules/scheduler",
         "//client/web/helpers",
+        "//client/web/remix",
         "//client/web/sites/context",
         "//client/web/spaces",
         "//shared/helpers",

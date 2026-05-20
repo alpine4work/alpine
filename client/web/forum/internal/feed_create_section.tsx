@@ -279,6 +279,10 @@ function FeedCreateSectionMobileSearchAffinityView({
                     spaceId: space.id,
                     entityId: result.id,
                     interaction: {type: "HighIntentUpdate"},
+                    // The feed sidebar suggestions don't carry access-policy info. The entity's own
+                    // view-time affinity hook will fire once they land on it (with a known siteId), so
+                    // engagement still cascades to the site.
+                    siteId: null,
                 }).catch(error => {
                     // Silently fail. This doesn't affect anything the user sees so we don't need to
                     // report the error to the user.

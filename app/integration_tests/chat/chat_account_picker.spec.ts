@@ -81,6 +81,9 @@ async function addHighIntentAffinity({
             spaceId: session.space.id,
             entityId,
             interaction: {type: "HighIntentUpdate"},
+            // This test fixture only ever passes `Account:` or `Chat:` ids and doesn't set up
+            // sites, so no site cascade applies.
+            siteId: null,
         });
     }
 }

@@ -17,6 +17,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
@@ -47,7 +48,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -58,6 +59,7 @@ import {
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     document: DocumentModel.schema().nullable(),
     commentThreadResult: Schema.object({
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -140,6 +142,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             document,
             commentThreadResult,
             isFavorite,
@@ -202,6 +205,25 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
+export default function DocumentRoute() {
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
+    return (
+        <DocumentRouteInner
+            // We use a unique key to force a remount when we get new data from the server. We
+            // added this specifically to support site-related access policy changes.
+            //
+            // When a document's access policy is changed, the update will propagated to all
+            // clients that have the channel loaded via their rynamo subscription.
+            //
+            // So if a Test Document is added to a site while User A is viewing it, we call
+            // `revalidate()` on User A's client. This reloads Test Document's data, which will
+            // also load the site data and store it at the space-level SiteContext. Once the
+            // site data is added to the SiteContext, we can render the site chrome around the
+            // document.
+            key={key}
+        />
+    );
+}
 // TODO(calebmer): Documents shared via URL (where `accessPolicy.urlGrant` is
 // non-null) on iOS Safari don't hide the bottom bar when the user scrolls down
 // because we don't use `<body>` scrolling. Instead we have an inner scroll view
@@ -209,7 +231,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 //
 // Ideally we'd have a special code path that uses `<body>` scrolling just for
 // documents shared via URL.
-export default function DocumentRoute() {
+function DocumentRouteInner() {
     const {
         document: initialDocument,
         commentThreadResult: initialCommentThreadResult,
@@ -222,6 +244,7 @@ export default function DocumentRoute() {
     const context = useAppContext();
     const routeLayout = useRouteLayout();
     const {space, currentAccountSettings, updateCurrentAccountSettings} = useSpaceContext();
+    const {activeSiteId} = useSiteActivation();
 
     const documentId = deserializeDocumentIdForLoader(params.documentId);
 
@@ -272,10 +295,6 @@ export default function DocumentRoute() {
         }
     }, [isCreating, searchParams, setSearchParams]);
 
-    // TODO(#sites): Implement an `onAccessPolicyChange` callback that updates the site
-    // chrome if the access policy changes the site (adds a site, removes a site,
-    // changes to a new site).
-
     // Don't update affinity score while creating.
     useSearchAffinityViewEntityInteraction(!isCreating ? `Document:${documentId}` : null);
 
@@ -314,6 +333,7 @@ export default function DocumentRoute() {
                     context,
                     space.id,
                     `Document:${documentId}`,
+                    activeSiteId,
                     {isVeryLow: true},
                 );
 

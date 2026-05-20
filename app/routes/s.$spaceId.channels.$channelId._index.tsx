@@ -59,7 +59,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -69,6 +69,7 @@ import {
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
     postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
     isSubscribed: Schema.boolean,
@@ -240,6 +241,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             channelResult,
             postsResult,
             isSubscribed,
@@ -281,6 +283,26 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function ChannelRoute() {
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
+    return (
+        <ChannelRouteInner
+            // We use a unique key to force a remount when we get new data from the server. We
+            // added this specifically to support site-related access policy changes.
+            //
+            // When a channel's access policy is changed, the update will propagated to all
+            // clients that have the channel loaded via their rynamo subscription.
+            //
+            // So if a Test Channel is added to a site while User A is viewing it, we call
+            // `revalidate()` on User A's client. This reloads Test Channel's data, which will
+            // also load the site data and store it at the space-level SiteContext. Once the
+            // site data is added to the SiteContext, we can render the site chrome around the
+            // channel.
+            key={key}
+        />
+    );
+}
+
+function ChannelRouteInner() {
     const {channelResult, postsResult, isSubscribed, isFavorite} =
         useLoaderDataWithSchema(LoaderSchema);
     const {channelId} = useParams();

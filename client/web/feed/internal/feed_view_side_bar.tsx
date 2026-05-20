@@ -405,6 +405,14 @@ function FeedSearchAffinityView({
                         spaceId: space.id,
                         entityId: result.id,
                         interaction: {type: "HighIntentUpdate"},
+                        // We don't add afinity points to the site when user clicks on a search entity in
+                        // the sidebar. At click-time, the user doesn't know anything about the site the
+                        // entity may or may not belong to. Adding points to the site could potentially
+                        // lead to a suggested entity with which the user has never really interacted.
+                        //
+                        // The entity's own view-time affinity hook will fire once they land on it (with a
+                        // known siteId), so entity engagement within a site still cascades to the site.
+                        siteId: null,
                     }).catch(error => {
                         // Silently fail. This doesn't affect anything the user sees so we don't need to
                         // report the error to the user.

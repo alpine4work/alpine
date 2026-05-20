@@ -130,6 +130,8 @@ export async function inviteEmailAddressesToSpace(
                                     spaceId,
                                     entityId: `Account:${result.accountId}`,
                                     interaction: {type: "HighIntentUpdate"},
+                                    // Accounts cannot live in a site.
+                                    siteId: null,
                                 });
                             }
                             return;
@@ -154,6 +156,8 @@ export async function inviteEmailAddressesToSpace(
                               spaceId,
                               entityId: `Account:${account.id}`,
                               interaction: {type: "HighIntentUpdate"},
+                              // Accounts cannot live in a site.
+                              siteId: null,
                           });
 
                     accounts.push(account);

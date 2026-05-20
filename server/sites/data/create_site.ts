@@ -4,6 +4,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     SiteAttributesItem,
     SiteSideBarItem,
@@ -116,6 +117,16 @@ export async function createSite(
             updatedTraits: {type: "None"},
         },
     });
+
+    context.process.waitUntil(
+        markSearchAffinityEntityInteraction(context, {
+            spaceId,
+            entityId: `Site:${siteId}`,
+            interaction: {type: "HighIntentUpdate"},
+            // The entity _is_ the site; no cascade.
+            siteId: null,
+        }),
+    );
 
     return {
         getDynamoGeneralRealtimeEventTransaction: async eventContext =>

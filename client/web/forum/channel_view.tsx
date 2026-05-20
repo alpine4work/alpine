@@ -33,6 +33,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
@@ -142,6 +143,7 @@ export function ChannelView({
         ),
     );
 
+    useRevalidateOnAccessPolicySiteChange(accessPolicy);
     const accessLevel = useMemo(
         () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
         [accessPolicy, currentAccount?.id],

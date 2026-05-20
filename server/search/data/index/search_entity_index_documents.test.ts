@@ -1482,6 +1482,7 @@ test("newly created documents will be visible in search even before indexing", a
         spaceId: space.id,
         entityId: `Document:${document.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     await ProcessContextModule.waitForTestTasks();

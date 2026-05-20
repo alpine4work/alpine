@@ -2,6 +2,7 @@ import {Memo, useMemo} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/web/tasks/core/task_client_store.js";
@@ -22,6 +23,7 @@ export function useTaskClientStoreSearchAffinityManager(
     const context = useAppContext();
     const {space} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const {activeSiteId} = useSiteActivation();
 
     useSearchAffinityViewEntityInteraction(entityId);
 
@@ -38,11 +40,19 @@ export function useTaskClientStoreSearchAffinityManager(
                         context,
                         space.id,
                         entityId,
+                        activeSiteId,
                     );
                     onMarkLowIntentUpdateInteraction?.(count);
                 }
             },
         }),
-        [addGlobalLoadingIndicator, entityId, context, space.id, onMarkLowIntentUpdateInteraction],
+        [
+            addGlobalLoadingIndicator,
+            entityId,
+            activeSiteId,
+            context,
+            space.id,
+            onMarkLowIntentUpdateInteraction,
+        ],
     );
 }

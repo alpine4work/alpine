@@ -312,6 +312,7 @@ export type SearchInjection = {
             spaceId: SpaceId;
             entityId: SearchAffinityEntityId;
             interaction: SearchAffinityEntityInteraction;
+            siteId: SiteId | null;
         },
     ): Promise<number>;
 

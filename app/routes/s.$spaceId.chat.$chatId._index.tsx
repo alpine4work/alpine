@@ -33,6 +33,7 @@ import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_gene
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {createSiteLoaderDataPrefetcher} from "~/shared/remix/create_site_loader_data_prefetcher.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -42,6 +43,7 @@ import {
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     checkpoint: ServerSynchronizationCheckpointSchema,
     chat: ChatModel.schema(),
     initialIsSubscribed: Schema.boolean.nullable(),
@@ -171,6 +173,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             checkpoint,
             chat,
             initialIsSubscribed,
@@ -237,6 +240,26 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 });
 
 export default function ChatRoute() {
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
+    return (
+        <ChatRouteInner
+            // We use a unique key to force a remount when we get new data from the server. We
+            // added this specifically to support site-related access policy changes.
+            //
+            // When a chat's access policy is changed, the update will propagated to all
+            // clients that have the channel loaded via their rynamo subscription.
+            //
+            // So if a Test Chat Room is added to a site while User A is viewing it, we call
+            // `revalidate()` on User A's client. This reloads Test Chat Room's data, which
+            // will also load the site data and store it at the space-level SiteContext. Once
+            // the site data is added to the SiteContext, we can render the site chrome around
+            // the chat room.
+            key={key}
+        />
+    );
+}
+
+function ChatRouteInner() {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
         checkpoint,

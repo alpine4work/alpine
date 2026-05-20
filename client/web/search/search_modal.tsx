@@ -223,6 +223,11 @@ export function SearchModal({
                 spaceId: space.id,
                 entityId,
                 interaction: {type: "HighIntentUpdate"},
+                // Skip the site cascade here. The search modal doesn't carry the result's access
+                // policy, and once the user lands on the entity its own view-time affinity hook
+                // will fire (with a known siteId) — so engagement with the entity still flows to
+                // the site.
+                siteId: null,
             }).catch(error => {
                 // Silently fail. This doesn't affect anything the user sees so we don't need to
                 // report the error to the user.

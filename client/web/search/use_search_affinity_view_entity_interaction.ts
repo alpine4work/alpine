@@ -1,6 +1,7 @@
 import {useEffect} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
+import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
@@ -18,12 +19,20 @@ const SessionStorageSchema = Schema.object({
  * user is viewing the provided entity. If you pass in `null` this hook will be
  * disabled.
  *
+ * `siteId` should be the id of the site this entity inherits its access policy
+ * from, or `null` if it isn't in a site (or the entity itself is the site). When
+ * non-null, view interactions cascade 80% of their points to the site.
+ *
  * Our convention is to call this hook from a route file in `app/routes` to make it
  * easier to manage/audit how this hook gets used.
  */
 export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityEntityId | null) {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
+
+    // TODO(#sites-testing): make sure you test this works with sites. Should send to
+    // the site whenever an entity is rendered in a site.
+    const {activeSiteId} = useSiteActivation();
 
     // When rendered in a peek, the peek may disable view interaction tracking. If you
     // only briefly view a search entity from within the search window's peek, that
@@ -88,6 +97,7 @@ export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityE
                         spaceId: space.id,
                         entityId,
                         interaction: {type: "View"},
+                        siteId: activeSiteId,
                     });
 
                     // Stop loop after we hit a max number of updates (1hr) to defend against the user
@@ -143,5 +153,12 @@ export function useSearchAffinityViewEntityInteraction(entityId: SearchAffinityE
                 state = null;
             }
         };
-    }, [context, entityId, space.id, withoutSearchAffinityViewEntityInteraction, currentAccount]);
+    }, [
+        context,
+        entityId,
+        activeSiteId,
+        space.id,
+        withoutSearchAffinityViewEntityInteraction,
+        currentAccount,
+    ]);
 }

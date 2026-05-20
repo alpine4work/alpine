@@ -5,6 +5,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -44,6 +45,40 @@ export async function addEntityToSite(
 
     const entity = parseSiteItemSearchEntityId(input.entityId);
 
+    const result = await runAddEntityToSiteByEntityType(context, input, entity, newAccessPolicy);
+
+    context.process.waitUntil(
+        markSearchAffinityEntityInteraction(context, {
+            spaceId: input.spaceId,
+            entityId: `Site:${input.siteId}`,
+            interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
+        }),
+    );
+
+    return result;
+}
+
+async function runAddEntityToSiteByEntityType(
+    context: ServerSessionActionContext,
+    input: {
+        siteId: SiteId;
+        spaceId: SpaceId;
+        entityId: SiteItemSearchEntityId;
+        parentId: SiteContainerId;
+        orderKey: OrderKey;
+    },
+    entity: ReturnType<typeof parseSiteItemSearchEntityId>,
+    newAccessPolicy: {
+        type: "Site";
+        siteId: SiteId;
+        position: {parentId: SiteContainerId; orderKey: OrderKey};
+    },
+): Promise<{
+    getDynamoGeneralRealtimeEventTransactionForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SitePreviewModel | SiteEntryModel>>>;
+}> {
     switch (entity.type) {
         case "Channel": {
             // TODO(#sites): Also return the channel's own update events so clients subscribed

@@ -3064,12 +3064,14 @@ test("search by affinity can include my tasks", async () => {
         spaceId: space.id,
         entityId: "TaskPersonal",
         interaction: {type: "HighIntentUpdate"},
+        siteId: null,
     });
 
     await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
+        siteId: null,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -3127,12 +3129,14 @@ test("search by affinity can include the task personal view in favorites", async
         spaceId: space.id,
         entityId: "TaskPersonal",
         interaction: {type: "HighIntentUpdate"},
+        siteId: null,
     });
 
     await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
+        siteId: null,
     });
 
     await favoriteSearchEntity(session1.action(), {
@@ -3196,6 +3200,7 @@ test("search by affinity can include the task personal view in favorites even if
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
+        siteId: null,
     });
 
     await favoriteSearchEntity(session1.action(), {
@@ -3287,12 +3292,14 @@ test("search by affinity will also return up to five favorites", async () => {
         spaceId: space.id,
         entityId: `Document:${document2.id}`,
         interaction: {type: "View"},
+        siteId: null,
     });
 
     await markSearchAffinityEntityInteraction(session1.action(), {
         spaceId: space.id,
         entityId: `Document:${document4.id}`,
         interaction: {type: "HighIntentUpdate"},
+        siteId: null,
     });
 
     await ProcessContextModule.waitForTestTasks();

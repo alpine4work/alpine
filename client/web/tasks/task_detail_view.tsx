@@ -79,6 +79,7 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
@@ -465,6 +466,7 @@ export function TaskDetailView({
         }, [currentAccount, taskSubscription]),
     );
 
+    useRevalidateOnAccessPolicySiteChange(immediateAccessPolicy);
     /* ========================================================================= *\
      *                        Task detail notes WebSocket                        *
     \* ========================================================================= */
