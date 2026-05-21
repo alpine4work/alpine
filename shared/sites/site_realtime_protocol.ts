@@ -23,9 +23,9 @@ export type SiteRealtimeEvent = WebSocketProtocolEventType<typeof SiteRealtimePr
 export const SiteRealtimeProtocol = defineWebSocketProtocol({
     procedures: {},
     events: {
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(RynamoSiteEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoSiteEventSchema),
         }),
     },
 });
@@ -35,6 +35,6 @@ export const SiteRealtimeProtocol = defineWebSocketProtocol({
  * transformed to full events with authorization before being sent to connected
  * clients.
  */
-export const SiteBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(RynamoEventStubSchema),
+export const SiteBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

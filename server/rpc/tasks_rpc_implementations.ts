@@ -33,19 +33,17 @@ export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {extraActions, getRynamoEventTransactionForSite} =
-                await commitTaskActionTransaction(
-                    context.actor.authorizeSession(),
-                    input.spaceId,
-                    input.actions,
-                    {
-                        clientId: input.clientId,
-                        leaseId: input.leaseId,
-                        createLeaseIfLostAccess: input.createLeaseIfLostAccess,
-                        updateAccessPolicyShareNotification:
-                            input.updateAccessPolicyShareNotification,
-                    },
-                );
+            const {extraActions, getRynamoEventsForSite} = await commitTaskActionTransaction(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.actions,
+                {
+                    clientId: input.clientId,
+                    leaseId: input.leaseId,
+                    createLeaseIfLostAccess: input.createLeaseIfLostAccess,
+                    updateAccessPolicyShareNotification: input.updateAccessPolicyShareNotification,
+                },
+            );
 
             const accountIds = new Set<AccountId>();
             const siteIds = new Set<SiteId>();
@@ -69,7 +67,7 @@ export default implementRpcs(definitions, {
                 extraActions,
                 referencedAccounts,
                 referencedSites: referencedSites.filter(isNonNullable),
-                eventTransactionForSite: await getRynamoEventTransactionForSite(context),
+                eventsForSite: await getRynamoEventsForSite(context),
             };
         },
     },

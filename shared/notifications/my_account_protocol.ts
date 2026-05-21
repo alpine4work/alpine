@@ -15,13 +15,13 @@ export type MyAccountEvent = WebSocketProtocolEventType<typeof MyAccountProtocol
 export const MyAccountProtocol = defineWebSocketProtocol({
     procedures: {},
     events: {
-        InboxRealtimeEventTransaction: Schema.object({
-            type: Schema.value("InboxRealtimeEventTransaction"),
-            eventTransaction: Schema.array(RynamoInboxItemEventSchema),
+        InboxRealtimeEvents: Schema.object({
+            type: Schema.value("InboxRealtimeEvents"),
+            events: Schema.array(RynamoInboxItemEventSchema),
         }),
     },
 });
 
-export const MyAccountBroadcastInboxRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(RynamoInboxItemEventSchema),
+export const MyAccountBroadcastInboxRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoInboxItemEventSchema),
 });

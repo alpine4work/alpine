@@ -69,7 +69,7 @@ export function SpaceLayoutSideBarInboxButton({
     const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         reloadItemWithStrongReadConsistency: useCallback(async () => {

@@ -406,16 +406,14 @@ export class RynamoQuery<Model, Extra = never> {
      * Handles realtime events from the server and incorporates them into our query.
      * Will correctly handle events received out-of-order.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
-    ): RynamoQuery<Model, Extra> {
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>): RynamoQuery<Model, Extra> {
         const partitionKeyBytes = decodeBase64(
             this._partitionKey,
             "Rfc4648UrlWithOrderPreservation",
         );
 
         return this._putItems(
-            filterMapIterable(eventTransaction, event => {
+            filterMapIterable(events, event => {
                 switch (event.type) {
                     case "PutItem": {
                         const isInRange =

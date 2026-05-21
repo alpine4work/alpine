@@ -10224,7 +10224,7 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "eventTransaction": {
+                                    "events": {
                                         "valueSchema": {
                                             "type": "Array",
                                             "itemSchema": {
@@ -10281,7 +10281,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                     }
                                                 }
                                             },
-                                            "referenceId": "7c8a7bd4"
+                                            "referenceId": "9171272b"
                                         },
                                         "optional": false
                                     },
@@ -11140,10 +11140,10 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "eventTransaction": {
+                                    "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "7c8a7bd4"
+                                            "reuseReferenceId": "9171272b"
                                         },
                                         "optional": false
                                     },
@@ -13175,10 +13175,10 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "eventTransaction": {
+                                    "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "7c8a7bd4"
+                                            "reuseReferenceId": "9171272b"
                                         },
                                         "optional": false
                                     },
@@ -13903,10 +13903,10 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "eventTransaction": {
+                                    "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "7c8a7bd4"
+                                            "reuseReferenceId": "9171272b"
                                         },
                                         "optional": false
                                     },

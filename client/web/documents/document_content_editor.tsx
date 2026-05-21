@@ -2089,14 +2089,16 @@ export function DocumentContentEditor({
                                     // TODO(#spell-check): Load and pass in actual ignored lints
                                     spellCheckIgnoredLints={[]}
                                     onSpellCheckIgnoreLint={async ({key, kind}) => {
-                                        const {eventTransaction} =
-                                            await createSpellCheckIgnoredLint(context, {
+                                        const {events} = await createSpellCheckIgnoredLint(
+                                            context,
+                                            {
                                                 entityId: `Document:${documentId}`,
                                                 key,
                                                 kind,
-                                            });
+                                            },
+                                        );
 
-                                        handleEventForSpellCheckIgnoredLint(eventTransaction);
+                                        handleEventForSpellCheckIgnoredLint(events);
                                     }}
                                     // Since the document content editor fills the entire screen height, it makes sense
                                     // that if the user `mousedown`s in the bottom margin we should create a new

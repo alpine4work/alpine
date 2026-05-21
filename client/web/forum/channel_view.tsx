@@ -108,7 +108,7 @@ export function ChannelView({
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -199,7 +199,7 @@ export function ChannelView({
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -235,9 +235,7 @@ export function ChannelView({
     useEffect(() => {
         return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
-            setPosts(posts =>
-                posts.updateQuery(query => query.handleEventTransaction(event.eventTransaction)),
-            );
+            setPosts(posts => posts.updateQuery(query => query.handleEvents(event.events)));
         });
     }, [channel.id, setPosts]);
 
@@ -292,7 +290,7 @@ export function ChannelView({
 
                             // Immediately apply a realtime event transaction to update our channel in case our
                             // realtime WebSocket connection is slow.
-                            handleEventForChannel(event.eventTransaction);
+                            handleEventForChannel(event.events);
                         }}
                     />
                 ) : (
@@ -362,7 +360,7 @@ export function ChannelView({
                           notification,
                       });
 
-                      handleEventForChannel(event.eventTransaction);
+                      handleEventForChannel(event.events);
                   },
                   onCopyLink: handleCopyLink,
                   accessLevelText: channelAccessLevelText,
@@ -448,7 +446,7 @@ export function ChannelView({
 
                 // Immediately apply a realtime event transaction to update our channel in case our
                 // realtime WebSocket connection is slow.
-                handleEventForChannel(event.eventTransaction);
+                handleEventForChannel(event.events);
             },
             onAddAccountGrantsToAccessPolicy: async ({accountGrantById, notification}) => {
                 const event = await addAccountGrantsToChannelAccessPolicy(context, {
@@ -457,7 +455,7 @@ export function ChannelView({
                     notification,
                 });
 
-                handleEventForChannel(event.eventTransaction);
+                handleEventForChannel(event.events);
             },
         }),
         [
@@ -511,25 +509,19 @@ export function ChannelView({
                     setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
                 }}
                 shouldBeConnectedToChannelRealtime={shouldConnectToChannelRealtime}
-                onPostRealtimeEventTransaction={useCallback(
-                    eventTransaction => {
-                        setPosts(posts =>
-                            posts.updateQuery(query =>
-                                query.handleEventTransaction(eventTransaction),
-                            ),
-                        );
+                onPostRealtimeEvents={useCallback(
+                    events => {
+                        setPosts(posts => posts.updateQuery(query => query.handleEvents(events)));
                     },
                     [setPosts],
                 )}
-                onOptimisticPostRealtimeEventTransaction={useCallback(
+                onOptimisticPostRealtimeEvents={useCallback(
                     (promise, postId, update) => {
                         setPostsOptimistically(promise, (posts, promiseValue) => {
                             // Once `promise` resolves, use the event transaction from `promise` to update the
                             // posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return posts.updateQuery(query =>
-                                    query.handleEventTransaction(promiseValue),
-                                );
+                                return posts.updateQuery(query => query.handleEvents(promiseValue));
                             }
 
                             const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
@@ -546,7 +538,7 @@ export function ChannelView({
                             };
 
                             return posts.updateQuery(query =>
-                                query.handleEventTransaction([
+                                query.handleEvents([
                                     {type: "PutItem", item: newPostItem, indexes: new Map()},
                                 ]),
                             );
@@ -581,18 +573,15 @@ export function ChannelView({
                             initialName={channel.name}
                             initialDescription={channel.description}
                             onSave={async ({name, description}) => {
-                                const {eventTransaction} = await updateChannelNameAndDescription(
-                                    context,
-                                    {
-                                        channelId,
-                                        name,
-                                        description,
-                                    },
-                                );
+                                const {events} = await updateChannelNameAndDescription(context, {
+                                    channelId,
+                                    name,
+                                    description,
+                                });
 
                                 // Immediately apply a realtime event transaction to update our channel in case our
                                 // realtime WebSocket connection is slow.
-                                handleEventForChannel(eventTransaction);
+                                handleEventForChannel(events);
                             }}
                             onCloseWithAnimation={() => onCloseWithAnimation()}
                         />

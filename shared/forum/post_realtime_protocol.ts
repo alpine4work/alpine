@@ -127,13 +127,13 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
             event: Schema.union(createMessagingRealtimeEventSchemas(PostCommentModel.schema())),
         }),
 
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(RynamoPostEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoPostEventSchema),
         }),
     },
 });
 
-export const PostBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(RynamoEventStubSchema),
+export const PostBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

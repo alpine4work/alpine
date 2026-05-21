@@ -178,8 +178,8 @@ export class PostFeedList implements PostListInterface {
         });
     }
 
-    public handleEventTransaction(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) {
-        const newEntries = this._entries.handleEventTransaction(eventTransaction);
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>) {
+        const newEntries = this._entries.handleEvents(events);
 
         if (newEntries === this._entries) return this;
 
@@ -453,13 +453,11 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
      * realtime tells us about. So if later that post is added (via `addEntries()`) but
      * with a stale version then we'll actually have the latest version.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
-    ): PostFeedListVirtualizedTree {
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>): PostFeedListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
         let nodeByOrderKey = this._nodeByOrderKey;
 
-        for (const event of eventTransaction) {
+        for (const event of events) {
             // The `deleteItem()` operation is disabled for posts.
             //
             // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the future.

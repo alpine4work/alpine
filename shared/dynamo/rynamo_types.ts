@@ -371,7 +371,7 @@ export type RynamoBackfillResult<Model> =
     | {
           readonly type: "Available";
           readonly checkpoint: ServerSynchronizationCheckpoint;
-          readonly eventTransaction: ReadonlyArray<RynamoEvent<Model>>;
+          readonly events: ReadonlyArray<RynamoEvent<Model>>;
       };
 
 export function createRynamoBackfillResultSchema<Model>(
@@ -387,7 +387,7 @@ export function createRynamoBackfillResultSchema<Model>(
         Available: Schema.object({
             type: Schema.value("Available"),
             checkpoint: ServerSynchronizationCheckpointSchema,
-            eventTransaction: Schema.array(createRynamoEventSchema(ModelSchema)),
+            events: Schema.array(createRynamoEventSchema(ModelSchema)),
         }),
     });
 }

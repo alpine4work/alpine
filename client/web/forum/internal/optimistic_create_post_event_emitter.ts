@@ -5,5 +5,5 @@ import {ChannelId} from "~/shared/id/types/id_types.js";
 
 export const optimisticCreatePostEventEmitter = new EventEmitter<{
     channelId: ChannelId;
-    eventTransaction: ReadonlyArray<RynamoEvent<PostModel>>;
+    events: ReadonlyArray<RynamoEvent<PostModel>>;
 }>();

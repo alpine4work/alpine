@@ -6703,7 +6703,7 @@ describe("adding and removing documents from sites", () => {
         );
 
         // Verify site events were returned in the response
-        expect(result.eventTransactionForSite.length).toBeGreaterThan(0);
+        expect(result.eventsForSite.length).toBeGreaterThan(0);
     });
 
     test("removing a document from a site removes the entity ref and restores Local access policy", async () => {

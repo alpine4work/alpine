@@ -28,13 +28,13 @@ export type ChannelRealtimeEvent = WebSocketProtocolEventType<typeof ChannelReal
 export const ChannelRealtimeProtocol = defineWebSocketProtocol({
     procedures: {},
     events: {
-        RealtimeEventTransaction: Schema.object({
-            type: Schema.value("RealtimeEventTransaction"),
-            eventTransaction: Schema.array(RynamoChannelOrPostEventSchema),
+        RealtimeEvents: Schema.object({
+            type: Schema.value("RealtimeEvents"),
+            events: Schema.array(RynamoChannelOrPostEventSchema),
         }),
     },
 });
 
-export const ChannelBroadcastRealtimeEventTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(RynamoEventStubSchema),
+export const ChannelBroadcastRealtimeEventsSchema = Schema.object({
+    events: Schema.array(RynamoEventStubSchema),
 });

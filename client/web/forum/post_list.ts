@@ -738,8 +738,8 @@ export class PostBasicList extends PostListBase<number> {
         });
     }
 
-    public handleEventTransaction(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) {
-        const newPosts = this._posts.handleEventTransaction(eventTransaction);
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>) {
+        const newPosts = this._posts.handleEvents(events);
 
         if (newPosts === this._posts) return this;
 
@@ -916,13 +916,11 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
      * realtime tells us about. So if later that post is added (via `addPosts()`) but
      * with a stale version then we'll actually have the latest version.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
-    ): PostBasicListVirtualizedTree {
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>): PostBasicListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
         let nodeByOrderKey = this._nodeByOrderKey;
 
-        for (const event of eventTransaction) {
+        for (const event of events) {
             // The `deleteItem()` operation is disabled for posts.
             //
             // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the future.

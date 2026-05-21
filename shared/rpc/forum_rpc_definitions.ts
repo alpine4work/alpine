@@ -54,7 +54,7 @@ export const createChannel = defineRpc({
     output: {
         channelId: Schema.id<ChannelId>(),
         createdTime: Schema.date,
-        eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
+        eventsForSite: Schema.array(RynamoSiteEventSchema).default([]),
     },
 });
 
@@ -66,7 +66,7 @@ export const updateChannelName = defineRpc({
         name: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
+        events: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -78,7 +78,7 @@ export const updateChannelDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
+        events: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -91,7 +91,7 @@ export const updateChannelNameAndDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        eventTransaction: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
+        events: Schema.array(createRynamoEventSchema(ChannelModel.schema())),
     },
 });
 
@@ -105,7 +105,7 @@ export const updateChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        eventTransaction: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
+        events: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
     },
 });
 
@@ -122,7 +122,7 @@ export const addAccountGrantsToChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        eventTransaction: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
+        events: Schema.array(createRynamoEventSchema(ChannelOrMetadataModelSchema)),
     },
 });
 
@@ -243,7 +243,7 @@ export const createPost = defineRpc({
             spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
         }),
-        eventTransaction: Schema.array(createRynamoEventSchema(PostModel.schema())),
+        events: Schema.array(createRynamoEventSchema(PostModel.schema())),
     },
 });
 
@@ -258,7 +258,7 @@ export const updatePostContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        eventTransaction: Schema.array(createRynamoEventSchema(PostModel.schema())),
+        events: Schema.array(createRynamoEventSchema(PostModel.schema())),
     },
 });
 
@@ -465,10 +465,10 @@ export const getPostRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
-        eventTransaction: Schema.array(RynamoEventStubSchema),
+        events: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(RynamoPostEventSchema),
+        events: Schema.array(RynamoPostEventSchema),
     },
 });
 
@@ -477,10 +477,10 @@ export const getChannelRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
-        eventTransaction: Schema.array(RynamoEventStubSchema),
+        events: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(RynamoChannelOrPostEventSchema),
+        events: Schema.array(RynamoChannelOrPostEventSchema),
     },
 });
 
@@ -492,7 +492,7 @@ export const setPostReaction = defineRpc({
         reaction: ReactionOrGenericLikeSchema,
     },
     output: {
-        eventTransaction: Schema.array(RynamoPostEventSchema),
+        events: Schema.array(RynamoPostEventSchema),
     },
 });
 
@@ -503,6 +503,6 @@ export const deletePostReaction = defineRpc({
         postId: Schema.id<PostId>(),
     },
     output: {
-        eventTransaction: Schema.array(RynamoPostEventSchema),
+        events: Schema.array(RynamoPostEventSchema),
     },
 });

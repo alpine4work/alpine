@@ -3055,7 +3055,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3101,7 +3101,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3147,7 +3147,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     expect(
@@ -3158,7 +3158,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3177,7 +3177,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3223,7 +3223,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3269,7 +3269,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3298,7 +3298,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3317,7 +3317,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3363,7 +3363,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3409,7 +3409,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3438,7 +3438,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3471,7 +3471,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3531,7 +3531,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3577,7 +3577,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3620,7 +3620,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3668,7 +3668,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3694,7 +3694,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     const comment1 = await post.createComment(session, "comment1");
@@ -3712,7 +3712,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3738,7 +3738,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     const comment2 = await post.createComment(session, "comment2");
@@ -3756,7 +3756,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await comment2.updateContent(session, "comment2 (updated)");
@@ -3774,7 +3774,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await deletePostComment(session.action(), {
@@ -3795,7 +3795,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await post.createComment(session, "comment3");
@@ -3813,7 +3813,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3842,7 +3842,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3868,7 +3868,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await post.createComment(session, "comment4");
@@ -3887,7 +3887,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 });
 

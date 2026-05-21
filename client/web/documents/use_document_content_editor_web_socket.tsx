@@ -105,9 +105,7 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
 
 export type SubscribeToSpellCheckIgnoredLintEventsFunction = Memo<
     (
-        subscriber: (
-            eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>,
-        ) => void,
+        subscriber: (events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>) => void,
     ) => () => void
 >;
 

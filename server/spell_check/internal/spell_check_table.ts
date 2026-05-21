@@ -68,18 +68,18 @@ export const SpellCheckTable = RynamoTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
-        const eventTransactionBySpellCheckEntityId = new Map<
+    broadcastEvents: async (context, events) => {
+        const eventsBySpellCheckEntityId = new Map<
             SpellCheckEntityId,
             Array<RynamoEvent<SpellCheckIgnoredLintModel>>
         >();
 
         await runAllPromises(
-            mapIterable(eventTransaction, async ({itemKey, getEvent}) => {
+            mapIterable(events, async ({itemKey, getEvent}) => {
                 const event = await getEvent(context);
 
                 getOrSetDefaultMapValue(
-                    eventTransactionBySpellCheckEntityId,
+                    eventsBySpellCheckEntityId,
                     itemKey.spellCheckEntityId,
                     () => [],
                 ).push(event);
@@ -87,43 +87,40 @@ export const SpellCheckTable = RynamoTableSchema.new({
         );
 
         await runAllPromises(
-            Array.from(
-                eventTransactionBySpellCheckEntityId,
-                async ([spellCheckEntityId, eventTransaction]) => {
-                    const parsedSpellCheckEntityId = parseSpellCheckEntityId(spellCheckEntityId);
-                    const type = parsedSpellCheckEntityId.type;
-                    let serviceName: TokenServiceName | null = null;
-                    let url: `/api/durable-objects/${string}` | null = null;
-                    let route: `/api/durable-objects/${string}` | null = null;
+            Array.from(eventsBySpellCheckEntityId, async ([spellCheckEntityId, events]) => {
+                const parsedSpellCheckEntityId = parseSpellCheckEntityId(spellCheckEntityId);
+                const type = parsedSpellCheckEntityId.type;
+                let serviceName: TokenServiceName | null = null;
+                let url: `/api/durable-objects/${string}` | null = null;
+                let route: `/api/durable-objects/${string}` | null = null;
 
-                    switch (type) {
-                        case "Document": {
-                            serviceName = "DocumentCollaborationService";
-                            url = `/api/durable-objects/documents/${parsedSpellCheckEntityId.documentId}/broadcast-spell-check-realtime-event-transaction`;
-                            route =
-                                "/api/durable-objects/documents/:documentId/broadcast-spell-check-realtime-event-transaction";
-                            break;
-                        }
-                        case "Task": {
-                            serviceName = "TaskNotesCollaborationService";
-                            // TODO(#ignore-lints) create new endpoint
-                            url = `/api/durable-objects/task-notes/${parsedSpellCheckEntityId.taskId}`;
-                            route = "/api/durable-objects/task-notes/:taskId";
-                            break;
-                        }
-                        default:
-                            exhaustive(type);
+                switch (type) {
+                    case "Document": {
+                        serviceName = "DocumentCollaborationService";
+                        url = `/api/durable-objects/documents/${parsedSpellCheckEntityId.documentId}/broadcast-spell-check-realtime-event-transaction`;
+                        route =
+                            "/api/durable-objects/documents/:documentId/broadcast-spell-check-realtime-event-transaction";
+                        break;
                     }
+                    case "Task": {
+                        serviceName = "TaskNotesCollaborationService";
+                        // TODO(#ignore-lints) create new endpoint
+                        url = `/api/durable-objects/task-notes/${parsedSpellCheckEntityId.taskId}`;
+                        route = "/api/durable-objects/task-notes/:taskId";
+                        break;
+                    }
+                    default:
+                        exhaustive(type);
+                }
 
-                    await context.edge.broadcastToDurableObject(assertExists(url), {
-                        serviceName: assertExists(serviceName),
-                        route: assertExists(route),
-                        body: SpellCheckIgnoredLintRealtimeTransactionSchema.serialize({
-                            eventTransaction,
-                        }),
-                    });
-                },
-            ),
+                await context.edge.broadcastToDurableObject(assertExists(url), {
+                    serviceName: assertExists(serviceName),
+                    route: assertExists(route),
+                    body: SpellCheckIgnoredLintRealtimeTransactionSchema.serialize({
+                        events,
+                    }),
+                });
+            }),
         );
     },
 });

@@ -84,9 +84,9 @@ export const createDocument = defineRpc({
     output: {
         documentId: Schema.id<DocumentId>(),
         createdTime: Schema.date,
-        eventTransactionForSite: Schema.array(
-            createRynamoEventSchema(SiteOrSiteEntryModelSchema),
-        ).default([]),
+        eventsForSite: Schema.array(createRynamoEventSchema(SiteOrSiteEntryModelSchema)).default(
+            [],
+        ),
     },
 });
 
@@ -200,7 +200,7 @@ export const updateDocumentContent = defineRpc({
          * same dynamo transaction as the document update. Empty when the update didn't
          * touch a site.
          */
-        eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
+        eventsForSite: Schema.array(RynamoSiteEventSchema).default([]),
     },
 });
 

@@ -32,7 +32,7 @@ export async function updateSiteContainerLabel(
         label: string;
     },
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<Array<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -68,7 +68,7 @@ export async function updateSiteContainerLabel(
         );
 
         return {
-            getRynamoEventTransaction: context =>
+            getRynamoEvents: context =>
                 runAllPromises([
                     updateContainerTransactionEntry.getEvent(context),
                     updateSiteAttributesTransactionEntry.getEvent(context),

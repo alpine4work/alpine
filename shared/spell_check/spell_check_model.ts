@@ -26,5 +26,5 @@ const RynamoSpellCheckIgnoredEventSchema = createRynamoEventSchema(
 );
 
 export const SpellCheckIgnoredLintRealtimeTransactionSchema = Schema.object({
-    eventTransaction: Schema.array(RynamoSpellCheckIgnoredEventSchema),
+    events: Schema.array(RynamoSpellCheckIgnoredEventSchema),
 });

@@ -23,9 +23,7 @@ export async function updateSiteName(
         name: string;
     },
 ): Promise<{
-    getRynamoEventTransaction: (
-        context: ServerActionContext,
-    ) => Promise<RynamoEvent<SitePreviewModel>>;
+    getRynamoEvents: (context: ServerActionContext) => Promise<RynamoEvent<SitePreviewModel>>;
     site: SitePreviewModel;
 }> {
     return context.dynamo.retryTransaction(async context => {
@@ -62,7 +60,7 @@ export async function updateSiteName(
 
         return {
             site: createSitePreviewModelFromItem(newItem),
-            getRynamoEventTransaction: getEvent,
+            getRynamoEvents: getEvent,
         };
     });
 }

@@ -91,7 +91,7 @@ export function ChannelFilesView({
         isConnected,
         subscribeToPongs,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         backfillQuery: useCallback(

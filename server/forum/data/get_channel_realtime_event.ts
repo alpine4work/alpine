@@ -18,9 +18,9 @@ import {ChannelId} from "~/shared/id/types/id_types.js";
 export async function getChannelRealtimeEvent(
     context: ServerSessionActionContext,
     channelId: ChannelId,
-    eventTransaction: ReadonlyArray<RynamoEventStub>,
+    events: ReadonlyArray<RynamoEventStub>,
 ): Promise<ReadonlyArray<RynamoChannelOrPostEvent>> {
-    const [, actualEventTransaction] = await runAllPromises([
+    const [, actualEvents] = await runAllPromises([
         // Authorizing in parallel means we'll batch the channel read in
         // `authorizeChannelAccess()` with any DynamoDB reads from the
         // `ForumRealtimeTable.getRealtimeEvent()` call.
@@ -29,7 +29,7 @@ export async function getChannelRealtimeEvent(
         ForumRealtimeTable.getRealtimeEvent(
             context,
             await runAllPromises(
-                eventTransaction.map(async eventStub => {
+                events.map(async eventStub => {
                     const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
 
                     // Check that the `itemKey` we're reading is for the channel we've authorized.
@@ -63,5 +63,5 @@ export async function getChannelRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<RynamoChannelOrPostEvent>;
+    return actualEvents as ReadonlyArray<RynamoChannelOrPostEvent>;
 }

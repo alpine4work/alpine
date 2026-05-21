@@ -35,16 +35,16 @@ const allowedSiteSortRangeTypesForGetSiteRealtimeEvent: Record<
 export async function getSiteRealtimeEvent(
     context: ServerSessionActionContext,
     siteId: SiteId,
-    eventTransaction: ReadonlyArray<RynamoEventStub>,
+    events: ReadonlyArray<RynamoEventStub>,
 ): Promise<ReadonlyArray<RynamoSiteEvent>> {
-    const [, actualEventTransaction] = await runAllPromises([
+    const [, actualEvents] = await runAllPromises([
         // Authorizing in parallel means the site read in `authorizeSiteAccess()` batches
         // with any DynamoDB reads from `SitesTable.getRealtimeEvent()`.
         authorizeSiteAccess(context, siteId, "View"),
 
         SitesTable.getRealtimeEvent(
             context,
-            eventTransaction.map(eventStub => {
+            events.map(eventStub => {
                 const itemKey = SitesTable.deserializeOpaqueItemKey(eventStub.item.key);
 
                 // Stubs may only target items in the authorized site.
@@ -63,5 +63,5 @@ export async function getSiteRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<RynamoSiteEvent>;
+    return actualEvents as ReadonlyArray<RynamoSiteEvent>;
 }

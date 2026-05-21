@@ -215,8 +215,8 @@ function PostListView(
         onUpdatePostCommentsOptimistically,
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
-        onPostRealtimeEventTransaction,
-        onOptimisticPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
+        onOptimisticPostRealtimeEvents,
         aside,
         sideBarLeftSize,
         sideBarRightSize,
@@ -313,9 +313,7 @@ function PostListView(
          *   `shouldBeConnectedToChannelRealtime` is true then we should be getting
          *   realtime updates from `ChannelRealtimeService`.
          */
-        onPostRealtimeEventTransaction: Memo<
-            (eventTransaction: ReadonlyArray<RynamoEvent<PostModel>>) => void
-        >;
+        onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
 
         /**
          * Make an arbitrary update to a post optimistically. Must provide a promise that
@@ -323,9 +321,9 @@ function PostListView(
          * transaction update is applied. If the promise rejects then we revert the
          * optimistic update.
          *
-         * Similar to `onPostRealtimeEventTransaction` but allows for an optimistic update.
+         * Similar to `onPostRealtimeEvents` but allows for an optimistic update.
          */
-        onOptimisticPostRealtimeEventTransaction: Memo<
+        onOptimisticPostRealtimeEvents: Memo<
             (
                 promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
                 postId: PostId,
@@ -767,7 +765,7 @@ function PostListView(
                 steps,
             });
 
-            onPostRealtimeEventTransaction(event.eventTransaction);
+            onPostRealtimeEvents(event.events);
         },
     });
 
@@ -1367,8 +1365,8 @@ function PostListView(
                                                 },
                                             );
                                         }}
-                                        onOptimisticPostRealtimeEventTransaction={
-                                            onOptimisticPostRealtimeEventTransaction
+                                        onOptimisticPostRealtimeEvents={
+                                            onOptimisticPostRealtimeEvents
                                         }
                                         isPostArchived={isPostArchived}
                                         onArchivePost={onArchivePost}
@@ -1667,7 +1665,7 @@ function PostListView(
                                 });
                             }}
                             shouldBeConnectedToChannelRealtime={shouldBeConnectedToChannelRealtime}
-                            onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                            onPostRealtimeEvents={onPostRealtimeEvents}
                         />
                     );
 
@@ -2027,7 +2025,7 @@ function PostListView(
             jumpToPostRangeState,
             idBase,
             isShowingAllContentByPostId,
-            onOptimisticPostRealtimeEventTransaction,
+            onOptimisticPostRealtimeEvents,
             isPostArchived,
             onArchivePost,
             onUnarchivePost,
@@ -2046,7 +2044,7 @@ function PostListView(
             inputParentByPostId,
             inputRefByPostId,
             shouldBeConnectedToChannelRealtime,
-            onPostRealtimeEventTransaction,
+            onPostRealtimeEvents,
             platform,
             onUpdatePostComments,
             navigate,
@@ -2398,7 +2396,7 @@ function PostListView(
                                     shouldBeConnectedToChannelRealtime={
                                         shouldBeConnectedToChannelRealtime
                                     }
-                                    onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                                    onPostRealtimeEvents={onPostRealtimeEvents}
                                 />
                             );
                         })()}

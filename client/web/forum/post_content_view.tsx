@@ -127,7 +127,7 @@ export function PostContentView({
     onScrollToIfNotVisible,
     isShowingAllContent,
     onIsShowingAllContentChange,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
     isPostArchived,
     onArchivePost,
     onUnarchivePost,
@@ -147,7 +147,7 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
-    onOptimisticPostRealtimeEventTransaction: (
+    onOptimisticPostRealtimeEvents: (
         promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
@@ -533,7 +533,7 @@ export function PostContentView({
                 isReadOnly={isReadOnly}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
-                onOptimisticPostRealtimeEventTransaction={onOptimisticPostRealtimeEventTransaction}
+                onOptimisticPostRealtimeEvents={onOptimisticPostRealtimeEvents}
             />
         </Box>
     );
@@ -546,7 +546,7 @@ function PostContentViewFooter({
     isReadOnly,
     onTogglePostComments,
     onLoadInitialPostComments,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -554,7 +554,7 @@ function PostContentViewFooter({
     isReadOnly: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
-    onOptimisticPostRealtimeEventTransaction: (
+    onOptimisticPostRealtimeEvents: (
         promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
@@ -640,7 +640,7 @@ function PostContentViewFooter({
                         if (!currentAccount) return;
 
                         const promise = setPostReaction(context, {postId: post.id, reaction}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
@@ -652,7 +652,7 @@ function PostContentViewFooter({
                         // use the same logic on the client as well.
                         inboxContext?.onSetMessageReactionOptimistically(promise, post.id);
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.set(currentAccount.id, reaction);
                             return post.clone({reactions: new ReactionSet(newReactions)});
@@ -662,14 +662,14 @@ function PostContentViewFooter({
                         if (!currentAccount) return;
 
                         const promise = deletePostReaction(context, {postId: post.id}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
                             reporter.displayError("Couldn\u2019t remove reaction from post", error);
                         });
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.delete(currentAccount.id);
                             return post.clone({reactions: new ReactionSet(newReactions)});

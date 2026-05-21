@@ -140,19 +140,19 @@ export function FeedView({
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
-                onPostRealtimeEventTransaction={useCallback(
-                    eventTransaction => {
-                        setFeed(feed => feed.handleEventTransaction(eventTransaction));
+                onPostRealtimeEvents={useCallback(
+                    events => {
+                        setFeed(feed => feed.handleEvents(events));
                     },
                     [setFeed],
                 )}
-                onOptimisticPostRealtimeEventTransaction={useCallback(
+                onOptimisticPostRealtimeEvents={useCallback(
                     (promise, postId, update) => {
                         setFeedOptimistically(promise, (feed, promiseValue) => {
                             // Once `promise` resolves, use the event transaction from `promise` to update the
                             // posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return feed.handleEventTransaction(promiseValue);
+                                return feed.handleEvents(promiseValue);
                             }
 
                             const oldPostItem = feed.getPostRealtimeItemIfExists(postId);
@@ -168,7 +168,7 @@ export function FeedView({
                                 model: newPost,
                             };
 
-                            return feed.handleEventTransaction([
+                            return feed.handleEvents([
                                 {type: "PutItem", item: newPostItem, indexes: new Map()},
                             ]);
                         });

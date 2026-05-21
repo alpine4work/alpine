@@ -37,9 +37,7 @@ export async function updateSiteAccessPolicy(
     },
 ): Promise<{
     site: SitePreviewModel;
-    getRynamoEventTransaction: (
-        context: ServerActionContext,
-    ) => Promise<RynamoEvent<SitePreviewModel>>;
+    getRynamoEvents: (context: ServerActionContext) => Promise<RynamoEvent<SitePreviewModel>>;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const siteAttributesItem = await authorizeSiteAccessAndReturnItem(
@@ -86,7 +84,7 @@ export async function updateSiteAccessPolicy(
 
         return {
             site: createSitePreviewModelFromItem(newItem),
-            getRynamoEventTransaction: getEvent,
+            getRynamoEvents: getEvent,
         };
     });
 }

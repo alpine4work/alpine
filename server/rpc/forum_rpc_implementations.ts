@@ -47,14 +47,14 @@ export default implementRpcs(definitions, {
     createChannel: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime, getRynamoEventTransactionForSite} = await createChannel(
+            const {id, createdTime, getRynamoEventsForSite} = await createChannel(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
                 channelId: id,
                 createdTime,
-                eventTransactionForSite: await getRynamoEventTransactionForSite(context),
+                eventsForSite: await getRynamoEventsForSite(context),
             };
         },
     },
@@ -62,39 +62,36 @@ export default implementRpcs(definitions, {
     updateChannelName: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getRynamoEventTransaction} = await updateChannelName(context, input);
-            return {eventTransaction: await getRynamoEventTransaction(context)};
+            const {getRynamoEvents} = await updateChannelName(context, input);
+            return {events: await getRynamoEvents(context)};
         },
     },
 
     updateChannelDescription: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getRynamoEventTransaction} = await updateChannelDescription(context, input);
-            return {eventTransaction: await getRynamoEventTransaction(context)};
+            const {getRynamoEvents} = await updateChannelDescription(context, input);
+            return {events: await getRynamoEvents(context)};
         },
     },
 
     updateChannelNameAndDescription: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getRynamoEventTransaction} = await updateChannelNameAndDescription(
-                context,
-                input,
-            );
-            return {eventTransaction: await getRynamoEventTransaction(context)};
+            const {getRynamoEvents} = await updateChannelNameAndDescription(context, input);
+            return {events: await getRynamoEvents(context)};
         },
     },
 
     updateChannelAccessPolicy: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getRynamoEventTransaction} = await updateChannelAccessPolicy(
+            const {getRynamoEvents} = await updateChannelAccessPolicy(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getRynamoEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -102,12 +99,12 @@ export default implementRpcs(definitions, {
     addAccountGrantsToChannelAccessPolicy: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {getRynamoEventTransaction} = await addAccountGrantsToChannelAccessPolicy(
+            const {getRynamoEvents} = await addAccountGrantsToChannelAccessPolicy(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
-                eventTransaction: await getRynamoEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -197,7 +194,7 @@ export default implementRpcs(definitions, {
     createPost: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, spaceId, createdTime, getRynamoEventTransaction} = await createPost(
+            const {id, spaceId, createdTime, getRynamoEvents} = await createPost(
                 context.actor.authorizeSession(),
                 input,
             );
@@ -207,7 +204,7 @@ export default implementRpcs(definitions, {
                     spaceId,
                     createdTime,
                 },
-                eventTransaction: await getRynamoEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -215,13 +212,13 @@ export default implementRpcs(definitions, {
     updatePostContent: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {contentUpdatedTime, getRynamoEventTransaction} = await updatePostContent(
+            const {contentUpdatedTime, getRynamoEvents} = await updatePostContent(
                 context.actor.authorizeSession(),
                 input,
             );
             return {
                 contentUpdatedTime,
-                eventTransaction: await getRynamoEventTransaction(context),
+                events: await getRynamoEvents(context),
             };
         },
     },
@@ -361,26 +358,26 @@ export default implementRpcs(definitions, {
     getPostRealtimeEvent: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            const eventTransaction = await getPostRealtimeEvent(
+            const events = await getPostRealtimeEvent(
                 context.actor.authorizeSession(),
                 input.postId,
-                input.eventTransaction,
+                input.events,
             );
 
-            return {eventTransaction};
+            return {events};
         },
     },
 
     getChannelRealtimeEvent: {
         visibility: ["ChannelRealtimeService"],
         execute: async (context, input) => {
-            const eventTransaction = await getChannelRealtimeEvent(
+            const events = await getChannelRealtimeEvent(
                 context.actor.authorizeSession(),
                 input.channelId,
-                input.eventTransaction,
+                input.events,
             );
 
-            return {eventTransaction};
+            return {events};
         },
     },
 
@@ -393,7 +390,7 @@ export default implementRpcs(definitions, {
                 input.reaction,
             );
 
-            return {eventTransaction: [await getRynamoEvent(context)]};
+            return {events: [await getRynamoEvent(context)]};
         },
     },
 
@@ -405,7 +402,7 @@ export default implementRpcs(definitions, {
                 input.postId,
             );
 
-            return {eventTransaction: [await getRynamoEvent(context)]};
+            return {events: [await getRynamoEvent(context)]};
         },
     },
 });

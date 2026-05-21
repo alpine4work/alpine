@@ -14,7 +14,7 @@ export async function createSpellCheckIgnoredLint(
     key: string,
     kind: string,
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>>;
 }> {
@@ -34,6 +34,6 @@ export async function createSpellCheckIgnoredLint(
     });
 
     return {
-        getRynamoEventTransaction: async context => [await getEvent(context)],
+        getRynamoEvents: async context => [await getEvent(context)],
     };
 }

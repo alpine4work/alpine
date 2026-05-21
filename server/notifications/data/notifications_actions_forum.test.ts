@@ -55,7 +55,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -5628,7 +5628,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ).toEqual({
                 type: "Available",
                 checkpoint: expect.any(Date),
-                eventTransaction: [
+                events: [
                     {
                         type: "PutItem",
                         item: {
@@ -5676,7 +5676,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ).toEqual({
                 type: "Available",
                 checkpoint: expect.any(Date),
-                eventTransaction: [
+                events: [
                     {
                         type: "PutItem",
                         item: {
@@ -5702,7 +5702,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ).toEqual({
                 type: "Available",
                 checkpoint: expect.any(Date),
-                eventTransaction: [],
+                events: [],
             });
         });
 
@@ -6445,7 +6445,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
                         return [
                             match[1],
-                            MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                            MyAccountBroadcastInboxRealtimeEventsSchema.deserialize(body),
                         ];
                     }),
                 ),
@@ -6454,7 +6454,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session2.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -6492,7 +6492,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session3.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -6602,7 +6602,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
                     return [
                         match[1],
-                        MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                        MyAccountBroadcastInboxRealtimeEventsSchema.deserialize(body),
                     ];
                 }),
             );
@@ -6612,7 +6612,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session2.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -6651,7 +6651,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session3.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),

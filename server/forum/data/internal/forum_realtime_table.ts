@@ -30,10 +30,10 @@ import {
     ChannelPreviewModel,
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
-import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {ChannelBroadcastRealtimeEventsSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostModel, maxPostPreviewCommentAuthorCount} from "~/shared/forum/post_model.js";
-import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
+import {PostBroadcastRealtimeEventsSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -450,7 +450,7 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions so we send everything in a `ChannelId` to that
         // channel and nothing else. We have to split for security: if two channels are
         // updated in the same transaction, a user connected to channel 1 shouldn't get
@@ -459,7 +459,7 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
         // This means clients may see a glitch where an atomic update across two channels
         // is applied separately. This is fine as in practice we don't have any
         // cross-channel updates it's critical for users to see atomically.
-        const eventTransactionByChannelId = new Map<ChannelId, Array<RynamoEventStub>>();
+        const eventsByChannelId = new Map<ChannelId, Array<RynamoEventStub>>();
 
         // We also send post updates to the corresponding post durable object. That way
         // single post views that have a WebSocket connection to `PostRealtimeService` will
@@ -484,11 +484,11 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
         // meaningful.
         //
         // [1]: https://developers.cloudflare.com/workers/platform/pricing/#durable-objects
-        const eventTransactionByPostId = new Map<PostId, Array<RynamoEventStub>>();
+        const eventsByPostId = new Map<PostId, Array<RynamoEventStub>>();
 
         await runAllPromises(
             mapIterable(
-                eventTransaction,
+                events,
                 async ({
                     itemKey,
                     eventStub,
@@ -504,7 +504,7 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
                         // channel is created.
                         if (!isChannelCreationEvent) {
                             getOrSetDefaultMapValue(
-                                eventTransactionByChannelId,
+                                eventsByChannelId,
                                 itemKey.channelId,
                                 () => [],
                             ).push(eventStub);
@@ -518,11 +518,9 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
                         // Optimization: Don't broadcast post creation events to post durable objects. No
                         // one will be subscribed to the post durable object before the post is created.
                         if (!isPostCreationEvent) {
-                            getOrSetDefaultMapValue(
-                                eventTransactionByPostId,
-                                itemKey.postId,
-                                () => [],
-                            ).push(eventStub);
+                            getOrSetDefaultMapValue(eventsByPostId, itemKey.postId, () => []).push(
+                                eventStub,
+                            );
                         }
 
                         const {oldValue: oldChannelId, newValue: newChannelId} =
@@ -533,11 +531,9 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
 
                         // Send post realtime updates to the channel realtime stream the post is a part of.
                         if (newChannelId !== undefined) {
-                            getOrSetDefaultMapValue(
-                                eventTransactionByChannelId,
-                                newChannelId,
-                                () => [],
-                            ).push(eventStub);
+                            getOrSetDefaultMapValue(eventsByChannelId, newChannelId, () => []).push(
+                                eventStub,
+                            );
                         }
 
                         if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
@@ -556,26 +552,26 @@ export const ForumRealtimeTable = RynamoTableSchema.new({
 
         await runAllPromises(
             concatIterables(
-                mapIterable(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
+                mapIterable(eventsByChannelId, async ([channelId, events]) => {
                     await context.edge.broadcastToDurableObject(
                         `/api/durable-objects/channels/${channelId}/broadcast-realtime-event-transaction`,
                         {
                             serviceName: "ChannelRealtimeService",
                             route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
-                            body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
+                            body: ChannelBroadcastRealtimeEventsSchema.serialize({
+                                events,
                             }),
                         },
                     );
                 }),
-                mapIterable(eventTransactionByPostId, async ([postId, eventTransaction]) => {
+                mapIterable(eventsByPostId, async ([postId, events]) => {
                     await context.edge.broadcastToDurableObject(
                         `/api/durable-objects/posts/${postId}/broadcast-realtime-event-transaction`,
                         {
                             serviceName: "PostRealtimeService",
                             route: "/api/durable-objects/posts/:postId/broadcast-realtime-event-transaction",
-                            body: PostBroadcastRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
+                            body: PostBroadcastRealtimeEventsSchema.serialize({
+                                events,
                             }),
                         },
                     );

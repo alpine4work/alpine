@@ -176,7 +176,7 @@ export function PostCreator({
             onPress={async () => {
                 if (!channel) return;
 
-                const {post, eventTransaction} = await createPost(context, {
+                const {post, events} = await createPost(context, {
                     channelId: channel.id,
                     draftId,
                     content: trimContent(state.getDoc()),
@@ -188,7 +188,7 @@ export function PostCreator({
                 // `<ChannelView>` can use that too in case the WebSocket is slow.
                 optimisticCreatePostEventEmitter.emit({
                     channelId: channel.id,
-                    eventTransaction,
+                    events,
                 });
 
                 if (shouldReturnBack) {

@@ -166,7 +166,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             },
             output: {
                 newVersion: Schema.integer,
-                eventTransactionForSite: Schema.array(RynamoSiteEventSchema).default([]),
+                eventsForSite: Schema.array(RynamoSiteEventSchema).default([]),
             },
         },
 
@@ -452,11 +452,9 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             event: Schema.union(createMessagingRealtimeEventSchemas(DocumentCommentModel.schema())),
         }),
 
-        SpellCheckRealtimeEventTransaction: Schema.object({
-            type: Schema.value("SpellCheckRealtimeEventTransaction"),
-            eventTransaction: Schema.array(
-                createRynamoEventSchema(SpellCheckIgnoredLintModel.schema()),
-            ),
+        SpellCheckRealtimeEvents: Schema.object({
+            type: Schema.value("SpellCheckRealtimeEvents"),
+            events: Schema.array(createRynamoEventSchema(SpellCheckIgnoredLintModel.schema())),
         }),
     },
 });

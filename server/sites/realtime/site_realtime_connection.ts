@@ -11,8 +11,8 @@ import {getSiteRealtimeEvent} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SiteRealtimeEvent} from "~/shared/sites/site_realtime_protocol.js";
 
 export type SiteRealtimeEventStub = {
-    readonly type: "RealtimeEventTransaction";
-    readonly eventTransaction: ReadonlyArray<RynamoEventStub>;
+    readonly type: "RealtimeEvents";
+    readonly events: ReadonlyArray<RynamoEventStub>;
 };
 
 export class SiteRealtimeConnection {
@@ -35,14 +35,14 @@ export class SiteRealtimeConnection {
         context: WorkerSessionActionContext,
         eventStub: SiteRealtimeEventStub,
     ): Promise<SiteRealtimeEvent> {
-        const {eventTransaction} = await getSiteRealtimeEvent(context, {
+        const {events} = await getSiteRealtimeEvent(context, {
             siteId: this._siteId,
-            eventTransaction: eventStub.eventTransaction,
+            events: eventStub.events,
         });
 
         return {
             type: eventStub.type,
-            eventTransaction,
+            events,
         };
     }
 }

@@ -55,7 +55,7 @@ export const createSite = defineRpc({
         }),
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -70,7 +70,7 @@ export const updateSiteName = defineRpc({
         name: Schema.string,
     },
     output: {
-        eventTransaction: createRynamoEventSchema(SitePreviewModel.schema),
+        events: createRynamoEventSchema(SitePreviewModel.schema),
     },
 });
 
@@ -86,7 +86,7 @@ export const updateSiteAccessPolicy = defineRpc({
         accessPolicy: LocalAccessPolicySchema,
     },
     output: {
-        eventTransaction: createRynamoEventSchema(SitePreviewModel.schema),
+        events: createRynamoEventSchema(SitePreviewModel.schema),
     },
 });
 
@@ -138,7 +138,7 @@ export const createSiteContainer = defineRpc({
         orderKey: OrderKeySchema,
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -159,7 +159,7 @@ export const updateSiteContainerLabel = defineRpc({
         label: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -196,7 +196,7 @@ export const moveSiteEntry = defineRpc({
         /**
          * The moved item with its new orderKey.
          */
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -225,7 +225,7 @@ export const deleteSiteContainer = defineRpc({
         }),
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -240,7 +240,7 @@ export const addEntityToSite = defineRpc({
         orderKey: OrderKeySchema,
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -253,7 +253,7 @@ export const removeEntityFromSite = defineRpc({
         entityId: SiteItemSearchEntityIdSchema,
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 
@@ -282,10 +282,10 @@ export const getSiteRealtimeEvent = defineRpc({
     isIdempotent: true,
     input: {
         siteId: Schema.id<SiteId>(),
-        eventTransaction: Schema.array(RynamoEventStubSchema),
+        events: Schema.array(RynamoEventStubSchema),
     },
     output: {
-        eventTransaction: Schema.array(RynamoSiteEventSchema),
+        events: Schema.array(RynamoSiteEventSchema),
     },
 });
 

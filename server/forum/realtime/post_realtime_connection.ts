@@ -51,8 +51,8 @@ export type PostRealtimeEventStub =
           readonly event: MessagingRealtimeEventStub;
       }
     | {
-          readonly type: "RealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<RynamoEventStub>;
+          readonly type: "RealtimeEvents";
+          readonly events: ReadonlyArray<RynamoEventStub>;
       };
 
 export class PostRealtimeConnection {
@@ -214,15 +214,15 @@ export class PostRealtimeConnection {
                     event: await this._connection.transformEvent(context, eventStub.event),
                 };
             }
-            case "RealtimeEventTransaction": {
-                const {eventTransaction} = await getPostRealtimeEvent(context, {
+            case "RealtimeEvents": {
+                const {events} = await getPostRealtimeEvent(context, {
                     postId: this._postId,
-                    eventTransaction: eventStub.eventTransaction,
+                    events: eventStub.events,
                 });
 
                 return {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
+                    type: "RealtimeEvents",
+                    events,
                 };
             }
             default:

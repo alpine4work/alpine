@@ -32,13 +32,12 @@ test("can delete and undelete items", async () => {
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
-        [];
+    let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-    const takeEventTransactions = () => {
-        const currentEventTransactions = eventTransactions;
-        eventTransactions = [];
-        return currentEventTransactions;
+    const takeEventss = () => {
+        const currentEventss = eventss;
+        eventss = [];
+        return currentEventss;
     };
 
     const TestTable = RynamoTableSchema.new({
@@ -123,10 +122,8 @@ test("can delete and undelete items", async () => {
                 },
             },
         },
-        broadcastEventTransaction: async (context, eventTransaction) => {
-            eventTransactions.push(
-                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-            );
+        broadcastEvents: async (context, events) => {
+            eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
         },
     });
 
@@ -141,7 +138,7 @@ test("can delete and undelete items", async () => {
     expect(getPutItemCount()).toEqual(0);
     expect(getTransactWriteItemsCount()).toEqual(0);
 
-    expect(takeEventTransactions()).toEqual([]);
+    expect(takeEventss()).toEqual([]);
 
     {
         await expect(
@@ -247,7 +244,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(0);
         expect(getTransactWriteItemsCount()).toEqual(0);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -264,7 +261,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(1);
         expect(getTransactWriteItemsCount()).toEqual(0);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -296,7 +293,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(1);
         expect(getTransactWriteItemsCount()).toEqual(1);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -328,7 +325,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(2);
         expect(getTransactWriteItemsCount()).toEqual(1);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -360,7 +357,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(2);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -395,7 +392,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(3);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -425,7 +422,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(4);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.directlyUpdateItem(
             space.systemAction(),
@@ -446,7 +443,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -604,7 +601,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -627,7 +624,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -648,7 +645,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.deleteItem(space.systemAction(), {
             partitionType: "PartitionA",
@@ -664,7 +661,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(3);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -696,7 +693,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(4);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -717,7 +714,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(5);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -739,7 +736,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(6);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.deleteItem(space.systemAction(), {
             partitionType: "PartitionA",
@@ -755,7 +752,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(7);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -788,7 +785,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -911,7 +908,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -938,7 +935,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -963,7 +960,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -988,7 +985,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(9);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -1007,7 +1004,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(10);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1049,7 +1046,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(11);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -1068,7 +1065,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(12);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1110,7 +1107,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(13);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -1135,7 +1132,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -1276,7 +1273,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -1294,7 +1291,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(6);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1333,7 +1330,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(6);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.directlyUpdateItem(space.systemAction(), {
@@ -1361,7 +1358,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(7);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.directlyUpdateItem(
             space.systemAction(),
@@ -1382,7 +1379,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1540,7 +1537,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -1558,7 +1555,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(16);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -1592,7 +1589,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(16);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.createItem(space.systemAction(), {
@@ -1613,7 +1610,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(17);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.createItem(space.systemAction(), {
@@ -1635,7 +1632,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(18);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -1654,7 +1651,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(19);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1705,7 +1702,7 @@ test("can delete and undelete items", async () => {
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(19);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 });
 
@@ -1719,13 +1716,12 @@ test("can delete and undelete items (with transactions)", async () => {
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
-        [];
+    let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-    const takeEventTransactions = () => {
-        const currentEventTransactions = eventTransactions;
-        eventTransactions = [];
-        return currentEventTransactions;
+    const takeEventss = () => {
+        const currentEventss = eventss;
+        eventss = [];
+        return currentEventss;
     };
 
     const TestTable = RynamoTableSchema.new({
@@ -1810,16 +1806,14 @@ test("can delete and undelete items (with transactions)", async () => {
                 },
             },
         },
-        broadcastEventTransaction: async (context, eventTransaction) => {
-            eventTransactions.push(
-                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-            );
+        broadcastEvents: async (context, events) => {
+            eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
         },
     });
 
     finishInitializingDynamoTableSchemas();
 
-    expect(takeEventTransactions()).toEqual([]);
+    expect(takeEventss()).toEqual([]);
 
     {
         await expect(
@@ -1922,7 +1916,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -1938,7 +1932,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -1969,7 +1963,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2000,7 +1994,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2031,7 +2025,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2065,7 +2059,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2094,7 +2088,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
@@ -2113,7 +2107,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2268,7 +2262,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -2288,7 +2282,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         expect(() =>
             TestTable.transactionDeleteItem({
@@ -2306,7 +2300,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
@@ -2321,7 +2315,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -2353,7 +2347,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -2374,7 +2368,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -2395,7 +2389,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
@@ -2410,7 +2404,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -2442,7 +2436,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -2562,7 +2556,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -2585,7 +2579,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         expect(() =>
             TestTable.transactionUndeleteItem(
@@ -2606,7 +2600,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -2629,7 +2623,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -2646,7 +2640,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2686,7 +2680,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -2703,7 +2697,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2743,7 +2737,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -2766,7 +2760,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -2904,7 +2898,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -2925,7 +2919,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -2962,7 +2956,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -2989,7 +2983,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
@@ -3008,7 +3002,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3163,7 +3157,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -3180,7 +3174,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -3211,7 +3205,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).toEqual(null);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -3231,7 +3225,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -3252,7 +3246,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -3269,7 +3263,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3317,7 +3311,7 @@ test("can delete and undelete items (with transactions)", async () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 });
 
@@ -3331,13 +3325,12 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
-        [];
+    let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-    const takeEventTransactions = () => {
-        const currentEventTransactions = eventTransactions;
-        eventTransactions = [];
-        return currentEventTransactions;
+    const takeEventss = () => {
+        const currentEventss = eventss;
+        eventss = [];
+        return currentEventss;
     };
 
     const TestTable = RynamoTableSchema.new({
@@ -3422,10 +3415,8 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
                 },
             },
         },
-        broadcastEventTransaction: async (context, eventTransaction) => {
-            eventTransactions.push(
-                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-            );
+        broadcastEvents: async (context, events) => {
+            eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
         },
     });
 
@@ -3442,7 +3433,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
     expect(getPutItemCount()).toEqual(0);
     expect(getTransactWriteItemsCount()).toEqual(0);
 
-    expect(takeEventTransactions()).toEqual([]);
+    expect(takeEventss()).toEqual([]);
 
     {
         await expect(
@@ -3548,7 +3539,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(0);
         expect(getTransactWriteItemsCount()).toEqual(0);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -3568,7 +3559,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(1);
         expect(getTransactWriteItemsCount()).toEqual(0);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3603,7 +3594,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(1);
         expect(getTransactWriteItemsCount()).toEqual(1);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3638,7 +3629,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(2);
         expect(getTransactWriteItemsCount()).toEqual(1);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3673,7 +3664,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(2);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3708,7 +3699,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(3);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3738,7 +3729,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(4);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.directlyUpdateItem(
             space.systemAction(),
@@ -3759,7 +3750,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -3919,7 +3910,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -3942,7 +3933,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -3963,7 +3954,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(2);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.deleteItem(space.systemAction(), {
             partitionType: "PartitionA",
@@ -3979,7 +3970,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(3);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -4011,7 +4002,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(4);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -4032,7 +4023,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(5);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.deleteItem(space.systemAction(), {
@@ -4054,7 +4045,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(6);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.deleteItem(space.systemAction(), {
             partitionType: "PartitionA",
@@ -4070,7 +4061,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(7);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -4103,7 +4094,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -4228,7 +4219,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -4255,7 +4246,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -4280,7 +4271,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(8);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -4305,7 +4296,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(9);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -4324,7 +4315,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(10);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -4366,7 +4357,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(11);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -4385,7 +4376,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(12);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -4427,7 +4418,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(13);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.undeleteItem(
@@ -4452,7 +4443,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -4595,7 +4586,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(5);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -4618,7 +4609,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(6);
         expect(getTransactWriteItemsCount()).toEqual(14);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -4656,7 +4647,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(6);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.directlyUpdateItem(space.systemAction(), {
@@ -4684,7 +4675,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(7);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.directlyUpdateItem(
             space.systemAction(),
@@ -4705,7 +4696,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -4865,7 +4856,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(15);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -4890,7 +4881,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(16);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -4924,7 +4915,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(16);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.directlyUpdateItem(
@@ -4948,7 +4939,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(8);
         expect(getTransactWriteItemsCount()).toEqual(17);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             TestTable.directlyUpdateItem(space.systemAction(), oldItem.update({attribute: 24})),
@@ -4963,7 +4954,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(9);
         expect(getTransactWriteItemsCount()).toEqual(17);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await TestTable.undeleteItem(
             space.systemAction(),
@@ -4982,7 +4973,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(9);
         expect(getTransactWriteItemsCount()).toEqual(18);
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5033,7 +5024,7 @@ test("can delete and undelete items (with `directlyUpdateItem()`)", async () => 
         expect(getPutItemCount()).toEqual(9);
         expect(getTransactWriteItemsCount()).toEqual(18);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 });
 
@@ -5047,13 +5038,12 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
         attribute: Schema.integer,
     });
 
-    let eventTransactions: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> =
-        [];
+    let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-    const takeEventTransactions = () => {
-        const currentEventTransactions = eventTransactions;
-        eventTransactions = [];
-        return currentEventTransactions;
+    const takeEventss = () => {
+        const currentEventss = eventss;
+        eventss = [];
+        return currentEventss;
     };
 
     const TestTable = RynamoTableSchema.new({
@@ -5138,16 +5128,14 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
                 },
             },
         },
-        broadcastEventTransaction: async (context, eventTransaction) => {
-            eventTransactions.push(
-                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-            );
+        broadcastEvents: async (context, events) => {
+            eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
         },
     });
 
     finishInitializingDynamoTableSchemas();
 
-    expect(takeEventTransactions()).toEqual([]);
+    expect(takeEventss()).toEqual([]);
 
     {
         await expect(
@@ -5250,7 +5238,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -5268,7 +5256,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5301,7 +5289,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5334,7 +5322,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5367,7 +5355,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5401,7 +5389,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5430,7 +5418,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
@@ -5449,7 +5437,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -5606,7 +5594,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -5626,7 +5614,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         expect(() =>
             TestTable.transactionDeleteItem({
@@ -5644,7 +5632,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
@@ -5659,7 +5647,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -5691,7 +5679,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -5712,7 +5700,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -5733,7 +5721,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDeleteItem({
@@ -5748,7 +5736,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -5780,7 +5768,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -5902,7 +5890,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -5925,7 +5913,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         expect(() =>
             TestTable.transactionUndeleteItem(
@@ -5946,7 +5934,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -5969,7 +5957,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -5986,7 +5974,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -6026,7 +6014,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -6043,7 +6031,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -6083,7 +6071,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -6106,7 +6094,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -6246,7 +6234,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -6267,7 +6255,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -6304,7 +6292,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -6331,7 +6319,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             ),
         );
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionDirectlyUpdateItem(
@@ -6350,7 +6338,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -6507,7 +6495,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 
     {
@@ -6524,7 +6512,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "DeleteItem",
@@ -6555,7 +6543,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
             }),
         ).toEqual(null);
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -6577,7 +6565,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await expect(
             RynamoTableSchema.executeTransaction(space.systemAction(), [
@@ -6606,7 +6594,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
 
         await RynamoTableSchema.executeTransaction(space.systemAction(), [
             TestTable.transactionUndeleteItem(
@@ -6623,7 +6611,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([
+        expect(takeEventss()).toEqual([
             [
                 {
                     type: "PutItem",
@@ -6671,7 +6659,7 @@ test("can delete and undelete items (with `transactionDirectlyUpdateItem()`)", a
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(takeEventTransactions()).toEqual([]);
+        expect(takeEventss()).toEqual([]);
     }
 });
 
@@ -6688,14 +6676,12 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             attribute2: Schema.integer,
         });
 
-        let eventTransactions: Array<
-            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
-        > = [];
+        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-        const takeEventTransactions = () => {
-            const currentEventTransactions = eventTransactions;
-            eventTransactions = [];
-            return currentEventTransactions;
+        const takeEventss = () => {
+            const currentEventss = eventss;
+            eventss = [];
+            return currentEventss;
         };
 
         const TestTable = RynamoTableSchema.new({
@@ -6734,10 +6720,8 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                     },
                 },
             },
-            broadcastEventTransaction: async (context, eventTransaction) => {
-                eventTransactions.push(
-                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-                );
+            broadcastEvents: async (context, events) => {
+                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
             },
         });
 
@@ -6866,7 +6850,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -6877,7 +6861,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         await expect(
@@ -7047,7 +7031,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "PutItem",
                     item: {
@@ -7081,7 +7065,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "DeleteItem",
                     item: {
@@ -7093,7 +7077,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             ],
         });
 
-        expect(takeEventTransactions().length).toEqual(4);
+        expect(takeEventss().length).toEqual(4);
     } finally {
         import.meta.jest.useRealTimers();
     }
@@ -7112,14 +7096,12 @@ test("can delete an item with a property in an index\u2019s partition key that c
             attribute2: Schema.integer,
         });
 
-        let eventTransactions: Array<
-            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
-        > = [];
+        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-        const takeEventTransactions = () => {
-            const currentEventTransactions = eventTransactions;
-            eventTransactions = [];
-            return currentEventTransactions;
+        const takeEventss = () => {
+            const currentEventss = eventss;
+            eventss = [];
+            return currentEventss;
         };
 
         const TestTable = RynamoTableSchema.new({
@@ -7159,10 +7141,8 @@ test("can delete an item with a property in an index\u2019s partition key that c
                     },
                 },
             },
-            broadcastEventTransaction: async (context, eventTransaction) => {
-                eventTransactions.push(
-                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-                );
+            broadcastEvents: async (context, events) => {
+                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
             },
         });
 
@@ -7291,7 +7271,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -7302,7 +7282,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         await expect(
@@ -7418,7 +7398,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -7429,7 +7409,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "DeleteItem",
                     item: {
@@ -7441,7 +7421,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             ],
         });
 
-        expect(takeEventTransactions().length).toEqual(4);
+        expect(takeEventss().length).toEqual(4);
     } finally {
         import.meta.jest.useRealTimers();
     }
@@ -7460,14 +7440,12 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             attribute2: Schema.integer,
         });
 
-        let eventTransactions: Array<
-            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
-        > = [];
+        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-        const takeEventTransactions = () => {
-            const currentEventTransactions = eventTransactions;
-            eventTransactions = [];
-            return currentEventTransactions;
+        const takeEventss = () => {
+            const currentEventss = eventss;
+            eventss = [];
+            return currentEventss;
         };
 
         const TestTable = RynamoTableSchema.new({
@@ -7506,10 +7484,8 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
                     },
                 },
             },
-            broadcastEventTransaction: async (context, eventTransaction) => {
-                eventTransactions.push(
-                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-                );
+            broadcastEvents: async (context, events) => {
+                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
             },
         });
 
@@ -7638,7 +7614,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -7649,7 +7625,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         await expect(
@@ -7826,7 +7802,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "PutItem",
                     item: {
@@ -7860,7 +7836,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "DeleteItem",
                     item: {
@@ -7872,7 +7848,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             ],
         });
 
-        expect(takeEventTransactions().length).toEqual(4);
+        expect(takeEventss().length).toEqual(4);
     } finally {
         import.meta.jest.useRealTimers();
     }
@@ -7891,14 +7867,12 @@ test("can delete an item with a property in an index\u2019s partition key that c
             attribute2: Schema.integer,
         });
 
-        let eventTransactions: Array<
-            ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>
-        > = [];
+        let eventss: Array<ReadonlyArray<RynamoEvent<SchemaType<typeof TestModelSchema>>>> = [];
 
-        const takeEventTransactions = () => {
-            const currentEventTransactions = eventTransactions;
-            eventTransactions = [];
-            return currentEventTransactions;
+        const takeEventss = () => {
+            const currentEventss = eventss;
+            eventss = [];
+            return currentEventss;
         };
 
         const TestTable = RynamoTableSchema.new({
@@ -7938,10 +7912,8 @@ test("can delete an item with a property in an index\u2019s partition key that c
                     },
                 },
             },
-            broadcastEventTransaction: async (context, eventTransaction) => {
-                eventTransactions.push(
-                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
-                );
+            broadcastEvents: async (context, events) => {
+                eventss.push(await runAllPromises(events.map(({getEvent}) => getEvent(context))));
             },
         });
 
@@ -8070,7 +8042,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -8081,7 +8053,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         await expect(
@@ -8202,7 +8174,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [],
+            events: [],
         });
 
         expect(
@@ -8213,7 +8185,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
         ).toEqual({
             type: "Available",
             checkpoint: expect.any(Date),
-            eventTransaction: [
+            events: [
                 {
                     type: "DeleteItem",
                     item: {
@@ -8225,7 +8197,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             ],
         });
 
-        expect(takeEventTransactions().length).toEqual(4);
+        expect(takeEventss().length).toEqual(4);
     } finally {
         import.meta.jest.useRealTimers();
     }

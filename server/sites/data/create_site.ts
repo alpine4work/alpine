@@ -58,7 +58,7 @@ export async function createSite(
     },
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<[RynamoEvent<SitePreviewModel>, RynamoEvent<SiteEntryModel>]>;
 }> {
@@ -127,7 +127,7 @@ export async function createSite(
     );
 
     return {
-        getRynamoEventTransaction: async eventContext =>
+        getRynamoEvents: async eventContext =>
             runAllPromises([
                 createSiteAttributesEntry.getEvent(eventContext),
                 createRootContainerEntry.getEvent(eventContext),

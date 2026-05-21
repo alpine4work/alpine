@@ -82,7 +82,7 @@ import {
     InboxPostCommentsEntryModel,
     InboxTaskEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -1330,20 +1330,20 @@ export const InboxTable = RynamoTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions by unique `SpaceId` and `AccountId` combinations. By
         // splitting a transaction it may not be applied atomically. We split by
         // `AccountId` since events need to go to different durable objects.
         //
         // Having a transaction across two accounts or two spaces isn't theoretically
         // impossible but would be weird and doesn't currently happen in practice.
-        const eventTransactionBySpaceIdAndAccountId = new Map<
+        const eventsBySpaceIdAndAccountId = new Map<
             `${SpaceId}:${AccountId}`,
             Array<RynamoEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
         await runAllPromises(
-            mapIterable(eventTransaction, async ({itemKey, getEvent}) => {
+            mapIterable(events, async ({itemKey, getEvent}) => {
                 // It's safe to use `context` to load the event (even if `context` is a system
                 // context). Since in the `models` object above we always call
                 // `protectInboxEntryModelBuilder()` to make sure we're building an inbox entry
@@ -1351,7 +1351,7 @@ export const InboxTable = RynamoTableSchema.new({
                 const event = await getEvent(context);
 
                 getOrSetDefaultMapValue(
-                    eventTransactionBySpaceIdAndAccountId,
+                    eventsBySpaceIdAndAccountId,
                     `${itemKey.spaceId}:${itemKey.accountId}`,
                     () => [],
                 ).push(event);
@@ -1359,25 +1359,22 @@ export const InboxTable = RynamoTableSchema.new({
         );
 
         await runAllPromises(
-            Array.from(
-                eventTransactionBySpaceIdAndAccountId,
-                async ([spaceIdAndAccountId, eventTransaction]) => {
-                    const [spaceId, accountId] = spaceIdAndAccountId.split(":");
-                    assert(spaceId && isId<SpaceId>(spaceId));
-                    assert(accountId && isId<AccountId>(accountId));
+            Array.from(eventsBySpaceIdAndAccountId, async ([spaceIdAndAccountId, events]) => {
+                const [spaceId, accountId] = spaceIdAndAccountId.split(":");
+                assert(spaceId && isId<SpaceId>(spaceId));
+                assert(accountId && isId<AccountId>(accountId));
 
-                    await context.edge.broadcastToDurableObject(
-                        `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
-                        {
-                            serviceName: "MyAccountService",
-                            route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
-                            body: MyAccountBroadcastInboxRealtimeEventTransactionSchema.serialize({
-                                eventTransaction,
-                            }),
-                        },
-                    );
-                },
-            ),
+                await context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
+                    {
+                        serviceName: "MyAccountService",
+                        route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
+                        body: MyAccountBroadcastInboxRealtimeEventsSchema.serialize({
+                            events,
+                        }),
+                    },
+                );
+            }),
         );
     },
 });

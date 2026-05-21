@@ -38,7 +38,7 @@ export async function deleteSiteContainer(
     },
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -84,7 +84,7 @@ export async function deleteSiteContainer(
         );
 
         return {
-            getRynamoEventTransaction: context =>
+            getRynamoEvents: context =>
                 runAllPromises([
                     updateSiteAttributesEntry.getEvent(context),
                     deleteItemEntry.event,

@@ -84,7 +84,7 @@ export async function createPost(
     createdTime: Date;
     createdTimeZone: TimeZone;
     channelName: string;
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<PostModel>>>;
 }> {
@@ -214,7 +214,7 @@ export async function createPost(
         createdTime: postItem.createdTime,
         createdTimeZone: postItem.createdTimeZone,
         channelName,
-        getRynamoEventTransaction: async context => [await result.getEvent(context)],
+        getRynamoEvents: async context => [await result.getEvent(context)],
     };
 }
 

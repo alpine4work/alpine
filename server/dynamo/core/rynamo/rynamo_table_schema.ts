@@ -182,8 +182,7 @@ type RynamoPrivateRealtimePartitionItem = DynamoTableSchemaTypes.Partition.ItemT
     [typeof rynamoPrivatePartitionConfig]
 >;
 
-type RynamoPrivateRealtimePartitionEvent =
-    RynamoPrivateRealtimePartitionItem["eventTransaction"][number];
+type RynamoPrivateRealtimePartitionEvent = RynamoPrivateRealtimePartitionItem["events"][number];
 
 const rynamoPrivatePartitionName = "Realtime";
 
@@ -200,7 +199,7 @@ const rynamoPrivatePartitionConfig = {
             },
             withExpirationTime: "Required",
             attributes: Schema.object({
-                eventTransaction: Schema.array(
+                events: Schema.array(
                     Schema.union({
                         PutItem: Schema.object({
                             type: Schema.value("PutItem"),
@@ -396,9 +395,9 @@ export class RynamoTableSchema<
     private readonly _models: RynamoTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
-    private readonly _broadcastEventTransactionCallback: (
+    private readonly _broadcastEventsCallback: (
         context: ServerActionContext,
-        eventTransaction: ReadonlyArray<{
+        events: ReadonlyArray<{
             itemKey: Types["ItemKey"];
             eventStub: RynamoEventStub;
             getEvent: (
@@ -421,7 +420,7 @@ export class RynamoTableSchema<
         features,
         models,
         modelSchema,
-        broadcastEventTransaction,
+        broadcastEvents,
     }: {
         name: string;
         partitions: PartitionsConfig;
@@ -490,9 +489,9 @@ export class RynamoTableSchema<
          * realtime event streams! Otherwise they may get access to data they're not
          * allowed to see.
          */
-        broadcastEventTransaction: (
+        broadcastEvents: (
             context: ServerActionContext,
-            eventTransaction: ReadonlyArray<{
+            events: ReadonlyArray<{
                 itemKey: DynamoTableSchemaTypes.Partition.ItemKeyTypes<PartitionsConfig>;
                 eventStub: RynamoEventStub;
                 getEvent: (
@@ -541,7 +540,7 @@ export class RynamoTableSchema<
             }),
             features,
             models,
-            broadcastEventTransaction,
+            broadcastEvents,
         });
     }
 
@@ -549,7 +548,7 @@ export class RynamoTableSchema<
         table,
         features,
         models,
-        broadcastEventTransaction,
+        broadcastEvents,
     }: {
         table: DynamoTableSchema<Types>;
         features:
@@ -565,9 +564,9 @@ export class RynamoTableSchema<
         models: RynamoTableSchemaPartitionModelConfigType<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >;
-        broadcastEventTransaction: (
+        broadcastEvents: (
             context: ServerActionContext,
-            eventTransaction: ReadonlyArray<{
+            events: ReadonlyArray<{
                 itemKey: Types["ItemKey"];
                 eventStub: RynamoEventStub;
                 getEvent: (
@@ -585,7 +584,7 @@ export class RynamoTableSchema<
         this._table = table;
         this._features = features;
         this._models = models;
-        this._broadcastEventTransactionCallback = broadcastEventTransaction;
+        this._broadcastEventsCallback = broadcastEvents;
     }
 
     public getName() {
@@ -644,7 +643,7 @@ export class RynamoTableSchema<
         actionTransaction: ReadonlyArray<RynamoAction<Types["ItemKey"], ModelMap[string][string]>>,
     ): Promise<void> {
         return context.tracer.withSpan("Send general realtime event transaction", async context => {
-            const eventTransaction = actionTransaction.map(
+            const events = actionTransaction.map(
                 (
                     action,
                 ): {
@@ -687,7 +686,7 @@ export class RynamoTableSchema<
 
             const realtimeKeys = new Set<string>();
 
-            const dynamoEventTransaction = actionTransaction.map(
+            const dynamoEvents = actionTransaction.map(
                 (action): RynamoPrivateRealtimePartitionEvent => {
                     // Add the realtime event transaction to every partition affected by the
                     // transaction. That way we can search to find the transaction later using any
@@ -744,7 +743,7 @@ export class RynamoTableSchema<
                         realtimeKey,
                         eventTime,
                         expirationTime,
-                        eventTransaction: dynamoEventTransaction,
+                        events: dynamoEvents,
                     };
 
                     // TODO(calebmer): `createOrReplaceItem()` isn't safe here! We may override an
@@ -760,7 +759,7 @@ export class RynamoTableSchema<
             //
             // That way a strong consistency read of events in DynamoDB will give you all
             // events sent before the start of the read.
-            await this._broadcastEventTransactionCallback(context, eventTransaction);
+            await this._broadcastEventsCallback(context, events);
         });
     }
 
@@ -1433,7 +1432,7 @@ export class RynamoTableSchema<
         entries: ReadonlyArray<DynamoTransactionEntry | RynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<{
-        getEventTransaction: <
+        getEvents: <
             Types extends DynamoTableSchemaTypesBase,
             ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
         >(
@@ -1475,7 +1474,7 @@ export class RynamoTableSchema<
         });
 
         return {
-            getEventTransaction: (context, schema) => {
+            getEvents: (context, schema) => {
                 const actions = actionsBySchema.get(
                     // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
                     // fixing for now.
@@ -3526,7 +3525,7 @@ export class RynamoTableSchema<
         })) {
             const item: RynamoPrivateRealtimePartitionItem = unknownItem as any;
 
-            for (const event of item.eventTransaction) {
+            for (const event of item.events) {
                 const itemKey = this._table.deserializeOpaqueItemKey(event.key);
 
                 const index =
@@ -3564,7 +3563,7 @@ export class RynamoTableSchema<
         // Collapse all updates into a single transaction. That way events that were
         // together in a transaction will still be applied atomically and the client
         // doesn't care about non-atomic events being treated as atomic.
-        const eventTransaction = await runAllPromises(
+        const events = await runAllPromises(
             Array.from(
                 backfillItemByKey,
                 async ([key, backfillItem]): Promise<RynamoEvent<unknown>> => {
@@ -3646,7 +3645,7 @@ export class RynamoTableSchema<
             ),
         );
 
-        return {type: "Available", checkpoint: newCheckpoint, eventTransaction};
+        return {type: "Available", checkpoint: newCheckpoint, events};
     }
 
     /**
@@ -3656,10 +3655,10 @@ export class RynamoTableSchema<
      */
     public getRealtimeEvent(
         context: ServerActionContext,
-        eventTransaction: ReadonlyArray<RynamoEventStub & {readonly itemKey?: Types["ItemKey"]}>,
+        events: ReadonlyArray<RynamoEventStub & {readonly itemKey?: Types["ItemKey"]}>,
     ): Promise<ReadonlyArray<RynamoEvent<ModelMap[string][string]>>> {
         return runAllPromises(
-            eventTransaction.map(async event => {
+            events.map(async event => {
                 const {key} = event.item;
                 const itemKey = event.itemKey ?? this.deserializeOpaqueItemKey(key);
 
@@ -3792,9 +3791,9 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
      * Get the value of an attribute in our index's partition key from an event that
      * contains a diff of the old and new partition keys for an item.
      *
-     * This function is used in `broadcastEventTransaction()` to observe changes to an
-     * indexed attribute. `broadcastEventTransaction()` only currently observes changes
-     * to indexed attributes.
+     * This function is used in `broadcastEvents()` to observe changes to an indexed
+     * attribute. `broadcastEvents()` only currently observes changes to indexed
+     * attributes.
      */
     getPartitionKeyAttributeFromEvent<AttributeName extends keyof IndexPartitionKey>(
         attributeName: AttributeName,

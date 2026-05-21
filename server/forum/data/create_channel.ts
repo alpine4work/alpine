@@ -53,7 +53,7 @@ export async function createChannel(
     id: ChannelId;
     createdTime: Date;
     getRynamoItem: (context: ServerActionContext) => Promise<RynamoItem<ChannelModel>>;
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -163,7 +163,7 @@ export async function createChannel(
             const {item} = await getEvent(context);
             return item;
         },
-        getRynamoEventTransactionForSite: async context =>
+        getRynamoEventsForSite: async context =>
             runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
     };
 }

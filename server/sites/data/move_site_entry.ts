@@ -58,7 +58,7 @@ export async function moveSiteEntry(
               });
     },
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -98,7 +98,7 @@ export async function moveSiteEntry(
             //    From the server's perspective, the item is already in the new position. If it
             //    were to throw, the client's move from B back to A would fail.
             return {
-                getRynamoEventTransaction: async () => [],
+                getRynamoEvents: async () => [],
             };
         }
 
@@ -133,7 +133,7 @@ export async function moveSiteEntry(
         );
 
         return {
-            getRynamoEventTransaction: async (eventContext: ServerActionContext) =>
+            getRynamoEvents: async (eventContext: ServerActionContext) =>
                 runAllPromises([
                     updateSiteAttributesEntry.getEvent(eventContext),
                     updateSiteItemEntry.getEvent(eventContext),

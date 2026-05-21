@@ -123,7 +123,7 @@ describe("createSiteContainer", () => {
             },
         });
 
-        const events = await result.getRynamoEventTransaction(session.action());
+        const events = await result.getRynamoEvents(session.action());
 
         expect(events).toHaveLength(2);
     });

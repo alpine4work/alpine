@@ -46,9 +46,7 @@ export function useRynamoQuery<Model>(
          * delivered late (after a newer update) we will drop it.
          */
         subscribeToEvents: Memo<
-            (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
-            ) => () => void
+            (subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void) => () => void
         >;
 
         /**
@@ -75,7 +73,7 @@ export function useRynamoQuery<Model>(
     },
 ): {
     query: RynamoQuery<Model>;
-    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvent: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
     handleLoadMore: Memo<(result: RynamoQueryResult<Model>) => void>;
 } {
     const [query, setQuery] = useState(() => RynamoQuery.new(initialQueryResult));
@@ -126,9 +124,7 @@ export function useRynamoQueryBase<Model, Extra>(
          * delivered late (after a newer update) we will drop it.
          */
         subscribeToEvents: Memo<
-            (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
-            ) => () => void
+            (subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void) => () => void
         >;
 
         /**
@@ -155,14 +151,14 @@ export function useRynamoQueryBase<Model, Extra>(
     },
 ): {
     query: RynamoQuery<Model, Extra>;
-    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvent: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
     handleLoadMore: Memo<(result: RynamoQueryResult<Model>) => void>;
 } {
     const setErrorState = useErrorState();
 
     const handleEvent = useCallback(
-        (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => {
-            onUpdateQuery(query => query.handleEventTransaction(eventTransaction));
+        (events: ReadonlyArray<RynamoEvent<unknown>>) => {
+            onUpdateQuery(query => query.handleEvents(events));
         },
         [onUpdateQuery],
     );
@@ -196,9 +192,7 @@ export function useRynamoQueryBase<Model, Extra>(
                 switch (backfillResult.type) {
                     case "Available": {
                         onUpdateQuery(query => {
-                            const newQuery = query.handleEventTransaction(
-                                backfillResult.eventTransaction,
-                            );
+                            const newQuery = query.handleEvents(backfillResult.events);
                             newQuery.setMutableCheckpoint(backfillResult.checkpoint);
                             return newQuery;
                         });

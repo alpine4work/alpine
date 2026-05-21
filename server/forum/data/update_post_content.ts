@@ -37,7 +37,7 @@ export function updatePostContent(
     },
 ): Promise<{
     contentUpdatedTime: Date;
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<PostModel>>>;
 }> {
@@ -196,7 +196,7 @@ export function updatePostContent(
 
         return {
             contentUpdatedTime,
-            getRynamoEventTransaction: async context => [await result.getEvent(context)],
+            getRynamoEvents: async context => [await result.getEvent(context)],
         };
     });
 }

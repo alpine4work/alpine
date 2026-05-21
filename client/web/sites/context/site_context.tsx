@@ -274,7 +274,7 @@ type SiteDataContextValue = {
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;
     readonly handleEventForSite: Memo<
-        (eventTransaction: ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>) => void
+        (events: ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>) => void
     >;
 
     readonly updateTreeOptimistically: Memo<
@@ -396,10 +396,10 @@ function ActiveSiteDataProvider({
             subscriber =>
                 subscribeToEvents(event => {
                     if (pauseCountRef.current > 0) {
-                        (pausedEventQueueRef.current ??= []).push(event.eventTransaction);
+                        (pausedEventQueueRef.current ??= []).push(event.events);
                         return;
                     }
-                    subscriber(event.eventTransaction);
+                    subscriber(event.events);
                 }),
             [subscribeToEvents],
         ),
@@ -521,8 +521,8 @@ function ActiveSiteDataProvider({
                     const queued = pausedEventQueueRef.current;
                     pausedEventQueueRef.current = null;
                     if (queued) {
-                        for (const eventTransaction of queued) {
-                            handleEventForSite(eventTransaction);
+                        for (const events of queued) {
+                            handleEventForSite(events);
                         }
                     }
                 }

@@ -16,7 +16,7 @@ import {
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
-    PostBroadcastRealtimeEventTransactionSchema,
+    PostBroadcastRealtimeEventsSchema,
     PostRealtimeProtocol,
 } from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -30,7 +30,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 type PostRealtimeDurableObjectRoute =
     | "Main"
-    | "BroadcastRealtimeEventTransaction"
+    | "BroadcastRealtimeEvents"
     | "BroadcastNewMessage"
     | "BroadcastPutMessageStreamPart"
     | "BroadcastCompleteMessageStream"
@@ -117,7 +117,7 @@ class PostRealtimeDurableObject {
         if (url.pathname === "/") return ["/", "Main"];
 
         if (url.pathname === "/broadcast-realtime-event-transaction") {
-            return [url.pathname, "BroadcastRealtimeEventTransaction"];
+            return [url.pathname, "BroadcastRealtimeEvents"];
         }
 
         if (url.pathname === "/broadcast-new-message") {
@@ -152,7 +152,7 @@ class PostRealtimeDurableObject {
             case "Main": {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
-            case "BroadcastRealtimeEventTransaction": {
+            case "BroadcastRealtimeEvents": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
@@ -165,13 +165,13 @@ class PostRealtimeDurableObject {
                     );
                 }
 
-                const {eventTransaction} = PostBroadcastRealtimeEventTransactionSchema.deserialize(
+                const {events} = PostBroadcastRealtimeEventsSchema.deserialize(
                     await request.json(),
                 );
 
                 this._webSocketServer.sendEventToAll(context, {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
+                    type: "RealtimeEvents",
+                    events,
                 });
 
                 return new Response();

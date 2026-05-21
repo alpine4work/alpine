@@ -457,11 +457,11 @@ export class RynamoIndexQuery<Model, Extra = never> {
      * Handles realtime events from the server and incorporates them into our query.
      * Will correctly handle events received out-of-order.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<RynamoEvent<unknown>>,
+    public handleEvents(
+        events: ReadonlyArray<RynamoEvent<unknown>>,
     ): RynamoIndexQuery<Model, Extra> {
         return this._putItems(
-            filterMapIterable(eventTransaction, event => {
+            filterMapIterable(events, event => {
                 switch (event.type) {
                     case "PutItem": {
                         const index = event.indexes.get(this._indexName);

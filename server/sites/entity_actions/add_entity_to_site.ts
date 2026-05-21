@@ -30,7 +30,7 @@ export async function addEntityToSite(
         orderKey: OrderKey;
     },
 ): Promise<{
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -75,7 +75,7 @@ async function runAddEntityToSiteByEntityType(
         position: {parentId: SiteContainerId; orderKey: OrderKey};
     },
 ): Promise<{
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -97,7 +97,7 @@ async function runAddEntityToSiteByEntityType(
             });
         }
         case "Task": {
-            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+            const {getRynamoEventsForSite} = await commitTaskActionTransaction(
                 context,
                 input.spaceId,
                 [
@@ -114,11 +114,11 @@ async function runAddEntityToSiteByEntityType(
             );
 
             return {
-                getRynamoEventTransactionForSite,
+                getRynamoEventsForSite,
             };
         }
         case "TaskCollection": {
-            const {getRynamoEventTransactionForSite} = await commitTaskActionTransaction(
+            const {getRynamoEventsForSite} = await commitTaskActionTransaction(
                 context,
                 input.spaceId,
                 [
@@ -135,7 +135,7 @@ async function runAddEntityToSiteByEntityType(
             );
 
             return {
-                getRynamoEventTransactionForSite,
+                getRynamoEventsForSite,
             };
         }
         case "Document": {
@@ -150,14 +150,14 @@ async function runAddEntityToSiteByEntityType(
             // 3. Setting `intentionallyUpdateAccessPolicy` (with `sitePosition`) so
             //    `updateDocumentContent` recognizes this as an intentional access policy
             //    change and writes the site entity ref in the same dynamo transaction.
-            // 4. Reading the `eventTransactionForSite` field of the response to surface site
-            //    sidebar events back here.
+            // 4. Reading the `eventsForSite` field of the response to surface site sidebar
+            //    events back here.
             //
             // We pass `version: 0`. The DO's content manager rebases whatever steps we send
             // against its tracked version. A `DocAttrStep` rebases cleanly against any
             // concurrent `ReplaceStep`s (they don't interact), so version 0 is safe and avoids
             // an extra round-trip to read the current version first.
-            const {eventTransactionForSite} =
+            const {eventsForSite} =
                 DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.deserialize(
                     await context.edge.sendRequestToDurableObject(
                         // TODO(#sites): Switch this to `/update-content-without-optimistic-broadcast` once
@@ -193,7 +193,7 @@ async function runAddEntityToSiteByEntityType(
                 );
 
             return {
-                getRynamoEventTransactionForSite: async () => eventTransactionForSite,
+                getRynamoEventsForSite: async () => eventsForSite,
             };
         }
         default:

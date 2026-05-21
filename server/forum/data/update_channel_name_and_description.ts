@@ -25,7 +25,7 @@ export async function updateChannelNameAndDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel>>>;
 }> {
@@ -63,6 +63,6 @@ export async function updateChannelNameAndDescription(
     });
 
     return {
-        getRynamoEventTransaction: async context => [await result.getEvent(context)],
+        getRynamoEvents: async context => [await result.getEvent(context)],
     };
 }

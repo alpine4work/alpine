@@ -16,9 +16,9 @@ import {PostId} from "~/shared/id/types/id_types.js";
 export async function getPostRealtimeEvent(
     context: ServerSessionActionContext,
     postId: PostId,
-    eventTransaction: ReadonlyArray<RynamoEventStub>,
+    events: ReadonlyArray<RynamoEventStub>,
 ): Promise<ReadonlyArray<RynamoPostEvent>> {
-    const [, actualEventTransaction] = await runAllPromises([
+    const [, actualEvents] = await runAllPromises([
         // Authorizing in parallel means we'll batch the post read in
         // `authorizePostAccess()` with any DynamoDB reads from the
         // `ForumRealtimeTable.getRealtimeEvent()` call.
@@ -27,7 +27,7 @@ export async function getPostRealtimeEvent(
         ForumRealtimeTable.getRealtimeEvent(
             context,
             await runAllPromises(
-                eventTransaction.map(async eventStub => {
+                events.map(async eventStub => {
                     const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
 
                     // Check that the `itemKey` we're reading is for the post we've authorized.
@@ -47,5 +47,5 @@ export async function getPostRealtimeEvent(
         ),
     ]);
 
-    return actualEventTransaction as ReadonlyArray<RynamoPostEvent>;
+    return actualEvents as ReadonlyArray<RynamoPostEvent>;
 }

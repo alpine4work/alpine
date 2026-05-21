@@ -396,7 +396,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -446,7 +446,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -496,7 +496,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -614,7 +614,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -664,7 +664,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -714,7 +714,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -832,7 +832,7 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -882,7 +882,7 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1000,7 +1000,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1050,7 +1050,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1100,7 +1100,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1218,7 +1218,7 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1258,7 +1258,7 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1356,7 +1356,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1396,7 +1396,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1426,7 +1426,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1456,7 +1456,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1554,7 +1554,7 @@ test("item created within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1682,7 +1682,7 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1742,7 +1742,7 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1860,7 +1860,7 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -1910,7 +1910,7 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2028,7 +2028,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2068,7 +2068,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2118,7 +2118,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2226,7 +2226,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2266,7 +2266,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -2306,7 +2306,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3612,7 +3612,7 @@ test("item is removed if partition key changes after receiving a realtime event"
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3652,7 +3652,7 @@ test("item is removed if partition key changes after receiving a realtime event"
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3750,7 +3750,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3790,7 +3790,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3820,7 +3820,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3850,7 +3850,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -3948,7 +3948,7 @@ test("item is deleted after receiving a delete realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -3982,7 +3982,7 @@ test("item is deleted after receiving a delete realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4074,7 +4074,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4108,7 +4108,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4132,7 +4132,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4162,7 +4162,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4244,7 +4244,7 @@ test("item is deleted after receiving a delete realtime event after being create
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4294,7 +4294,7 @@ test("item is deleted after receiving a delete realtime event after being create
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4380,7 +4380,7 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4414,7 +4414,7 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4522,7 +4522,7 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4556,7 +4556,7 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4674,7 +4674,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4708,7 +4708,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {
@@ -4758,7 +4758,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4860,7 +4860,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4894,7 +4894,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "DeleteItem",
             item: {
@@ -4928,7 +4928,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEvents([
         {
             type: "PutItem",
             item: {

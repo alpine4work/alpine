@@ -60,7 +60,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
     | {type: "NotFound"}
-    | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
+    | {type: "BroadcastSpellCheckRealtimeEvents"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
@@ -297,7 +297,7 @@ class DocumentCollaborationDurableObject {
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
-                {type: "BroadcastSpellCheckRealtimeEventTransaction"},
+                {type: "BroadcastSpellCheckRealtimeEvents"},
             ];
         }
 
@@ -414,18 +414,17 @@ class DocumentCollaborationDurableObject {
 
                 return new Response(null, {status: 200});
             }
-            case "BroadcastSpellCheckRealtimeEventTransaction": {
-                const {eventTransaction} =
-                    SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
-                        await request.json(),
-                    );
+            case "BroadcastSpellCheckRealtimeEvents": {
+                const {events} = SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
+                    await request.json(),
+                );
 
                 for (const accessLevel of allAccessLevels) {
                     const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
 
                     webSocketServer.sendEventToAll(context, {
-                        type: "SpellCheckRealtimeEventTransaction",
-                        eventTransaction,
+                        type: "SpellCheckRealtimeEvents",
+                        events,
                     });
                 }
 
@@ -522,19 +521,19 @@ class DocumentCollaborationDurableObject {
                         await request.json(),
                     );
 
-                const {newVersion, getRynamoEventTransactionForSite} =
+                const {newVersion, getRynamoEventsForSite} =
                     await this._contentManager.updateAndWaitForPersistence(
                         accountContext,
                         null,
                         requestBody,
                     );
 
-                const eventTransactionForSite = await getRynamoEventTransactionForSite();
+                const eventsForSite = await getRynamoEventsForSite();
 
                 return new Response(
                     JSON.stringify(
                         DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.serialize(
-                            {newVersion, eventTransactionForSite},
+                            {newVersion, eventsForSite},
                         ),
                     ),
                     {status: 200},
@@ -624,7 +623,7 @@ function stripDocumentCollaborationEventComments(
         // Never send comment realtime events to view-only clients.
         case "Comments":
         // We don't show lints on view-only clients
-        case "SpellCheckRealtimeEventTransaction": {
+        case "SpellCheckRealtimeEvents": {
             return null;
         }
         default:

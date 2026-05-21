@@ -36,9 +36,7 @@ export function useRynamoItem<Model>(
          * delivered late (after a newer update) we will drop it.
          */
         subscribeToEvents: Memo<
-            (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
-            ) => () => void
+            (subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void) => () => void
         >;
 
         /**
@@ -59,7 +57,7 @@ export function useRynamoItem<Model>(
     },
 ): {
     item: RynamoItem<Model>;
-    handleEventTransaction: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvents: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
     const [itemFromState, setItem] = useState<RynamoItem<Model> & {readonly isDeleted?: true}>(
         initialItem,
@@ -132,7 +130,7 @@ export function useRynamoItemBase<Model>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
+                subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void,
             ) => (() => void) | void
         >;
 
@@ -154,13 +152,13 @@ export function useRynamoItemBase<Model>(
     },
 ): {
     item: RynamoItem<Model>;
-    handleEventTransaction: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvents: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
     const context = useAppContext();
 
-    const handleEventTransaction = useCallback(
-        (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => {
-            for (const event of eventTransaction) {
+    const handleEvents = useCallback(
+        (events: ReadonlyArray<RynamoEvent<unknown>>) => {
+            for (const event of events) {
                 if (event.item.key !== item.key) continue;
 
                 switch (event.type) {
@@ -207,8 +205,8 @@ export function useRynamoItemBase<Model>(
     useEffect(() => {
         if (!isConnected) return;
 
-        return subscribeToEvents(handleEventTransaction);
-    }, [isConnected, subscribeToEvents, handleEventTransaction]);
+        return subscribeToEvents(handleEvents);
+    }, [isConnected, subscribeToEvents, handleEvents]);
 
     // Whenever we connect to our WebSocket, we need to reload our realtime item in
     // case we missed any realtime updates while we were disconnected. Going forward we
@@ -264,6 +262,6 @@ export function useRynamoItemBase<Model>(
 
     return {
         item,
-        handleEventTransaction,
+        handleEvents,
     };
 }

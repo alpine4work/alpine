@@ -11,8 +11,8 @@ import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getChannelRealtimeEvent} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export type ChannelRealtimeEventStub = {
-    readonly type: "RealtimeEventTransaction";
-    readonly eventTransaction: ReadonlyArray<RynamoEventStub>;
+    readonly type: "RealtimeEvents";
+    readonly events: ReadonlyArray<RynamoEventStub>;
 };
 
 export class ChannelRealtimeConnection {
@@ -35,14 +35,14 @@ export class ChannelRealtimeConnection {
         context: WorkerSessionActionContext,
         eventStub: ChannelRealtimeEventStub,
     ): Promise<ChannelRealtimeEvent> {
-        const {eventTransaction} = await getChannelRealtimeEvent(context, {
+        const {events} = await getChannelRealtimeEvent(context, {
             channelId: this._channelId,
-            eventTransaction: eventStub.eventTransaction,
+            events: eventStub.events,
         });
 
         return {
             type: eventStub.type,
-            eventTransaction,
+            events,
         };
     }
 }

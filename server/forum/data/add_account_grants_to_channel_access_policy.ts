@@ -29,10 +29,10 @@ export async function addAccountGrantsToChannelAccessPolicy(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getRynamoEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {

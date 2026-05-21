@@ -42,8 +42,6 @@ export const createSpellCheckIgnoredLint = defineRpc({
         kind: Schema.string,
     },
     output: {
-        eventTransaction: Schema.array(
-            createRynamoEventSchema(SpellCheckIgnoredLintModel.schema()),
-        ),
+        events: Schema.array(createRynamoEventSchema(SpellCheckIgnoredLintModel.schema())),
     },
 });

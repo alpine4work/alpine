@@ -1416,7 +1416,7 @@ export function commitTaskActionTransaction(
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -1454,7 +1454,7 @@ export function commitTaskActionTransaction(
             );
         }
 
-        const {actionTransactionItem, extraActions, getRynamoEventTransactionForSite} =
+        const {actionTransactionItem, extraActions, getRynamoEventsForSite} =
             await TaskActionTransactionCommitState.commit(context, spaceId, actions, options);
 
         span.addData({
@@ -1526,7 +1526,7 @@ export function commitTaskActionTransaction(
 
         return {
             extraActions,
-            getRynamoEventTransactionForSite,
+            getRynamoEventsForSite,
         };
     });
 }
@@ -1755,7 +1755,7 @@ class TaskActionTransactionCommitState {
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
-        getRynamoEventTransactionForSite: (
+        getRynamoEventsForSite: (
             context: ServerActionContext,
         ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
     }> {
@@ -2072,7 +2072,7 @@ class TaskActionTransactionCommitState {
         return {
             actionTransactionItem,
             extraActions,
-            getRynamoEventTransactionForSite: (eventContext: ServerActionContext) =>
+            getRynamoEventsForSite: (eventContext: ServerActionContext) =>
                 runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
         };
     }

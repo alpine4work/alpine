@@ -128,8 +128,8 @@ export type DocumentCollaborationEventStub =
           readonly event: MessagingRealtimeEventStub;
       }
     | {
-          readonly type: "SpellCheckRealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>;
+          readonly type: "SpellCheckRealtimeEvents";
+          readonly events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>;
       };
 
 export class DocumentCollaborationConnection {
@@ -425,16 +425,12 @@ export class DocumentCollaborationConnection {
             }
 
             return this._state.withLock(async stateRef => {
-                const {
-                    presenceState,
-                    hasSentPresenceState,
-                    newVersion,
-                    getRynamoEventTransactionForSite,
-                } = await this._contentManager.updateAndWaitForPersistence(
-                    context,
-                    this.connectionId,
-                    input,
-                );
+                const {presenceState, hasSentPresenceState, newVersion, getRynamoEventsForSite} =
+                    await this._contentManager.updateAndWaitForPersistence(
+                        context,
+                        this.connectionId,
+                        input,
+                    );
 
                 if (!hasSentPresenceState) {
                     this._sendEventToOthers(context, {
@@ -446,9 +442,9 @@ export class DocumentCollaborationConnection {
 
                 stateRef.current.presenceState = presenceState;
 
-                const eventTransactionForSite = await getRynamoEventTransactionForSite();
+                const eventsForSite = await getRynamoEventsForSite();
 
-                return {newVersion, eventTransactionForSite};
+                return {newVersion, eventsForSite};
             });
         },
 
@@ -899,7 +895,7 @@ export class DocumentCollaborationConnection {
             }
             case "PersistedContent":
             case "UpdateOtherPresenceState":
-            case "SpellCheckRealtimeEventTransaction":
+            case "SpellCheckRealtimeEvents":
             case "Error": {
                 return eventStub;
             }

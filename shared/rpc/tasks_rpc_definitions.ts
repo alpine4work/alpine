@@ -73,7 +73,7 @@ export const commitTaskActionTransaction = defineRpc({
                 Schema.object({ok: Schema.value(false), error: ErrorSchema}),
             ),
         ),
-        eventTransactionForSite: Schema.array(RynamoSiteEventSchema).optional(),
+        eventsForSite: Schema.array(RynamoSiteEventSchema).optional(),
     },
 });
 

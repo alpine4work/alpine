@@ -103,9 +103,7 @@ export function PostCommentInput(props: {
     onJumpToPostRange: (options: JumpToPostRangeOptions) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
-    onPostRealtimeEventTransaction: Memo<
-        (eventTransaction: ReadonlyArray<RynamoEvent<PostModel>>) => void
-    >;
+    onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
 }) {
     const {currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
@@ -142,7 +140,7 @@ function usePostCommentInputRealtime({
     postComments,
     onUpdatePostComments,
     shouldBeConnectedToChannelRealtime,
-    onPostRealtimeEventTransaction,
+    onPostRealtimeEvents,
 }: ComponentProps<typeof PostCommentInput>) {
     const {currentAccount} = useSpaceContext();
     const shouldConnectToPostRealtime = currentAccount !== null;
@@ -208,11 +206,11 @@ function usePostCommentInputRealtime({
                             subscriber(event.event);
                             break;
                         }
-                        case "RealtimeEventTransaction": {
+                        case "RealtimeEvents": {
                             // If we'll receive post update events from our channel realtime durable connection
                             // then don't handle them here.
                             if (!shouldBeConnectedToChannelRealtime) {
-                                onPostRealtimeEventTransaction(event.eventTransaction);
+                                onPostRealtimeEvents(event.events);
                             }
                             break;
                         }
@@ -223,7 +221,7 @@ function usePostCommentInputRealtime({
 
                 return subscribeToEvents(actualSubscriber);
             },
-            [onPostRealtimeEventTransaction, shouldBeConnectedToChannelRealtime, subscribeToEvents],
+            [onPostRealtimeEvents, shouldBeConnectedToChannelRealtime, subscribeToEvents],
         ),
         subscribeToPongs,
     });
@@ -247,7 +245,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         onJumpToPostRange,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
-        onPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
     } = props;
 
     const context = useAppContext();
@@ -280,7 +278,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
 
         getPostWithStrongReadConsistency(context, {postId: post.id}).then(
             ({post}) => {
-                onPostRealtimeEventTransaction([
+                onPostRealtimeEvents([
                     {
                         type: "PutItem",
                         item: post,
@@ -297,7 +295,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         );
     }, [
         post.id,
-        onPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
         shouldBeConnectedToChannelRealtime,
         context,
         reporter,

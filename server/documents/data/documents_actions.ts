@@ -409,7 +409,7 @@ export async function createDocument(
     createdTime: Date;
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -606,7 +606,7 @@ export async function createDocument(
         createdTime,
         version,
         creator,
-        getRynamoEventTransactionForSite: async (context: ServerActionContext) =>
+        getRynamoEventsForSite: async (context: ServerActionContext) =>
             runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
@@ -2898,7 +2898,7 @@ export async function updateDocumentContent(
      * through the document collaboration WebSocket protocol, so only site events are
      * surfaced here.
      */
-    getRynamoEventTransactionForSite: (
+    getRynamoEventsForSite: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
@@ -3862,7 +3862,7 @@ export async function updateDocumentContent(
          * committed — used by the `addEntityToSite` RPC to surface site sidebar events
          * back to the client.
          */
-        getRynamoEventTransactionForSite: (
+        getRynamoEventsForSite: (
             eventContext: ServerActionContext,
         ): Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>> =>
             runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
@@ -3879,15 +3879,15 @@ export async function updateDocumentContentIdempotently(
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
-    eventTransactionForSite: ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
+    eventsForSite: ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
 }> {
     try {
-        const {newVersion, updatedCommentThreads, getRynamoEventTransactionForSite} =
+        const {newVersion, updatedCommentThreads, getRynamoEventsForSite} =
             await updateDocumentContent(context, options);
 
-        const eventTransactionForSite = await getRynamoEventTransactionForSite(context);
+        const eventsForSite = await getRynamoEventsForSite(context);
 
-        return {newVersion, updatedCommentThreads, eventTransactionForSite};
+        return {newVersion, updatedCommentThreads, eventsForSite};
     } catch (error) {
         if (!isDynamoIdempotentParameterMismatchError(error)) throw error;
 
@@ -3936,7 +3936,7 @@ export async function updateDocumentContentIdempotently(
         return {
             newVersion: documentItem.version,
             updatedCommentThreads,
-            eventTransactionForSite: emptyArray,
+            eventsForSite: emptyArray,
         };
     }
 }

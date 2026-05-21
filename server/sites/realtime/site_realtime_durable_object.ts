@@ -19,11 +19,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
-    SiteBroadcastRealtimeEventTransactionSchema,
+    SiteBroadcastRealtimeEventsSchema,
     SiteRealtimeProtocol,
 } from "~/shared/sites/site_realtime_protocol.js";
 
-type SiteRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEventTransaction" | "NotFound";
+type SiteRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEvents" | "NotFound";
 
 class SiteRealtimeDurableObject {
     public static readonly serviceName = "SiteRealtimeService";
@@ -96,7 +96,7 @@ class SiteRealtimeDurableObject {
         if (url.pathname === "/") return ["/", "Main"];
 
         if (url.pathname === "/broadcast-realtime-event-transaction") {
-            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
+            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEvents"];
         }
 
         return ["/*", "NotFound"];
@@ -116,7 +116,7 @@ class SiteRealtimeDurableObject {
             case "Main": {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
-            case "BroadcastRealtimeEventTransaction": {
+            case "BroadcastRealtimeEvents": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
@@ -129,13 +129,13 @@ class SiteRealtimeDurableObject {
                     );
                 }
 
-                const {eventTransaction} = SiteBroadcastRealtimeEventTransactionSchema.deserialize(
+                const {events} = SiteBroadcastRealtimeEventsSchema.deserialize(
                     await request.json(),
                 );
 
                 this._webSocketServer.sendEventToAll(context, {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
+                    type: "RealtimeEvents",
+                    events,
                 });
 
                 return new Response();

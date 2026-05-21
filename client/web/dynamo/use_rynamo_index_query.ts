@@ -46,9 +46,7 @@ export function useRynamoIndexQuery<Model>(
          * delivered late (after a newer update) we will drop it.
          */
         subscribeToEvents: Memo<
-            (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
-            ) => () => void
+            (subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void) => () => void
         >;
 
         /**
@@ -75,7 +73,7 @@ export function useRynamoIndexQuery<Model>(
     },
 ): {
     query: RynamoIndexQuery<Model>;
-    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvent: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
     const [query, setQuery] = useState(() => RynamoIndexQuery.new(initialQueryResult));
 
@@ -127,9 +125,7 @@ export function useRynamoIndexQueryBase<Model, Extra>(
          * delivered late (after a newer update) we will drop it.
          */
         subscribeToEvents: Memo<
-            (
-                subscriber: (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void,
-            ) => () => void
+            (subscriber: (events: ReadonlyArray<RynamoEvent<unknown>>) => void) => () => void
         >;
 
         /**
@@ -156,13 +152,13 @@ export function useRynamoIndexQueryBase<Model, Extra>(
     },
 ): {
     query: RynamoIndexQuery<Model, Extra>;
-    handleEvent: Memo<(eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => void>;
+    handleEvent: Memo<(events: ReadonlyArray<RynamoEvent<unknown>>) => void>;
 } {
     const setErrorState = useErrorState();
 
     const handleEvent = useCallback(
-        (eventTransaction: ReadonlyArray<RynamoEvent<unknown>>) => {
-            onUpdateQuery(query => query.handleEventTransaction(eventTransaction));
+        (events: ReadonlyArray<RynamoEvent<unknown>>) => {
+            onUpdateQuery(query => query.handleEvents(events));
         },
         [onUpdateQuery],
     );
@@ -196,9 +192,7 @@ export function useRynamoIndexQueryBase<Model, Extra>(
                 switch (backfillResult.type) {
                     case "Available": {
                         onUpdateQuery(query => {
-                            const newQuery = query.handleEventTransaction(
-                                backfillResult.eventTransaction,
-                            );
+                            const newQuery = query.handleEvents(backfillResult.events);
                             newQuery.setMutableCheckpoint(backfillResult.checkpoint);
                             return newQuery;
                         });

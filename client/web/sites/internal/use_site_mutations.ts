@@ -143,7 +143,7 @@ export function useSiteMutations() {
             // success/failure, not the returned event stubs.
             updateTreeOptimistically(
                 rpcPromise
-                    .then(result => handleEventForSite(result.eventTransaction))
+                    .then(result => handleEventForSite(result.events))
                     .catch(error => {
                         reporter.displayError("Couldn\u2019t create sidebar section", error);
                         throw error;
@@ -201,7 +201,7 @@ export function useSiteMutations() {
             return withPausedRealtimeEvents(async () => {
                 // TODO(#sites): How should we handle entities in other sites? For now, we add them
                 // to the new site if possible, otherwise we throw an access error.
-                const {eventTransaction} = await addEntityToSite(context, {
+                const {events} = await addEntityToSite(context, {
                     siteId,
                     spaceId: space.id,
                     entityId: entity.id,
@@ -220,7 +220,7 @@ export function useSiteMutations() {
                 // navigating to the next entity, which introduces some pretty obvious screen
                 // flicker.
                 await navigateWithinSite(getSearchDynamicEntityPath(space.id, entity, routeLayout));
-                flushSync(() => handleEventForSite(eventTransaction));
+                flushSync(() => handleEventForSite(events));
 
                 return {entityId: entity.id};
             });
@@ -246,7 +246,7 @@ export function useSiteMutations() {
             });
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                rpcPromise.then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -267,7 +267,7 @@ export function useSiteMutations() {
             const rpcPromise = updateSiteContainerLabel(context, {siteId, id: containerId, label});
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                rpcPromise.then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -288,7 +288,7 @@ export function useSiteMutations() {
             const rpcPromise = updateSiteName(context, {siteId, name});
 
             updateTreeOptimistically(
-                rpcPromise.then(result => handleEventForSite([result.eventTransaction])),
+                rpcPromise.then(result => handleEventForSite([result.events])),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -322,7 +322,7 @@ export function useSiteMutations() {
                     entityId,
                 });
                 updateTreeOptimistically(
-                    rpcPromise.then(result => handleEventForSite(result.eventTransaction)),
+                    rpcPromise.then(result => handleEventForSite(result.events)),
                     (oldTree, promiseValue) => {
                         // If promise value is defined, that means rpcPromise resolved and
                         // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -359,7 +359,7 @@ export function useSiteMutations() {
             // To avoid this, we pause the realtime subsription, so that even if (2) wins out,
             // the event will be queued and applied to the tree after (1) resolves.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransaction} = await removeEntityFromSite(context, {
+                const {events} = await removeEntityFromSite(context, {
                     siteId,
                     spaceId: space.id,
                     entityId,
@@ -374,7 +374,7 @@ export function useSiteMutations() {
                           )
                         : `/s/${space.id}/sites/${siteId}`,
                 );
-                flushSync(() => handleEventForSite(eventTransaction));
+                flushSync(() => handleEventForSite(events));
             });
         },
         [
@@ -424,7 +424,7 @@ export function useSiteMutations() {
                 moveSiteEntry(context, {
                     siteId,
                     item: createMoveSiteEntryItem(entry),
-                }).then(result => handleEventForSite(result.eventTransaction)),
+                }).then(result => handleEventForSite(result.events)),
                 (oldTree, promiseValue) => {
                     // If promise value is defined, that means rpcPromise resolved and
                     // handleEventForSite() has run. Since handleEventForSite() will incorporate the
@@ -454,14 +454,14 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the document may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await createDocument(context, {
+                const {eventsForSite} = await createDocument(context, {
                     spaceId: space.id,
                     documentId,
                     sitePosition: {siteId, parentId, orderKey},
                 });
 
                 await navigateWithinSite(`/s/${space.id}/documents/${documentId}`);
-                flushSync(() => handleEventForSite(eventTransactionForSite));
+                flushSync(() => handleEventForSite(eventsForSite));
             });
         },
         [
@@ -481,7 +481,7 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the task may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                const {eventsForSite} = await commitTaskActionTransaction(context, {
                     spaceId: space.id,
                     clientId: null,
                     actions: [
@@ -515,8 +515,8 @@ export function useSiteMutations() {
                 });
 
                 await navigateWithinSite(`/s/${space.id}/tasks/${taskId}`);
-                if (eventTransactionForSite) {
-                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                if (eventsForSite) {
+                    flushSync(() => handleEventForSite(eventsForSite));
                 }
             });
         },
@@ -539,7 +539,7 @@ export function useSiteMutations() {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the channel may appear in the site chrome before we navigate to it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await createChannel(context, {
+                const {eventsForSite} = await createChannel(context, {
                     spaceId: space.id,
                     channelId,
                     name: "Untitled channel",
@@ -548,7 +548,7 @@ export function useSiteMutations() {
 
                 await navigateWithinSite(`/s/${space.id}/channels/${channelId}`);
 
-                flushSync(() => handleEventForSite(eventTransactionForSite));
+                flushSync(() => handleEventForSite(eventsForSite));
             });
         },
         [
@@ -569,7 +569,7 @@ export function useSiteMutations() {
             // events, the task collection may appear in the site chrome before we navigate to
             // it.
             await withPausedRealtimeEvents(async () => {
-                const {eventTransactionForSite} = await commitTaskActionTransaction(context, {
+                const {eventsForSite} = await commitTaskActionTransaction(context, {
                     spaceId: space.id,
                     clientId: null,
                     actions: [
@@ -595,8 +595,8 @@ export function useSiteMutations() {
                 });
 
                 await navigateWithinSite(`/s/${space.id}/tasks/collections/${collectionId}`);
-                if (eventTransactionForSite) {
-                    flushSync(() => handleEventForSite(eventTransactionForSite));
+                if (eventsForSite) {
+                    flushSync(() => handleEventForSite(eventsForSite));
                 }
             });
         },

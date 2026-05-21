@@ -454,7 +454,7 @@ export class DocumentContentEditorWebSocketClient {
                     }
                     break;
                 }
-                case "SpellCheckRealtimeEventTransaction": {
+                case "SpellCheckRealtimeEvents": {
                     break;
                 }
                 default:
@@ -724,13 +724,11 @@ export class DocumentContentEditorWebSocketClient {
     }
 
     public subscribeToSpellCheckIgnoredLints(
-        subscriber: (
-            eventTransaction: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>,
-        ) => void,
+        subscriber: (events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>) => void,
     ) {
         return this._client.subscribeToEvents(event => {
-            if (event.type === "SpellCheckRealtimeEventTransaction") {
-                subscriber(event.eventTransaction);
+            if (event.type === "SpellCheckRealtimeEvents") {
+                subscriber(event.events);
             }
         });
     }

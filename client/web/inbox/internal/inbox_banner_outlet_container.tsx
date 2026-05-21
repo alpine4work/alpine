@@ -276,7 +276,7 @@ export function InboxBannerOutletContainer({
         {
             isConnected,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {

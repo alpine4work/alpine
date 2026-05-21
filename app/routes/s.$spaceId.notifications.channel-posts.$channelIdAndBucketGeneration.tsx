@@ -403,19 +403,19 @@ function ChannelPostsRoute({
                 [setPostsOptimistically],
             )}
             shouldBeConnectedToChannelRealtime={true}
-            onPostRealtimeEventTransaction={useCallback(
-                eventTransaction => {
-                    setPosts(posts => posts.handleEventTransaction(eventTransaction));
+            onPostRealtimeEvents={useCallback(
+                events => {
+                    setPosts(posts => posts.handleEvents(events));
                 },
                 [setPosts],
             )}
-            onOptimisticPostRealtimeEventTransaction={useCallback(
+            onOptimisticPostRealtimeEvents={useCallback(
                 (promise, postId, update) => {
                     setPostsOptimistically(promise, (posts, promiseValue) => {
                         // Once `promise` resolves, use the event transaction from `promise` to update the
                         // posts instead of our optimistic updater.
                         if (promiseValue) {
-                            return posts.handleEventTransaction(promiseValue);
+                            return posts.handleEvents(promiseValue);
                         }
 
                         const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
@@ -431,7 +431,7 @@ function ChannelPostsRoute({
                             model: newPost,
                         };
 
-                        return posts.handleEventTransaction([
+                        return posts.handleEvents([
                             {type: "PutItem", item: newPostItem, indexes: new Map()},
                         ]);
                     });

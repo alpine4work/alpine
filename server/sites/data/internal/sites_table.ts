@@ -39,7 +39,7 @@ import {
     SiteTopBarModel,
     isSiteSearchEntityModelData,
 } from "~/shared/sites/site_model.js";
-import {SiteBroadcastRealtimeEventTransactionSchema} from "~/shared/sites/site_realtime_protocol.js";
+import {SiteBroadcastRealtimeEventsSchema} from "~/shared/sites/site_realtime_protocol.js";
 
 /**
  * Sites Realtime Table
@@ -247,12 +247,12 @@ export const SitesTable = RynamoTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, eventTransaction) => {
+    broadcastEvents: async (context, events) => {
         // Split up event transactions by siteId. All events in the Site partition go to
         // the same site's durable object.
-        const eventTransactionBySiteId = new Map<SiteId, Array<RynamoEventStub>>();
+        const eventsBySiteId = new Map<SiteId, Array<RynamoEventStub>>();
 
-        for (const {itemKey, eventStub} of eventTransaction) {
+        for (const {itemKey, eventStub} of events) {
             if (itemKey.partitionType === "Site") {
                 const isSiteCreationEvent =
                     itemKey.sortRangeType === "Attributes" && eventStub.item.version === 0;
@@ -260,26 +260,24 @@ export const SitesTable = RynamoTableSchema.new({
                 // Optimization: Don't broadcast site creation events. No one will be subscribed
                 // before the site is created.
                 if (!isSiteCreationEvent) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionBySiteId,
-                        itemKey.siteId,
-                        () => [],
-                    ).push(eventStub);
+                    getOrSetDefaultMapValue(eventsBySiteId, itemKey.siteId, () => []).push(
+                        eventStub,
+                    );
                 }
             }
         }
 
         await runAllPromises(
-            mapIterable(eventTransactionBySiteId, async ([siteId, eventTransactionForSite]) => {
-                if (eventTransactionForSite.length === 0) return;
+            mapIterable(eventsBySiteId, async ([siteId, eventsForSite]) => {
+                if (eventsForSite.length === 0) return;
 
                 await context.edge.broadcastToDurableObject(
                     `/api/durable-objects/sites/${siteId}/broadcast-realtime-event-transaction`,
                     {
                         serviceName: "SiteRealtimeService",
                         route: "/api/durable-objects/sites/:siteId/broadcast-realtime-event-transaction",
-                        body: SiteBroadcastRealtimeEventTransactionSchema.serialize({
-                            eventTransaction: eventTransactionForSite,
+                        body: SiteBroadcastRealtimeEventsSchema.serialize({
+                            events: eventsForSite,
                         }),
                     },
                 );

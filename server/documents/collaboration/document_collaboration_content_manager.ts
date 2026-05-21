@@ -836,163 +836,157 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
         newVersion: number;
-        getRynamoEventTransactionForSite: () => Promise<
+        getRynamoEventsForSite: () => Promise<
             ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
         >;
     }> {
-        const {
-            oldVersion,
-            newVersion,
-            steps,
-            presenceState,
-            eventTransactionForSite,
-            updatedCommentThreads,
-        } = await this._state.withLock(async stateRef => {
-            await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
-                this.id,
-            );
-
-            // A null `update.version` means "apply on top of whatever the latest version is" —
-            // used by callers like the move-into/out-of-site path that don't have a specific
-            // client version to rebase against.
-            const clientVersion = update.version ?? stateRef.current.version;
-
-            if (
-                update.updateOurPresenceState.state &&
-                update.updateOurPresenceState.state.version !== clientVersion
-            ) {
-                throw new InvalidArgumentError(
-                    "Document version in new presence state should match the document version we are updating",
+        const {oldVersion, newVersion, steps, presenceState, eventsForSite, updatedCommentThreads} =
+            await this._state.withLock(async stateRef => {
+                await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
+                    this.id,
                 );
-            }
 
-            for (const createCommentThread of update.createCommentThreads) {
-                if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
-                    throw new FailedPreconditionError(
-                        "Document comment thread ID has already been used",
+                // A null `update.version` means "apply on top of whatever the latest version is" —
+                // used by callers like the move-into/out-of-site path that don't have a specific
+                // client version to rebase against.
+                const clientVersion = update.version ?? stateRef.current.version;
+
+                if (
+                    update.updateOurPresenceState.state &&
+                    update.updateOurPresenceState.state.version !== clientVersion
+                ) {
+                    throw new InvalidArgumentError(
+                        "Document version in new presence state should match the document version we are updating",
                     );
-            }
+                }
 
-            // Wait for any in-flight optimistic persistence batch so DynamoDB's version
-            // catches up to `stateRef.current.version` before we call
-            // `updateDocumentContent()` with `version: oldVersion`.
-            await this._persistenceState?.promise;
+                for (const createCommentThread of update.createCommentThreads) {
+                    if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
+                        throw new FailedPreconditionError(
+                            "Document comment thread ID has already been used",
+                        );
+                }
 
-            await documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.waitForTest(
-                this.id,
-            );
+                // Wait for any in-flight optimistic persistence batch so DynamoDB's version
+                // catches up to `stateRef.current.version` before we call
+                // `updateDocumentContent()` with `version: oldVersion`.
+                await this._persistenceState?.promise;
 
-            const oldVersion = stateRef.current.version;
+                await documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.waitForTest(
+                    this.id,
+                );
 
-            const {newContent, steps, invertedSteps, clientContent, mapping} =
-                await getCollaborativelyUpdateContentResult(context, {
-                    currentVersion: stateRef.current.version,
-                    currentContent: stateRef.current.content,
-                    clientVersion,
-                    clientSteps: update.steps,
-                    getSteps: (startVersion, endVersion) =>
-                        this.stepCache.getSteps(context, startVersion, endVersion),
+                const oldVersion = stateRef.current.version;
+
+                const {newContent, steps, invertedSteps, clientContent, mapping} =
+                    await getCollaborativelyUpdateContentResult(context, {
+                        currentVersion: stateRef.current.version,
+                        currentContent: stateRef.current.content,
+                        clientVersion,
+                        clientSteps: update.steps,
+                        getSteps: (startVersion, endVersion) =>
+                            this.stepCache.getSteps(context, startVersion, endVersion),
+                    });
+
+                assert(isDocumentContent(newContent));
+
+                const clientPresenceStateSelection =
+                    update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
+                        clientContent,
+                    );
+                const newPresenceStateSelection = clientPresenceStateSelection?.map(
+                    newContent,
+                    mapping,
+                );
+                const newVersion = oldVersion + steps.length;
+                const presenceState: DocumentCollaborationPresenceState | null =
+                    newPresenceStateSelection
+                        ? {
+                              version: newVersion,
+                              selection: ContentSelectionWrapper.new(newPresenceStateSelection),
+                          }
+                        : null;
+
+                await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
+                    this.id,
+                );
+
+                const intentionallyUpdateAccessPolicy =
+                    update.intentionallyUpdateAccessPolicy ?? undefined;
+                const commentThreadCreatedTime = new Date();
+
+                // Persist before mutating any in-memory state. If this throws we release the lock
+                // with state untouched and propagate the error to the caller — no `DataLossError`
+                // / process kill needed because nothing was applied optimistically.
+                const {
+                    newVersion: persistedVersion,
+                    updatedCommentThreads,
+                    eventsForSite,
+                } = await updateDocumentContent(context, {
+                    documentId: this.id,
+                    version: oldVersion,
+                    steps,
+                    clientId: update.clientId,
+                    createCommentThreads: Array.from(
+                        update.createCommentThreads,
+                        createCommentThread => ({
+                            ...createCommentThread,
+                            createdTime: commentThreadCreatedTime,
+                        }),
+                    ),
+                    intentionallyUpdateAccessPolicy,
+                    resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+                    unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
                 });
 
-            assert(isDocumentContent(newContent));
+                if (persistedVersion !== newVersion) {
+                    throw new DataLossError(
+                        "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                    );
+                }
 
-            const clientPresenceStateSelection =
-                update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
-                    clientContent,
-                );
-            const newPresenceStateSelection = clientPresenceStateSelection?.map(
-                newContent,
-                mapping,
-            );
-            const newVersion = oldVersion + steps.length;
-            const presenceState: DocumentCollaborationPresenceState | null =
-                newPresenceStateSelection
-                    ? {
-                          version: newVersion,
-                          selection: ContentSelectionWrapper.new(newPresenceStateSelection),
-                      }
-                    : null;
+                for (let i = 0; i < steps.length; i++) {
+                    const step = steps[i]!;
+                    const invertedStep = invertedSteps[i];
+                    assert(invertedStep);
+                    this.stepCache.dangerouslyAddStepToEnd({
+                        step,
+                        invertedStep,
+                        clientId: update.clientId,
+                    });
+                }
 
-            await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
-                this.id,
-            );
+                stateRef.current = {
+                    version: newVersion,
+                    content: newContent,
+                };
 
-            const intentionallyUpdateAccessPolicy =
-                update.intentionallyUpdateAccessPolicy ?? undefined;
-            const commentThreadCreatedTime = new Date();
+                this._persistedVersion = newVersion;
 
-            // Persist before mutating any in-memory state. If this throws we release the lock
-            // with state untouched and propagate the error to the caller — no `DataLossError`
-            // / process kill needed because nothing was applied optimistically.
-            const {
-                newVersion: persistedVersion,
-                updatedCommentThreads,
-                eventTransactionForSite,
-            } = await updateDocumentContent(context, {
-                documentId: this.id,
-                version: oldVersion,
-                steps,
-                clientId: update.clientId,
-                createCommentThreads: Array.from(
-                    update.createCommentThreads,
-                    createCommentThread => ({
-                        ...createCommentThread,
-                        createdTime: commentThreadCreatedTime,
-                    }),
-                ),
-                intentionallyUpdateAccessPolicy,
-                resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
-                unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+                if (intentionallyUpdateAccessPolicy) {
+                    this._resetAllAuthorizationTimers(context);
+                }
+
+                return {
+                    oldVersion,
+                    newVersion,
+                    steps,
+                    presenceState,
+                    eventsForSite,
+                    updatedCommentThreads,
+                };
             });
 
-            if (persistedVersion !== newVersion) {
-                throw new DataLossError(
-                    "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
-                );
-            }
-
-            for (let i = 0; i < steps.length; i++) {
-                const step = steps[i]!;
-                const invertedStep = invertedSteps[i];
-                assert(invertedStep);
-                this.stepCache.dangerouslyAddStepToEnd({
-                    step,
-                    invertedStep,
-                    clientId: update.clientId,
-                });
-            }
-
-            stateRef.current = {
-                version: newVersion,
-                content: newContent,
-            };
-
-            this._persistedVersion = newVersion;
-
-            if (intentionallyUpdateAccessPolicy) {
-                this._resetAllAuthorizationTimers(context);
-            }
-
-            return {
-                oldVersion,
-                newVersion,
-                steps,
-                presenceState,
-                eventTransactionForSite,
-                updatedCommentThreads,
-            };
-        });
-
-        const getRynamoEventTransactionForSite = async (): Promise<
+        const getRynamoEventsForSite = async (): Promise<
             ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
-        > => eventTransactionForSite;
+        > => eventsForSite;
 
         if (steps.length === 0) {
             return {
                 presenceState,
                 hasSentPresenceState: false,
                 newVersion: oldVersion,
-                getRynamoEventTransactionForSite,
+                getRynamoEventsForSite,
             };
         }
 
@@ -1132,7 +1126,7 @@ export class DocumentCollaborationContentManager {
             presenceState,
             hasSentPresenceState: true,
             newVersion,
-            getRynamoEventTransactionForSite,
+            getRynamoEventsForSite,
         };
     }
 

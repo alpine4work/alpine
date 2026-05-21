@@ -12,11 +12,11 @@ import {
 } from "~/shared/notifications/my_account_protocol.js";
 
 export type MyAccountEventStub = {
-    readonly type: "InboxRealtimeEventTransaction";
+    readonly type: "InboxRealtimeEvents";
     // We have the full event (references and all) in the stub because when
     // `AppService` creates the event they create it with the inbox recipient's
     // permissions.
-    readonly eventTransaction: ReadonlyArray<RynamoInboxItemEvent>;
+    readonly events: ReadonlyArray<RynamoInboxItemEvent>;
 };
 
 export class MyAccountConnection {
