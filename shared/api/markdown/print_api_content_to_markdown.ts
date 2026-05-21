@@ -17,7 +17,7 @@ import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
 import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
-import {normalizeDraftApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -576,7 +576,7 @@ function printApiContentCodeBlockElementToMarkdown(
         for (const lineElement of line.elements) {
             if (lineElement.text.length === 0) continue;
 
-            const marks = normalizeDraftApiContentInlineElementMarks(lineElement.marks) ?? [];
+            const marks = normalizeApiContentInlineElementMarks(lineElement.marks) ?? [];
 
             // Find the length of the shared prefix between openMarks and marks
             let sharedPrefixLength = 0;
@@ -1161,7 +1161,7 @@ function* printApiContentInlineElementToMarkdown(
                 | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
                 | undefined;
 
-            const actualMarks = normalizeDraftApiContentInlineElementMarks(element.marks);
+            const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
                 for (const mark of actualMarks) {
                     if (mark.type === "Code") {
@@ -1213,7 +1213,7 @@ function* printApiContentInlineElementToMarkdown(
                 | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
                 | undefined;
 
-            const actualMarks = normalizeDraftApiContentInlineElementMarks(element.marks);
+            const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
                 for (const mark of actualMarks) {
                     if (mark.type === "Code") {
@@ -1251,7 +1251,7 @@ function* printApiContentInlineElementToMarkdown(
                 | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
                 | undefined;
 
-            const actualMarks = normalizeDraftApiContentInlineElementMarks(element.marks);
+            const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
                 for (const mark of actualMarks) {
                     if (mark.type === "Code") {
@@ -1447,7 +1447,7 @@ function* printApiContentInlineElementMarksToMarkdown(
     content: PhrasingContent | Array<PhrasingContent>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<PhrasingContent> {
-    marks = normalizeDraftApiContentInlineElementMarks(marks);
+    marks = normalizeApiContentInlineElementMarks(marks);
 
     if (marks === undefined) {
         if (Array.isArray(content)) yield* content;

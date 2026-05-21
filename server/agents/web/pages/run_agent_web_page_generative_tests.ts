@@ -11,6 +11,7 @@ assert(import.meta.jest);
 export function runAgentWebPageGenerativeTests<PageLink, Page>({
     print,
     parse,
+    normalize,
     pageLink: pageLinkArbitrary,
     page: pageArbitrary,
 }: {
@@ -20,6 +21,7 @@ export function runAgentWebPageGenerativeTests<PageLink, Page>({
         pageLink: PageLink | null,
         root: Root,
     ) => Promise<Page>;
+    normalize: (page: Page) => Page;
     pageLink: Arbitrary<PageLink>;
     page: Arbitrary<Page>;
 }) {
@@ -35,9 +37,15 @@ export function runAgentWebPageGenerativeTests<PageLink, Page>({
                 async ({pageLink, page}) => {
                     await storage.deleteAll();
 
-                    const markdown = await print(storage, pageLink, page);
+                    const normalizedPage = normalize(page);
 
-                    expect(await parse(storage, pageLink, markdown)).toEqual(page);
+                    const markdown = await print(storage, pageLink, normalizedPage);
+
+                    expect(
+                        // We don't call `normalize()` on the parsed result since we assume `parse()` will
+                        // return data in normalized format.
+                        await parse(storage, pageLink, markdown),
+                    ).toEqual(normalizedPage);
                 },
             ),
             {

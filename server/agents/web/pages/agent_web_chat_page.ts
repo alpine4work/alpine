@@ -4,6 +4,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {
     AgentWebMessagingPageBase,
     agentWebMessagingPageMessageNouns,
+    normalizeAgentWebMessagingPageBase,
     printAgentWebMessagingPageBase,
     readAgentWebMessagingPageBase,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
@@ -81,6 +82,10 @@ export async function readAgentWebChatPage(
     );
 
     return page;
+}
+
+export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: Page): Page {
+    return normalizeAgentWebMessagingPageBase(page);
 }
 
 export function printAgentWebChatPage(

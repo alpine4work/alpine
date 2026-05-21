@@ -130,15 +130,18 @@ async function traverseApiContentMarkdownNode(
                     | ApiContentFileBlockElementResponse
                     | ApiContentPreviewBlockElementResponse;
 
-                const pageLink: AgentWebPageLink =
-                    element.type === "Preview"
-                        ? createApiTargetAgentWebPageLink(element.target)
-                        : {
-                              type: "File",
-                              id: element.id,
-                              contentType: element.contentType,
-                              contentLength: element.contentLength,
-                          };
+                let pageLink: AgentWebPageLink;
+
+                if (element.type === "Preview") {
+                    pageLink = createApiTargetAgentWebPageLink(element.target);
+                } else {
+                    pageLink = {
+                        type: "File",
+                        id: element.id,
+                        contentType: element.contentType,
+                        contentLength: element.contentLength,
+                    };
+                }
 
                 const pageLinkPathname = await createAgentWebPageLinkPathname(storage, pageLink);
                 const pageLinkLabel = printAgentWebPageLinkLabel(pageLink);
@@ -172,15 +175,26 @@ async function traverseApiContentMarkdownNode(
 
                 const pageLinkByUrlEntries = await runAllPromises(
                     fileGalleryElementRow.items.map(async item => {
-                        const pageLink: AgentWebPageLink =
-                            item.element.type === "Preview"
-                                ? createApiTargetAgentWebPageLink(item.element.target)
-                                : {
-                                      type: "File",
-                                      id: item.element.id,
-                                      contentType: item.element.contentType,
-                                      contentLength: item.element.contentLength,
-                                  };
+                        let pageLink: AgentWebPageLink;
+                        let url: string;
+
+                        if (item.element.type === "Preview") {
+                            pageLink = createApiTargetAgentWebPageLink(item.element.target);
+
+                            url = printApiPreviewTargetToPreviewUrl(
+                                storage.spaceId,
+                                item.element.target,
+                            );
+                        } else {
+                            pageLink = {
+                                type: "File",
+                                id: item.element.id,
+                                contentType: item.element.contentType,
+                                contentLength: item.element.contentLength,
+                            };
+
+                            url = printApiFileContentUrl(storage.spaceId, item.element.id);
+                        }
 
                         const pageLinkPathname = await createAgentWebPageLinkPathname(
                             storage,
@@ -188,14 +202,6 @@ async function traverseApiContentMarkdownNode(
                         );
 
                         const pageLinkLabel = printAgentWebPageLinkLabel(pageLink);
-
-                        const url =
-                            item.element.type === "Preview"
-                                ? printApiPreviewTargetToPreviewUrl(
-                                      storage.spaceId,
-                                      item.element.target,
-                                  )
-                                : printApiFileContentUrl(storage.spaceId, item.element.id);
 
                         return [
                             escapeHtml(url),
@@ -217,7 +223,7 @@ async function traverseApiContentMarkdownNode(
                         (substring, string1, string2, string3, string4) => {
                             const pageLink = pageLinkByUrl.get(string3);
                             if (!pageLink) return substring;
-                            return `${string1 ? ` alt="${pageLink.label}"` : ""}${string2}${pageLink.pathname}${string4}`;
+                            return `${string1 ? ` alt="${escapeHtml(pageLink.label)}"` : ""}${string2}${escapeHtml(pageLink.pathname)}${string4}`;
                         },
                     );
 

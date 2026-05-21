@@ -1,6 +1,7 @@
 import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -15,6 +16,8 @@ export type ApiTargetResponse =
           readonly type: "Account";
           readonly id: AccountId;
           readonly title: string;
+          readonly shortName: string;
+          readonly botId?: BotId;
       }
     | {
           readonly type: "Channel";

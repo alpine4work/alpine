@@ -14,13 +14,15 @@ import {
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     BotId,
+    ChannelId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
+    PostId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -784,7 +786,7 @@ Visit <a href="${exampleTruncatedUrl}">example</a> for more
                                     elements: [
                                         {
                                             type: "Paragraph",
-                                            elements: [{type: "Text", text: "Label"}],
+                                            elements: [{type: "Text", text: "a"}],
                                         },
                                     ],
                                 },
@@ -792,7 +794,31 @@ Visit <a href="${exampleTruncatedUrl}">example</a> for more
                                     elements: [
                                         {
                                             type: "Paragraph",
-                                            elements: [{type: "Text", text: "Value"}],
+                                            elements: [{type: "Text", text: "b"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "c"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "d"}],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "e"}],
                                         },
                                     ],
                                 },
@@ -808,12 +834,27 @@ Visit <a href="${exampleTruncatedUrl}">example</a> for more
 <tr>
 <th>
 
-Label
+a
 
 </th>
 <td>
 
-Value
+b
+
+</td>
+<td>
+
+c
+
+</td>
+<td>
+
+d
+
+</td>
+<td>
+
+e
 
 </td>
 </tr>
@@ -1978,10 +2019,283 @@ Review this today:
 </div>
 `,
     },
+    {
+        name: "HTML characters in post preview title",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Post",
+                                            id: assertId<PostId>("036btbmcmnnpqfjnnf42zmft3g"),
+                                            // eslint-disable-next-line cyberworlds/string-quotes
+                                            title: '"q*>',
+                                        },
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: assertId<FileId>("r3xsmjpecc4k0qp6tz6tebrm6c"),
+                                        contentType: "audio/mpeg",
+                                        contentLength: 1200813419,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img alt="&quot;q*&gt;" src="/post/q" />
+<audio src="/file/audio.mp3"></audio>
+</div>
+`,
+    },
+    {
+        name: "account mentions with same ID but different names",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: assertId<AccountId>("9cc1wj4he4p7eka2qjgjpf4hsg"),
+                                title: "Caleb",
+                                shortName: "Caleb",
+                            },
+                            isAccountShortName: undefined,
+                            marks: undefined,
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Account",
+                                id: assertId<AccountId>("9cc1wj4he4p7eka2qjgjpf4hsg"),
+                                title: "Caleb Meredith",
+                                shortName: "Caleb",
+                            },
+                            isAccountShortName: undefined,
+                            marks: undefined,
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+[Caleb Meredith](/human/caleb-meredith)
+
+[Caleb Meredith](/human/caleb-meredith)
+`,
+    },
+    {
+        name: "channels with same ID but different titles",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Channel",
+                                id: assertId<ChannelId>("a3en105tcat68mbgnkdnj9w7t0"),
+                                title: "aaaaaaaa",
+                            },
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Channel",
+                                id: assertId<ChannelId>("a3en105tcat68mbgnkdnj9w7t0"),
+                                title: "bbbbbbbb",
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+[bbbbbbbb](/channel/bbbbbbbb)
+
+[bbbbbbbb](/channel/bbbbbbbb)
+`,
+    },
+    {
+        name: "tasks with same ID but different statuses across mention and preview",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Task",
+                                id: assertId<TaskId>("q44py4538q3gyt63ykgz44q9ew"),
+                                title: "aaaaaaaa",
+                                status: {type: "Open", isActive: false},
+                            },
+                            isAccountShortName: false,
+                            marks: [],
+                        },
+                    ],
+                },
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 1,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Task",
+                                            id: assertId<TaskId>("q44py4538q3gyt63ykgz44q9ew"),
+                                            title: "aaaaaaaa",
+                                            status: {type: "Closed"},
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+[aaaaaaaa (Closed)](/task/aaaaaaaa)
+
+![aaaaaaaa (Closed)](/task/aaaaaaaa)
+`,
+    },
+    {
+        name: "posts with same ID but different titles across file gallery and mention",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "Preview",
+                                        target: {
+                                            type: "Post",
+                                            id: assertId<PostId>("k9f12ww1stzwy3bcgctwfhrpxw"),
+                                            title: "aaaaaaaa",
+                                        },
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: assertId<FileId>("hkwdk6myqtdq71j7e2rmy0am84"),
+                                        contentType: "application/octet-stream",
+                                        contentLength: 0,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Post",
+                                id: assertId<PostId>("k9f12ww1stzwy3bcgctwfhrpxw"),
+                                title: "bbbbbbbb",
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<img alt="bbbbbbbb" src="/post/bbbbbbbb" />
+<object data="/file/file.bin"></object>
+</div>
+
+[bbbbbbbb](/post/bbbbbbbb)
+`,
+    },
+    {
+        name: "files with the same ID but different content lengths",
+        content: {
+            elements: [
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "image/png",
+                                        contentLength: 100,
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: file1Id,
+                                        contentType: "video/mp4",
+                                        contentLength: 200,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<div style="display: flex">
+<video src="/file/video.mp4"></video>
+<video src="/file/video.mp4"></video>
+</div>
+`,
+    },
 ];
 
 for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of testCases) {
     const describe = only ? globalThis.describe.only : globalThis.describe;
+
+    const normalizedExpectedContent = normalizeApiContentForAgentWebMarkdown(expectedContent);
 
     describe(name, () => {
         test("prints to agent web markdown", async () => {
@@ -1989,7 +2303,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
-                expectedContent,
+                normalizedExpectedContent,
                 {documentId: contextDocumentId},
             );
 
@@ -2001,7 +2315,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
-                expectedContent,
+                normalizedExpectedContent,
                 {documentId: contextDocumentId},
             );
 
@@ -2013,7 +2327,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             // We expect `parseApiContentFromAgentWebMarkdown()` to produce normalized content
             // so we don't call `normalizeApiContent()` on `actualContent`.
-            expect(actualContent).toEqual(normalizeApiContentForAgentWebMarkdown(expectedContent));
+            expect(actualContent).toEqual(normalizedExpectedContent);
         });
 
         test("parses agent web markdown back to content with `AgentWebMarkdownStreamParser`", async () => {
@@ -2021,7 +2335,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
 
             const actualMarkdown = await printApiContentToAgentWebMarkdown(
                 storage,
-                expectedContent,
+                normalizedExpectedContent,
                 {documentId: contextDocumentId},
             );
 

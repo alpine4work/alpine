@@ -1,7 +1,9 @@
+import {produce} from "immer";
 import {Parent, Root} from "mdast";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -92,6 +94,14 @@ export async function updateAgentWebDocumentPage(
         id,
         version: document.version,
     };
+}
+
+export function normalizeAgentWebDocumentPage<Page extends AgentWebDocumentPage>(page: Page): Page {
+    return produce(page, page => {
+        withApiContentNormalizerForAgentWebMarkdown(normalizer => {
+            normalizer.normalize(page.content);
+        });
+    });
 }
 
 export async function printAgentWebDocumentPage(

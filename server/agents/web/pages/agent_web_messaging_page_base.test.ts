@@ -1,6 +1,7 @@
 import {
     AgentWebMessagingPageBase,
     agentWebMessagingPageMessageNouns,
+    normalizeAgentWebMessagingPageBase,
     parseAgentWebMessagingPageBase,
     printAgentWebMessagingPageBase,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
@@ -12,12 +13,14 @@ import {
     ApiContentResponse,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
 const paginationChatId = generateId<ChatId>();
+const duplicateFileId = generateChronologicalId<FileId>();
 
 function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
     return {elements};
@@ -39,6 +42,7 @@ function text(
 runAgentWebPageTests<true, AgentWebMessagingPageBase>({
     print: printAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
+    normalize: normalizeAgentWebMessagingPageBase,
     tests: [
         {
             name: "simple message log",
@@ -853,6 +857,52 @@ Hello there.
                     paginationLink: null,
                 },
                 blocks: [],
+            },
+        },
+        {
+            name: "same file id with different sizes",
+            pageLink: true,
+            markdown: `\
+<human name="Alice">
+
+First render:
+
+![](/file/image.png)
+
+Second render:
+
+![](/file/image.png)
+
+</human>
+`,
+            page: {
+                preamble: {elements: [], paginationLink: null},
+                blocks: [
+                    {
+                        type: "Message",
+                        tagName: "human",
+                        nameAttribute: "Alice",
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([
+                            paragraph([text("First render:")]),
+                            {
+                                type: "File",
+                                id: duplicateFileId,
+                                contentType: "image/png",
+                                contentLength: 100,
+                            },
+                            paragraph([text("Second render:")]),
+                            {
+                                type: "File",
+                                id: duplicateFileId,
+                                contentType: "image/png",
+                                contentLength: 200,
+                            },
+                        ]),
+                    },
+                ],
             },
         },
     ],

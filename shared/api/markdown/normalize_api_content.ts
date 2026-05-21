@@ -1,20 +1,26 @@
 import {Draft, castDraft, produce} from "immer";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
+import {ApiTargetKey, printApiTargetKey} from "~/shared/api/specification/api_target_key.js";
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentFileBlockElementResponse,
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentResponse,
     ApiMentionTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
+import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 
 /**
  * If two `ApiContent` objects normalize to the same object (based on an
@@ -22,498 +28,540 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  * equivalent.
  */
 export function normalizeApiContent(content: ApiContent): ApiContent {
-    return produce(content, content => {
-        normalizeDraftApiContentBlockElements(content.elements, {
-            isResponse: false,
-            withinTableElement: false,
-            withDummyFileGalleryElementLayout: false,
-        });
-    });
+    return produce(content, normalizeDraftApiContent);
 }
 
 export function normalizeDraftApiContent(content: Draft<ApiContent>) {
-    normalizeDraftApiContentBlockElements(content.elements, {
-        isResponse: false,
-        withinTableElement: false,
-        withDummyFileGalleryElementLayout: false,
+    ApiContentNormalizer.with(normalizer => {
+        normalizer.normalize(content);
     });
-}
-
-/**
- * If two `ApiContentResponse` objects normalize to the same object (based on an
- * `isDeepEqual()` check) then the two `ApiContentResponse`s are considered to be
- * equivalent.
- *
- * Does not clean response-only properties. `normalizeApiContent()` will clean
- * response-only properties.
- */
-export function normalizeApiContentResponse(
-    content: ApiContentResponse,
-    options?: {withDummyFileGalleryElementLayout: boolean},
-): ApiContentResponse {
-    return produce(content, content => {
-        normalizeDraftApiContentBlockElements(content.elements, {
-            isResponse: true,
-            withinTableElement: false,
-            withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
-        });
-    });
-}
-
-export function normalizeDraftApiContentResponse(
-    content: Draft<ApiContentResponse>,
-    options?: {withDummyFileGalleryElementLayout: boolean},
-) {
-    normalizeDraftApiContentBlockElements(content.elements, {
-        isResponse: true,
-        withinTableElement: false,
-        withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
-    });
-}
-
-type ApiContentNormalizationOptions = {
-    readonly isResponse: boolean;
-    readonly withinTableElement: boolean;
-    readonly withDummyFileGalleryElementLayout: boolean;
-};
-
-function normalizeDraftApiContentBlockElements(
-    elements: Draft<ReadonlyArray<ApiContentBlockElement>>,
-    options: ApiContentNormalizationOptions,
-) {
-    let index = 0;
-    while (index < elements.length) {
-        const element = elements[index]!;
-
-        // Remove empty unordered and ordered lists.
-        if (
-            (element.type === "UnorderedList" ||
-                element.type === "OrderedList" ||
-                element.type === "CheckList") &&
-            element.items.length === 0
-        ) {
-            elements.splice(index, 1);
-
-            // After removing an element, the previous element may now be adjacent to a
-            // file-like element it should merge with. Back up so we re-check.
-            if (index > 0) {
-                const prev = elements[index - 1]!;
-                if (
-                    prev.type === "File" ||
-                    prev.type === "Preview" ||
-                    prev.type === "FileGallery"
-                ) {
-                    index--;
-                }
-            }
-            continue;
-        }
-
-        // Merge adjacent lists of the same type.
-        if (
-            element.type === "UnorderedList" ||
-            element.type === "OrderedList" ||
-            element.type === "CheckList"
-        ) {
-            while (index < elements.length - 1) {
-                const nextElement = elements[index + 1]!;
-
-                if (
-                    nextElement.type !== "UnorderedList" &&
-                    nextElement.type !== "OrderedList" &&
-                    nextElement.type !== "CheckList"
-                ) {
-                    break;
-                }
-
-                // Remove empty unordered and ordered lists in between lists of the same type we
-                // want to merge.
-                if (nextElement.items.length === 0) {
-                    elements.splice(index + 1, 1);
-                    continue;
-                }
-
-                if (element.type !== nextElement.type) {
-                    break;
-                }
-
-                // Don't merge ordered lists if the next ordered list has a custom order start.
-                if (nextElement.type === "OrderedList" && nextElement.orderStart !== undefined) {
-                    break;
-                }
-
-                for (const item of nextElement.items) {
-                    if (element.type === "CheckList") {
-                        element.items.push(castDraft(assertApiChecklistBlockElementItem(item)));
-                    } else {
-                        element.items.push(item);
-                    }
-                }
-
-                elements.splice(index + 1, 1);
-            }
-        }
-
-        // Unwrap FileGallery with a single row containing a single element. This runs
-        // before merging so that two adjacent single-item galleries become two standalone
-        // elements rather than a merged two-row gallery. The printer already unwraps these
-        // when printing, so the parser never produces single-item galleries from printed
-        // content.
-        if (
-            element.type === "FileGallery" &&
-            element.rows.length === 1 &&
-            element.rows[0]!.items.length === 1
-        ) {
-            const unwrapped = element.rows[0]!.items[0]!.element;
-            elements.splice(index, 1, castDraft(unwrapped));
-            // Don't increment index, re-process the unwrapped element.
-            continue;
-        }
-
-        // Merge adjacent file-like elements into a single FileGallery.
-        //
-        // `FileGallery` is an API-only concept. In ProseMirror, each row is an independent
-        // `fileRow` node, and there's no wrapper node that groups rows into a "gallery".
-        // We introduced `FileGallery` in the API to give consumers a structured way to
-        // represent multi-file layouts (rows of files displayed side by side). Since
-        // `fileRow` nodes are independent in ProseMirror, adjacent `fileRow` nodes always
-        // belong to the same visual gallery, so we merge their API representations here.
-        //
-        // We also absorb standalone File/Preview elements that follow a gallery. This
-        // happens because the printer unwraps single-item gallery rows into standalone
-        // elements for cleaner markdown. When the parser reads this back, those rows
-        // become standalone elements. Absorbing them restores the original multi-row
-        // structure.
-        //
-        // Example: `FileGallery([A, B], [C])` prints as: `<div>A B</div>` + `![C](url)` (C
-        // unwrapped by printer) Parser produces: `FileGallery([A, B])` + `File(C)`
-        // Normalization absorbs C back: `FileGallery([A, B], [C])` Also handle adjacent
-        // standalone File/Preview elements that should be merged into a gallery. This
-        // happens when the printer unwraps all single-item rows from a multi-row gallery
-        // into standalone elements.
-        if (
-            (element.type === "File" || element.type === "Preview") &&
-            // File galleries aren't supported inside table elements. So don't merge adjacent
-            // files/previews into file galleries when normalizing within a table.
-            !options.withinTableElement &&
-            index < elements.length - 1
-        ) {
-            const nextElement = elements[index + 1]!;
-            if (
-                nextElement.type === "File" ||
-                nextElement.type === "Preview" ||
-                nextElement.type === "FileGallery"
-            ) {
-                // Replace the current element with a FileGallery wrapping it, then fall through to
-                // the FileGallery merge logic below.
-                const gallery = castDraft<ApiContentFileGalleryBlockElement>({
-                    type: "FileGallery",
-                    rows: [{items: [{element}]}],
-                });
-                elements.splice(index, 1, gallery);
-            }
-        }
-
-        // Re-read element since we may have replaced it above.
-        const mergeElement = elements[index]!;
-        if (mergeElement.type === "FileGallery") {
-            while (index < elements.length - 1) {
-                const nextElement = elements[index + 1]!;
-
-                if (nextElement.type === "FileGallery") {
-                    for (const row of nextElement.rows) {
-                        mergeElement.rows.push(row);
-                    }
-                    elements.splice(index + 1, 1);
-                    continue;
-                }
-
-                if (nextElement.type === "File" || nextElement.type === "Preview") {
-                    mergeElement.rows.push({items: [{element: nextElement}]});
-                    elements.splice(index + 1, 1);
-                    continue;
-                }
-
-                break;
-            }
-        }
-
-        normalizeDraftApiContentBlockElement(elements[index]!, options);
-        index++;
-    }
 }
 
 export function normalizeApiContentBlockElement(
     element: ApiContentBlockElement,
 ): ApiContentBlockElement {
     return produce(element, element => {
-        normalizeDraftApiContentBlockElement(element, {
-            isResponse: false,
-            withinTableElement: false,
-            withDummyFileGalleryElementLayout: false,
+        ApiContentNormalizer.with(normalizer => {
+            normalizer.normalizeBlockElement(element);
         });
     });
-}
-
-function normalizeDraftApiContentBlockElement(
-    element: Draft<ApiContentBlockElement>,
-    options: ApiContentNormalizationOptions,
-) {
-    switch (element.type) {
-        case "Paragraph": {
-            normalizeDraftApiContentInlineElements(element.elements, options);
-            break;
-        }
-        case "UnorderedList":
-        case "OrderedList":
-        case "CheckList": {
-            for (const item of element.items) {
-                if (item.elements.length > 0) {
-                    normalizeDraftApiContentBlockElements(item.elements, options);
-                } else if (element.type !== "UnorderedList") {
-                    // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                    // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
-                    // way.
-                    //
-                    // So while unordered phantom lists look like:
-                    //
-                    // ```markdown
-                    // -   -   - item at 3rd level in a phantom unordered list
-                    // ```
-                    //
-                    // Checklists and ordered phantom lists get an empty paragraph and look like:
-                    //
-                    // ```markdown
-                    // 1. <p></p>
-                    //
-                    // - Mixed types with phantoms
-                    //
-                    // OR
-                    //
-                    // [ ] <p></p>
-                    //
-                    // - Mixed types with phantoms
-                    // ```
-                    item.elements = [{type: "Paragraph", elements: []}];
-                }
-
-                if (item.nestedListElements !== undefined) {
-                    normalizeDraftApiContentBlockElements(item.nestedListElements, options);
-
-                    if (item.nestedListElements.length === 0) {
-                        item.nestedListElements = undefined;
-                    }
-                }
-            }
-            break;
-        }
-        case "Quote": {
-            normalizeDraftApiContentBlockElements(element.elements, options);
-            break;
-        }
-        case "Heading": {
-            normalizeDraftApiContentInlineElements(element.elements, options);
-            break;
-        }
-        case "Divider": {
-            // Already normalized.
-            break;
-        }
-        case "Code": {
-            if (element.lines.length === 0) {
-                element.lines.push({elements: []});
-            } else {
-                for (const line of element.lines) {
-                    normalizeDraftApiContentInlineElements(line.elements, options);
-                }
-            }
-            break;
-        }
-        case "Table": {
-            const optionsWithinTableElement = {...options, withinTableElement: true};
-
-            if (element.hasHeaderRow === false) element.hasHeaderRow = undefined;
-            if (element.hasHeaderColumn === false) element.hasHeaderColumn = undefined;
-
-            if (element.rows.length === 0) {
-                element.rows.push({cells: []});
-            }
-
-            let columnCount = 0;
-
-            for (const row of element.rows) {
-                while (row.cells.length < 2) {
-                    row.cells.push({elements: []});
-                }
-
-                columnCount = Math.max(columnCount, row.cells.length);
-
-                for (const cell of row.cells) {
-                    normalizeDraftApiContentBlockElements(cell.elements, optionsWithinTableElement);
-
-                    // A single empty paragraph is the default for empty cells. Remove it since the
-                    // parser will recreate it.
-                    if (
-                        cell.elements.length === 1 &&
-                        cell.elements[0]!.type === "Paragraph" &&
-                        cell.elements[0]!.elements.length === 0
-                    ) {
-                        cell.elements.splice(0, 1);
-                    }
-                }
-            }
-
-            for (const row of element.rows) {
-                while (row.cells.length < columnCount) {
-                    row.cells.push({elements: []});
-                }
-            }
-
-            while (element.columns.length < columnCount) {
-                element.columns.push({width: 1});
-            }
-
-            while (element.columns.length > columnCount) {
-                element.columns.pop();
-            }
-            break;
-        }
-        case "File": {
-            if (!options.isResponse) {
-                // `contentType` and `contentLength` are response-only metadata that don't survive
-                // the markdown round trip. Strip them so that content with and without metadata
-                // normalizes to the same form.
-                if (hasOwnProperty(element, "contentType")) delete element.contentType;
-                if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
-            }
-            break;
-        }
-        case "Preview": {
-            normalizeDraftApiTarget(element.target, options);
-            break;
-        }
-        case "FileFloat": {
-            normalizeDraftApiContentBlockElement(element.element, options);
-            break;
-        }
-        case "FileGallery": {
-            // FileGallery with a single row containing a single element should be unwrapped to
-            // the bare File/Preview element. This is handled in
-            // `normalizeApiContentBlockElements` above.
-            //
-            // Normalize elements inside each row and strip response-only metadata (`width` on
-            // items, `contentType` on File elements).
-            for (const row of element.rows) {
-                for (let index = 0; index < row.items.length; index++) {
-                    const item = row.items[index]!;
-
-                    if (options.withDummyFileGalleryElementLayout) {
-                        // We don't want to delete `width` since we want conform to the response type. So
-                        // instead set `width` to a dummy value where all widths are shared evenly across
-                        // the row.
-                        //
-                        // We have the same logic in `parseApiContentBlockElementsFromMarkdown()`.
-                        item.width =
-                            index !== row.items.length - 1
-                                ? Math.round((1 / row.items.length) * 100) / 100
-                                : (100 -
-                                      (row.items.length - 1) *
-                                          Math.round((1 / row.items.length) * 100)) /
-                                  100;
-                    } else if (!options.isResponse && hasOwnProperty(item, "width")) {
-                        delete item.width;
-                    }
-                    normalizeDraftApiContentBlockElement(item.element, options);
-                }
-            }
-            break;
-        }
-        default:
-            throw exhaustive(element);
-    }
-}
-
-export function normalizeDraftApiContentInlineElementsResponse(
-    elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
-    options?: {withDummyFileGalleryElementLayout: boolean},
-) {
-    normalizeDraftApiContentInlineElements(elements, {
-        isResponse: true,
-        withinTableElement: false,
-        withDummyFileGalleryElementLayout: options?.withDummyFileGalleryElementLayout ?? false,
-    });
-}
-
-function normalizeDraftApiContentInlineElements(
-    elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
-    options: ApiContentNormalizationOptions,
-) {
-    let index = 0;
-    let lastElement: Draft<ApiContentInlineElement> | undefined;
-
-    while (index < elements.length) {
-        const element = elements[index]!;
-
-        // Ignore empty text elements.
-        if (element.type === "Text" && element.text.length === 0) {
-            elements.splice(index, 1);
-            continue;
-        }
-
-        if (element.type === "Mention") {
-            normalizeDraftApiTarget(element.target, options);
-
-            // `isAccountShortName` can only be true for account targets. Otherwise set to
-            // undefined.
-            if (
-                element.isAccountShortName === false ||
-                (element.isAccountShortName && element.target.type !== "Account")
-            ) {
-                element.isAccountShortName = undefined;
-            }
-        }
-
-        const normalizedMarks = normalizeDraftApiContentInlineElementMarks(element.marks);
-        if (!isDeepEqual(normalizedMarks, element.marks))
-            element.marks = castDraft(normalizedMarks);
-
-        // Merge any adjacent text elements with the same marks.
-        if (
-            element.type === "Text" &&
-            lastElement?.type === "Text" &&
-            isDeepEqual(element.marks, lastElement.marks)
-        ) {
-            lastElement.text += element.text;
-            elements.splice(index, 1);
-            continue;
-        }
-
-        lastElement = element;
-        index++;
-    }
 }
 
 export function normalizeApiTarget(target: ApiMentionTarget): ApiMentionTarget {
     return produce(target, target => {
-        normalizeDraftApiTarget(target, {
-            isResponse: false,
-            withinTableElement: false,
-            withDummyFileGalleryElementLayout: false,
+        ApiContentNormalizer.with(normalizer => {
+            normalizer.normalizeTarget(target);
         });
     });
 }
 
-function normalizeDraftApiTarget(
-    target: Draft<ApiMentionTarget>,
-    options: ApiContentNormalizationOptions,
-) {
-    if (!options.isResponse) {
-        // Cleanup response properties that aren't compared when determining content
-        // equality.
-        if (hasOwnProperty(target, "title")) delete target.title;
-        if (hasOwnProperty(target, "shortName")) delete target.shortName;
-        if (hasOwnProperty(target, "botId")) delete target.botId;
-        if (hasOwnProperty(target, "status")) delete target.status;
+export class ApiContentNormalizer {
+    #isDestroyed = false;
+
+    #response: {
+        targetsByKey: DefaultMap<ApiTargetKey, Array<Draft<ApiTargetResponse>>>;
+        fileElementsById: DefaultMap<FileId, Array<Draft<ApiContentFileBlockElementResponse>>>;
+    } | null;
+
+    #withinTableElement = false;
+    #withDummyFileGalleryElementLayout: boolean;
+
+    private constructor({
+        isResponse,
+        withDummyFileGalleryElementLayout,
+    }: {
+        isResponse: boolean;
+        withDummyFileGalleryElementLayout: boolean;
+    }) {
+        this.#response = isResponse
+            ? {
+                  targetsByKey: new DefaultMap(() => []),
+                  fileElementsById: new DefaultMap(() => []),
+              }
+            : null;
+
+        this.#withDummyFileGalleryElementLayout = withDummyFileGalleryElementLayout;
+    }
+
+    static with<Value>(
+        action: (normalizer: ApiContentNormalizer) => Value,
+        {
+            isResponse = false,
+            withDummyFileGalleryElementLayout = false,
+        }: {
+            isResponse?: boolean;
+            withDummyFileGalleryElementLayout?: boolean;
+        } = {},
+    ): Value {
+        const normalizer = new ApiContentNormalizer({
+            isResponse,
+            withDummyFileGalleryElementLayout,
+        });
+
+        try {
+            const value = action(normalizer);
+            return value;
+        } finally {
+            normalizer.#isDestroyed = true;
+        }
+    }
+
+    normalize(content: Draft<ApiContent>) {
+        this.normalizeBlockElements(content.elements);
+    }
+
+    normalizeBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+        let index = 0;
+        while (index < elements.length) {
+            const element = elements[index]!;
+
+            // Remove empty unordered and ordered lists.
+            if (
+                (element.type === "UnorderedList" ||
+                    element.type === "OrderedList" ||
+                    element.type === "CheckList") &&
+                element.items.length === 0
+            ) {
+                elements.splice(index, 1);
+
+                // After removing an element, the previous element may now be adjacent to a
+                // file-like element it should merge with. Back up so we re-check.
+                if (index > 0) {
+                    const prev = elements[index - 1]!;
+                    if (
+                        prev.type === "File" ||
+                        prev.type === "Preview" ||
+                        prev.type === "FileGallery"
+                    ) {
+                        index--;
+                    }
+                }
+                continue;
+            }
+
+            // Merge adjacent lists of the same type.
+            if (
+                element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList"
+            ) {
+                while (index < elements.length - 1) {
+                    const nextElement = elements[index + 1]!;
+
+                    if (
+                        nextElement.type !== "UnorderedList" &&
+                        nextElement.type !== "OrderedList" &&
+                        nextElement.type !== "CheckList"
+                    ) {
+                        break;
+                    }
+
+                    // Remove empty unordered and ordered lists in between lists of the same type we
+                    // want to merge.
+                    if (nextElement.items.length === 0) {
+                        elements.splice(index + 1, 1);
+                        continue;
+                    }
+
+                    if (element.type !== nextElement.type) {
+                        break;
+                    }
+
+                    // Don't merge ordered lists if the next ordered list has a custom order start.
+                    if (
+                        nextElement.type === "OrderedList" &&
+                        nextElement.orderStart !== undefined
+                    ) {
+                        break;
+                    }
+
+                    for (const item of nextElement.items) {
+                        if (element.type === "CheckList") {
+                            element.items.push(castDraft(assertApiChecklistBlockElementItem(item)));
+                        } else {
+                            element.items.push(item);
+                        }
+                    }
+
+                    elements.splice(index + 1, 1);
+                }
+            }
+
+            // Unwrap FileGallery with a single row containing a single element. This runs
+            // before merging so that two adjacent single-item galleries become two standalone
+            // elements rather than a merged two-row gallery. The printer already unwraps these
+            // when printing, so the parser never produces single-item galleries from printed
+            // content.
+            if (
+                element.type === "FileGallery" &&
+                element.rows.length === 1 &&
+                element.rows[0]!.items.length === 1
+            ) {
+                const unwrapped = element.rows[0]!.items[0]!.element;
+                elements.splice(index, 1, castDraft(unwrapped));
+                // Don't increment index, re-process the unwrapped element.
+                continue;
+            }
+
+            // Merge adjacent file-like elements into a single FileGallery.
+            //
+            // `FileGallery` is an API-only concept. In ProseMirror, each row is an independent
+            // `fileRow` node, and there's no wrapper node that groups rows into a "gallery".
+            // We introduced `FileGallery` in the API to give consumers a structured way to
+            // represent multi-file layouts (rows of files displayed side by side). Since
+            // `fileRow` nodes are independent in ProseMirror, adjacent `fileRow` nodes always
+            // belong to the same visual gallery, so we merge their API representations here.
+            //
+            // We also absorb standalone File/Preview elements that follow a gallery. This
+            // happens because the printer unwraps single-item gallery rows into standalone
+            // elements for cleaner markdown. When the parser reads this back, those rows
+            // become standalone elements. Absorbing them restores the original multi-row
+            // structure.
+            //
+            // Example: `FileGallery([A, B], [C])` prints as: `<div>A B</div>` + `![C](url)` (C
+            // unwrapped by printer) Parser produces: `FileGallery([A, B])` + `File(C)`
+            // Normalization absorbs C back: `FileGallery([A, B], [C])` Also handle adjacent
+            // standalone File/Preview elements that should be merged into a gallery. This
+            // happens when the printer unwraps all single-item rows from a multi-row gallery
+            // into standalone elements.
+            if (
+                (element.type === "File" || element.type === "Preview") &&
+                // File galleries aren't supported inside table elements. So don't merge adjacent
+                // files/previews into file galleries when normalizing within a table.
+                !this.#withinTableElement &&
+                index < elements.length - 1
+            ) {
+                const nextElement = elements[index + 1]!;
+                if (
+                    nextElement.type === "File" ||
+                    nextElement.type === "Preview" ||
+                    nextElement.type === "FileGallery"
+                ) {
+                    // Replace the current element with a FileGallery wrapping it, then fall through to
+                    // the FileGallery merge logic below.
+                    const gallery = castDraft<ApiContentFileGalleryBlockElement>({
+                        type: "FileGallery",
+                        rows: [{items: [{element}]}],
+                    });
+                    elements.splice(index, 1, gallery);
+                }
+            }
+
+            // Re-read element since we may have replaced it above.
+            const mergeElement = elements[index]!;
+            if (mergeElement.type === "FileGallery") {
+                while (index < elements.length - 1) {
+                    const nextElement = elements[index + 1]!;
+
+                    if (nextElement.type === "FileGallery") {
+                        for (const row of nextElement.rows) {
+                            mergeElement.rows.push(row);
+                        }
+                        elements.splice(index + 1, 1);
+                        continue;
+                    }
+
+                    if (nextElement.type === "File" || nextElement.type === "Preview") {
+                        mergeElement.rows.push({items: [{element: nextElement}]});
+                        elements.splice(index + 1, 1);
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+
+            this.normalizeBlockElement(elements[index]!);
+            index++;
+        }
+    }
+
+    normalizeBlockElement(element: Draft<ApiContentBlockElement>) {
+        switch (element.type) {
+            case "Paragraph": {
+                this.normalizeInlineElements(element.elements);
+                break;
+            }
+            case "UnorderedList":
+            case "OrderedList":
+            case "CheckList": {
+                for (const item of element.items) {
+                    if (item.elements.length > 0) {
+                        this.normalizeBlockElements(item.elements);
+                    } else if (element.type !== "UnorderedList") {
+                        // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
+                        // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
+                        // way.
+                        //
+                        // So while unordered phantom lists look like:
+                        //
+                        // ```markdown
+                        // -   -   - item at 3rd level in a phantom unordered list
+                        // ```
+                        //
+                        // Checklists and ordered phantom lists get an empty paragraph and look like:
+                        //
+                        // ```markdown
+                        // 1. <p></p>
+                        //
+                        // - Mixed types with phantoms
+                        //
+                        // OR
+                        //
+                        // [ ] <p></p>
+                        //
+                        // - Mixed types with phantoms
+                        // ```
+                        item.elements = [{type: "Paragraph", elements: []}];
+                    }
+
+                    if (item.nestedListElements !== undefined) {
+                        this.normalizeBlockElements(item.nestedListElements);
+
+                        if (item.nestedListElements.length === 0) {
+                            item.nestedListElements = undefined;
+                        }
+                    }
+                }
+                break;
+            }
+            case "Quote": {
+                this.normalizeBlockElements(element.elements);
+                break;
+            }
+            case "Heading": {
+                this.normalizeInlineElements(element.elements);
+                break;
+            }
+            case "Divider": {
+                // Already normalized.
+                break;
+            }
+            case "Code": {
+                if (element.lines.length === 0) {
+                    element.lines.push({elements: []});
+                } else {
+                    for (const line of element.lines) {
+                        this.normalizeInlineElements(line.elements);
+                    }
+                }
+                break;
+            }
+            case "Table": {
+                this.#withinTableElement = true;
+                try {
+                    if (element.hasHeaderRow === false) element.hasHeaderRow = undefined;
+                    if (element.hasHeaderColumn === false) element.hasHeaderColumn = undefined;
+
+                    if (element.rows.length === 0) {
+                        element.rows.push({cells: []});
+                    }
+
+                    let columnCount = 0;
+
+                    for (const row of element.rows) {
+                        while (row.cells.length < 2) {
+                            row.cells.push({elements: []});
+                        }
+
+                        columnCount = Math.max(columnCount, row.cells.length);
+
+                        for (const cell of row.cells) {
+                            this.normalizeBlockElements(cell.elements);
+
+                            // A single empty paragraph is the default for empty cells. Remove it since the
+                            // parser will recreate it.
+                            if (
+                                cell.elements.length === 1 &&
+                                cell.elements[0]!.type === "Paragraph" &&
+                                cell.elements[0]!.elements.length === 0
+                            ) {
+                                cell.elements.splice(0, 1);
+                            }
+                        }
+                    }
+
+                    for (const row of element.rows) {
+                        while (row.cells.length < columnCount) {
+                            row.cells.push({elements: []});
+                        }
+                    }
+
+                    while (element.columns.length < columnCount) {
+                        element.columns.push({width: 1});
+                    }
+
+                    while (element.columns.length > columnCount) {
+                        element.columns.pop();
+                    }
+                } finally {
+                    this.#withinTableElement = false;
+                }
+                break;
+            }
+            case "File": {
+                if (!this.#response) {
+                    // `contentType` and `contentLength` are response-only metadata that don't survive
+                    // the markdown round trip. Strip them so that content with and without metadata
+                    // normalizes to the same form.
+                    if (hasOwnProperty(element, "contentType")) delete element.contentType;
+                    if (hasOwnProperty(element, "contentLength")) delete element.contentLength;
+                } else {
+                    // Don't allow updating old response properties after the normalizer is destroyed.
+                    assert(!this.#isDestroyed);
+
+                    // If `response` is non-null that means we're normalizing response content.
+                    //
+                    // All files with the same `FileId` should have identical `contentType`s and
+                    // `contentLength`s. Use the `contentType` and `contentLength` from the last time
+                    // the file is referenced (this matches the behavior of
+                    // `printApiContentToAgentWebMarkdown()` which ends up with the last seen response
+                    // data in storage.)
+                    const actualElement = element as ApiContentFileBlockElementResponse;
+
+                    const otherFileElements = this.#response.fileElementsById.getOrSetDefault(
+                        actualElement.id,
+                    );
+
+                    for (const otherFileElement of otherFileElements) {
+                        otherFileElement.contentType = actualElement.contentType;
+                        otherFileElement.contentLength = actualElement.contentLength;
+                    }
+
+                    otherFileElements.push(actualElement);
+                }
+                break;
+            }
+            case "Preview": {
+                this.normalizeTarget(element.target);
+                break;
+            }
+            case "FileFloat": {
+                this.normalizeBlockElement(element.element);
+                break;
+            }
+            case "FileGallery": {
+                // FileGallery with a single row containing a single element should be unwrapped to
+                // the bare File/Preview element. This is handled in
+                // `normalizeApiContentBlockElements` above.
+                //
+                // Normalize elements inside each row and strip response-only metadata (`width` on
+                // items, `contentType` on File elements).
+                for (const row of element.rows) {
+                    for (let index = 0; index < row.items.length; index++) {
+                        const item = row.items[index]!;
+
+                        if (this.#withDummyFileGalleryElementLayout) {
+                            // We don't want to delete `width` since we want conform to the response type. So
+                            // instead set `width` to a dummy value where all widths are shared evenly across
+                            // the row.
+                            //
+                            // We have the same logic in `parseApiContentBlockElementsFromMarkdown()`.
+                            item.width =
+                                index !== row.items.length - 1
+                                    ? Math.round((1 / row.items.length) * 100) / 100
+                                    : (100 -
+                                          (row.items.length - 1) *
+                                              Math.round((1 / row.items.length) * 100)) /
+                                      100;
+                        } else if (!this.#response && hasOwnProperty(item, "width")) {
+                            delete item.width;
+                        }
+                        this.normalizeBlockElement(item.element);
+                    }
+                }
+                break;
+            }
+            default:
+                throw exhaustive(element);
+        }
+    }
+
+    normalizeInlineElements(elements: Draft<ReadonlyArray<ApiContentInlineElement>>) {
+        let index = 0;
+        let lastElement: Draft<ApiContentInlineElement> | undefined;
+
+        while (index < elements.length) {
+            const element = elements[index]!;
+
+            // Ignore empty text elements.
+            if (element.type === "Text" && element.text.length === 0) {
+                elements.splice(index, 1);
+                continue;
+            }
+
+            if (element.type === "Mention") {
+                this.normalizeTarget(element.target);
+
+                // `isAccountShortName` can only be true for account targets. Otherwise set to
+                // undefined.
+                if (
+                    element.isAccountShortName === false ||
+                    (element.isAccountShortName && element.target.type !== "Account")
+                ) {
+                    element.isAccountShortName = undefined;
+                }
+            }
+
+            const normalizedMarks = normalizeApiContentInlineElementMarks(element.marks);
+            if (!isDeepEqual(normalizedMarks, element.marks))
+                element.marks = castDraft(normalizedMarks);
+
+            // Merge any adjacent text elements with the same marks.
+            if (
+                element.type === "Text" &&
+                lastElement?.type === "Text" &&
+                isDeepEqual(element.marks, lastElement.marks)
+            ) {
+                lastElement.text += element.text;
+                elements.splice(index, 1);
+                continue;
+            }
+
+            lastElement = element;
+            index++;
+        }
+    }
+
+    normalizeTarget(target: Draft<ApiTarget>) {
+        if (!this.#response) {
+            // Cleanup response properties that aren't compared when determining content
+            // equality.
+            if (hasOwnProperty(target, "title")) delete target.title;
+            if (hasOwnProperty(target, "shortName")) delete target.shortName;
+            if (hasOwnProperty(target, "botId")) delete target.botId;
+            if (hasOwnProperty(target, "status")) delete target.status;
+        } else {
+            // Don't allow updating old response properties after the normalizer is destroyed.
+            assert(!this.#isDestroyed);
+
+            // If `response` is non-null that means we're normalizing response content.
+            //
+            // All targets with the same key should have identical data.
+            const actualTarget = target as ApiTargetResponse;
+
+            const otherTargets = this.#response.targetsByKey.getOrSetDefault(
+                printApiTargetKey(target),
+            );
+
+            for (const otherTarget of otherTargets) {
+                otherTarget.title = actualTarget.title;
+
+                if (hasOwnProperty(actualTarget, "shortName"))
+                    (otherTarget as any).shortName = actualTarget.shortName;
+                else delete (otherTarget as any).shortName;
+
+                if (hasOwnProperty(actualTarget, "botId"))
+                    (otherTarget as any).botId = actualTarget.botId;
+                else delete (otherTarget as any).botId;
+
+                if (hasOwnProperty(actualTarget, "status"))
+                    (otherTarget as any).status = actualTarget.status;
+                else delete (otherTarget as any).status;
+            }
+
+            otherTargets.push(actualTarget);
+        }
     }
 }
 
@@ -549,9 +597,9 @@ export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithK
     }),
 );
 
-export function normalizeDraftApiContentInlineElementMarks<
-    Mark extends ApiContentInlineElementMark,
->(marks: Iterable<Mark> | undefined): Array<Mark> | undefined {
+export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInlineElementMark>(
+    marks: Iterable<Mark> | undefined,
+): Array<Mark> | undefined {
     if (marks === undefined) return undefined;
 
     const markByKey = new Map<string, Mark>();

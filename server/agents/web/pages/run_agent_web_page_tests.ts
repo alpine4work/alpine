@@ -19,6 +19,7 @@ const agentWebPageTestsSpaceId = generateId<SpaceId>();
 export function runAgentWebPageTests<PageLink, Page>({
     print,
     parse,
+    normalize,
     tests: testCases,
 }: {
     print: (storage: AgentWebSessionStorage, pageLink: PageLink, page: Page) => Promise<Root>;
@@ -27,6 +28,7 @@ export function runAgentWebPageTests<PageLink, Page>({
         pageLink: PageLink | null,
         root: Root,
     ) => Promise<Page>;
+    normalize: (page: Page) => Page;
     tests: Array<
         {
             only?: CommitBlocker;
@@ -77,6 +79,8 @@ export function runAgentWebPageTests<PageLink, Page>({
     for (const testCase of testCases) {
         const describe = testCase.only ? globalThis.describe.only : globalThis.describe;
 
+        const normalizedTestCasePage = testCase.page ? normalize(testCase.page) : null;
+
         describe(testCase.name, () => {
             if (typeof testCase.printMarkdown === "string") {
                 test("print markdown doesn\u2019t equal markdown", () => {
@@ -84,29 +88,31 @@ export function runAgentWebPageTests<PageLink, Page>({
                 });
             }
 
-            if (testCase.page) {
-                const testCasePage = testCase.page;
-
+            if (normalizedTestCasePage) {
                 test("prints page to markdown", async () => {
                     expect(
-                        printMarkdownTree(await print(storage, testCase.pageLink, testCasePage)),
+                        printMarkdownTree(
+                            await print(storage, testCase.pageLink, normalizedTestCasePage),
+                        ),
                     ).toEqual(testCase.printMarkdown ?? testCase.markdown);
                 });
             }
 
             test("parses page from markdown", async () => {
-                if (testCase.page) {
+                if (normalizedTestCasePage) {
                     // We must print the page first before we parse it so that any references are
                     // written to storage.
-                    await print(storage, testCase.pageLink, testCase.page);
+                    await print(storage, testCase.pageLink, normalizedTestCasePage);
 
                     expect(
+                        // We don't call `normalize()` on the parsed result since we assume `parse()` will
+                        // return data in normalized format.
                         await parse(
                             storage,
                             testCase.pageLink,
                             parseMarkdownTree(testCase.markdown),
                         ),
-                    ).toEqual(testCase.page);
+                    ).toEqual(normalizedTestCasePage);
                 } else {
                     let error;
                     try {
@@ -132,14 +138,16 @@ export function runAgentWebPageTests<PageLink, Page>({
             });
 
             test("parses new page from markdown", async () => {
-                if (!testCase.createParseError && testCase.page) {
+                if (!testCase.createParseError && normalizedTestCasePage) {
                     // We must print the page first before we parse it so that any references are
                     // written to storage.
-                    await print(storage, testCase.pageLink, testCase.page);
+                    await print(storage, testCase.pageLink, normalizedTestCasePage);
 
                     expect(
+                        // We don't call `normalize()` on the parsed result since we assume `parse()` will
+                        // return data in normalized format.
                         await parse(storage, null, parseMarkdownTree(testCase.markdown)),
-                    ).toEqual(testCase.page);
+                    ).toEqual(normalizedTestCasePage);
                 } else {
                     let error;
                     try {

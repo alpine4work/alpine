@@ -2,6 +2,7 @@ import {fromDate, toCalendarDate} from "@internationalized/date";
 import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {produce} from "immer";
 import {Html, Link, Node, Root, RootContent} from "mdast";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
@@ -9,8 +10,10 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
 import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {getAgentWebPageLinkByPathname} from "~/server/agents/web/internal/get_agent_web_page_link_by_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -696,6 +699,27 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
     return {elements: [{type: "Paragraph", elements}]};
 }
 
+export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagingPageBase>(
+    page: Page,
+): Page {
+    return produce(page, page => {
+        withApiContentNormalizerForAgentWebMarkdown(normalizer => {
+            normalizer.normalizeInlineElements(page.preamble.elements);
+
+            if (page.preamble.paginationLink)
+                normalizer.normalizeTarget(page.preamble.paginationLink.target);
+
+            for (const block of page.blocks) {
+                if (block.type !== "Message") continue;
+
+                if (block.parent) normalizer.normalize(block.parent.previewContent);
+
+                normalizer.normalize(block.content);
+            }
+        });
+    });
+}
+
 export async function printAgentWebMessagingPageBase<PageLink>(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
@@ -706,38 +730,47 @@ export async function printAgentWebMessagingPageBase<PageLink>(
 
     const [, blocks] = await runAllPromises([
         (async () => {
-            if (page.preamble.elements.length > 0) {
-                const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
-                    elements: [{type: "Paragraph", elements: page.preamble.elements}],
-                });
+            const [, paginationLink] = await runAllPromises([
+                (async () => {
+                    if (page.preamble.elements.length === 0) return;
 
-                for (const node of preambleTree.children) {
-                    children.push(node);
-                }
-            }
+                    const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
+                        elements: [{type: "Paragraph", elements: page.preamble.elements}],
+                    });
 
-            if (page.preamble.paginationLink !== null) {
-                const pageLink = createApiTargetAgentWebPageLink(
-                    page.preamble.paginationLink.target,
-                );
-                let url = await createAgentWebPageLinkPathname(storage, pageLink);
+                    for (const node of preambleTree.children) {
+                        children.push(node);
+                    }
+                })(),
+                (async () => {
+                    if (!page.preamble.paginationLink) return;
 
-                if (page.preamble.paginationLink.searchParams.size > 0) {
-                    url += `?${page.preamble.paginationLink.searchParams.toString()}`;
-                }
+                    const pageLink = createApiTargetAgentWebPageLink(
+                        page.preamble.paginationLink.target,
+                    );
+                    let url = await createAgentWebPageLinkPathname(storage, pageLink);
 
-                const node: Link = {
-                    type: "link",
-                    url,
-                    children: [{type: "text", value: page.preamble.paginationLink.text}],
-                };
+                    if (page.preamble.paginationLink.searchParams.size > 0) {
+                        url += `?${page.preamble.paginationLink.searchParams.toString()}`;
+                    }
 
-                const lastChild = children[children.length - 1]!;
+                    const paginationLink: Link = {
+                        type: "link",
+                        url,
+                        children: [{type: "text", value: page.preamble.paginationLink.text}],
+                    };
+
+                    return paginationLink;
+                })(),
+            ]);
+
+            if (paginationLink) {
+                const lastChild = children[children.length - 1];
 
                 if (lastChild?.type === "paragraph") {
-                    lastChild.children.push({type: "text", value: " "}, node);
+                    lastChild.children.push({type: "text", value: " "}, paginationLink);
                 } else {
-                    children.push({type: "paragraph", children: [node]});
+                    children.push({type: "paragraph", children: [paginationLink]});
                 }
             }
         })(),
@@ -745,14 +778,14 @@ export async function printAgentWebMessagingPageBase<PageLink>(
             page.blocks.map(async block => {
                 if (block.type !== "Message") return block;
 
-                const [contentTree, previewContentTree] = await runAllPromises([
-                    printApiContentToAgentWebMarkdownTree(storage, block.content),
+                const [previewContentTree, contentTree] = await runAllPromises([
                     block.parent
                         ? printApiContentToAgentWebMarkdownTree(
                               storage,
                               block.parent.previewContent,
                           )
                         : null,
+                    printApiContentToAgentWebMarkdownTree(storage, block.content),
                 ]);
 
                 return {
@@ -1436,8 +1469,9 @@ async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
     const {pathname, searchParams} = normalizeAgentWebPath(lastChild.url);
     if (!searchParams.has("before") && !searchParams.has("after")) return null;
 
-    const paginationPageLink = await storage.pageLinkByPathname.get(pathname);
-    if (!paginationPageLink) return null;
+    const paginationPageLinkResult = await getAgentWebPageLinkByPathname(storage, pathname);
+    if (!paginationPageLinkResult) return null;
+    const {pageLink: paginationPageLink} = paginationPageLinkResult;
 
     const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
         storage.spaceId,

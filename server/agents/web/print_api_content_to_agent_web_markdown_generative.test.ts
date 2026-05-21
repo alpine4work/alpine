@@ -3,7 +3,6 @@ import {normalizeApiContentForAgentWebMarkdown} from "~/server/agents/web/normal
 import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {normalizeApiContentResponse} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContentArbitrary,
     apiContentArbitrarySpaceId,
@@ -23,7 +22,9 @@ test("can parse exact same content that was printed", async () => {
 
             const documentId = generateId<DocumentId>();
 
-            const markdown = await printApiContentToAgentWebMarkdown(storage, content, {
+            const normalizedContent = normalizeApiContentForAgentWebMarkdown(content);
+
+            const markdown = await printApiContentToAgentWebMarkdown(storage, normalizedContent, {
                 documentId,
             });
 
@@ -33,7 +34,7 @@ test("can parse exact same content that was printed", async () => {
                 await parseApiContentFromAgentWebMarkdown(storage, markdown, {
                     documentId,
                 }),
-            ).toEqual(normalizeApiContentForAgentWebMarkdown(content));
+            ).toEqual(normalizedContent);
         }),
         {
             // Run until we reach our 10s timeout.

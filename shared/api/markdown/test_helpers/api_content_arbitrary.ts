@@ -1,5 +1,7 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
+import {produce} from "immer";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
@@ -40,6 +42,7 @@ import {
     ApiMentionTargetResponse,
     ApiPreviewTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
@@ -69,9 +72,23 @@ export function createUnionArbitrary<Value extends {readonly type: string}>(
 }
 
 export function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
-    return fc
-        .uint8Array({minLength: idByteLength, maxLength: idByteLength})
-        .map(bytes => encodeId<Value>(bytes));
+    // For each ID type we generate a fixed number of IDs that can be reused. That way
+    // we can test behavior when the same ID appears in the content multiple times.
+    const reusableIds = createArrayWithLength(5, () => {
+        // We generate random IDs for `ChronologicalId`s instead of generating a time based
+        // ID. Our property check test will do the same thing.
+        return generateId() as unknown as Value;
+    });
+
+    return fc.oneof(
+        {
+            weight: 20 - reusableIds.length,
+            arbitrary: fc
+                .uint8Array({minLength: idByteLength, maxLength: idByteLength})
+                .map(bytes => encodeId<Value>(bytes)),
+        },
+        ...reusableIds.map(sharedId => ({weight: 1, arbitrary: fc.constant(sharedId)})),
+    );
 }
 
 export const ApiContentTextArbitrary = fc.oneof(
@@ -288,6 +305,15 @@ export const ApiContentInlineElementArbitrary =
         Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
         Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
         Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
+    });
+
+export const ApiContentInlineElementWithoutCommentMarkArbitrary =
+    ApiContentInlineElementArbitrary.map(element => {
+        return produce(element, element => {
+            if (element.marks?.some(mark => mark.type === "Comment")) {
+                element.marks = element.marks.filter(mark => mark.type !== "Comment");
+            }
+        });
     });
 
 const ApiContentInlineElementArbitraryForSimpleTable =
@@ -569,3 +595,16 @@ const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElem
 export const ApiContentArbitrary: Arbitrary<ApiContentResponse> = fc.record({
     elements: fc.array(ApiContentBlockElementArbitrary),
 });
+
+export const ApiContentWithoutCommentMarkArbitrary: Arbitrary<ApiContentResponse> =
+    ApiContentArbitrary.map(content => {
+        return produce(content, content => {
+            visitDraftApiContent(content, {
+                visitInlineElement: element => {
+                    if (element.marks?.some(mark => mark.type === "Comment")) {
+                        element.marks = element.marks.filter(mark => mark.type !== "Comment");
+                    }
+                },
+            });
+        });
+    });

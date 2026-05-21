@@ -1,6 +1,4 @@
 import fc, {Arbitrary} from "fast-check";
-import {produce} from "immer";
-import {normalizeDraftApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebMessagingPageBase,
     AgentWebMessagingPageBasePreamble,
@@ -8,52 +6,18 @@ import {
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPageTimeBlock,
     agentWebMessagingPageMessageNouns,
+    normalizeAgentWebMessagingPageBase,
     parseAgentWebMessagingPageBase,
     printAgentWebMessagingPageBase,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {
-    visitDraftApiContent,
-    visitDraftApiContentInlineElements,
-} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {normalizeDraftApiContentInlineElementsResponse} from "~/shared/api/markdown/normalize_api_content.js";
-import {
-    ApiContentArbitrary as ActualApiContentArbitrary,
-    ApiContentInlineElementArbitrary as ActualApiContentInlineElementArbitrary,
+    ApiContentInlineElementWithoutCommentMarkArbitrary,
     ApiContentTextArbitrary,
+    ApiContentWithoutCommentMarkArbitrary,
     ApiMentionTargetArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
-
-const ApiContentArbitrary = ActualApiContentArbitrary.map(content => {
-    return produce(content, content => {
-        visitDraftApiContent(content, {
-            visitInlineElement: element => {
-                if (element.marks?.some(mark => mark.type === "Comment")) {
-                    element.marks = element.marks.filter(mark => mark.type !== "Comment");
-                }
-            },
-        });
-
-        normalizeDraftApiContentForAgentWebMarkdown(content);
-    });
-});
-
-const ApiContentInlineElementsArbitrary = fc
-    .array(ActualApiContentInlineElementArbitrary, {maxLength: 4})
-    .map(elements => {
-        return produce(elements, elements => {
-            visitDraftApiContentInlineElements(elements, {
-                visitInlineElement: element => {
-                    if (element.marks?.some(mark => mark.type === "Comment")) {
-                        element.marks = element.marks.filter(mark => mark.type !== "Comment");
-                    }
-                },
-            });
-
-            normalizeDraftApiContentInlineElementsResponse(elements);
-        });
-    });
 
 const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({
@@ -74,11 +38,11 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
                 weight: 1,
                 arbitrary: fc.record({
                     nameAttribute: ApiContentTextArbitrary,
-                    previewContent: ApiContentArbitrary,
+                    previewContent: ApiContentWithoutCommentMarkArbitrary,
                 }),
             },
         ),
-        content: ApiContentArbitrary,
+        content: ApiContentWithoutCommentMarkArbitrary,
     });
 
 const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagingPageBlock>({
@@ -114,7 +78,7 @@ const AgentWebMessagingPagePaginationLinkArbitrary: Arbitrary<
 
 const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> = fc.record({
     preamble: fc.record({
-        elements: ApiContentInlineElementsArbitrary,
+        elements: fc.array(ApiContentInlineElementWithoutCommentMarkArbitrary, {maxLength: 4}),
         paginationLink: AgentWebMessagingPagePaginationLinkArbitrary,
     }),
     blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
@@ -123,6 +87,7 @@ const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> =
 runAgentWebPageGenerativeTests({
     print: printAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
     parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
+    normalize: normalizeAgentWebMessagingPageBase,
     pageLink: fc.constant(true),
     page: AgentWebMessagingPageBaseArbitrary,
 });

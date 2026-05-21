@@ -1,9 +1,18 @@
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentBlockElementResponse,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentInlineElementResponse,
+    ApiContentMentionInlineElement,
+    ApiContentMentionInlineElementResponse,
+    ApiContentPreviewBlockElement,
+    ApiContentPreviewBlockElementResponse,
+    ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
+import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -21,10 +30,42 @@ export type ApiContentVisitor = {
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
+    readonly visitTarget?: (
+        target: ApiTarget,
+        context: {element: ApiContentMentionInlineElement | ApiContentPreviewBlockElement},
+    ) => void;
+};
+
+export type ApiContentResponseVisitor = {
+    readonly visitBlockElement?: (
+        element: ApiContentBlockElementResponse,
+        context: {elements: ReadonlyArray<ApiContentBlockElementResponse>; index: number},
+    ) => void;
+    readonly visitInlineElement?: (
+        element: ApiContentInlineElementResponse,
+        context: {elements: ReadonlyArray<ApiContentInlineElementResponse>; index: number},
+    ) => void;
+    readonly visitInlineElementMark?: (
+        mark: ApiContentInlineElementMark,
+        context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
+    ) => void;
+    readonly visitTarget?: (
+        target: ApiTargetResponse,
+        context: {
+            element: ApiContentMentionInlineElementResponse | ApiContentPreviewBlockElementResponse;
+        },
+    ) => void;
 };
 
 export function visitApiContent(content: ApiContent, visitor: ApiContentVisitor) {
     visitApiContentBlockElements(content.elements, visitor);
+}
+
+export function visitApiContentResponse(
+    content: ApiContentResponse,
+    visitor: ApiContentResponseVisitor,
+) {
+    visitApiContentBlockElements(content.elements, visitor as ApiContentVisitor);
 }
 
 function visitApiContentBlockElements(
@@ -86,20 +127,21 @@ export function visitApiContentBlockElement(
             }
             break;
         }
-        case "File":
+        case "File": {
+            // File doesn't contain children that need visiting.
+            break;
+        }
         case "Preview": {
-            // File/Preview don't contain children that need visiting.
+            visitor.visitTarget?.(element.target, {element});
             break;
         }
         case "FileGallery": {
             for (const row of element.rows) {
-                const elements = row.items.map(
-                    i => i.element,
-                ) as ReadonlyArray<ApiContentBlockElement>;
+                const elements = row.items.map(item => item.element);
 
-                for (let itemIndex = 0; itemIndex < row.items.length; itemIndex++) {
-                    const item = assertExists(row.items[itemIndex]);
-                    const context = {elements, index: itemIndex};
+                for (let index = 0; index < row.items.length; index++) {
+                    const item = assertExists(row.items[index]);
+                    const context = {elements, index};
 
                     visitor.visitBlockElement?.(item.element, context);
 
@@ -108,10 +150,12 @@ export function visitApiContentBlockElement(
                     // element by assigning to `context.elements[index]`, we need to propagate that
                     // back into the parent `row.items` array manually because the `elements` array we
                     // built above is a snapshot, not a live reference into the tree.
-                    if (context.elements[itemIndex] !== item.element) {
+                    if (context.elements[index] !== item.element) {
                         (item as {element: ApiContentBlockElement}).element =
-                            context.elements[itemIndex]!;
+                            context.elements[index]!;
                     }
+
+                    visitApiContentBlockElement(item.element, visitor);
                 }
             }
             break;
@@ -123,7 +167,7 @@ export function visitApiContentBlockElement(
             // into the parent `FileFloat` manually because the `elements` array we build here
             // is a snapshot, not a live reference into the tree.
             const context = {
-                elements: [element.element] as ReadonlyArray<ApiContentBlockElement>,
+                elements: [element.element],
                 index: 0,
             };
 
@@ -134,6 +178,7 @@ export function visitApiContentBlockElement(
                 (element as {element: ApiContentBlockElement}).element = context.elements[0]!;
             }
 
+            visitApiContentBlockElement(element.element, visitor);
             break;
         }
         default:
@@ -166,9 +211,13 @@ function visitApiContentInlineElement(
     switch (element.type) {
         // Nothing more to visit in these elements.
         case "Text":
-        case "Break":
-        case "Mention":
+        case "Break": {
             break;
+        }
+        case "Mention": {
+            visitor.visitTarget?.(element.target, {element});
+            break;
+        }
         default:
             throw exhaustive(element);
     }

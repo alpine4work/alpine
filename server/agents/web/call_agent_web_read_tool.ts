@@ -19,10 +19,12 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
+    normalizeAgentWebChatPage,
     printAgentWebChatPage,
     readAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {
+    normalizeAgentWebDocumentPage,
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -160,6 +162,22 @@ async function printAgentWebPageToMarkdownForReadTool(
     storage: AgentWebSessionStorage,
     page: AgentWebPageWithMetadata,
 ): Promise<string> {
+    // We should always normalize agent web markdown before printing. The following
+    // property is not true in all cases:
+    // `isDeepEqual(parse(print(page)), normalize(page))`. But this property is true:
+    // `isDeepEqual(parse(print(normalize(page))), normalize(page))`.
+    //
+    // (The property `isDeepEqual(parse(print(page)), normalize(page))` does hold in
+    // all cases for plain API content to Markdown printing/parsing. Specifically agent
+    // web Markdown doesn't have this property.)
+    //
+    // The specific reason is when there are mentions that reference the same
+    // underlying data but have different `title`s or other hydrated response data we
+    // need to set all mentions to the same `title` so that way we're only storing one
+    // value for `title` in `storage` and so when we parse we're always getting exactly
+    // one `title` back as well.
+    page = normalizeAgentWebPage(page);
+
     const tree = await printAgentWebPage(storage, page);
 
     let string = printMarkdownTree(tree);
@@ -222,6 +240,19 @@ function readAgentWebPageLink(
         }
         default:
             throw exhaustive(pageLink);
+    }
+}
+
+function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWithMetadata {
+    switch (page.type) {
+        case "Document": {
+            return normalizeAgentWebDocumentPage(page);
+        }
+        case "Chat": {
+            return normalizeAgentWebChatPage(page);
+        }
+        default:
+            throw exhaustive(page);
     }
 }
 

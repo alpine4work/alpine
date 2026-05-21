@@ -2,6 +2,7 @@ import fc, {Arbitrary} from "fast-check";
 import {normalizeApiContentForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {
     AgentWebDocumentPage,
+    normalizeAgentWebDocumentPage,
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -24,6 +25,7 @@ const AgentWebDocumentPageArbitrary: Arbitrary<AgentWebDocumentPage> = fc.record
 runAgentWebPageGenerativeTests({
     print: printAgentWebDocumentPage,
     parse: parseAgentWebDocumentPage,
+    normalize: normalizeAgentWebDocumentPage,
     pageLink: createIdArbitrary<DocumentId>(),
     page: AgentWebDocumentPageArbitrary,
 });

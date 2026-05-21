@@ -1,5 +1,6 @@
 import {
     AgentWebDocumentPage,
+    normalizeAgentWebDocumentPage,
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -17,6 +18,7 @@ const commentThreadId5 = generateId<DocumentCommentThreadId>();
 runAgentWebPageTests<DocumentId, AgentWebDocumentPage>({
     print: printAgentWebDocumentPage,
     parse: parseAgentWebDocumentPage,
+    normalize: normalizeAgentWebDocumentPage,
     tests: [
         {
             name: "simple document page",
