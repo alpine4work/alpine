@@ -1431,6 +1431,35 @@ export function testMessagingApiImplementation(
             expect(response2.body.nextCursor).toBe(5);
         });
 
+        test("get messages endpoint supports negative cursor with `from=Start`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const response = await server.GET(`${roomPath}/messages?limit=2&from=Start&cursor=-5`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages.map((message: any) => message.index)).toEqual([0, 1]);
+            expect(response.body.totalMessageCount).toBe(count + 3);
+            expect(response.body.nextCursor).toBe(1);
+        });
+
         test("get messages endpoint returns null `nextCursor` when at end", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
@@ -1491,7 +1520,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBeNull();
         });
 
-        test("get messages endpoint supports `from=end` parameter", async () => {
+        test("get messages endpoint supports `from=End` parameter", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1510,7 +1539,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get messages from end (newest first)
-            const response = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=3&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1524,7 +1553,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBe(count + 7);
         });
 
-        test("get messages endpoint supports cursor pagination with `from=end`", async () => {
+        test("get messages endpoint supports cursor pagination with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1543,7 +1572,7 @@ export function testMessagingApiImplementation(
             }
 
             // First page from end
-            const response1 = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+            const response1 = await server.GET(`${roomPath}/messages?limit=3&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1556,7 +1585,7 @@ export function testMessagingApiImplementation(
 
             // Second page from end using cursor
             const response2 = await server.GET(
-                `${roomPath}/messages?limit=3&from=end&cursor=${response1.body.nextCursor}`,
+                `${roomPath}/messages?limit=3&from=End&cursor=${response1.body.nextCursor}`,
                 {headers: {authorization: `bearer ${apiKey}`}},
             );
 
@@ -1570,7 +1599,36 @@ export function testMessagingApiImplementation(
             expect(response2.body.nextCursor).toBe(count + 4);
         });
 
-        test("get messages endpoint returns null `nextCursor` when reaching beginning with `from=end`", async () => {
+        test("get messages endpoint supports negative cursor with `from=End`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const response = await server.GET(`${roomPath}/messages?limit=2&from=End&cursor=-5`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages).toHaveLength(0);
+            expect(response.body.totalMessageCount).toBe(count + 3);
+            expect(response.body.nextCursor).toBeNull();
+        });
+
+        test("get messages endpoint returns null `nextCursor` when reaching beginning with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1589,7 +1647,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await server.GET(`${roomPath}/messages?limit=10&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=10&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1603,7 +1661,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBeNull();
         });
 
-        test("get messages endpoint returns null `nextCursor` when exactly reaching the beginning with `from=end`", async () => {
+        test("get messages endpoint returns null `nextCursor` when exactly reaching the beginning with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1622,7 +1680,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await server.GET(`${roomPath}/messages?limit=${count + 3}&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=${count + 3}&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1694,7 +1752,7 @@ export function testMessagingApiImplementation(
             expect(response1.body.nextCursor).toBeNull();
 
             // Get messages from end
-            const response2 = await server.GET(`${roomPath}/messages?from=end`, {
+            const response2 = await server.GET(`${roomPath}/messages?from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1801,7 +1859,7 @@ export function testMessagingApiImplementation(
                 printApiContentToMarkdown(response.body.message.payload.content, {
                     spaceId: space.id,
                 }),
-            ).toEqual("<hr/>\n");
+            ).toEqual("<hr />\n");
         });
 
         test("can create message with italic mark", async () => {
