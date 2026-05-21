@@ -1776,8 +1776,10 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
-    const queryStartMessageIndex =
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+    const queryStartMessageIndex = Math.max(
+        0,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const queryEndMessageIndex = Math.min(
         queryStartMessageIndex + limit - 1,
@@ -1899,8 +1901,10 @@ export async function getChatMessagePayloadsFromStart(
     messageCount: number;
     messages: Array<MessageItem>;
 }> {
-    const queryStartMessageIndex =
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+    const queryStartMessageIndex = Math.max(
+        0,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const queryEndMessageIndex = Math.min(
         queryStartMessageIndex + limit - 1,
@@ -2015,19 +2019,15 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
-    const queryStartMessageIndex = Math.max(
-        typeof beforeMessageIndex === "number"
-            ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              (await chatItemPromise).messageCount - limit,
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    const queryEndMessageIndex = Math.min(
+        (await chatItemPromise).messageCount - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndMessageIndex =
-        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartMessageIndex = Math.max(
+        queryEndMessageIndex - limit + 1,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const messageItems = await arrayFromAsyncIterable(
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
@@ -2145,19 +2145,15 @@ export async function getChatMessagePayloadsFromEnd(
         consistency,
     });
 
-    const queryStartMessageIndex = Math.max(
-        typeof beforeMessageIndex === "number"
-            ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getChatMessageCount((await chatItemPromise).messagesSummary) - limit,
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    const queryEndMessageIndex = Math.min(
+        getChatMessageCount((await chatItemPromise).messagesSummary) - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndMessageIndex =
-        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartMessageIndex = Math.max(
+        queryEndMessageIndex - limit + 1,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const [chatItem, messageItems] = await runAllPromises([
         chatItemPromise,

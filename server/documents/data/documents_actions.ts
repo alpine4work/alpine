@@ -6783,8 +6783,10 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -6927,8 +6929,10 @@ export async function getDocumentCommentPayloadsFromStart(
     commentCount: number;
     comments: Array<MessageItem>;
 }> {
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -7068,19 +7072,15 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
@@ -7222,19 +7222,15 @@ export async function getDocumentCommentPayloadsFromEnd(
         consistency,
     });
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),

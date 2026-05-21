@@ -1448,7 +1448,7 @@ export function testMessagingApiImplementation(
                 await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
             }
 
-            const response = await server.GET(`${roomPath}/messages?limit=6&from=Start&cursor=-5`, {
+            const response = await server.GET(`${roomPath}/messages?limit=2&from=Start&cursor=-5`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1458,35 +1458,6 @@ export function testMessagingApiImplementation(
             expect(response.body.messages.map((message: any) => message.index)).toEqual([0, 1]);
             expect(response.body.totalMessageCount).toBe(count + 3);
             expect(response.body.nextCursor).toBe(1);
-        });
-
-        test("get messages endpoint supports negative cursor with `from=Start` (with small limit)", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-
-            const botAccount = await TestBot.createAndInstantiate(session);
-            const apiKey = await botAccount.createApiKey(session);
-
-            const {
-                roomPath,
-                room,
-                initialMessageCount: count,
-            } = await createPrivateRoom(session, botAccount);
-
-            for (let i = 0; i < 3; i++) {
-                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
-            }
-
-            const response = await server.GET(`${roomPath}/messages?limit=2&from=Start&cursor=-5`, {
-                headers: {authorization: `bearer ${apiKey}`},
-            });
-
-            expect(response.status).toEqual(200);
-            expect(response.headers["content-type"]).toEqual("application/json");
-
-            expect(response.body.messages.map((message: any) => message.index)).toEqual([]);
-            expect(response.body.totalMessageCount).toBe(count + 3);
-            expect(response.body.nextCursor).toBe(null);
         });
 
         test("get messages endpoint supports over-total cursor with `from=Start`", async () => {
@@ -1707,7 +1678,7 @@ export function testMessagingApiImplementation(
 
             const totalMessageCount = count + 3;
             const response = await server.GET(
-                `${roomPath}/messages?limit=7&from=End&cursor=${totalMessageCount + 5}`,
+                `${roomPath}/messages?limit=2&from=End&cursor=${totalMessageCount + 5}`,
                 {headers: {authorization: `bearer ${apiKey}`}},
             );
 
@@ -1720,37 +1691,6 @@ export function testMessagingApiImplementation(
             ]);
             expect(response.body.totalMessageCount).toBe(totalMessageCount);
             expect(response.body.nextCursor).toBe(count + 1);
-        });
-
-        test("get messages endpoint supports over-total cursor with `from=End` (with small limit)", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
-
-            const botAccount = await TestBot.createAndInstantiate(session);
-            const apiKey = await botAccount.createApiKey(session);
-
-            const {
-                roomPath,
-                room,
-                initialMessageCount: count,
-            } = await createPrivateRoom(session, botAccount);
-
-            for (let i = 0; i < 3; i++) {
-                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
-            }
-
-            const totalMessageCount = count + 3;
-            const response = await server.GET(
-                `${roomPath}/messages?limit=2&from=End&cursor=${totalMessageCount + 5}`,
-                {headers: {authorization: `bearer ${apiKey}`}},
-            );
-
-            expect(response.status).toEqual(200);
-            expect(response.headers["content-type"]).toEqual("application/json");
-
-            expect(response.body.messages.map((message: any) => message.index)).toEqual([]);
-            expect(response.body.totalMessageCount).toBe(totalMessageCount);
-            expect(response.body.nextCursor).toBe(null);
         });
 
         test("get messages endpoint returns null `nextCursor` when reaching beginning with `from=End`", async () => {

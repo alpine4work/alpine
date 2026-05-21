@@ -7100,8 +7100,10 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -7219,8 +7221,10 @@ export async function getTaskCommentPayloadsFromStart(
     commentCount: number;
     comments: Array<MessageItem>;
 }> {
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -7492,19 +7496,15 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
@@ -7621,19 +7621,15 @@ export async function getTaskCommentPayloadsFromEnd(
         {consistency},
     );
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
         authorizationPromise,
