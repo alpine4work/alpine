@@ -7,7 +7,12 @@ import {
     normalizeAgentWebMessagingPageBase,
     printAgentWebMessagingPageBase,
     readAgentWebMessagingPageBase,
+    readAgentWebMessagingPageBaseAroundMessage,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
+import {
+    ApiContentInlineElementResponse,
+    ApiMentionTargetResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
@@ -41,47 +46,75 @@ export async function readAgentWebChatPage(
         agentWebMessagingPageMessageNouns,
         {
             room: {type: "Chat", id},
+            roomMetadataPromise: getChatRoomMetadata(context, id),
             defaultDirection: "End",
             searchParams,
             limitLength,
             computeLength,
             buildPage: page => ({...page, type: "Chat", metadata: {id}}),
-            roomMetadataPromise: (async () => {
-                const {
-                    data: {chat},
-                } = await context.api.get(context.span, "/chats/{id}", {
-                    params: {path: {id}},
-                });
-
-                switch (chat.type) {
-                    case "Direct": {
-                        return {
-                            target: {
-                                type: "Chat",
-                                id,
-                                title: chat.title,
-                            },
-                            description: [{type: "Text", text: `in a chat with ${chat.title}`}],
-                        };
-                    }
-                    case "Room": {
-                        return {
-                            target: {
-                                type: "Chat",
-                                id,
-                                title: chat.name,
-                            },
-                            description: [{type: "Text", text: `in ${chat.name}`}],
-                        };
-                    }
-                    default:
-                        throw exhaustive(chat);
-                }
-            })(),
         },
     );
 
     return page;
+}
+
+export async function readAgentWebChatMessagePage(
+    context: AgentWebContextWithoutStorage,
+    id: ChatId,
+    index: number,
+    {
+        limitLength,
+        computeLength,
+    }: {
+        limitLength: number;
+        computeLength: (page: AgentWebChatPageWithMetadata) => Promise<number>;
+    },
+): Promise<AgentWebChatPageWithMetadata> {
+    const page = await readAgentWebMessagingPageBaseAroundMessage<AgentWebChatPageWithMetadata>(
+        context,
+        agentWebMessagingPageMessageNouns,
+        {
+            room: {type: "Chat", id},
+            roomMetadataPromise: getChatRoomMetadata(context, id),
+            aroundMessageIndex: index,
+            limitLength,
+            computeLength,
+            buildPage: page => ({...page, type: "Chat", metadata: {id}}),
+        },
+    );
+
+    return page;
+}
+
+async function getChatRoomMetadata(
+    context: AgentWebContextWithoutStorage,
+    id: ChatId,
+): Promise<{
+    target: ApiMentionTargetResponse;
+    description: ReadonlyArray<ApiContentInlineElementResponse>;
+}> {
+    const {
+        data: {chat},
+    } = await context.api.get(context.span, "/chats/{id}", {
+        params: {path: {id}},
+    });
+
+    switch (chat.type) {
+        case "Direct": {
+            return {
+                target: {type: "Chat", id, title: chat.title},
+                description: [{type: "Text", text: `in a chat with ${chat.title}`}],
+            };
+        }
+        case "Room": {
+            return {
+                target: {type: "Chat", id, title: chat.name},
+                description: [{type: "Text", text: `in ${chat.name}`}],
+            };
+        }
+        default:
+            throw exhaustive(chat);
+    }
 }
 
 export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: Page): Page {

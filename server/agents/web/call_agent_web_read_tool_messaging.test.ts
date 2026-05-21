@@ -12,6 +12,7 @@ import {
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -132,6 +133,29 @@ async function seedChatPath(chatId: ChatId, title: string): Promise<string> {
     return pathname;
 }
 
+async function seedChatMessagePath({
+    chatId,
+    index,
+    authorShortName,
+    bodySnippet,
+}: {
+    chatId: ChatId;
+    index: number;
+    authorShortName: string;
+    bodySnippet: string;
+}): Promise<string> {
+    const pageLink = {
+        type: "ChatMessage" as const,
+        id: chatId,
+        index,
+        authorShortName,
+        bodySnippet,
+    };
+    const pathname = printAgentWebPageLinkPathname(pageLink, 1);
+    await context.storage.pageLinkByPathname.put(pathname, pageLink);
+    return pathname;
+}
+
 function mockGetDirectChat(chatId: ChatId, title: string): void {
     api.mockGet(
         "/chats/{id}",
@@ -167,6 +191,12 @@ function mockGetRoomChat(chatId: ChatId, name: string): void {
     );
 }
 
+function mockGetRoomChatTimes(chatId: ChatId, name: string, count: number): void {
+    for (let index = 0; index < count; index++) {
+        mockGetRoomChat(chatId, name);
+    }
+}
+
 function mockGetChatMessagesList(
     chatId: ChatId,
     messages: ReadonlyArray<ApiMessageResponse>,
@@ -177,6 +207,68 @@ function mockGetChatMessagesList(
         nextCursor,
         messages: [...messages],
     });
+}
+
+function mockGetChatMessagesListPage(
+    chatId: ChatId,
+    messages: ReadonlyArray<ApiMessageResponse>,
+    {
+        cursor,
+        direction = "Start",
+        limit = 30,
+        nextCursor = null,
+        totalMessageCount = messages.length,
+    }: {
+        cursor: number | undefined;
+        direction?: "Start" | "End";
+        limit?: number;
+        nextCursor?: number | null;
+        totalMessageCount?: number;
+    },
+): void {
+    api.mockGet(
+        "/chats/{id}/messages",
+        {
+            data: {
+                spaceId,
+                totalMessageCount,
+                nextCursor,
+                messages: [...messages],
+            },
+        },
+        {
+            path: {id: chatId},
+            query: {
+                limit,
+                cursor,
+                ...(direction === "End" ? {from: "End" as const} : {}),
+            },
+        },
+    );
+}
+
+function createPaginationMessage(index: number, content = `Message ${index}`): ApiMessageResponse {
+    return createMessage({
+        index,
+        author: index % 2 === 0 ? aliceAccount : bobAccount,
+        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5)).toISOString(),
+        content,
+    });
+}
+
+function createPaginationMessageRange(
+    startIndex: number,
+    endIndex: number,
+): ReadonlyArray<ApiMessageResponse> {
+    return Array.from({length: endIndex - startIndex + 1}, (_, offset) =>
+        createPaginationMessage(startIndex + offset),
+    );
+}
+
+function readNextPagePath(response: string): string {
+    const match = /\[Next page »]\(([^)]+)\)/.exec(response);
+    if (!match) throw new InternalError("Expected response to include a next page link");
+    return match[1]!;
 }
 
 test("reads a direct chat with one human message", async () => {
@@ -754,6 +846,230 @@ test("throws on invalid before and after search parameters", async () => {
     await expect(
         callAgentWebReadTool(context, {path: `${path}?before=3&after=4`, limit: "10kb"}),
     ).rejects.toThrow("Expected only one pagination search param");
+});
+
+test("paginates through five chat pages from newest to oldest", async () => {
+    const chatId = generateId<ChatId>();
+    const path = await seedChatPath(chatId, "Engineering Room");
+
+    mockGetRoomChatTimes(chatId, "Engineering Room", 5);
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 9), {
+        cursor: undefined,
+        direction: "End",
+        totalMessageCount: 10,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 7), {
+        cursor: 8,
+        direction: "End",
+        totalMessageCount: 10,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 5), {
+        cursor: 6,
+        direction: "End",
+        totalMessageCount: 10,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 3), {
+        cursor: 4,
+        direction: "End",
+        totalMessageCount: 10,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 1), {
+        cursor: 2,
+        direction: "End",
+        nextCursor: null,
+        totalMessageCount: 10,
+    });
+
+    const responses = [
+        await callAgentWebReadTool(context, {path, limit: "230b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=8`, limit: "230b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=6`, limit: "230b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=4`, limit: "230b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=2`, limit: "230b"}),
+    ];
+
+    expect(responses).toEqual([
+        `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=8)
+
+<time>May 14th at 11:40am EDT</time>
+
+<human name="Alice">
+
+Message 8
+
+</human>
+
+<human name="Bob">
+
+Message 9
+
+</human>`,
+        `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=6)
+
+<time>May 14th at 11:30am EDT</time>
+
+<human name="Alice">
+
+Message 6
+
+</human>
+
+<human name="Bob">
+
+Message 7
+
+</human>`,
+        `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=4)
+
+<time>May 14th at 11:20am EDT</time>
+
+<human name="Alice">
+
+Message 4
+
+</human>
+
+<human name="Bob">
+
+Message 5
+
+</human>`,
+        `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=2)
+
+<time>May 14th at 11:10am EDT</time>
+
+<human name="Alice">
+
+Message 2
+
+</human>
+
+<human name="Bob">
+
+Message 3
+
+</human>`,
+        `\
+Some messages in Engineering Room.
+
+<time>May 14th at 11:00am EDT</time>
+
+<human name="Alice">
+
+Message 0
+
+</human>
+
+<human name="Bob">
+
+Message 1
+
+</human>`,
+    ]);
+});
+
+test("reads a single chat message and paginates forward through next links", async () => {
+    const chatId = generateId<ChatId>();
+    const chatMessagePath = await seedChatMessagePath({
+        chatId,
+        index: 40,
+        authorShortName: "Alice",
+        bodySnippet: "Message 40",
+    });
+
+    mockGetRoomChatTimes(chatId, "Engineering Room", 4);
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(40, 44), {
+        cursor: 25,
+        totalMessageCount: 5,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 40,
+        direction: "End",
+        nextCursor: null,
+        totalMessageCount: 5,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 44,
+        nextCursor: null,
+        totalMessageCount: 5,
+        limit: 15,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(41, 43), {
+        cursor: 40,
+        totalMessageCount: 5,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(42, 44), {
+        cursor: 41,
+        totalMessageCount: 5,
+    });
+    mockGetChatMessagesListPage(chatId, [createPaginationMessage(43)], {
+        cursor: 42,
+        totalMessageCount: 5,
+    });
+
+    const firstResponse = await callAgentWebReadTool(context, {
+        path: chatMessagePath,
+        limit: "220b",
+    });
+    const secondResponse = await callAgentWebReadTool(context, {
+        path: readNextPagePath(firstResponse),
+        limit: "180b",
+    });
+    const thirdResponse = await callAgentWebReadTool(context, {
+        path: readNextPagePath(secondResponse),
+        limit: "180b",
+    });
+    const fourthResponse = await callAgentWebReadTool(context, {
+        path: readNextPagePath(thirdResponse),
+        limit: "180b",
+    });
+
+    expect([firstResponse, secondResponse, thirdResponse, fourthResponse]).toEqual([
+        `\
+Some messages in Engineering Room. [« Previous page](/chat/engineering-room?before=40) | [Next page »](/chat/engineering-room?after=40)
+
+<time>May 14th at 2:20pm EDT</time>
+
+<human name="Alice">
+
+Message 40
+
+</human>`,
+        `\
+Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=41)
+
+<time>May 14th at 2:25pm EDT</time>
+
+<human name="Bob">
+
+Message 41
+
+</human>`,
+        `\
+Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=42)
+
+<time>May 14th at 2:30pm EDT</time>
+
+<human name="Alice">
+
+Message 42
+
+</human>`,
+        `\
+Some messages in Engineering Room.
+
+<time>May 14th at 2:35pm EDT</time>
+
+<human name="Bob">
+
+Message 43
+
+</human>`,
+    ]);
 });
 
 test("trims messages to fit the read limit and exposes a previous-page link", async () => {

@@ -41,6 +41,8 @@ import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -460,7 +462,7 @@ function buildAgentWebMessagingPageFromApiMessages({
 }: {
     timeZone: TimeZone;
     messageNouns: AgentWebMessagingPageNouns;
-    direction: "Start" | "End";
+    direction: "Start" | "End" | "Around";
     roomMetadata: {
         target: ApiMentionTargetResponse;
         description: ReadonlyArray<ApiContentInlineElementResponse>;
@@ -581,18 +583,33 @@ function buildAgentWebMessagingPageFromApiMessages({
     let pagination: AgentWebMessagingPageBasePreamblePagination | null = null;
 
     if (hasMoreMessages && messages.length > 0) {
-        if (direction === "Start") {
-            pagination = {
-                target: roomMetadata.target,
-                previousLink: null,
-                nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
-            };
-        } else {
-            pagination = {
-                target: roomMetadata.target,
-                previousLink: {beforeMessageIndex: messages[0]!.index},
-                nextLink: null,
-            };
+        switch (direction) {
+            case "Start": {
+                pagination = {
+                    target: roomMetadata.target,
+                    previousLink: null,
+                    nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
+                };
+                break;
+            }
+            case "End": {
+                pagination = {
+                    target: roomMetadata.target,
+                    previousLink: {beforeMessageIndex: messages[0]!.index},
+                    nextLink: null,
+                };
+                break;
+            }
+            case "Around": {
+                pagination = {
+                    target: roomMetadata.target,
+                    previousLink: {beforeMessageIndex: messages[0]!.index},
+                    nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
+                };
+                break;
+            }
+            default:
+                throw exhaustive(direction);
         }
     }
 
@@ -692,6 +709,186 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
         : [...parent.elements, {type: "Text", text: " […]"}];
 
     return {elements: [{type: "Paragraph", elements}]};
+}
+
+export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
+    context: AgentWebContextWithoutStorage,
+    messageNouns: AgentWebMessagingPageNouns,
+    {
+        room,
+        roomMetadataPromise,
+        aroundMessageIndex,
+        limitLength,
+        computeLength,
+        buildPage,
+    }: {
+        room: ApiMessageRoomTarget;
+        roomMetadataPromise: Promise<{
+            target: ApiMentionTargetResponse;
+            description: ReadonlyArray<ApiContentInlineElementResponse>;
+        }>;
+        aroundMessageIndex: number;
+        limitLength: number;
+        computeLength: (page: Page) => Promise<number>;
+        buildPage: (page: AgentWebMessagingPageBase) => Page;
+    },
+): Promise<Page> {
+    const {
+        data: {messages: initialMessages},
+    } = await getApiMessagesFromStart(context.span, context.api, room, {
+        limit: agentWebMessagingPageApiMessagesBatchCount,
+        cursor:
+            aroundMessageIndex -
+            1 -
+            Math.floor((agentWebMessagingPageApiMessagesBatchCount - 1) / 2),
+    });
+
+    // We expect at least `aroundMessageIndex` to exist.
+    assert(initialMessages.length > 0);
+
+    let beforeCursor: number | null = initialMessages[0]!.index;
+    let afterCursor: number | null = initialMessages[initialMessages.length - 1]!.index;
+    let totalLengthEstimate = 0;
+    let hasMoreMessages = false;
+    const beforeMessages: Array<ApiMessageResponse> = [];
+    const afterMessages: Array<ApiMessageResponse> = [];
+
+    // Load messages until we reach our token limit.
+    outer: while (
+        (beforeCursor !== null || afterCursor !== null) &&
+        totalLengthEstimate < limitLength
+    ) {
+        const [
+            {
+                data: {messages: currentBeforeMessages, nextCursor: nextBeforeCursor},
+            },
+            {
+                data: {messages: currentAfterMessages, nextCursor: nextAfterCursor},
+            },
+        ]: [
+            {data: {messages: ReadonlyArray<ApiMessageResponse>; nextCursor: number | null}},
+            {data: {messages: ReadonlyArray<ApiMessageResponse>; nextCursor: number | null}},
+        ] = await runAllPromises([
+            beforeCursor === null
+                ? {data: {messages: [], nextCursor: null}}
+                : getApiMessagesFromEnd(context.span, context.api, room, {
+                      limit: Math.floor(agentWebMessagingPageApiMessagesBatchCount),
+                      cursor: beforeCursor,
+                  }),
+            afterCursor === null
+                ? {data: {messages: [], nextCursor: null}}
+                : getApiMessagesFromStart(context.span, context.api, room, {
+                      limit: Math.ceil(agentWebMessagingPageApiMessagesBatchCount / 2),
+                      cursor: afterCursor,
+                  }),
+        ]);
+
+        beforeCursor = nextBeforeCursor;
+        afterCursor = nextAfterCursor;
+
+        hasMoreMessages = beforeCursor !== null || afterCursor !== null;
+
+        for (const {type, message} of alternateIterables(
+            mapIterable(currentAfterMessages, message => ({type: "After", message})),
+            mapIterable(reverseIterable(currentBeforeMessages), message => ({
+                type: "Before",
+                message,
+            })),
+        )) {
+            const lengthEstimate = estimateApiMessageLength(message);
+
+            // If this message would put us over our limit then DO NOT add the message and
+            // instead return the messages we have.
+            //
+            // Unless we've filled less than half of our limit. In this case we must be adding
+            // a single message with MORE length than half of our limit. Include the full
+            // message. The maximum message size is 400kb. If we assume 1 character per bytes
+            // that's 400k characters which is approximately 100k tokens using the
+            // [one-token-is-about-four-characters rule of thumb][1]. GPT-5's context window is
+            // 400k tokens so a max length message would consume a quarter of the context
+            // window which is not ideal but still fine.
+            //
+            // [1]: https://platform.openai.com/tokenizer
+            if (
+                totalLengthEstimate > limitLength / 2 &&
+                totalLengthEstimate + lengthEstimate > limitLength
+            ) {
+                hasMoreMessages = true;
+                break outer;
+            } else {
+                totalLengthEstimate += lengthEstimate;
+                if (type === "Before") {
+                    beforeMessages.push(message);
+                } else {
+                    afterMessages.push(message);
+                }
+            }
+        }
+    }
+
+    const messages: Array<ApiMessageResponse> = [
+        ...reverseIterable(beforeMessages),
+        ...initialMessages,
+        ...afterMessages,
+    ];
+
+    // Await the room metadata after we've fetched all our messages. We should have
+    // been loading the room metadata in parallel.
+    const roomMetadata = await roomMetadataPromise;
+
+    let page: Page;
+    let removeCount = 0;
+
+    // Build the page from the messages we fetched and compute the page's length. If
+    // the built page exceeds our limit then we remove one message and try building the
+    // page again until we get a page that fits our limit.
+    //
+    // If we can get a page that's under the limit then the agent doesn't need to call
+    // the `scroll` tool!
+    while (true) {
+        const messagingPage = buildAgentWebMessagingPageFromApiMessages({
+            timeZone: context.timeZone,
+            messageNouns,
+            direction: "Around",
+            roomMetadata,
+            messages,
+            hasMoreMessages,
+        });
+
+        page = buildPage(messagingPage);
+
+        if (messages.length === 0) break;
+
+        // If there's only one message left then we have to return it. We can't return a
+        // page with no messages. This likely means the one message is larger than our
+        // limit by itself.
+        if (messages.length === 1) break;
+
+        const length = await computeLength(page);
+        if (length <= limitLength) break;
+
+        hasMoreMessages = true;
+
+        // Alternate removing messages from the beginning and end of the page. Always start
+        // by removing messages from the beginning.
+        //
+        // Never remove `aroundMessageIndex`. If that's the first message then always
+        // remove from the end. If that's the last message then always remove from the
+        // start.
+        if (messages[0]!.index === aroundMessageIndex) {
+            messages.pop();
+        } else if (messages[messages.length - 1]!.index === aroundMessageIndex) {
+            messages.shift();
+        } else if (removeCount % 2 === 0) {
+            messages.shift();
+        } else {
+            messages.pop();
+        }
+
+        removeCount++;
+    }
+
+    return page;
 }
 
 export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagingPageBase>(

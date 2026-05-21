@@ -21,6 +21,7 @@ import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agen
 import {
     normalizeAgentWebChatPage,
     printAgentWebChatPage,
+    readAgentWebChatMessagePage,
     readAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {
@@ -237,6 +238,9 @@ function readAgentWebPageLink(
         }
         case "Chat": {
             return readAgentWebChatPage(context, pageLink.id, options);
+        }
+        case "ChatMessage": {
+            return readAgentWebChatMessagePage(context, pageLink.id, pageLink.index, options);
         }
         default:
             throw exhaustive(pageLink);
