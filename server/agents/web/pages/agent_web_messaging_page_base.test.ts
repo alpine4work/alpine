@@ -57,7 +57,7 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Time",
@@ -96,7 +96,7 @@ Hello there.
                         text("Alpine", [{type: "Link", url: "https://example.com/alpine"}]),
                         text("."),
                     ],
-                    paginationLink: null,
+                    pagination: null,
                 },
                 blocks: [
                     {
@@ -128,7 +128,7 @@ Hello there.
             page: {
                 preamble: {
                     elements: [text("The current page starts after the May planning sync.")],
-                    paginationLink: null,
+                    pagination: null,
                 },
                 blocks: [
                     {
@@ -156,7 +156,7 @@ No messages matched the current filters.
             page: {
                 preamble: {
                     elements: [text("No messages matched the current filters.")],
-                    paginationLink: null,
+                    pagination: null,
                 },
                 blocks: [],
             },
@@ -170,14 +170,14 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
             page: {
                 preamble: {
                     elements: [text("Some messages in Engineering Room.")],
-                    paginationLink: {
-                        text: "Previous page »",
+                    pagination: {
                         target: {
                             type: "Chat",
                             id: paginationChatId,
                             title: "Engineering Room",
                         },
-                        searchParams: new URLSearchParams([["before", "3"]]),
+                        previousLink: {beforeMessageIndex: 3},
+                        nextLink: null,
                     },
                 },
                 blocks: [],
@@ -194,20 +194,104 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
             page: {
                 preamble: {
                     elements: [text("Some messages in Engineering Room.")],
-                    paginationLink: {
-                        text: "Next page »",
+                    pagination: {
                         target: {
                             type: "Chat",
                             id: paginationChatId,
                             title: "Engineering Room",
                         },
-                        searchParams: new URLSearchParams([["after", "9"]]),
+                        previousLink: null,
+                        nextLink: {afterMessageIndex: 9},
                     },
                 },
                 blocks: [],
             },
             createParseError:
                 "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+        },
+        {
+            name: "preamble with previous and next page pagination links",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [« Previous page](/chat/engineering-room?before=3) | [Next page »](/chat/engineering-room?after=9)
+`,
+            page: {
+                preamble: {
+                    elements: [text("Some messages in Engineering Room.")],
+                    pagination: {
+                        target: {
+                            type: "Chat",
+                            id: paginationChatId,
+                            title: "Engineering Room",
+                        },
+                        previousLink: {beforeMessageIndex: 3},
+                        nextLink: {afterMessageIndex: 9},
+                    },
+                },
+                blocks: [],
+            },
+            createParseError:
+                "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+        },
+        {
+            name: "preamble with standalone start-arrow previous page link",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [« Previous page](https://example.com/chat?before=3)
+`,
+            page: {
+                preamble: {
+                    elements: [
+                        text("Some messages in Engineering Room. "),
+                        text("« Previous page", [
+                            {type: "Link", url: "https://example.com/chat?before=3"},
+                        ]),
+                    ],
+                    pagination: null,
+                },
+                blocks: [],
+            },
+        },
+        {
+            name: "previous page pagination link with invalid url",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [Previous page »](/chat/engineering-room?after=3)
+`,
+            parseError:
+                "Invalid link for \u201CPrevious page »\u201D. Expected a link to more messages with a `before` URL search param. Example: `/chat/my-chat?before=8`. Try again with a different link.",
+            createParseError:
+                "Can\u2019t add \u201CPrevious page »\u201D link when creating messages markdown. Try again without the \u201CPrevious page »\u201D link.",
+        },
+        {
+            name: "next page pagination link with invalid url",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [Next page »](/chat/engineering-room?before=9)
+`,
+            parseError:
+                "Invalid link for \u201CNext page »\u201D. Expected a link to more messages with a `after` URL search param. Example: `/chat/my-chat?after=8`. Try again with a different link.",
+            createParseError:
+                "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
+        },
+        {
+            name: "preamble with standalone end-arrow previous page link",
+            pageLink: true,
+            markdown: `\
+Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/engineering-room?before=3)
+`,
+            page: {
+                preamble: {
+                    elements: [
+                        text("Some messages in Engineering Room. "),
+                        text("Previous page »", [
+                            {type: "Link", url: "/chat/engineering-room?before=3"},
+                        ]),
+                    ],
+                    pagination: null,
+                },
+                blocks: [],
+            },
         },
         {
             name: "bot message with reply preview and rich content",
@@ -232,7 +316,7 @@ const done = true;
 </bot>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
@@ -296,7 +380,7 @@ Escaped attributes survive.
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Time",
@@ -332,7 +416,7 @@ After the empty paragraph.
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
@@ -629,7 +713,7 @@ Hello.
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
@@ -689,7 +773,7 @@ bar&#x20;
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
@@ -788,7 +872,7 @@ Hello there.
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
@@ -815,7 +899,7 @@ Hello there.
 <time></time>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [{type: "Time", timeContent: ""}],
             },
         },
@@ -838,7 +922,7 @@ Hello there.
                             },
                         },
                     ],
-                    paginationLink: null,
+                    pagination: null,
                 },
                 blocks: [],
             },
@@ -854,7 +938,7 @@ Hello there.
                     elements: [
                         {type: "Text", text: " ", marks: [{type: "Highlight", color: "Purple"}]},
                     ],
-                    paginationLink: null,
+                    pagination: null,
                 },
                 blocks: [],
             },
@@ -876,7 +960,7 @@ Second render:
 </human>
 `,
             page: {
-                preamble: {elements: [], paginationLink: null},
+                preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",

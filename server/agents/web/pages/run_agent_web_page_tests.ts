@@ -163,7 +163,7 @@ export function runAgentWebPageTests<PageLink, Page>({
                     }
 
                     expect(renderErrorDisplayMessage(error.displayMessage)).toEqual(
-                        testCase.parseError ?? testCase.createParseError ?? "",
+                        testCase.createParseError ?? testCase.parseError ?? "",
                     );
                 }
             });

@@ -1,7 +1,7 @@
 import fc, {Arbitrary} from "fast-check";
 import {
     AgentWebMessagingPageBase,
-    AgentWebMessagingPageBasePreamble,
+    AgentWebMessagingPageBasePreamblePagination,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPageTimeBlock,
@@ -50,36 +50,32 @@ const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagi
     Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
 });
 
-const AgentWebMessagingPagePaginationLinkArbitrary: Arbitrary<
-    AgentWebMessagingPageBasePreamble["paginationLink"]
-> = fc.oneof(
-    {weight: 10, arbitrary: fc.constant(null)},
-    {
-        weight: 1,
-        arbitrary: fc.record({
-            text: fc.constant("Previous page »"),
+const AgentWebMessagingPageBasePreamblePaginationArbitrary: Arbitrary<AgentWebMessagingPageBasePreamblePagination> =
+    fc.oneof(
+        fc.record({
             target: ApiMentionTargetArbitrary,
-            searchParams: fc
-                .integer({min: 0})
-                .map(index => new URLSearchParams([["before", `${index}`]])),
+            previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
+            nextLink: fc.constant(null),
         }),
-    },
-    {
-        weight: 1,
-        arbitrary: fc.record({
-            text: fc.constant("Next page »"),
+        fc.record({
             target: ApiMentionTargetArbitrary,
-            searchParams: fc
-                .integer({min: 0})
-                .map(index => new URLSearchParams([["after", `${index}`]])),
+            previousLink: fc.constant(null),
+            nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
         }),
-    },
-);
+        fc.record({
+            target: ApiMentionTargetArbitrary,
+            previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
+            nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
+        }),
+    );
 
 const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> = fc.record({
     preamble: fc.record({
         elements: fc.array(ApiContentInlineElementWithoutCommentMarkArbitrary, {maxLength: 4}),
-        paginationLink: AgentWebMessagingPagePaginationLinkArbitrary,
+        pagination: fc.oneof(
+            {weight: 10, arbitrary: fc.constant(null)},
+            {weight: 1, arbitrary: AgentWebMessagingPageBasePreamblePaginationArbitrary},
+        ),
     }),
     blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
 });
