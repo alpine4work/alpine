@@ -188,7 +188,7 @@ export const apiTasksPaths: Pick<
     "/tasks/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getTaskCommentPayloadsFromEnd(context, {
                           taskId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -209,7 +209,7 @@ export const apiTasksPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;

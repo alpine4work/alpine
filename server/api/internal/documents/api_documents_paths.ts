@@ -310,7 +310,7 @@ export const apiDocumentsPaths: Pick<
     "/documents/{id}/threads/{threadId}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getDocumentCommentPayloadsFromEnd(context, {
                           documentId: pathParameters.id,
                           commentThreadId: pathParameters.threadId,
@@ -333,7 +333,7 @@ export const apiDocumentsPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;

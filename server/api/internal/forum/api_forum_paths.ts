@@ -256,7 +256,7 @@ export const apiForumPaths: Pick<
     "/posts/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getPostCommentPayloadsFromEnd(context, {
                           postId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -277,7 +277,7 @@ export const apiForumPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
