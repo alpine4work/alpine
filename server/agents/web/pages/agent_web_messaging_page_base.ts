@@ -3,7 +3,7 @@ import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {produce} from "immer";
-import {Html, Link, Node, Root, RootContent} from "mdast";
+import {Html, Link, Node, PhrasingContent, Root, RootContent} from "mdast";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
@@ -34,6 +34,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
@@ -46,6 +47,10 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
+// NOCOMMIT: Read page from individual message
+//
+// NOCOMMIT: Update messaging page, create messaging room?
+
 export type AgentWebMessagingPageBase = {
     readonly preamble: AgentWebMessagingPageBasePreamble;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
@@ -53,31 +58,21 @@ export type AgentWebMessagingPageBase = {
 
 export type AgentWebMessagingPageBasePreamble = {
     readonly elements: ReadonlyArray<ApiContentInlineElementResponse>;
-    readonly paginationLink: {
-        readonly text: AgentWebMessagingPageBasePreamblePaginationLinkText;
-        readonly target: ApiMentionTargetResponse;
-        readonly searchParams: URLSearchParams;
-    } | null;
+    readonly pagination:
+        | ({
+              readonly target: ApiMentionTargetResponse;
+          } & (
+              | {
+                    readonly previousLink: {readonly beforeMessageIndex: number};
+                    readonly nextLink: {readonly afterMessageIndex: number} | null;
+                }
+              | {
+                    readonly previousLink: {readonly beforeMessageIndex: number} | null;
+                    readonly nextLink: {readonly afterMessageIndex: number};
+                }
+          ))
+        | null;
 };
-
-type AgentWebMessagingPageBasePreamblePaginationLinkText =
-    (typeof agentWebMessagingPageBasePreamblePaginationLinkTextArray)[number];
-
-const agentWebMessagingPageBasePreamblePaginationLinkTextArray = [
-    "Next page »",
-    "Previous page »",
-] as const;
-
-const agentWebMessagingPageBasePreamblePaginationLinkTexts = new Set(
-    agentWebMessagingPageBasePreamblePaginationLinkTextArray,
-);
-
-function isAgentWebMessagingPageBasePreamblePaginationLinkText(
-    text: string,
-): text is AgentWebMessagingPageBasePreamblePaginationLinkText {
-    // @ts-expect-error: Annoying TypeScript variance quirk for `Set.has()`
-    return agentWebMessagingPageBasePreamblePaginationLinkTexts.has(text);
-}
 
 export type AgentWebMessagingPageBlock =
     | AgentWebMessagingPageTimeBlock
@@ -278,6 +273,8 @@ export async function readAgentWebMessagingPageBase<Page>(
             timeZone: context.timeZone,
             messageNouns,
             direction,
+            beforeMessageIndex,
+            afterMessageIndex,
             roomMetadata,
             messages,
             hasMoreMessages,
@@ -459,6 +456,8 @@ function buildAgentWebMessagingPageFromApiMessages({
     timeZone,
     messageNouns,
     direction,
+    beforeMessageIndex,
+    afterMessageIndex,
     roomMetadata,
     messages,
     hasMoreMessages,
@@ -466,6 +465,8 @@ function buildAgentWebMessagingPageFromApiMessages({
     timeZone: TimeZone;
     messageNouns: AgentWebMessagingPageNouns;
     direction: "Start" | "End";
+    beforeMessageIndex: number | null;
+    afterMessageIndex: number | null;
     roomMetadata: {
         target: ApiMentionTargetResponse;
         description: ReadonlyArray<ApiContentInlineElementResponse>;
@@ -583,26 +584,28 @@ function buildAgentWebMessagingPageFromApiMessages({
         },
     ];
 
-    let paginationLink: AgentWebMessagingPageBasePreamble["paginationLink"] = null;
+    let pagination: AgentWebMessagingPageBasePreamble["pagination"] = null;
 
-    if (hasMoreMessages && messages.length > 0) {
-        const paginationSearchParams = new URLSearchParams();
-        paginationSearchParams.set(
-            direction === "Start" ? "after" : "before",
-            direction === "Start"
-                ? messages[messages.length - 1]!.index.toString()
-                : messages[0]!.index.toString(),
-        );
+    if (messages.length > 0) {
+        const hasPreviousMessages =
+            direction === "Start" ? afterMessageIndex !== null : hasMoreMessages;
+        const hasNextMessages =
+            direction === "Start" ? hasMoreMessages : beforeMessageIndex !== null;
 
-        paginationLink = {
-            text: `${direction === "Start" ? "Next" : "Previous"} page »`,
-            target: roomMetadata.target,
-            searchParams: paginationSearchParams,
-        };
+        // NOCOMMIT: Only set one link never both!
+        if (hasPreviousMessages || hasNextMessages) {
+            pagination = {
+                target: roomMetadata.target,
+                previousLink: hasPreviousMessages ? {beforeMessageIndex: messages[0]!.index} : null,
+                nextLink: hasNextMessages
+                    ? {afterMessageIndex: messages[messages.length - 1]!.index}
+                    : null,
+            };
+        }
     }
 
     return {
-        preamble: {elements: preambleElements, paginationLink},
+        preamble: {elements: preambleElements, pagination},
         blocks,
     };
 
@@ -706,8 +709,8 @@ export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagin
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
             normalizer.normalizeInlineElements(page.preamble.elements);
 
-            if (page.preamble.paginationLink)
-                normalizer.normalizeTarget(page.preamble.paginationLink.target);
+            if (page.preamble.pagination)
+                normalizer.normalizeTarget(page.preamble.pagination.target);
 
             for (const block of page.blocks) {
                 if (block.type !== "Message") continue;
@@ -720,6 +723,10 @@ export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagin
     });
 }
 
+const previousPageLinkTextWithEndArrow = "Previous page »";
+const previousPageLinkTextWithStartArrow = "« Previous page";
+const nextPageLinkText = "Next page »";
+
 export async function printAgentWebMessagingPageBase<PageLink>(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
@@ -730,7 +737,7 @@ export async function printAgentWebMessagingPageBase<PageLink>(
 
     const [, blocks] = await runAllPromises([
         (async () => {
-            const [, paginationLink] = await runAllPromises([
+            const [, paginationLinks] = await runAllPromises([
                 (async () => {
                     if (page.preamble.elements.length === 0) return;
 
@@ -743,34 +750,57 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                     }
                 })(),
                 (async () => {
-                    if (!page.preamble.paginationLink) return;
+                    const pagination = page.preamble.pagination;
+                    if (!pagination) return [];
 
-                    const pageLink = createApiTargetAgentWebPageLink(
-                        page.preamble.paginationLink.target,
-                    );
-                    let url = await createAgentWebPageLinkPathname(storage, pageLink);
+                    const pageLink = createApiTargetAgentWebPageLink(pagination.target);
+                    const pathname = await createAgentWebPageLinkPathname(storage, pageLink);
 
-                    if (page.preamble.paginationLink.searchParams.size > 0) {
-                        url += `?${page.preamble.paginationLink.searchParams.toString()}`;
+                    const paginationLinks: Array<Link> = [];
+
+                    if (pagination.previousLink) {
+                        paginationLinks.push({
+                            type: "link",
+                            url: `${pathname}?before=${pagination.previousLink.beforeMessageIndex}`,
+                            children: [
+                                {
+                                    type: "text",
+                                    value: pagination.nextLink
+                                        ? previousPageLinkTextWithStartArrow
+                                        : previousPageLinkTextWithEndArrow,
+                                },
+                            ],
+                        });
                     }
 
-                    const paginationLink: Link = {
-                        type: "link",
-                        url,
-                        children: [{type: "text", value: page.preamble.paginationLink.text}],
-                    };
+                    if (pagination.previousLink && pagination.nextLink) {
+                        children.push({type: "text", value: " | "});
+                    }
 
-                    return paginationLink;
+                    if (pagination.nextLink) {
+                        paginationLinks.push({
+                            type: "link",
+                            url: `${pathname}?after=${pagination.nextLink.afterMessageIndex}`,
+                            children: [
+                                {
+                                    type: "text",
+                                    value: nextPageLinkText,
+                                },
+                            ],
+                        });
+                    }
+
+                    return paginationLinks;
                 })(),
             ]);
 
-            if (paginationLink) {
+            if (paginationLinks.length > 0) {
                 const lastChild = children[children.length - 1];
 
                 if (lastChild?.type === "paragraph") {
-                    lastChild.children.push({type: "text", value: " "}, paginationLink);
+                    lastChild.children.push({type: "text", value: " "}, ...paginationLinks);
                 } else {
-                    children.push({type: "paragraph", children: [paginationLink]});
+                    children.push({type: "paragraph", children: paginationLinks});
                 }
             }
         })(),
@@ -1408,7 +1438,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
         });
     }
 
-    const paginationLink = await takeAgentWebMessagingPagePaginationLinkFromPreamble(
+    const pagination = await takeAgentWebMessagingPagePaginationFromPreamble(
         messageNouns,
         storage,
         pageLink,
@@ -1436,25 +1466,81 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
     }
 
     return {
-        preamble: {elements: actualPreamble, paginationLink},
+        preamble: {elements: actualPreamble, pagination},
         blocks: await runAllPromises(blockPromises),
     };
 }
 
-async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
+function createUnexpectedMarkdownError(
+    messageNouns: AgentWebMessagingPageNouns,
+    position: Node["position"],
+) {
+    return new InvalidArgumentError("Unexpected markdown node type", {
+        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
+    });
+}
+
+async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     messageNouns: AgentWebMessagingPageNouns,
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     preamble: Array<RootContent>,
-): Promise<AgentWebMessagingPageBasePreamble["paginationLink"]> {
+): Promise<AgentWebMessagingPageBasePreamble["pagination"]> {
     const lastNode = preamble[preamble.length - 1];
     if (lastNode?.type !== "paragraph") return null;
 
-    const lastChild = lastNode.children[lastNode.children.length - 1];
+    const lastChildIndex = lastNode.children.length - 1;
+    const lastChild = lastNode.children[lastChildIndex];
     if (lastChild?.type !== "link") return null;
 
     const text = printMarkdownPhrasingContentText(lastChild.children);
-    if (!isAgentWebMessagingPageBasePreamblePaginationLinkText(text)) return null;
+    let previousPaginationLink: AgentWebMessagingPageParsedPaginationLink | null = null;
+    let nextPaginationLink: AgentWebMessagingPageParsedPaginationLink | null = null;
+    let removeStartIndex: number | null = null;
+
+    switch (text) {
+        case previousPageLinkTextWithEndArrow: {
+            previousPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+                messageNouns,
+                storage,
+                link: lastChild,
+                searchParamName: "before",
+            });
+            removeStartIndex = lastChildIndex;
+            break;
+        }
+        case nextPageLinkText: {
+            nextPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+                messageNouns,
+                storage,
+                link: lastChild,
+                searchParamName: "after",
+            });
+            removeStartIndex = lastChildIndex;
+
+            const separatorChild = lastNode.children[lastChildIndex - 1];
+            const previousLinkChild = lastNode.children[lastChildIndex - 2];
+
+            if (
+                separatorChild?.type === "text" &&
+                separatorChild.value === " | " &&
+                previousLinkChild?.type === "link" &&
+                printMarkdownPhrasingContentText(previousLinkChild.children) ===
+                    previousPageLinkTextWithStartArrow
+            ) {
+                previousPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+                    messageNouns,
+                    storage,
+                    link: previousLinkChild,
+                    searchParamName: "before",
+                });
+                removeStartIndex = lastChildIndex - 2;
+            }
+            break;
+        }
+        default:
+            return null;
+    }
 
     if (pageLink === null) {
         const quotedText = quoteMarkdown(lastChild.children);
@@ -1464,23 +1550,19 @@ async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
         });
     }
 
-    if (/^[a-zA-Z0-9]+:/.test(lastChild.url)) return null;
+    assert(removeStartIndex !== null);
 
-    const {pathname, searchParams} = normalizeAgentWebPath(lastChild.url);
-    if (!searchParams.has("before") && !searchParams.has("after")) return null;
+    if (
+        previousPaginationLink &&
+        nextPaginationLink &&
+        !isDeepEqual(previousPaginationLink.target, nextPaginationLink.target)
+    ) {
+        throw new InvalidArgumentError("Pagination links point to different pages", {
+            displayMessage: errorDisplayMessage`\u201D${previousPageLinkTextWithStartArrow}\u201D and \u201C${nextPageLinkText}\u201D links must link to the same page. \u201C${previousPageLinkTextWithStartArrow}\u201D links to \`${previousPaginationLink.pathname.slice(0, 75)}\` and \u201C${nextPageLinkText}\u201D links to \`${nextPaginationLink.pathname.slice(0, 75)}\`. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
+        });
+    }
 
-    const paginationPageLinkResult = await getAgentWebPageLinkByPathname(storage, pathname);
-    if (!paginationPageLinkResult) return null;
-    const {pageLink: paginationPageLink} = paginationPageLinkResult;
-
-    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
-        storage.spaceId,
-        paginationPageLink,
-    );
-
-    if (mentionTargetResult.type !== "MentionTarget") return null;
-
-    lastNode.children.pop();
+    lastNode.children.splice(removeStartIndex);
 
     const previousChild = lastNode.children[lastNode.children.length - 1];
     if (previousChild?.type === "text" && previousChild.value.endsWith(" ")) {
@@ -1493,18 +1575,103 @@ async function takeAgentWebMessagingPagePaginationLinkFromPreamble<PageLink>(
 
     if (lastNode.children.length === 0) preamble.pop();
 
+    if (previousPaginationLink) {
+        return {
+            target: previousPaginationLink.target,
+            previousLink: {beforeMessageIndex: previousPaginationLink.messageIndex},
+            nextLink: nextPaginationLink
+                ? {afterMessageIndex: nextPaginationLink.messageIndex}
+                : null,
+        };
+    }
+
+    assert(nextPaginationLink !== null);
+
     return {
-        text,
-        target: mentionTargetResult.target,
-        searchParams,
+        target: nextPaginationLink.target,
+        previousLink: null,
+        nextLink: {afterMessageIndex: nextPaginationLink.messageIndex},
     };
 }
 
-function createUnexpectedMarkdownError(
-    messageNouns: AgentWebMessagingPageNouns,
-    position: Node["position"],
-) {
-    return new InvalidArgumentError("Unexpected markdown node type", {
-        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<human>\` or \`<bot>\` elements.`,
+type AgentWebMessagingPageParsedPaginationLink = {
+    readonly pathname: string;
+    readonly target: ApiMentionTargetResponse;
+    readonly messageIndex: number;
+};
+
+async function parseAgentWebMessagingPagePaginationLink({
+    messageNouns,
+    storage,
+    link,
+    searchParamName,
+}: {
+    messageNouns: AgentWebMessagingPageNouns;
+    storage: AgentWebSessionStorage;
+    link: Link;
+    searchParamName: "before" | "after";
+}): Promise<AgentWebMessagingPageParsedPaginationLink> {
+    if (/^[a-zA-Z0-9]+:/.test(link.url)) {
+        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+            messageNouns,
+            link,
+            searchParamName,
+        });
+    }
+
+    const {pathname, searchParams} = normalizeAgentWebPath(link.url);
+    const searchParam = searchParams.get(searchParamName);
+
+    if (searchParam === null || !/^(0|[1-9][0-9]*)$/.test(searchParam)) {
+        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+            messageNouns,
+            link,
+            searchParamName,
+        });
+    }
+
+    const paginationPageLinkResult = await getAgentWebPageLinkByPathname(storage, pathname);
+
+    if (!paginationPageLinkResult) {
+        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+            messageNouns,
+            link,
+            searchParamName,
+        });
+    }
+
+    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
+        storage.spaceId,
+        paginationPageLinkResult.pageLink,
+    );
+
+    if (mentionTargetResult.type !== "MentionTarget") {
+        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+            messageNouns,
+            link,
+            searchParamName,
+        });
+    }
+
+    return {
+        pathname,
+        target: mentionTargetResult.target,
+        messageIndex: parseInt(searchParam, 10),
+    };
+}
+
+function createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+    messageNouns,
+    link,
+    searchParamName,
+}: {
+    messageNouns: AgentWebMessagingPageNouns;
+    link: Link;
+    searchParamName: "before" | "after";
+}) {
+    const quotedText = quoteMarkdown(link.children);
+
+    return new InvalidArgumentError("Invalid pagination link URL", {
+        displayMessage: errorDisplayMessage`Invalid link for ${quotedText}. Expected a link to more ${messageNouns.pluralNoun} with a \`${searchParamName}\` URL search param. Example: \`/chat/my-chat?${searchParamName}=8\`. Try again with a different link.`,
     });
 }
