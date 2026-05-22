@@ -141,6 +141,7 @@ export function SearchEntityView({
     return (
         <ContextMenuActions actions={contextMenuActions}>
             <Box
+                data-testid={process.env.NODE_ENV !== "production" ? "SearchEntityView" : undefined}
                 paddingX={marginX}
                 style={{
                     // Tiny detail: The search modal's input renders its border on top of the first

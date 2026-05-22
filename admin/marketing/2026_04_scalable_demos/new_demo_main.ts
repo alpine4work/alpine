@@ -215,7 +215,6 @@ async function updateRemotionRoot(
         // not prose — they must not be replaced with typographic quotes.
         `                id="${demoNumber}-${demoIdName}-demo"\n` +
         `                component={${demoNamePascal}DemoComposition}\n` +
-        `                recordingWidth={scalableDemoNarrowViewportWidth}\n` +
         `                durationInFrames={${demoNameCamel}DemoDurationInFrames}\n` +
         `            />\n`;
 

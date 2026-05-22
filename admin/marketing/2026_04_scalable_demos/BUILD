@@ -3,6 +3,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 load(":scalable_demo_recorders.bzl", "scalable_demo_recorders")
 load(":scalable_demo_repositories.bzl", "scalable_demo_repositories_public")
 
+filegroup(
+    name = "fixtures",
+    srcs = glob(["fixtures/**"], allow_empty = True),
+)
+
 ts_project(
     name = "2026_04_scalable_demos",
     srcs = glob(

@@ -110,6 +110,7 @@ const matchTermTexts = [
     "posted",
     "by",
     "me",
+    "opened",
     "about",
     "i",
     "my",
@@ -1803,9 +1804,16 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         // Peek ahead to check for "not" prefix followed by openness modifier
         const hasNot = matchTerms.not.isFuzzyMatch(state.term);
         const termToCheck = hasNot ? state.peekTerm(1) : state.term;
+        const termAfterTermToCheck = hasNot ? state.peekTerm(2) : state.peekTerm(1);
+        // `opened by ...` is an alias for `created by ...`, but stemming makes `opened`
+        // fuzzy-match `open`. Guard this case so it falls through to the creator-style
+        // parser below instead of being parsed as openness.
+        const isOpenedByAlias =
+            termToCheck?.text.toLowerCase() === "opened" &&
+            matchTerms.by.isFuzzyMatch(termAfterTermToCheck);
 
         if (
-            matchTerms.open.isFuzzyMatch(termToCheck) ||
+            (matchTerms.open.isFuzzyMatch(termToCheck) && !isOpenedByAlias) ||
             matchTerms.pending.isFuzzyMatch(termToCheck) ||
             matchTerms.todo.isFuzzyMatch(termToCheck)
         ) {
@@ -1831,6 +1839,71 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
         }
 
         if (openness) {
+            // TODO: `closed by ...` currently maps to `Closed + Assignee`, but the ideal
+            // behavior is `Closed + (Assignee OR Closer)`. That requires indexing/searching a
+            // dedicated `Closer` field so closed unassigned tasks, or tasks closed by someone
+            // other than the assignee, are included too.
+            if (
+                openness.includes("Closed") &&
+                allowAccount &&
+                matchTerms.by.isFuzzyMatch(state.term)
+            ) {
+                state.advanceTerm();
+
+                if (matchTerms.me.isFuzzyMatch(state.term)) {
+                    if (!actorAccount) {
+                        return {filterStartTerm, filterEndTerm, filter};
+                    }
+                    const endTerm = state.advanceTerm();
+
+                    return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
+                        state,
+                        {
+                            filterStartTerm,
+                            filterEndTerm: endTerm,
+                            filter: {
+                                ...filter,
+                                openness,
+                                account: {
+                                    field: "Assignee",
+                                    accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                                },
+                            },
+                            allowAccount: false,
+                            allowTime,
+                            field: "LastUpdated",
+                        },
+                        options,
+                    );
+                }
+
+                const accounts = parseAccountsByNameIfPossible(state, options);
+                if (accounts) {
+                    return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
+                        state,
+                        {
+                            filterStartTerm,
+                            filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                            filter: {
+                                ...filter,
+                                openness,
+                                account: {
+                                    field: "Assignee",
+                                    accounts: accounts.map(account => ({
+                                        id: account.id,
+                                        name: account.initialData.name,
+                                    })),
+                                },
+                            },
+                            allowAccount: false,
+                            allowTime,
+                            field: "LastUpdated",
+                        },
+                        options,
+                    );
+                }
+            }
+
             return parseSearchNaturalLanguageFilterPostmodifierIfPossible(
                 state,
                 {
@@ -1933,6 +2006,7 @@ function parseSearchNaturalLanguageFilterPostmodifierIfPossible(
     // e.g. "documents created..." or "messages sent..."
     if (
         matchTerms.created.isFuzzyMatch(state.term) ||
+        matchTerms.opened.isFuzzyMatch(state.term) ||
         matchTerms.sent.isFuzzyMatch(state.term) ||
         matchTerms.posted.isFuzzyMatch(state.term)
     ) {

@@ -100,6 +100,26 @@ import {
 } from "~/admin/marketing/2026_04_scalable_demos/demos/025_inbox_action_persistence_demo_shared.js";
 import {CodeBlockEditorKeyboardShortcutsDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/026_code_block_editor_keyboard_shortcuts_demo_composition.js";
 import {codeBlockEditorKeyboardShortcutsDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/026_code_block_editor_keyboard_shortcuts_demo_shared.js";
+import {SearchTasksClosedByMasonLastWeekDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/027_search_tasks_closed_by_mason_last_week_demo_composition.js";
+import {searchTasksClosedByMasonLastWeekDemoDurationInFrames} from "~/admin/marketing/2026_04_scalable_demos/demos/027_search_tasks_closed_by_mason_last_week_demo_shared.js";
+import {ProjectsCompletionStateDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/028_projects_completion_state_demo_composition.js";
+import {
+    projectsCompletionStateDemoDurationInFrames,
+    projectsCompletionStateDemoHeight,
+    projectsCompletionStateDemoWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/028_projects_completion_state_demo_shared.js";
+import {ShareTaskCollectionToChatDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/029_share_task_collection_to_chat_demo_composition.js";
+import {
+    shareTaskCollectionToChatDemoDurationInFrames,
+    shareTaskCollectionToChatDemoHeight,
+    shareTaskCollectionToChatDemoWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/029_share_task_collection_to_chat_demo_shared.js";
+import {VideoGalleriesSideBySideDemoComposition} from "~/admin/marketing/2026_04_scalable_demos/demos/030_video_galleries_side_by_side_demo_composition.js";
+import {
+    videoGalleriesSideBySideDemoDurationInFrames,
+    videoGalleriesSideBySideDemoHeight,
+    videoGalleriesSideBySideDemoWidth,
+} from "~/admin/marketing/2026_04_scalable_demos/demos/030_video_galleries_side_by_side_demo_shared.js";
 import {computeScalableDemoCompositionDeprecatedMargin} from "~/admin/marketing/2026_04_scalable_demos/helpers/compute_scalable_demo_composition_deprecated_margin.js";
 import {
     scalableDemoDefaultViewport,
@@ -278,6 +298,33 @@ export function ScalableDemosRemotionRoot() {
                 id="026-code-block-editor-keyboard-shortcuts-demo"
                 component={CodeBlockEditorKeyboardShortcutsDemoComposition}
                 durationInFrames={codeBlockEditorKeyboardShortcutsDemoDurationInFrames}
+            />
+            <Composition
+                id="027-search-tasks-closed-by-mason-last-week-demo"
+                component={SearchTasksClosedByMasonLastWeekDemoComposition}
+                width={scalableDemoWideViewportWidth}
+                durationInFrames={searchTasksClosedByMasonLastWeekDemoDurationInFrames}
+            />
+            <Composition
+                id="028-projects-completion-state-demo"
+                component={ProjectsCompletionStateDemoComposition}
+                width={projectsCompletionStateDemoWidth}
+                height={projectsCompletionStateDemoHeight}
+                durationInFrames={projectsCompletionStateDemoDurationInFrames}
+            />
+            <Composition
+                id="029-share-task-collection-to-chat-demo"
+                component={ShareTaskCollectionToChatDemoComposition}
+                width={shareTaskCollectionToChatDemoWidth}
+                height={shareTaskCollectionToChatDemoHeight}
+                durationInFrames={shareTaskCollectionToChatDemoDurationInFrames}
+            />
+            <Composition
+                id="030-video-galleries-side-by-side-demo"
+                component={VideoGalleriesSideBySideDemoComposition}
+                width={videoGalleriesSideBySideDemoWidth}
+                height={videoGalleriesSideBySideDemoHeight}
+                durationInFrames={videoGalleriesSideBySideDemoDurationInFrames}
             />
         </>
     );

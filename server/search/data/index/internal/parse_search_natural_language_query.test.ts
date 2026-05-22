@@ -4358,6 +4358,40 @@ describe("parses entity type then account then shortcuts to time", () => {
         });
     });
 
+    test("tasks opened by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks opened by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks opened by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks created by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks created by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks created by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
     test("tasks written by me yesterday", () => {
         expect(parseSearchNaturalLanguageQuery("tasks written by me yesterday", options)).toEqual({
             isLowConfidence: false,
@@ -7112,6 +7146,51 @@ describe("Complex combinations with all filters", () => {
                             inclusiveUpperBound: new CalendarDate(2024, 1, 3),
                             inclusiveLowerBound: new CalendarDate(2024, 1, 3),
                         },
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by John Smith last week", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("tasks closed by John Smith last week", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by John Smith last week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Closed"],
+                    time: {
+                        field: "LastUpdated",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks closed by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
                     openness: ["Closed"],
                 }),
