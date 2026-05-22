@@ -106,13 +106,37 @@ async function createNewScript() {
         throw new InternalError("Usage: `dev adhoc new <script_name>`");
     }
 
+    assertValidScriptName(rawName);
+
+    const relativePath = createScriptFromTemplate({
+        rawName,
+        templateFileName: "adhoc_local.template.ts",
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`Created \`${relativePath}\``);
+    // eslint-disable-next-line no-console
+    console.log(`Run with: \`dev adhoc ${rawName}\``);
+}
+
+function assertValidScriptName(rawName: string) {
     if (!scriptNamePattern.test(rawName)) {
         throw new InternalError(
             quote`Invalid script name ${rawName}. Script names must be lowercase` +
                 ` alphanumeric with underscores (e.g. \u201Cmy_script\u201D)`,
         );
     }
+}
 
+function createScriptFromTemplate({
+    rawName,
+    templateFileName,
+    replacements = [],
+}: {
+    rawName: string;
+    templateFileName: string;
+    replacements?: Array<{from: string; to: string}>;
+}) {
     const workspacePath = getWorkspacePath();
     const adhocDir = joinPath(workspacePath, "admin/adhoc");
 
@@ -123,19 +147,19 @@ async function createNewScript() {
         throw new InternalError(`Script already exists at \`admin/adhoc/${fileName}\``);
     }
 
-    const templatePath = joinPath(adhocDir, "adhoc_local.template.ts");
+    const templatePath = joinPath(adhocDir, templateFileName);
     let template = fs.readFileSync(templatePath, "utf8");
     // Strip eslint-disable comments so the new script presents lint errors for unused
     // variables, prompting the developer to use or remove them.
     template = template.replace(/^\s*\/\/ eslint-disable-next-line.*\n/gm, "");
+
+    for (const {from, to} of replacements) {
+        template = template.replaceAll(from, to);
+    }
+
     fs.writeFileSync(filePath, template);
 
-    const relativePath = `admin/adhoc/${fileName}`;
-
-    // eslint-disable-next-line no-console
-    console.log(`Created \`${relativePath}\``);
-    // eslint-disable-next-line no-console
-    console.log(`Run with: \`dev adhoc ${rawName}\``);
+    return `admin/adhoc/${fileName}`;
 }
 
 main().catch(error => {
