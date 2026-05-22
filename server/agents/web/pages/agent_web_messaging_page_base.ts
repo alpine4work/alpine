@@ -772,7 +772,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
             beforeCursor === null
                 ? {data: {messages: [], nextCursor: null}}
                 : getApiMessagesFromEnd(context.span, context.api, room, {
-                      limit: Math.floor(agentWebMessagingPageApiMessagesBatchCount),
+                      limit: Math.floor(agentWebMessagingPageApiMessagesBatchCount / 2),
                       cursor: beforeCursor,
                   }),
             afterCursor === null

@@ -265,6 +265,50 @@ function createPaginationMessageRange(
     );
 }
 
+function createPaginationMessageIndexRange(
+    startIndex: number,
+    endIndex: number,
+): ReadonlyArray<number> {
+    return Array.from({length: endIndex - startIndex + 1}, (_, offset) => startIndex + offset);
+}
+
+async function readChatMessageForTest({
+    chatId,
+    aroundMessageIndex,
+    limit = "10kb",
+}: {
+    chatId: ChatId;
+    aroundMessageIndex: number;
+    limit?: string;
+}): Promise<string> {
+    const chatMessagePath = await seedChatMessagePath({
+        chatId,
+        index: aroundMessageIndex,
+        authorShortName: aroundMessageIndex % 2 === 0 ? "Alice" : "Bob",
+        bodySnippet: `Message ${aroundMessageIndex}`,
+    });
+
+    mockGetRoomChat(chatId, "Engineering Room");
+
+    return callAgentWebReadTool(context, {
+        path: chatMessagePath,
+        limit,
+    });
+}
+
+function getPaginationMessageIndexes(response: string): ReadonlyArray<number> {
+    return Array.from(response.matchAll(/^Message ([0-9]+)(?:\s|$)/gm), match =>
+        parseInt(match[1]!, 10),
+    );
+}
+
+function getChatMessagesListRequestParams(): ReadonlyArray<unknown> {
+    return api
+        .getRequestHistory()
+        .filter(request => request.path === "/chats/{id}/messages")
+        .map(request => request.params);
+}
+
 function readNextPagePath(response: string): string {
     const match = /\[Next page »]\(([^)]+)\)/.exec(response);
     if (!match) throw new InternalError("Expected response to include a next page link");
@@ -972,6 +1016,279 @@ Message 1
     ]);
 });
 
+test("loads the initial around-message window with one fewer message before than after", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 29), {
+        cursor: -1,
+        limit: 30,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 29,
+        limit: 15,
+        totalMessageCount: 30,
+    });
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 14,
+    });
+
+    expect({
+        messages: getPaginationMessageIndexes(response),
+        requests: getChatMessagesListRequestParams(),
+    }).toEqual({
+        messages: createPaginationMessageIndexRange(0, 29),
+        requests: [
+            {
+                path: {id: chatId},
+                query: {limit: 30, cursor: -1},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 0, from: "End"},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 29},
+            },
+        ],
+    });
+});
+
+test("loads more around-message context with half-batch requests before and after", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(26, 55), {
+        cursor: 25,
+        limit: 30,
+        totalMessageCount: 86,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(11, 25), {
+        cursor: 26,
+        direction: "End",
+        limit: 15,
+        nextCursor: 11,
+        totalMessageCount: 86,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(56, 70), {
+        cursor: 55,
+        limit: 15,
+        nextCursor: 70,
+        totalMessageCount: 86,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 10), {
+        cursor: 11,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 86,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(71, 85), {
+        cursor: 70,
+        limit: 15,
+        totalMessageCount: 86,
+    });
+
+    const response = await readChatMessageForTest({chatId, aroundMessageIndex: 40});
+
+    expect({
+        messages: getPaginationMessageIndexes(response),
+        requests: getChatMessagesListRequestParams(),
+    }).toEqual({
+        messages: createPaginationMessageIndexRange(0, 85),
+        requests: [
+            {
+                path: {id: chatId},
+                query: {limit: 30, cursor: 25},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 26, from: "End"},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 55},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 11, from: "End"},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 70},
+            },
+        ],
+    });
+});
+
+test("adds the newer around-message context first when only one loaded message fits", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(26, 55), {
+        cursor: 25,
+        limit: 30,
+        totalMessageCount: 71,
+    });
+    mockGetChatMessagesListPage(
+        chatId,
+        [
+            ...createPaginationMessageRange(11, 24),
+            createPaginationMessage(25, `Message 25 ${"Older context ".repeat(400)}`),
+        ],
+        {
+            cursor: 26,
+            direction: "End",
+            limit: 15,
+            totalMessageCount: 71,
+        },
+    );
+    mockGetChatMessagesListPage(
+        chatId,
+        [
+            createPaginationMessage(56, `Message 56 ${"Newer context ".repeat(400)}`),
+            ...createPaginationMessageRange(57, 70),
+        ],
+        {
+            cursor: 55,
+            limit: 15,
+            totalMessageCount: 71,
+        },
+    );
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 40,
+        limit: "9000b",
+    });
+
+    expect(getPaginationMessageIndexes(response)).toEqual(
+        createPaginationMessageIndexRange(26, 56),
+    );
+});
+
+test("trims an around-message page from the older side first", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 29), {
+        cursor: -1,
+        limit: 30,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 29,
+        limit: 15,
+        totalMessageCount: 30,
+    });
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 14,
+        limit: "260b",
+    });
+
+    expect(getPaginationMessageIndexes(response)).toEqual([14, 15]);
+});
+
+test("keeps the target message when trimming an around-message page from the older side", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 14), {
+        cursor: -1,
+        limit: 30,
+        totalMessageCount: 15,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 15,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 14,
+        limit: 15,
+        totalMessageCount: 15,
+    });
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 14,
+        limit: "220b",
+    });
+
+    expect(getPaginationMessageIndexes(response)).toEqual([14]);
+});
+
+test("keeps the target message when trimming an around-message page from the newer side", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 29), {
+        cursor: -15,
+        limit: 30,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 29,
+        limit: 15,
+        totalMessageCount: 30,
+    });
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 0,
+        limit: "220b",
+    });
+
+    expect(getPaginationMessageIndexes(response)).toEqual([0]);
+});
+
+test("alternates trimming an around-message page after dropping from the older side", async () => {
+    const chatId = generateId<ChatId>();
+
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 29), {
+        cursor: -1,
+        limit: 30,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 29,
+        limit: 15,
+        totalMessageCount: 30,
+    });
+
+    const response = await readChatMessageForTest({
+        chatId,
+        aroundMessageIndex: 14,
+        limit: "420b",
+    });
+
+    expect(getPaginationMessageIndexes(response)).toEqual([13, 14, 15, 16, 17]);
+});
+
 test("reads a single chat message and paginates forward through next links", async () => {
     const chatId = generateId<ChatId>();
     const chatMessagePath = await seedChatMessagePath({
@@ -989,6 +1306,7 @@ test("reads a single chat message and paginates forward through next links", asy
     mockGetChatMessagesListPage(chatId, [], {
         cursor: 40,
         direction: "End",
+        limit: 15,
         nextCursor: null,
         totalMessageCount: 5,
     });
