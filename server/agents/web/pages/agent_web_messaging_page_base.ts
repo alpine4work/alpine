@@ -18,7 +18,11 @@ import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import {
+    ApiAccountTargetResponse,
     ApiContentBlockElementResponse,
     ApiContentInlineElementResponse,
     ApiContentResponse,
@@ -30,7 +34,7 @@ import {
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -49,8 +53,6 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Read page from individual message
-//
 // NOCOMMIT: Update messaging page, create messaging room?
 
 export type AgentWebMessagingPageBase = {
@@ -87,12 +89,11 @@ export type AgentWebMessagingPageTimeBlock = {
 
 export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
-    readonly tagName: "human" | "bot";
-    readonly nameAttribute: string;
+    readonly author: ApiAccountTargetResponse;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
     readonly parent: {
-        readonly nameAttribute: string;
+        readonly author: ApiAccountTargetResponse;
         readonly previewContent: ApiContentResponse;
     } | null;
     readonly content: ApiContentResponse;
@@ -658,7 +659,7 @@ function buildAgentWebMessagingPageFromApiMessages({
 
         if (firstMessage.payload.type === "Content" && firstMessage.payload.parent) {
             parent = {
-                nameAttribute: firstMessage.payload.parent.author.name,
+                author: intoApiAccountTarget(firstMessage.payload.parent.author),
                 previewContent: convertApiMessageContentPayloadParentContentSnippetToContent(
                     firstMessage.payload.parent.contentSnippet,
                 ),
@@ -689,8 +690,7 @@ function buildAgentWebMessagingPageFromApiMessages({
 
         blocks.push({
             type: "Message",
-            tagName: firstMessage.author.botId ? "bot" : "human",
-            nameAttribute: firstMessage.author.name,
+            author: intoApiAccountTarget(firstMessage.author),
             timeAttribute,
             timeZoneAttribute,
             parent,
@@ -904,7 +904,15 @@ export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagin
             for (const block of page.blocks) {
                 if (block.type !== "Message") continue;
 
-                if (block.parent) normalizer.normalize(block.parent.previewContent);
+                // The order of these normalization calls matters and needs to match the order of
+                // `createAgentWebPageLinkPathname()` calls in `printAgentWebMessagingPageBase()`.
+
+                normalizer.normalizeTarget(block.author);
+
+                if (block.parent) {
+                    normalizer.normalizeTarget(block.parent.author);
+                    normalizer.normalize(block.parent.previewContent);
+                }
 
                 normalizer.normalize(block.content);
             }
@@ -997,22 +1005,30 @@ export async function printAgentWebMessagingPageBase<PageLink>(
             page.blocks.map(async block => {
                 if (block.type !== "Message") return block;
 
-                const [previewContentTree, contentTree] = await runAllPromises([
+                // The order of calls in this function matters and needs to match the normalization
+                // order in `normalizeAgentWebMessagingPageBase()`.
+                const [authorPathname, parent, contentTree] = await runAllPromises([
+                    createAgentWebPageLinkPathname(storage, block.author),
                     block.parent
-                        ? printApiContentToAgentWebMarkdownTree(
-                              storage,
-                              block.parent.previewContent,
-                          )
+                        ? runAllObjectPromises({
+                              authorPathname: createAgentWebPageLinkPathname(
+                                  storage,
+                                  block.parent.author,
+                              ),
+                              previewContentTree: printApiContentToAgentWebMarkdownTree(
+                                  storage,
+                                  block.parent.previewContent,
+                              ),
+                          })
                         : null,
                     printApiContentToAgentWebMarkdownTree(storage, block.content),
                 ]);
 
                 return {
                     ...block,
+                    authorPathname,
                     contentTree,
-                    parent: block.parent
-                        ? {...block.parent, previewContentTree: assertExists(previewContentTree)}
-                        : null,
+                    parent: block.parent ? {...block.parent, ...assertExists(parent)} : null,
                 };
             }),
         ),
@@ -1034,7 +1050,13 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                 break;
             }
             case "Message": {
-                let openTag = `<${block.tagName} name="${escapeHtml(block.nameAttribute)}"`;
+                const authorLink: Link = {
+                    type: "link",
+                    url: block.authorPathname,
+                    children: [{type: "text", value: block.author.shortName}],
+                };
+
+                let openTag = `<${messageNouns.noun} from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
 
                 if (block.timeAttribute !== null) {
                     openTag += ` time="${escapeHtml(block.timeAttribute)}"`;
@@ -1052,9 +1074,15 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                 });
 
                 if (block.parent !== null) {
+                    const parentAuthorLink: Link = {
+                        type: "link",
+                        url: block.parent.authorPathname,
+                        children: [{type: "text", value: block.parent.author.shortName}],
+                    };
+
                     children.push({
                         type: "html",
-                        value: `<blockquote cite="${escapeHtml(block.parent.nameAttribute)}">`,
+                        value: `<blockquote cite="${escapeHtml(printMarkdownTree(parentAuthorLink).trim())}">`,
                     });
 
                     for (const childNode of block.parent.previewContentTree.children) {
@@ -1073,7 +1101,7 @@ export async function printAgentWebMessagingPageBase<PageLink>(
 
                 children.push({
                     type: "html",
-                    value: `</${block.tagName}>`,
+                    value: `</${messageNouns.noun}>`,
                 });
                 break;
             }
@@ -1097,11 +1125,10 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
     const preamble: Array<RootContent> = [];
 
     let state: {
-        tagName: "human" | "bot";
         openTagPosition: Node["position"];
         hasEndedOpenTag: boolean;
-        startedAttribute: "name" | "time" | "timezone" | null;
-        nameAttribute: string | null;
+        startedAttribute: "from" | "time" | "timezone" | null;
+        fromAttribute: string | null;
         timeAttribute: string | null;
         timeZoneAttribute: string | null;
         parent: {
@@ -1109,7 +1136,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
             hasEndedOpenTag: boolean;
             hasCloseTag: boolean;
             startedAttribute: "cite" | null;
-            nameAttribute: string | null;
+            citeAttribute: string | null;
             children: Array<RootContent>;
         } | null;
         children: Array<RootContent>;
@@ -1127,20 +1154,18 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                     const tagName = node.value.slice(start, end).toLowerCase();
 
                     switch (tagName) {
-                        case "human":
-                        case "bot": {
+                        case messageNouns.noun: {
                             if (state) {
                                 throw new InvalidArgumentError("Invalid message element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${state.tagName}>\` element and you can\u2019t nest ${messageNouns.noun} elements.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${messageNouns.noun}>\` element and you can\u2019t nest ${messageNouns.noun} elements.`,
                                 });
                             }
 
                             state = {
-                                tagName,
                                 openTagPosition: node.position,
                                 hasEndedOpenTag: false,
                                 startedAttribute: null,
-                                nameAttribute: null,
+                                fromAttribute: null,
                                 timeAttribute: null,
                                 timeZoneAttribute: null,
                                 parent: null,
@@ -1173,7 +1198,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                                 hasEndedOpenTag: false,
                                 hasCloseTag: false,
                                 startedAttribute: null,
-                                nameAttribute: null,
+                                citeAttribute: null,
                                 children: [],
                             };
 
@@ -1201,13 +1226,12 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                     const tagName = node.value.slice(start, end).toLowerCase();
 
                     switch (tagName) {
-                        case "human":
-                        case "bot": {
-                            if (!state || state.tagName !== tagName) {
+                        case messageNouns.noun: {
+                            if (!state) {
                                 throw new InvalidArgumentError(
                                     "Invalid message element close tag",
                                     {
-                                        displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
+                                        displayMessage: errorDisplayMessage`Can\u2019t close \`</${messageNouns.noun}>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${messageNouns.noun}>\` open tag.`,
                                     },
                                 );
                             }
@@ -1216,11 +1240,11 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                                 throw createUnexpectedMarkdownError(messageNouns, node.position);
                             }
 
-                            if (typeof state.nameAttribute !== "string") {
+                            if (typeof state.fromAttribute !== "string") {
                                 throw new InvalidArgumentError(
-                                    "Message element is missing author name",
+                                    "Message element is missing author link",
                                     {
-                                        displayMessage: errorDisplayMessage`\`<${state.tagName}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`name\` attribute. All ${messageNouns.pluralNoun} must include the name of the author.`,
+                                        displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. All ${messageNouns.pluralNoun} must include a link to the author.`,
                                     },
                                 );
                             }
@@ -1231,65 +1255,89 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                                 });
                             }
 
+                            const parseAccountLink = async (
+                                position: Node["position"],
+                                string: string,
+                            ) => {
+                                const createError = () => {
+                                    const quotedString = quoteMarkdown([
+                                        {type: "text", value: string},
+                                    ]);
+
+                                    return new InvalidArgumentError("Invalid account link", {
+                                        displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,
+                                    });
+                                };
+
+                                const root = parseMarkdownTree(string);
+                                if (root.children.length !== 1) throw createError();
+
+                                const firstChild = root.children[0]!;
+                                if (firstChild.type !== "paragraph") throw createError();
+                                if (firstChild.children.length !== 1) throw createError();
+
+                                const firstGrandchild = firstChild.children[0]!;
+                                if (firstGrandchild.type !== "link") throw createError();
+
+                                const pageLinkResult = await getAgentWebPageLinkByPathname(
+                                    storage,
+                                    firstGrandchild.url,
+                                );
+                                if (!pageLinkResult) throw createError();
+
+                                const {pageLink} = pageLinkResult;
+                                if (pageLink.type !== "Account") throw createError();
+
+                                return pageLink;
+                            };
+
                             const block: Replace<
-                                Omit<AgentWebMessagingPageMessageBlock, "content">,
+                                AgentWebMessagingPageMessageBlock,
                                 {
-                                    parent: Omit<
-                                        NonNullable<AgentWebMessagingPageMessageBlock["parent"]>,
-                                        "previewContent"
+                                    author: Promise<ApiAccountTargetResponse>;
+                                    content: Promise<ApiContentResponse>;
+                                    parent: Promise<
+                                        NonNullable<AgentWebMessagingPageMessageBlock["parent"]>
                                     > | null;
                                 }
                             > = {
                                 type: "Message",
-                                tagName: state.tagName,
-                                nameAttribute: state.nameAttribute,
+                                author: parseAccountLink(
+                                    state.openTagPosition,
+                                    state.fromAttribute,
+                                ),
                                 timeAttribute: state.timeAttribute,
                                 timeZoneAttribute: state.timeZoneAttribute,
                                 parent: null,
+                                content: parseApiContentFromAgentWebMarkdownTree(storage, {
+                                    type: "root",
+                                    children: state.children,
+                                }),
                             };
 
                             if (state.parent) {
-                                if (typeof state.parent.nameAttribute !== "string") {
+                                if (typeof state.parent.citeAttribute !== "string") {
                                     throw new InvalidArgumentError(
-                                        "Parent element is missing author name",
+                                        "Parent element is missing author link",
                                         {
-                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include the name of the ${messageNouns.noun} author you\u2019re replying to.`,
+                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include a link to the ${messageNouns.noun} author you\u2019re replying to.`,
                                         },
                                     );
                                 }
 
-                                block.parent = {
-                                    nameAttribute: state.parent.nameAttribute,
-                                };
+                                block.parent = runAllObjectPromises({
+                                    author: parseAccountLink(
+                                        state.parent.openTagPosition,
+                                        state.parent.citeAttribute,
+                                    ),
+                                    previewContent: parseApiContentFromAgentWebMarkdownTree(
+                                        storage,
+                                        {type: "root", children: state.parent.children},
+                                    ),
+                                });
                             }
 
-                            const contentPromise = parseApiContentFromAgentWebMarkdownTree(
-                                storage,
-                                {type: "root", children: state.children},
-                            );
-
-                            const parentPreviewContentPromise = state.parent
-                                ? parseApiContentFromAgentWebMarkdownTree(storage, {
-                                      type: "root",
-                                      children: state.parent.children,
-                                  })
-                                : null;
-
-                            blockPromises.push(
-                                runAllPromises([contentPromise, parentPreviewContentPromise]).then(
-                                    ([content, parentPreviewContent]) => ({
-                                        ...block,
-                                        content,
-                                        parent: block.parent
-                                            ? {
-                                                  ...block.parent,
-                                                  previewContent:
-                                                      assertExists(parentPreviewContent),
-                                              }
-                                            : null,
-                                    }),
-                                ),
-                            );
+                            blockPromises.push(runAllObjectPromises(block));
 
                             state = null;
                             handledHtml ??= {tagName, tagType: "close"};
@@ -1325,10 +1373,10 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                         const attributeName = node.value.slice(start, end).toLowerCase();
 
                         switch (attributeName) {
-                            case "name": {
+                            case "from": {
                                 if (!state.hasEndedOpenTag) {
-                                    state.startedAttribute = "name";
-                                    state.nameAttribute = "";
+                                    state.startedAttribute = "from";
+                                    state.fromAttribute = "";
                                 }
                                 break;
                             }
@@ -1349,7 +1397,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                             case "cite": {
                                 if (state.parent && !state.parent.hasEndedOpenTag) {
                                     state.parent.startedAttribute = "cite";
-                                    state.parent.nameAttribute = "";
+                                    state.parent.citeAttribute = "";
                                 }
                                 break;
                             }
@@ -1362,8 +1410,8 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
 
                         if (!state.hasEndedOpenTag) {
                             switch (state.startedAttribute) {
-                                case "name": {
-                                    state.nameAttribute += attributeData;
+                                case "from": {
+                                    state.fromAttribute += attributeData;
                                     break;
                                 }
                                 case "time": {
@@ -1378,7 +1426,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                         } else if (state.parent && !state.parent.hasEndedOpenTag) {
                             switch (state.parent.startedAttribute) {
                                 case "cite": {
-                                    state.parent.nameAttribute += attributeData;
+                                    state.parent.citeAttribute += attributeData;
                                     break;
                                 }
                             }
@@ -1391,8 +1439,8 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
 
                         if (!state.hasEndedOpenTag) {
                             switch (state.startedAttribute) {
-                                case "name": {
-                                    state.nameAttribute += attributeData;
+                                case "from": {
+                                    state.fromAttribute += attributeData;
                                     break;
                                 }
                                 case "time": {
@@ -1407,7 +1455,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
                         } else if (state.parent && !state.parent.hasEndedOpenTag) {
                             switch (state.parent.startedAttribute) {
                                 case "cite": {
-                                    state.parent.nameAttribute += attributeData;
+                                    state.parent.citeAttribute += attributeData;
                                     break;
                                 }
                             }
@@ -1623,7 +1671,7 @@ export async function parseAgentWebMessagingPageBase<PageLink>(
 
     if (state) {
         throw new InvalidArgumentError("Missing message element close tag", {
-            displayMessage: errorDisplayMessage`\`<${state.tagName}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${state.tagName}>\` closing tag and try again.`,
+            displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
         });
     }
 
