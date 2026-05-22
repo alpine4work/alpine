@@ -151,6 +151,15 @@ For every branch you visit:
    submit conservatively.
 5. Repeat until the branch is green, then move upstack.
 
+Important behavior:
+
+- Do **not** return to the user just because checks are still pending or in progress.
+- Stay inside the polling loop in the same run until the current branch is green, has a concrete
+  failing run to inspect, or is blocked by something explicitly allowed by this skill such as
+  `[SKIP CI]` or a required logic change.
+- If GitHub is slow to populate required-check rows, treat that as `pending` and keep polling
+  rather than stopping early.
+
 Keep an ordered run log as you go. For each visited branch, record:
 
 - branch name
@@ -238,6 +247,12 @@ If checks have not started yet after `gt submit`, keep polling. Do not assume mi
 green. In throttled mode, do not expand to the rest of the stack until the current branch and the
 submitted immediate child branch or branches are all green.
 
+If `gh pr checks --required` does not yet show rows for a submitted branch, fall back to
+`gh run list --branch <branch> --limit 20 --json ...` and inspect the newest run for the current
+head commit. Treat `queued` or `in_progress` runs as `pending` and continue sleeping for 60
+seconds between polls. Only leave the polling loop once the branch is green, a failing run exists
+to diagnose, or a skill-allowed blocker is confirmed.
+
 ### Pulling failing logs
 
 After a failure, inspect runs for the current branch and commit:
@@ -305,6 +320,9 @@ gt submit --no-interactive
 
 After `gt submit`, return to the CI polling loop for the same branch and wait in 60-second intervals
 until the new revision is green.
+
+Do not produce a final status message while the branch is merely waiting on CI. The correct behavior
+is to keep polling and continue the stack walk within the same run.
 
 When the remainder above the current branch is large, replace the simple
 `gt submit --no-interactive` flow with the throttled rollout described in **Submission throttling**.
