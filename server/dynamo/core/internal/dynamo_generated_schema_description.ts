@@ -5632,6 +5632,24 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "accountId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "fromBotAccountId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -6662,6 +6680,24 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Id"
                                         },
                                         "optional": false
+                                    },
+                                    "accountId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "fromBotAccountId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

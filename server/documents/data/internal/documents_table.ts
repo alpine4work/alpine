@@ -386,6 +386,20 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
 
@@ -491,6 +505,20 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
             ],
