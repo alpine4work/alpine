@@ -2,6 +2,12 @@ import {AttributeValue} from "@aws-sdk/client-dynamodb";
 import fs from "fs/promises";
 import murmurhash from "murmurhash";
 import {dirname, join as joinPath} from "path";
+import {
+    DynamoCondition,
+    DynamoConditionExpression,
+    DynamoConditionExpressionCompilationContext,
+    DynamoConditionExpressionPrecedence,
+} from "~/server/dynamo/core/dynamo_condition.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
     DynamoKeyAttribute,
@@ -18,12 +24,6 @@ import {
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
-import {
-    DynamoCondition,
-    DynamoConditionExpression,
-    DynamoConditionExpressionCompilationContext,
-    DynamoConditionExpressionPrecedence,
-} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/core/internal/dynamo_generated_schema_description.js";
 import {dynamoReservedWords} from "~/server/dynamo/core/internal/dynamo_reserved_words.js";
 import {
@@ -31,11 +31,11 @@ import {
     getDynamoExpectsStrongReadConsistency,
     getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/core/internal/get_dynamo_client.js";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoResourceInUseError} from "~/server/dynamo/core/is_dynamo_resource_in_use_exception.js";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/core/is_dynamo_resource_not_found_error.js";
 import {isDynamoValidationError} from "~/server/dynamo/core/is_dynamo_validation_exception.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,

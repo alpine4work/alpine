@@ -1,6 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

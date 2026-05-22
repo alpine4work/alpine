@@ -4,8 +4,8 @@ import {
     DynamoItem,
     finishInitializingDynamoTableSchemas,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";

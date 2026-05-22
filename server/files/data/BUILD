@@ -23,7 +23,7 @@ ts_project(
         "//server/cloudflare/r2",
         "//server/context",
         "//server/dynamo/core",
-        "//server/dynamo/core/rynamo",
+        "//server/rynamo",
         "//server/helpers",
         "//server/spaces",
         "//shared/context",

@@ -4,13 +4,13 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {
     ChannelPostFilesItem,
     ForumRealtimeTable,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_content_file_ids.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {RynamoEvent, RynamoPutItemEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";

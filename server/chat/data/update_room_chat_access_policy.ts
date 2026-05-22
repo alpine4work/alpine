@@ -6,8 +6,8 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";

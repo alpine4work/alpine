@@ -2,8 +2,8 @@ import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_acce
 import {ChatTable} from "~/server/chat/data/internal/chat_table.js";
 import {createChatModelFromItem} from "~/server/chat/data/internal/create_chat_model_from_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";

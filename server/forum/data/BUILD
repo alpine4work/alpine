@@ -30,7 +30,7 @@ ts_project(
         "//server/content",
         "//server/context",
         "//server/dynamo/core",
-        "//server/dynamo/core/rynamo",
+        "//server/rynamo",
         "//server/feed",
         "//server/files/data",
         "//server/helpers",

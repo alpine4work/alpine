@@ -1,4 +1,6 @@
-# \[2023-04-21\] Rynamo (formerly known as DynamoDB General Realtime)
+# \[2023-04-21\] DynamoDB General Realtime (known now as "Rynamo")
+
+See also: [Rynamo (formerly known as Dynamo General Realtime)](../../2026/05/2026_05_21_rynamo.md)
 
 ## Context
 
@@ -71,9 +73,9 @@ system. It has some limitations so it’s not appropriate for every realtime wor
 appropriate for 80% of workloads.
 
 You must define a table as a general realtime table when you create it. Instead of using
-`DynamoTableSchema.new()` you use `RynamoTableSchema.new()`. Under the hood `RynamoTableSchema` is
-creating a `DynamoTableSchema` so table schema definition is identical except we add the following
-properties to your schema:
+`DynamoTableSchema.new()` you use `DynamoGeneralRealtimeTableSchema.new()`. Under the hood
+`DynamoGeneralRealtimeTableSchema` is creating a `DynamoTableSchema` so table schema definition is
+identical except we add the following properties to your schema:
 
 - `models`: For every item in your table, you must provide a model builder function. Models are what
   we send to the client. We don’t send the raw item stored in the table. Your model builder function
@@ -95,25 +97,26 @@ properties to your schema:
 
 Every item is required to have a monotonically increasing `updateLockVersion`. This allows clients
 to serialize updates to an item. The item with the latest version always wins. This means
-`RynamoTableSchema` does not support the `createOrReplaceItem()` and `replaceItem()` methods as they
-do not monotonically increase the item’s `updateLockVersion`.
+`DynamoGeneralRealtimeTableSchema` does not support the `createOrReplaceItem()` and `replaceItem()`
+methods as they do not monotonically increase the item’s `updateLockVersion`.
 
-(At the time of writing `RynamoTableSchema` also doesn’t support `deleteItem()`, though it should
-eventually. To implement `deleteItem()` we will need to leave “gravestone” items. If you recreate an
-item that has been deleted it should have an `updateLockVersion` that’s +2 of the item version when
-it was deleted. The deletion itself updates the version +1 then recreating the item updates the
-version +1 again. This way client’s can correctly order deletion realtime events.)
+(At the time of writing `DynamoGeneralRealtimeTableSchema` also doesn’t support `deleteItem()`,
+though it should eventually. To implement `deleteItem()` we will need to leave “gravestone” items.
+If you recreate an item that has been deleted it should have an `updateLockVersion` that’s +2 of the
+item version when it was deleted. The deletion itself updates the version +1 then recreating the
+item updates the version +1 again. This way client’s can correctly order deletion realtime events.)
 
-`RynamoTableSchema` does support `createItem()`, `updateItem()`, and `directlyUpdateItem()` as well
-as the transaction versions of these methods. When one of these methods are called,
-`RynamoTableSchema` produces a realtime event (using the provided model builder function for the
-item) that is then delivered to clients.
+`DynamoGeneralRealtimeTableSchema` does support `createItem()`, `updateItem()`, and
+`directlyUpdateItem()` as well as the transaction versions of these methods. When one of these
+methods are called, `DynamoGeneralRealtimeTableSchema` produces a realtime event (using the provided
+model builder function for the item) that is then delivered to clients.
 
-For reading data `RynamoTableSchema` has `getRealtimeItem()` and `realtimeQuery()`.
-`getRealtimeItem()` returns the model for a single item and you use `useRynamoItem()` on the client
-to keep the item up-to-date in realtime. `realtimeQuery()` returns a range of items from the table
-(or from an index on the table) and you use the `RynamoQuery` class (or `RynamoIndexQuery` class for
-index queries) on the client to keep the range of items up-to-date in realtime.
+For reading data `DynamoGeneralRealtimeTableSchema` has `getRealtimeItem()` and `realtimeQuery()`.
+`getRealtimeItem()` returns the model for a single item and you use `useDynamoGeneralRealtimeItem()`
+on the client to keep the item up-to-date in realtime. `realtimeQuery()` returns a range of items
+from the table (or from an index on the table) and you use the `DynamoGeneralRealtimeQuery` class
+(or `DynamoGeneralRealtimeIndexQuery` class for index queries) on the client to keep the range of
+items up-to-date in realtime.
 
 Table queries and index queries differ in that for table queries items are sorted by their key
 whereas for index queries items are sorted by a cursor specific to that index.

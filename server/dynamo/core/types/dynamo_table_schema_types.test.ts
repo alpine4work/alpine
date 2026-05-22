@@ -1,5 +1,5 @@
 import {expectTypeOf} from "expect-type";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 
 test("`TupleDropBeforeAndTakeUntil` returns a tuple of types between two strings", () => {
     expectTypeOf<

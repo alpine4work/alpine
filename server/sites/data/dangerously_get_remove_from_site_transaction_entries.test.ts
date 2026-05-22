@@ -1,5 +1,5 @@
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {dangerouslyGetAddToSiteTransactionEntries} from "~/server/sites/data/dangerously_get_add_to_site_transaction_entries.js";
 import {dangerouslyGetRemoveFromSiteTransactionEntries} from "~/server/sites/data/dangerously_get_remove_from_site_transaction_entries.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";

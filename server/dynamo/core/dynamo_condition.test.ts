@@ -2,7 +2,7 @@ import {
     DynamoCondition,
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
-} from "~/server/dynamo/core/internal/dynamo_condition.js";
+} from "~/server/dynamo/core/dynamo_condition.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const schema = Schema.object({

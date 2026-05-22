@@ -3,10 +3,6 @@ import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {
-    RynamoTableDeletedItem,
-    RynamoTableSchema,
-} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {computeDigestNotificationsNextScheduledDateTimeIfEligible} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time_if_eligible.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {
@@ -19,6 +15,7 @@ import {
     InboxEntryItemKey,
     InboxTable,
 } from "~/server/notifications/data/internal/inbox_table.js";
+import {RynamoTableDeletedItem, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";

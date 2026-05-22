@@ -80,8 +80,8 @@ export async function dangerouslyGetAddToSiteTransactionEntries(
     }
 
     // The injection slot returns the opaque placeholder type to avoid a circular Bazel
-    // dependency between `//server/context` and `//server/dynamo/core/rynamo`. Cast
-    // through `unknown` here.
+    // dependency between `//server/context` and `//server/rynamo`. Cast through
+    // `unknown` here.
     return [
         createOrUndeleteEntityTransactionEntry,
         SitesTable.transactionDirectlyUpdateItemWithEvent(

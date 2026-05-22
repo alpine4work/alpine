@@ -16,7 +16,7 @@ ts_project(
         "//server/access",
         "//server/context",
         "//server/dynamo/core",
-        "//server/dynamo/core/rynamo",
+        "//server/rynamo",
         "//server/search/data/table",
         "//server/spaces",
         "//shared/access",

@@ -3,17 +3,17 @@ import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {
-    RynamoTableItemType,
-    RynamoTableSchema,
-    RynamoTableSchemaGetTypes,
-} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
 import {authorizePostDraftAccessIfPossible} from "~/server/forum/data/authorize_post_draft_access.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
+import {
+    RynamoTableItemType,
+    RynamoTableSchema,
+    RynamoTableSchemaGetTypes,
+} from "~/server/rynamo/rynamo_table_schema.js";
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {

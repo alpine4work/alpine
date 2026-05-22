@@ -37,7 +37,6 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     attachFileFromAttachment,
@@ -70,6 +69,7 @@ import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,

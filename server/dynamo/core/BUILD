@@ -19,6 +19,7 @@ ts_project(
         "//server/context:__pkg__",
         "//server/dynamo/core:__subpackages__",
         "//server/dynamo/test_helpers:__pkg__",
+        "//server/rynamo:__pkg__",
         "//server/spaces/test_helpers:__pkg__",
         "//admin/aws:__pkg__",
     ],

@@ -2,7 +2,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_for_update.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";

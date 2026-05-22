@@ -34,7 +34,6 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {RynamoTableSchema} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
@@ -70,6 +69,7 @@ import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messagi
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
@@ -2485,8 +2485,8 @@ class TaskActionTransactionCommitState {
         // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. Push the raw
         // `transactionEntry` (cast through `unknown` because the injection module declares
         // an opaque marker class to avoid a circular Bazel dependency between
-        // `//server/context` and `//server/dynamo/core/rynamo`) and store the `getEvent`
-        // callback so we can produce realtime events at commit time.
+        // `//server/context` and `//server/rynamo`) and store the `getEvent` callback so
+        // we can produce realtime events at commit time.
         for (const entry of transactionEntries) {
             this._additionalTransactionEntries.push(entry.transactionEntry);
             this._additionalSiteEventCallbacks.push(entry.getEvent);

@@ -39,14 +39,14 @@ const crawlPromise = new Lazy(async () => {
         {OpensearchIndex, getConstructedOpensearchIndexCount, recordConstructedOpensearchIndexes},
     ]: [
         typeof import("~/server/dynamo/core/dynamo_table_schema.js"),
-        typeof import("~/server/dynamo/core/rynamo/rynamo_table_schema.js"),
+        typeof import("~/server/rynamo/rynamo_table_schema.js"),
         typeof import("~/server/opensearch/opensearch_index.js"),
     ] = await runAllPromises([
         // Even though we have a dependencies on `//server/dynamo/core` and
         // `//server/opensearch`, import these files from `runfilesPath` so all references
         // are the same as when we import all the modules below.
         import(joinPath(runfilesRepoPath, "server/dynamo/core/dynamo_table_schema.js")),
-        import(joinPath(runfilesRepoPath, "server/dynamo/core/rynamo/rynamo_table_schema.js")),
+        import(joinPath(runfilesRepoPath, "server/rynamo/rynamo_table_schema.js")),
         import(joinPath(runfilesRepoPath, "server/opensearch/opensearch_index.js")),
     ]);
 

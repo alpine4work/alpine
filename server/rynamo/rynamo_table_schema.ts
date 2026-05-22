@@ -1,6 +1,7 @@
 import {addDays, subDays, subMinutes} from "date-fns";
 import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCondition, DynamoConditionExpression} from "~/server/dynamo/core/dynamo_condition.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
@@ -17,11 +18,7 @@ import {
     DynamoTableSchemaTypesBase,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {
-    DynamoCondition,
-    DynamoConditionExpression,
-} from "~/server/dynamo/core/internal/dynamo_condition.js";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 import {getActorContextModuleKey} from "~/server/helpers/actor_context_module.js";
 import {
     DynamoIndexCursor,

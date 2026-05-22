@@ -1,8 +1,5 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {
-    RynamoTableItemType,
-    RynamoTableSchema,
-} from "~/server/dynamo/core/rynamo/rynamo_table_schema.js";
+import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
