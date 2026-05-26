@@ -547,7 +547,7 @@ After the empty paragraph.
 Hello outside.
 `,
             parseError:
-                "Unexpected markdown on line 3. Messages markdown must be a list of `<message>` elements.",
+                "Unexpected markdown on line 3. Messages markdown must be a list of `<message>`s.",
         },
         {
             name: "preamble with multiple paragraphs",
@@ -558,7 +558,7 @@ First paragraph.
 Second paragraph.
 `,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
             name: "preamble with non paragraph block",
@@ -567,7 +567,7 @@ Second paragraph.
 ## Thread context
 `,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
             name: "message with invalid id attribute syntax",
@@ -608,7 +608,7 @@ Hello.
 End of comments.
 `,
             parseError:
-                "Unexpected markdown on line 7. Messages markdown must be a list of `<message>` elements.",
+                "Unexpected markdown on line 7. Messages markdown must be a list of `<message>`s.",
         },
         {
             name: "message without from attribute",
@@ -621,7 +621,7 @@ Hello.
 </message>
 `,
             parseError:
-                "`<message>` element on line 1 is missing the `from` attribute. All messages must include a link to the author.",
+                "`<message>` on line 1 is missing the `from` attribute. All messages must include a link to the author.",
         },
         {
             name: "unclosed message",
@@ -632,7 +632,7 @@ Hello.
 Hello.
 `,
             parseError:
-                "`<message>` element on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
+                "`<message>` on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
         },
         {
             name: "nested message",
@@ -649,8 +649,8 @@ Nested.
 </message>
 `,
             parseError:
-                "Can\u2019t open a new `<message>` element on line 3. " +
-                "There\u2019s already an open `<message>` element and you can\u2019t nest message elements.",
+                "Can\u2019t open a new `<message>` on line 3. " +
+                "There\u2019s already an open `<message>` and you can\u2019t nest messages.",
         },
         {
             name: "close message without open tag",
@@ -659,7 +659,7 @@ Nested.
 </message>
 `,
             parseError:
-                "Can\u2019t close `</message>` element on line 1. " +
+                "Can\u2019t close `</message>` on line 1. " +
                 "There isn\u2019t a matching `<message>` open tag.",
         },
         {
@@ -671,7 +671,7 @@ Nested.
 </comment>
 `,
             parseError:
-                "`<message>` element on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
+                "`<message>` on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
         },
         {
             name: "blockquote outside message",
@@ -684,7 +684,7 @@ Hello.
 </blockquote>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 1. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` on line 1. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
         },
         {
             name: "blockquote after message content",
@@ -703,7 +703,7 @@ Late reply.
 </message>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 5. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` on line 5. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
         },
         {
             name: "second blockquote after reply preview",
@@ -726,7 +726,7 @@ Second reply.
 </message>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 9. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` on line 9. `<blockquote>`s can only be used at the beginning of a `<message>` to indicate that the message is a reply to some other message.",
         },
         {
             name: "nested blockquote",
@@ -747,9 +747,9 @@ Nested reply.
 </message>
 `,
             parseError:
-                "Can\u2019t open a new `<blockquote>` element on line 5. " +
-                "There\u2019s already an open `<blockquote>` element and you can\u2019t nest `<blockquote>` elements. " +
-                "If you\u2019re trying to reply to a message that itself is replying to another message then just include the content of the message you\u2019re replying to and omit the extra `<blockquote>` element.",
+                "Can\u2019t open a new `<blockquote>` on line 5. " +
+                "There\u2019s already an open `<blockquote>` and you can\u2019t nest `<blockquote>`s. " +
+                "If you\u2019re trying to reply to a message that itself is replying to another message then just include the content of the message you\u2019re replying to and omit the extra `<blockquote>`.",
         },
         {
             name: "unclosed blockquote",
@@ -764,7 +764,7 @@ Quoted.
 </message>
 `,
             parseError:
-                "`<blockquote>` element on line 3 is missing a closing tag. Add a `</blockquote>` closing tag and try again.",
+                "`<blockquote>` on line 3 is missing a closing tag. Add a `</blockquote>` closing tag and try again.",
         },
         {
             name: "blockquote without cite attribute",
@@ -781,7 +781,7 @@ Quoted.
 </message>
 `,
             parseError:
-                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include a relative link to the message you\u2019re replying to.",
+                "`<blockquote>` on line 1 is missing the `cite` attribute. Must include a relative link to the message you\u2019re replying to.",
         },
         {
             name: "blockquote with author cite link",
@@ -824,7 +824,7 @@ Quoted.
 </blockquote>
 `,
             parseError:
-                "Can\u2019t close `</blockquote>` element on line 1. " +
+                "Can\u2019t close `</blockquote>` on line 1. " +
                 "There isn\u2019t a matching `<blockquote>` open tag.",
         },
         {
@@ -838,7 +838,7 @@ Quoted.
 </message>
 `,
             parseError:
-                "Can\u2019t close `</blockquote>` element on line 3. " +
+                "Can\u2019t close `</blockquote>` on line 3. " +
                 "There isn\u2019t a matching `<blockquote>` open tag.",
         },
         {
@@ -858,7 +858,7 @@ Quoted.
 </message>
 `,
             parseError:
-                "Can\u2019t close `</blockquote>` element on line 9. " +
+                "Can\u2019t close `</blockquote>` on line 9. " +
                 "There isn\u2019t a matching `<blockquote>` open tag.",
         },
         {
@@ -899,7 +899,7 @@ Hello there.
 </message>
 `,
             parseError:
-                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` element must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
+                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
         },
         {
             name: "message without newline between tags (attached to open tag)",
@@ -913,7 +913,7 @@ bar
 </message>
 `,
             parseError:
-                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` element must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
+                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
         },
         {
             name: "message without newline between tags (attached to closed tag)",
@@ -964,7 +964,7 @@ Hello there.
 </message>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags",
@@ -981,7 +981,7 @@ Hello there.
 </message>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags (attached to open tag)",
@@ -1001,7 +1001,7 @@ Hello there.
 </message>
 `,
             parseError:
-                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
+                "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
         },
         {
             name: "parent without newline between tags (attached to closed tag)",

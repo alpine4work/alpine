@@ -942,24 +942,102 @@ End of messages.`);
     );
 });
 
-test("throws on invalid before and after search parameters", async () => {
+test("reads messages with the start and end search parameters", async () => {
     const chatId = generateId<ChatId>();
     const path = await seedChatPath(chatId, "Engineering Room");
 
-    mockGetRoomChat(chatId, "Engineering Room");
-    await expect(
-        callAgentWebReadTool(context, {path: `${path}?before=abc`, limit: "10kb"}),
-    ).rejects.toThrow("Expected `before` search param to be a positive integer");
+    mockGetRoomChatTimes(chatId, "Engineering Room", 2);
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 1), {
+        cursor: undefined,
+        totalMessageCount: 4,
+    });
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(2, 3), {
+        cursor: undefined,
+        direction: "End",
+        totalMessageCount: 4,
+    });
 
-    mockGetRoomChat(chatId, "Engineering Room");
-    await expect(
-        callAgentWebReadTool(context, {path: `${path}?after=-1`, limit: "10kb"}),
-    ).rejects.toThrow("Expected `after` search param to be a positive integer");
+    const startResponse = await callAgentWebReadTool(context, {
+        path: `${path}?start`,
+        limit: "10kb",
+    });
+    const endResponse = await callAgentWebReadTool(context, {
+        path: `${path}?end`,
+        limit: "10kb",
+    });
 
-    mockGetRoomChat(chatId, "Engineering Room");
-    await expect(
-        callAgentWebReadTool(context, {path: `${path}?before=3&after=4`, limit: "10kb"}),
-    ).rejects.toThrow("Expected only one pagination search param");
+    expect({
+        startMessages: getPaginationMessageIndexes(startResponse),
+        endMessages: getPaginationMessageIndexes(endResponse),
+        requests: getChatMessagesListRequestParamsForChat(chatId),
+    }).toEqual({
+        startMessages: [0, 1],
+        endMessages: [2, 3],
+        requests: [
+            {
+                path: {id: chatId},
+                query: {limit: 30, cursor: undefined},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 30, cursor: undefined, from: "End"},
+            },
+        ],
+    });
+});
+
+test("throws on invalid pagination search parameters", async () => {
+    const chatId = generateId<ChatId>();
+    const path = await seedChatPath(chatId, "Engineering Room");
+    const cases = [
+        {
+            query: "before=abc",
+            error: "Expected `before` search param to be a positive integer",
+        },
+        {
+            query: "before",
+            error: "Expected `before` search param to be a positive integer",
+        },
+        {
+            query: "after=-1",
+            error: "Expected `after` search param to be a positive integer",
+        },
+        {
+            query: "after=01",
+            error: "Expected `after` search param to be a positive integer",
+        },
+        {
+            query: "message=abc",
+            error: "Expected `message` search param to be a positive integer or range",
+        },
+        {
+            query: "message=7-4",
+            error: "Expected `message` search param to be a positive integer or range",
+        },
+        {
+            query: "start=0",
+            error: "Expected `start` search param to be empty",
+        },
+        {
+            query: "end=0",
+            error: "Expected `end` search param to be empty",
+        },
+        {
+            query: "before=3&after=4",
+            error: "Expected only one pagination search param",
+        },
+        {
+            query: "start&end",
+            error: "Expected only one pagination search param",
+        },
+    ] as const;
+
+    for (const {query, error} of cases) {
+        mockGetRoomChat(chatId, "Engineering Room");
+        await expect(
+            callAgentWebReadTool(context, {path: `${path}?${query}`, limit: "10kb"}),
+        ).rejects.toThrow(error);
+    }
 });
 
 test("paginates through five chat pages from newest to oldest", async () => {
