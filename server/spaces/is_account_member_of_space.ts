@@ -33,7 +33,12 @@ export async function isAccountMemberOfSpace(
     expectedRole: SpaceRole = "Member",
 ): Promise<boolean> {
     await authorizeSpaceAccess(context, spaceId);
-    return isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId, expectedRole);
+    return await isAccountMemberOfSpaceWithoutAuthorization(
+        context,
+        spaceId,
+        accountId,
+        expectedRole,
+    );
 }
 
 /**

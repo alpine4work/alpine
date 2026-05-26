@@ -112,7 +112,7 @@ async function getOrCreateAgentUsageWindow(
             if (existingWindow && existingWindow.startedTime === weekStart) return existingWindow;
 
             // Create or reset weekly window for this week
-            return agentUsageDatabase.setWindowByAccountIdAndType(
+            return await agentUsageDatabase.setWindowByAccountIdAndType(
                 span,
                 accountId,
                 windowLimit.type,
@@ -151,7 +151,7 @@ async function getOrCreateAgentUsageWindow(
             }
 
             // Window needs reset - set new start time and reset downgrade status
-            return agentUsageDatabase.setWindowByAccountIdAndType(
+            return await agentUsageDatabase.setWindowByAccountIdAndType(
                 span,
                 accountId,
                 windowLimit.type,
@@ -214,7 +214,7 @@ export async function getAgentUsageLimitWindows(
         agentUsageWindowLimits.map(async windowLimit => {
             const {type} = windowLimit;
 
-            return parentSpan.withSpan(`Get ${type} agent usage limit window`, async span => {
+            return await parentSpan.withSpan(`Get ${type} agent usage limit window`, async span => {
                 const window = await getOrCreateAgentUsageWindow(span, agentUsageDatabase, {
                     windowLimit,
                     accountId,
@@ -343,7 +343,11 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         filterMapArray(triggeredByWindows, async window => {
             if (window.wasModelDowngraded) return null;
 
-            return agentUsageDatabase.downgradeModelForWindow(span, window.accountId, window.type);
+            return await agentUsageDatabase.downgradeModelForWindow(
+                span,
+                window.accountId,
+                window.type,
+            );
         }),
     );
 
@@ -395,7 +399,7 @@ export async function recordAgentUsage<SupportedAgentProvider extends SupportedA
     },
 ): Promise<void> {
     const {accountId, spaceId, requestUsedMillicents, currentTimestamp, provider, model} = params;
-    return tracer.withSpan(`Record agent usage`, async span => {
+    return await tracer.withSpan(`Record agent usage`, async span => {
         span.addData({
             agents: {
                 request: {

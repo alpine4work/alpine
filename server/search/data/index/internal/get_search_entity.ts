@@ -398,7 +398,7 @@ class SearchEntityReadState {
     public async getAccountWithSpace(accountId: AccountId): Promise<AccountModel> {
         this._recordDependencyId(`Account:${accountId}`);
 
-        return getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
+        return await getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
             consistency: "Strong",
         });
     }
@@ -1442,29 +1442,29 @@ async function actuallyGetSearchEntity(
 ): Promise<SearchEntity> {
     switch (idObject.type) {
         case "Account":
-            return getAccountSearchEntity(state, idObject.accountId);
+            return await getAccountSearchEntity(state, idObject.accountId);
         case "Document":
-            return getDocumentSearchEntity(state, idObject.documentId);
+            return await getDocumentSearchEntity(state, idObject.documentId);
         case "DocumentComment":
-            return getDocumentCommentSearchEntity(state, idObject);
+            return await getDocumentCommentSearchEntity(state, idObject);
         case "Channel":
-            return getChannelSearchEntity(state, idObject.channelId);
+            return await getChannelSearchEntity(state, idObject.channelId);
         case "Post":
-            return getPostSearchEntity(state, idObject.postId);
+            return await getPostSearchEntity(state, idObject.postId);
         case "PostComment":
-            return getPostCommentSearchEntity(state, idObject);
+            return await getPostCommentSearchEntity(state, idObject);
         case "Chat":
-            return getChatSearchEntity(state, idObject.chatId);
+            return await getChatSearchEntity(state, idObject.chatId);
         case "ChatMessage":
-            return getChatMessageSearchEntity(state, idObject);
+            return await getChatMessageSearchEntity(state, idObject);
         case "Task":
-            return getTaskSearchEntity(state, idObject.taskId);
+            return await getTaskSearchEntity(state, idObject.taskId);
         case "TaskCollection":
-            return getTaskCollectionSearchEntity(state, idObject.collectionId);
+            return await getTaskCollectionSearchEntity(state, idObject.collectionId);
         case "TaskComment":
-            return getTaskCommentSearchEntity(state, idObject);
+            return await getTaskCommentSearchEntity(state, idObject);
         case "Site":
-            return getSiteSearchEntity(state, idObject.siteId);
+            return await getSiteSearchEntity(state, idObject.siteId);
         default:
             throw exhaustive(idObject);
     }

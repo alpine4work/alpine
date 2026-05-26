@@ -75,7 +75,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
 
     const [entriesResult, peekDataFromSelectedParam] = await runAllPromises([
         (async () =>
-            getInboxEntries((await context.actor.authenticate()).actor.authorizeSession(), {
+            await getInboxEntries((await context.actor.authenticate()).actor.authorizeSession(), {
                 spaceId,
                 filter,
                 limit: getInitialVirtualizedScrollViewRenderedItemCount(

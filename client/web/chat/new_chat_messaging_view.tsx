@@ -157,7 +157,7 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.startTypingInMessageInput(input);
+                    return await procedures.startTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}
@@ -166,7 +166,7 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.stopTypingInMessageInput(input);
+                    return await procedures.stopTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}

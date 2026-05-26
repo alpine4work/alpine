@@ -46,7 +46,7 @@ export async function putAgentScheduleEvent<EventRequest extends AgentScheduleEv
 }
 
 export async function getAgentScheduleEvents(storage: DurableObjectStorageInterface) {
-    return listScheduledEvents(storage);
+    return await listScheduledEvents(storage);
 }
 
 export async function getAgentScheduleEventsBeforeDate(

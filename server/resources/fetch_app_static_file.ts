@@ -12,7 +12,7 @@ export async function fetchAppStaticFile(
     if (process.env.NODE_ENV !== "production") {
         const fetchUrl = `${assertExists(env.APP_SERVICE_URL)}${url.pathname}`;
         // eslint-disable-next-line cyberworlds/no-global-fetch
-        return fetch(fetchUrl);
+        return await fetch(fetchUrl);
     }
 
     const cache: Cache =

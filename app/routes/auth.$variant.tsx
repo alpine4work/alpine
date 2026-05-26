@@ -33,7 +33,7 @@ export async function loader({request, context}: LoaderArgs) {
     // Can not access this page while signed in.
     if (await context.actor.isAuthenticatedSession()) {
         if (toSearchParam?.startsWith("/")) return redirect(toSearchParam);
-        return redirectToAuthenticatedHome(context);
+        return await redirectToAuthenticatedHome(context);
     }
 
     return json({});

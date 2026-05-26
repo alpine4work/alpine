@@ -60,7 +60,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
         // If the account was mentioned in the post, we create a separate entry with a loud
         // notification instead of merging into one channel post summary entry.
         if (event.mentionedAccountIds.has(accountId)) {
-            return updateInboxEntry(
+            return await updateInboxEntry(
                 context,
                 event.authorId,
                 {
@@ -105,7 +105,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
 
         const bucketGeneration = inboxItem?.generation ?? initialInboxGeneration;
 
-        return updateInboxEntry(
+        return await updateInboxEntry(
             context,
             event.authorId,
             {

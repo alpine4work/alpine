@@ -45,10 +45,15 @@ export async function createActorContextModuleFromAuthorizationHeader(
 
     switch (authorizationHeaderPayload.type) {
         case "Session": {
-            return createDynamoActorSessionContextModule(context, requestHeaders, tokenAgent, {
-                serviceName,
-                authorizationHeaderPayload,
-            });
+            return await createDynamoActorSessionContextModule(
+                context,
+                requestHeaders,
+                tokenAgent,
+                {
+                    serviceName,
+                    authorizationHeaderPayload,
+                },
+            );
         }
         case "System": {
             if (spaceId !== authorizationHeaderPayload.spaceId) {

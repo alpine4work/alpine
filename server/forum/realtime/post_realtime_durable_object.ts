@@ -150,7 +150,10 @@ class PostRealtimeDurableObject {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+                return await this._webSocketServer.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
             }
             case "BroadcastRealtimeEvents": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event

@@ -34,7 +34,7 @@ export async function getAccountIfExists(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel | null> {
     await authorizeSpaceAccess(context, spaceId);
-    return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
+    return await getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
 }
 
 /**
@@ -49,7 +49,7 @@ export async function getAccountWithoutAvatarIfExists(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Omit<AccountModelData, "avatar"> | null> {
     await authorizeSpaceAccess(context, spaceId);
-    return getAccountWithoutAvatarIfExistsWithoutAuthorization(
+    return await getAccountWithoutAvatarIfExistsWithoutAuthorization(
         context,
         spaceId,
         accountId,

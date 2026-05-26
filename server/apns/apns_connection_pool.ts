@@ -400,7 +400,7 @@ export class ApnsConnectionPool {
             options?: ApnsAlertNotificationOptions,
         ) => {
             const connection = await connectionPromiseResolver.promise;
-            return connection.sendAlert(context, deviceToken, notification, options);
+            return await connection.sendAlert(context, deviceToken, notification, options);
         };
 
         const actionPromise = action(sendAlert);

@@ -35,7 +35,7 @@ export async function updateSpaceAccountRole(
         );
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const [spaceItem, spaceAccountItem, account] = await runAllPromises([
             SpacesTable.getItem(context, {
                 partitionType: "Space",

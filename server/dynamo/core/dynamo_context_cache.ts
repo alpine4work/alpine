@@ -133,7 +133,7 @@ export class DynamoContextCache<Key extends string | number, Value> {
                 });
 
                 if (entry.consistency !== "Strong") {
-                    return this.get(context, "Strong", key, getDefault);
+                    return await this.get(context, "Strong", key, getDefault);
                 }
 
                 return entry.value;

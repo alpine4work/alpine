@@ -148,7 +148,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                     // an optimization, ignore tasks we no longer have access to.
                     if (!authorizationResult.ok) return null;
 
-                    return loadQuery({
+                    return await loadQuery({
                         filters: childrenFilters,
                         sorts: childrenSorts,
                         limit,

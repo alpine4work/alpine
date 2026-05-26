@@ -477,7 +477,7 @@ export class TestPost extends TestCommentRoomBase {
         session: TestSession,
         reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
     ) {
-        return setPostReaction(
+        return await setPostReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
@@ -493,7 +493,7 @@ export class TestPost extends TestCommentRoomBase {
     }
 
     public async deleteReaction(session: TestSession) {
-        return deletePostReaction(session.action(), this.id);
+        return await deletePostReaction(session.action(), this.id);
     }
 }
 

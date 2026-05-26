@@ -32,7 +32,7 @@ export async function loader({context, params, ...loaderArgs}: LoaderArgs) {
         },
     );
 
-    return actualLoader({
+    return await actualLoader({
         ...loaderArgs,
         context,
         params: {spaceId, chatId},

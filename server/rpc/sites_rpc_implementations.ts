@@ -150,7 +150,7 @@ export default implementRpcs(definitions, {
     authorizeSiteAccess: {
         visibility: ["AppClient", "SiteRealtimeService"],
         execute: async (context, input) => {
-            return authorizeSiteAccess(
+            return await authorizeSiteAccess(
                 context.actor.authorizeSession(),
                 input.siteId,
                 input.expectedAccessLevel,

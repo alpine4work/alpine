@@ -52,8 +52,8 @@ export class LogoDevContextModule extends LogoDevContextModuleBase {
     }
 
     public override async describe(query: string): Promise<{name: string} | null> {
-        return retryWithExponentialBackoff(async retry => {
-            return fetchWithTracer(
+        return await retryWithExponentialBackoff(async retry => {
+            return await fetchWithTracer(
                 this._context.tracer.getTracer(),
                 `http://api.logo.dev/describe/${encodeURIComponent(query)}`,
                 {
@@ -127,8 +127,8 @@ export class LogoDevContextModule extends LogoDevContextModuleBase {
         urlPath.searchParams.set("size", String(size));
         urlPath.searchParams.set("fallback", "404");
 
-        return retryWithExponentialBackoff(async retry => {
-            return fetchWithTracer(
+        return await retryWithExponentialBackoff(async retry => {
+            return await fetchWithTracer(
                 this._context.tracer.getTracer(),
                 `http://img.logo.dev${urlPath.toString()}`,
                 {

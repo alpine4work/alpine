@@ -71,7 +71,7 @@ export async function updateBotSpaceSettingsPropertyValue(
 
     let hasAlreadyAttempted = false;
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const isInitialAttempt = !hasAlreadyAttempted;
         hasAlreadyAttempted = true;
 

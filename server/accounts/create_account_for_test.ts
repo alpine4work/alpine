@@ -139,7 +139,7 @@ export async function getAccountEmailAddressForTest(
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    return AccountsTable.getItem(context, {
+    return await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
         emailAddress,

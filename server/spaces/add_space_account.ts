@@ -24,7 +24,7 @@ export async function addSpaceAccount(
 ): Promise<AccountModel> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    return addSpaceAccountWithoutAuthorization(context, {
+    return await addSpaceAccountWithoutAuthorization(context, {
         spaceId,
         accountId,
         role,

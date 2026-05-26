@@ -36,7 +36,7 @@ export async function addAccountGrantsToChannelAccessPolicy(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return updateChannelAccessPolicyBase(context, {
+    return await updateChannelAccessPolicyBase(context, {
         channelId,
         updateAccessPolicy: accessPolicy => {
             if (accessPolicy.type === "Site") {

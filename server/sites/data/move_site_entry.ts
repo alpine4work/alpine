@@ -65,7 +65,7 @@ export async function moveSiteEntry(
     const newParentId = item.newPosition.parentId;
     const newOrderKey = item.newPosition.orderKey;
 
-    return context.dynamo.retryTransaction(async () => {
+    return await context.dynamo.retryTransaction(async () => {
         const {siteTree, siteAttributesItem} = await getSiteTreeForUpdate(
             context,
             siteId,
@@ -134,7 +134,7 @@ export async function moveSiteEntry(
 
         return {
             getRynamoEvents: async (eventContext: ServerActionContext) =>
-                runAllPromises([
+                await runAllPromises([
                     updateSiteAttributesEntry.getEvent(eventContext),
                     updateSiteItemEntry.getEvent(eventContext),
                 ]),

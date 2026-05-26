@@ -325,7 +325,7 @@ export function useDocumentContentEditorWebSocket(
 
         createDocumentPromiseRef.current = promise;
 
-        return promise;
+        return await promise;
     });
 
     useEffect(() => {

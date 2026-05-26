@@ -72,7 +72,7 @@ export async function createSiteContainer(
         context: ServerActionContext,
     ) => Promise<Array<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const newContainerItem = intoSiteContainerItem(siteId, {orderKey, label, container});
 
         const [siteAttributes, parentContainer] = await runAllPromises([
@@ -125,7 +125,7 @@ export async function createSiteContainer(
 
         return {
             getRynamoEvents: async context =>
-                runAllPromises([
+                await runAllPromises([
                     updateSiteAttributesTransactionEntry.getEvent(context),
                     createContainerTransactionEntry.getEvent(context),
                 ]),

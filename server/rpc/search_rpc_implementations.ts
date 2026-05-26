@@ -39,7 +39,7 @@ export default implementRpcs(definitions, {
     searchByAffinity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return searchByAffinity(context.actor.authorizeSession(), input.spaceId);
+            return await searchByAffinity(context.actor.authorizeSession(), input.spaceId);
         },
     },
 

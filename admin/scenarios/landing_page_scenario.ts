@@ -56,7 +56,7 @@ export async function createLandingPageScenario(
         // We need to figure out a way to get avatars uploaded for bots for test scenarios.
         const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
 
-        return bot.instantiate(roseCompas);
+        return await bot.instantiate(roseCompas);
     })();
 
     const accounts = {...accountsWithoutChatGpt, chatGpt};

@@ -97,7 +97,7 @@ export function createTestContext(
                 await fs.mkdirs(testTmpdirPath);
             }
 
-            return fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
+            return await fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
         },
     });
 }

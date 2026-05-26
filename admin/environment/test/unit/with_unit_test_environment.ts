@@ -693,7 +693,7 @@ export function actuallyCreateUnitTestEnvironment(
             broadcastToDurableObject: broadcast => durableObjectBroadcasts.push(broadcast),
             sendRequestToDurableObject: async (context, request) => {
                 durableObjectRequests.push(request);
-                return options.sendRequestToDurableObject?.(context, request);
+                return await options.sendRequestToDurableObject?.(context, request);
             },
         }),
         files: new TestFilesContextModule(),

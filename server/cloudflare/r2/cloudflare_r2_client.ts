@@ -369,7 +369,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                 },
             });
 
-            return getSignedUrl(this._client, new GetObjectCommand(input), {
+            return await getSignedUrl(this._client, new GetObjectCommand(input), {
                 expiresIn: (expirationTime.getTime() - Date.now()) / 1000,
             });
         });

@@ -538,7 +538,12 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.createMessage(context, {parent, content, fileIds, createdTimeZone});
+            return await connection.createMessage(context, {
+                parent,
+                content,
+                fileIds,
+                createdTimeZone,
+            });
         },
 
         updateCommentContent: async (
@@ -548,7 +553,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.updateMessageContent(context, {
+            return await connection.updateMessageContent(context, {
                 messageIndex,
                 steps,
                 contentVersion,
@@ -559,7 +564,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.deleteMessage(context, {messageIndex});
+            return await connection.deleteMessage(context, {messageIndex});
         },
 
         setCommentReaction: async (
@@ -569,7 +574,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.setMessageReaction(context, {
+            return await connection.setMessageReaction(context, {
                 messageIndex,
                 contentVersion,
                 pos,
@@ -584,21 +589,25 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.deleteMessageReaction(context, {messageIndex, contentVersion, pos});
+            return await connection.deleteMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+            });
         },
 
         startTypingInCommentInput: async (context, input) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
-            return connection.startTypingInMessageInput(context, input);
+            return await connection.startTypingInMessageInput(context, input);
         },
 
         stopTypingInCommentInput: async (context, input) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
-            return connection.stopTypingInMessageInput(context, input);
+            return await connection.stopTypingInMessageInput(context, input);
         },
 
         getCommentThreadAndInitialCommentsIfExists: async (context, input) => {
@@ -658,7 +667,7 @@ export class DocumentCollaborationConnection {
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentsFromStart(context, {
+                return await getDocumentCommentsFromStart(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });
@@ -698,7 +707,7 @@ export class DocumentCollaborationConnection {
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentsFromEnd(context, {
+                return await getDocumentCommentsFromEnd(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });
@@ -1013,7 +1022,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return createDocumentComment(context, {
+                return await createDocumentComment(context, {
                     documentId,
                     commentThreadId,
                     parent,
@@ -1039,7 +1048,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return updateDocumentCommentContent(context, {
+                return await updateDocumentCommentContent(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1061,7 +1070,11 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+                return await deleteDocumentComment(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                });
             },
             setMessageReaction: async (
                 context,
@@ -1080,7 +1093,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return setDocumentCommentReaction(context, {
+                return await setDocumentCommentReaction(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1106,7 +1119,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return deleteDocumentCommentReaction(context, {
+                return await deleteDocumentCommentReaction(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1131,7 +1144,7 @@ export class DocumentCollaborationConnection {
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
-                    return context.tracer.withSpan(
+                    return await context.tracer.withSpan(
                         "Comment thread hasn\u2019t persisted so returning optimistic backfill",
                         async context => {
                             const checkpoint = generateServerSynchronizationCheckpoint();
@@ -1186,7 +1199,7 @@ export class DocumentCollaborationConnection {
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread && version <= 0) {
-                    return this._getOptimisticCommentThreadComment(
+                    return await this._getOptimisticCommentThreadComment(
                         context,
                         commentThreadId,
                         optimisticCommentThread,

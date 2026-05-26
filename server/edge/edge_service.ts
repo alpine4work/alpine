@@ -162,7 +162,7 @@ async function handleFetch(
         // `AppService`. In production we serve static assets from Cloudflare R2.
         if (process.env.NODE_ENV !== "production") {
             // eslint-disable-next-line cyberworlds/no-global-fetch
-            return fetch(request);
+            return await fetch(request);
         }
 
         const cache: Cache =
@@ -230,7 +230,7 @@ async function handleFetch(
     // of Honeycomb events come from Vite requests in development environments.
     if (process.env.NODE_ENV === "development" && url.pathname.startsWith("/vite/")) {
         // eslint-disable-next-line cyberworlds/no-global-fetch
-        return fetch(request);
+        return await fetch(request);
     }
 
     // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
@@ -435,7 +435,7 @@ async function handleFetch(
         }
     }
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
             // Important to `await` here so that our try/catch catches any errors
             // asynchronously thrown by this function.
@@ -589,7 +589,7 @@ async function actuallyHandleFetch(
             }
 
             case "DocumentCollaborationService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
                     serviceName: "DocumentCollaborationService",
                     tokenAgent,
@@ -602,7 +602,7 @@ async function actuallyHandleFetch(
             }
 
             case "PostRealtimeService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
                     serviceName: "PostRealtimeService",
                     tokenAgent,
@@ -615,7 +615,7 @@ async function actuallyHandleFetch(
             }
 
             case "ChannelRealtimeService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.ChannelRealtimeDurableObjectNamespace,
                     serviceName: "ChannelRealtimeService",
                     tokenAgent,
@@ -628,7 +628,7 @@ async function actuallyHandleFetch(
             }
 
             case "ChatRealtimeService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
                     serviceName: "ChatRealtimeService",
                     tokenAgent,
@@ -641,7 +641,7 @@ async function actuallyHandleFetch(
             }
 
             case "MyAccountService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.MyAccountDurableObjectNamespace,
                     serviceName: "MyAccountService",
                     tokenAgent,
@@ -654,7 +654,7 @@ async function actuallyHandleFetch(
             }
 
             case "TaskNotesCollaborationService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.TaskNotesCollaborationDurableObjectNamespace,
                     serviceName: "TaskNotesCollaborationService",
                     tokenAgent,
@@ -667,7 +667,7 @@ async function actuallyHandleFetch(
             }
 
             case "SiteRealtimeService": {
-                return fetchFromDurableObjectStub({
+                return await fetchFromDurableObjectStub({
                     durableObjectNamespace: env.SiteRealtimeDurableObjectNamespace,
                     serviceName: "SiteRealtimeService",
                     tokenAgent,
@@ -719,7 +719,7 @@ async function actuallyHandleFetch(
 
                 if (process.env.NODE_ENV !== "production") {
                     // eslint-disable-next-line cyberworlds/no-global-fetch
-                    return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                    return await fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
                 }
 
                 const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
@@ -733,7 +733,7 @@ async function actuallyHandleFetch(
                 // the right port.
                 //
                 // eslint-disable-next-line cyberworlds/no-global-fetch
-                return fetch(
+                return await fetch(
                     `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
                     {headers},
                 );
@@ -793,7 +793,7 @@ async function actuallyHandleFetch(
 
                 if (process.env.NODE_ENV !== "production") {
                     // eslint-disable-next-line cyberworlds/no-global-fetch
-                    return fetch(`http://${taskRealtimeServiceHost}/${spaceId}/loadQueries`, {
+                    return await fetch(`http://${taskRealtimeServiceHost}/${spaceId}/loadQueries`, {
                         method: "POST",
                         headers,
                         body: request.body,
@@ -811,7 +811,7 @@ async function actuallyHandleFetch(
                 // the right port.
                 //
                 // eslint-disable-next-line cyberworlds/no-global-fetch
-                return fetch(
+                return await fetch(
                     `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}/loadQueries`,
                     {
                         method: "POST",
@@ -856,7 +856,7 @@ async function actuallyHandleFetch(
 
                 switch (route.type) {
                     case "UploadFile": {
-                        return uploadFile(
+                        return await uploadFile(
                             createContext,
                             executionContext,
                             env,
@@ -868,7 +868,7 @@ async function actuallyHandleFetch(
                         );
                     }
                     case "CreateFileMultipartUpload": {
-                        return createFileMultipartUpload(
+                        return await createFileMultipartUpload(
                             createContext,
                             executionContext,
                             env,
@@ -880,7 +880,7 @@ async function actuallyHandleFetch(
                         );
                     }
                     case "PutFileMultipartUploadPart": {
-                        return putFileMultipartUploadPart(
+                        return await putFileMultipartUploadPart(
                             createContext,
                             executionContext,
                             env,
@@ -892,7 +892,7 @@ async function actuallyHandleFetch(
                         );
                     }
                     case "CompleteFileMultipartUpload": {
-                        return completeFileMultipartUpload(
+                        return await completeFileMultipartUpload(
                             createContext,
                             executionContext,
                             env,
@@ -904,7 +904,7 @@ async function actuallyHandleFetch(
                         );
                     }
                     case "UploadAvatar": {
-                        return uploadAvatar(
+                        return await uploadAvatar(
                             createContext,
                             executionContext,
                             env,
@@ -932,7 +932,15 @@ async function actuallyHandleFetch(
                 if (request.headers.has("upgrade"))
                     throw new InvalidArgumentError("Can\u2019t upgrade to WebSocket connection");
 
-                return fetchFile(executionContext, env, tokenAgent, request, url, span, route);
+                return await fetchFile(
+                    executionContext,
+                    env,
+                    tokenAgent,
+                    request,
+                    url,
+                    span,
+                    route,
+                );
             }
 
             // TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've
@@ -1099,7 +1107,7 @@ async function actuallyHandleFetch(
                 addTracerPropagationContextHeader(retryHeaders, span);
 
                 // eslint-disable-next-line cyberworlds/no-global-fetch
-                return fetch(request, {headers: retryHeaders});
+                return await fetch(request, {headers: retryHeaders});
             });
 
             // If the retried request also has a transient error, then try again!

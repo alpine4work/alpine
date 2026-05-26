@@ -26,7 +26,7 @@ export async function updateOurAccountName(
         errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
     });
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const accountItem = await getAccountItem(context, context.actor.getAccountId());
 
         // Can only set `nameVersionForTest` in unit tests.

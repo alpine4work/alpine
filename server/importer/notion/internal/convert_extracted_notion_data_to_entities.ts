@@ -93,7 +93,7 @@ export async function convertExtractedNotionDataToEntities(
              * Helper to read a file from the unzipped import.
              */
             async function readUnzippedFile(relativeFilePath: string): Promise<Uint8Array | null> {
-                return context.importerService.readUnzippedFile({
+                return await context.importerService.readUnzippedFile({
                     diskPathToUnzippedFiles,
                     relativeFilePath,
                 });

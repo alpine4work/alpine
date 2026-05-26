@@ -60,7 +60,7 @@ export function actuallyGetOrCreateChatForAccounts(
 
         let hasAlreadyAttempted = false;
 
-        return retryWithExponentialBackoff(async (retry): Promise<ChatForAccountsResult> => {
+        return await retryWithExponentialBackoff(async (retry): Promise<ChatForAccountsResult> => {
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
@@ -209,7 +209,7 @@ export function actuallyGetOrCreateChatForAccounts(
             if (!optimisticChatItem) {
                 span.addData({common: {branch: "CreateWithOptimisticChatId"}});
 
-                return createChatForAccounts(
+                return await createChatForAccounts(
                     optimisticChatId,
                     // Don't use a `clientRequestToken`. Because we use a deterministic `ChatId` we'll
                     // fail with a condition check error if we try to create a chat with the same
@@ -257,7 +257,7 @@ export function actuallyGetOrCreateChatForAccounts(
 
             span.addData({common: {branch: "CreateWithGeneratedChatId"}});
 
-            return createChatForAccounts(
+            return await createChatForAccounts(
                 generateId(),
                 // Always use `clientRequestToken`. In race conditions we want to create only one
                 // chat for the accounts. The `clientRequestToken` makes sure if there are two

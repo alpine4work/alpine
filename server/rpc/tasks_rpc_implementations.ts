@@ -150,7 +150,7 @@ export default implementRpcs(definitions, {
     getTaskNotesContent: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            return getTaskNotesContentWithoutReferences(
+            return await getTaskNotesContentWithoutReferences(
                 context.actor.authorizeSession(),
                 input.taskId,
             );

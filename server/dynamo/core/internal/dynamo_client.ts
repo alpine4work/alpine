@@ -139,7 +139,7 @@ export class DynamoClient {
     ): Promise<SchemaSerializedObjectValue | null> {
         if (context.batch) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(
+            return await batcher.getItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
@@ -217,7 +217,7 @@ export class DynamoClient {
 
         // Writes without a condition may be batched.
         if (context.batch && conditionExpression === undefined)
-            return this._writeItemBatcher.putItem(
+            return await this._writeItemBatcher.putItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
@@ -305,7 +305,7 @@ export class DynamoClient {
     ): Promise<void> {
         // Writes without a condition may be batched.
         if (context.batch && conditionExpression === undefined)
-            return this._writeItemBatcher.deleteItem(
+            return await this._writeItemBatcher.deleteItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,

@@ -20,7 +20,7 @@ export async function getAccountOrDangerouslyGetStubWithoutAuthorization(
     accountId: AccountId,
 ): Promise<AccountModel> {
     if ((await authorizeSpaceAccessIfPossible(context, spaceId)).ok) {
-        return getAccount(context, spaceId, accountId);
+        return await getAccount(context, spaceId, accountId);
     }
 
     const accountStub = await dangerouslyGetAccountStubIfExistsWithoutAuthorization(

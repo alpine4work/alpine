@@ -607,7 +607,7 @@ export async function createDocument(
         version,
         creator,
         getRynamoEventsForSite: async (context: ServerActionContext) =>
-            runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
+            await runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
 
@@ -725,7 +725,7 @@ export async function duplicateDocument(
     }
 
     // Create the new document with the pre-generated ID
-    return createDocument(context, {
+    return await createDocument(context, {
         id: newDocumentId,
         spaceId,
         content: newContent,
@@ -937,7 +937,7 @@ async function getDocumentItemForAuthorizationIfExists(
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
-    return DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
+    return await DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
         DocumentsTable.getItemIfExists(
             context,
             {
@@ -2015,7 +2015,7 @@ export async function getDocumentCommentThread(
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
-    return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+    return await createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
 }
 
 export async function getDocumentCommentThreadContent(
@@ -2309,7 +2309,7 @@ export class DocumentContentCacheForUpdate {
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
-        return context.tracer.withSpan("Get and cache document", async (context, span) => {
+        return await context.tracer.withSpan("Get and cache document", async (context, span) => {
             let wasEntryCached = true;
 
             const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
@@ -4272,7 +4272,7 @@ export async function getDocumentContentSteps(
 
     getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
 
-    return getDocumentContentStepsBetweenValidatedVersionRange(context, {
+    return await getDocumentContentStepsBetweenValidatedVersionRange(context, {
         id,
         startVersion,
         endVersion,
@@ -4303,7 +4303,7 @@ async function getDocumentContentStepsBetweenValidatedVersionRange(
         endVersion: number;
     },
 ): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
-    return context.tracer.withSpan("Get document content steps", async (context, span) => {
+    return await context.tracer.withSpan("Get document content steps", async (context, span) => {
         span.addData({
             content: {
                 collaborative: {
@@ -4952,7 +4952,7 @@ export async function createDocumentComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const [{spaceId, documentAccessPolicy}, commentThreadItem, parentForEvent] =
             await runAllPromises([
                 (async () => {
@@ -5858,7 +5858,7 @@ export async function getDocumentComment(
         commentIndex,
     });
 
-    return createDocumentCommentModelFromItem(
+    return await createDocumentCommentModelFromItem(
         context,
         spaceId,
         documentId,
@@ -5919,7 +5919,13 @@ export async function getDocumentCommentAtVersion(
         })(),
     ]);
 
-    return createDocumentCommentModelFromItem(context, spaceId, documentId, commentThreadId, item);
+    return await createDocumentCommentModelFromItem(
+        context,
+        spaceId,
+        documentId,
+        commentThreadId,
+        item,
+    );
 }
 
 /**
@@ -6510,7 +6516,11 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
             if (!commentThreadItem) return null;
 
             const {spaceId} = await documentAuthorizationPromise;
-            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+            return await createDocumentCommentThreadModelFromItem(
+                context,
+                spaceId,
+                commentThreadItem,
+            );
         })(),
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
@@ -7390,7 +7400,7 @@ export async function backfillDocumentComments(
                 ),
             createMessageModelFromItem: async (context, item) => {
                 const {spaceId} = await documentAuthorizationPromise;
-                return createDocumentCommentModelFromItem(
+                return await createDocumentCommentModelFromItem(
                     context,
                     spaceId,
                     documentId,

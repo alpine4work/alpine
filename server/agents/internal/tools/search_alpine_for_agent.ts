@@ -241,7 +241,7 @@ async function getOrderedListItemForSearchEntityResult(
         case "DocumentMessage":
         case "PostMessage":
         case "TaskMessage": {
-            return createListItemForMessage(transaction, result);
+            return await createListItemForMessage(transaction, result);
         }
         default:
             throw exhaustive(result);

@@ -55,7 +55,7 @@ export async function getTaskWithoutDependenciesForRealtime(
     );
     if (!result?.ok) return {ok: true, taskResult: result};
 
-    return dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
+    return await dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
         const task = await server.getTask(context, spaceId, taskId);
 
         const prepareContext = {

@@ -60,7 +60,7 @@ export async function sendNotificationDigestForInbox(
     // send it again.
     let hasSent = false;
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const inboxItem = await InboxTable.getItem(context, {
             partitionType: "Account",
             sortRangeType: "InboxAttributes",

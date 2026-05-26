@@ -267,7 +267,7 @@ export class TestTaskContextModule
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskModel> | null> {
-        if (this._alwaysNotFound) return Promise.resolve(null);
+        if (this._alwaysNotFound) return await Promise.resolve(null);
 
         throw new UnimplementedError(
             "`TestTaskContextModule.getTaskWithoutDependenciesIfPossible()` can\u2019t be implemented in unit tests because we don\u2019t run `TaskRealtimeService` in unit tests",

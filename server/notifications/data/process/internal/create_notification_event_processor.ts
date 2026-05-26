@@ -244,7 +244,7 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
 
         // Fan out to all subscribers.
         await runAllPromises(
-            mapIterable(accountIds, async accountId => process(context, accountId, options)),
+            mapIterable(accountIds, async accountId => await process(context, accountId, options)),
         );
     };
 

@@ -128,7 +128,7 @@ export async function createSite(
 
     return {
         getRynamoEvents: async eventContext =>
-            runAllPromises([
+            await runAllPromises([
                 createSiteAttributesEntry.getEvent(eventContext),
                 createRootContainerEntry.getEvent(eventContext),
             ]),

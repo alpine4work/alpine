@@ -598,7 +598,7 @@ const FilePostAuthorizer = FileAuthorizer.new(
                     () => {},
                 );
             case "PostDraft":
-                return authorizePostDraftAccessIfPossible(
+                return await authorizePostDraftAccessIfPossible(
                     context,
                     target.spaceId,
                     target.accountId,

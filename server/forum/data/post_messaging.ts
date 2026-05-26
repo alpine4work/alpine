@@ -144,7 +144,7 @@ export async function createPostComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
         const [{postItem, channelAccessPolicy}, parentForEvent] = await runAllPromises([
@@ -1157,7 +1157,7 @@ export async function getPostComment(
 
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1193,7 +1193,7 @@ export async function getPostCommentAtVersion(
         })(),
     ]);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1681,7 +1681,7 @@ export async function getPostAndInitialComments(
                     );
                     if (!commentItem) throw new InternalError("Parent comment not found");
 
-                    return createPostCommentModelFromItem(
+                    return await createPostCommentModelFromItem(
                         context,
                         postItem.spaceId,
                         postId,
@@ -2299,7 +2299,12 @@ export async function backfillPostComments(
                 createMessageModelFromItem: async (context, item) => {
                     const postItem = await postItemPromise;
                     if (!postItem) throw createPostNotFoundError(postId);
-                    return createPostCommentModelFromItem(context, postItem.spaceId, postId, item);
+                    return await createPostCommentModelFromItem(
+                        context,
+                        postItem.spaceId,
+                        postId,
+                        item,
+                    );
                 },
             }),
         ]);

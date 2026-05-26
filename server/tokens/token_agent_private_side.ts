@@ -304,7 +304,7 @@ export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
                 tokenServiceShortNameByName.EdgeService,
             ]);
 
-        return signer.sign(this._servicePrivateKeyForRs256);
+        return await signer.sign(this._servicePrivateKeyForRs256);
     }
 
     /**

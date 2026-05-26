@@ -323,7 +323,7 @@ class DocumentCollaborationDurableObject {
                 if (!route.accessLevel)
                     throw new InvalidArgumentError("Invalid `access` search param");
 
-                return this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
+                return await this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );

@@ -252,16 +252,21 @@ export default implementRpcs(definitions, {
     authorizePostAccess: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            return authorizePostAccess(context, input.postId, "View");
+            return await authorizePostAccess(context, input.postId, "View");
         },
     },
 
     authorizeChannelAccess: {
         visibility: ["ChannelRealtimeService"],
         execute: async (context, input) => {
-            return authorizeChannelAccess(context, input.channelId, input.expectedAccessLevel, {
-                consistency: "Eventual",
-            });
+            return await authorizeChannelAccess(
+                context,
+                input.channelId,
+                input.expectedAccessLevel,
+                {
+                    consistency: "Eventual",
+                },
+            );
         },
     },
 

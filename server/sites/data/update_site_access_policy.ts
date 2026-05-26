@@ -39,7 +39,7 @@ export async function updateSiteAccessPolicy(
     site: SitePreviewModel;
     getRynamoEvents: (context: ServerActionContext) => Promise<RynamoEvent<SitePreviewModel>>;
 }> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const siteAttributesItem = await authorizeSiteAccessAndReturnItem(
             context,
             siteId,

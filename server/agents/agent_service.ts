@@ -127,7 +127,7 @@ async function handleFetch(
             : undefined,
     });
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
             switch (route.type) {
                 case "NotFound": {
@@ -137,7 +137,10 @@ async function handleFetch(
                     });
                 }
                 case "ChatGptWebhook": {
-                    return await handleDurableObjectPostRequest(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
                         request,
@@ -156,7 +159,10 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/conversation-state";
 
-                    return await fetchFromDurableObject(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return fetchFromDurableObject(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
                         `${accountId}:${roomPath}`,
@@ -167,7 +173,10 @@ async function handleFetch(
                     );
                 }
                 case "CursorWebhook": {
-                    return await handleDurableObjectPostRequest(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
                         env.CursorAgentDurableObjectNamespace,
                         request,
@@ -178,7 +187,10 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = `/cloud-agents-webhook/${route.agentId}`;
 
-                    return await fetchFromDurableObjectWithId(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return fetchFromDurableObjectWithId(
                         span,
                         env.CursorAgentDurableObjectNamespace,
                         env.CursorAgentDurableObjectNamespace.idFromString(route.durableObjectId),
@@ -202,7 +214,10 @@ async function handleFetch(
                             throw exhaustive(route.bot);
                     }
 
-                    return await handleDurableObjectPostRequest(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
                         durableObjectNamespace,
                         request,
@@ -233,7 +248,10 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/recording";
 
-                    return await fetchFromDurableObject(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return fetchFromDurableObject(
                         span,
                         durableObjectNamespace,
                         `${accountId}:${roomPath}`,

@@ -2069,7 +2069,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // we don't need to perform another attach mutation. Instead, all we need to do is
                             // load the file (since it's not in our references).
                             else if (isDeepEqual(fromTarget, toTarget)) {
-                                return getFileFromAttachment(context, {
+                                return await getFileFromAttachment(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
@@ -2077,13 +2077,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                             }
                             // Otherwise, let's attach the file to its new attachment target.
                             else if (fromTarget === "Uploader") {
-                                return attachFileAsUploader(context, {
+                                return await attachFileAsUploader(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
                                 });
                             } else {
-                                return attachFileFromAttachment(context, {
+                                return await attachFileFromAttachment(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     fromTarget,
@@ -2135,7 +2135,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 progressStore: actualPromise.progressStore,
                             });
 
-                            return fileReferencePromiseResolver.promise;
+                            return await fileReferencePromiseResolver.promise;
                         }
                         default:
                             throw exhaustive(temporaryPastedFileInfo);

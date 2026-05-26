@@ -73,7 +73,7 @@ export class FilesContextModule extends FilesContextModuleBase {
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL> {
-        return this._tokenAgent.privateSide.dangerouslySignUrl(
+        return await this._tokenAgent.privateSide.dangerouslySignUrl(
             // TODO(rmtobin, 2025-10-28, #files-edge-service): Sign for both services for
             // backwards compatibility. Switch to just ResourceService when EdgeService stops
             // serving files.
@@ -137,7 +137,7 @@ export class FilesContextModule extends FilesContextModuleBase {
             avatarId,
             variant,
         );
-        return this._tokenAgent.privateSide.dangerouslySignUrl(
+        return await this._tokenAgent.privateSide.dangerouslySignUrl(
             // TODO(rmtobin, 2025-10-28, #files-edge-service): Sign for both services for
             // backwards compatibility. Switch to just ResourceService when EdgeService stops
             // serving files.

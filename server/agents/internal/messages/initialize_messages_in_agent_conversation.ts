@@ -102,7 +102,7 @@ export async function loadInitialAgentMessagesContent({
 
     switch (room.type) {
         case "Chat": {
-            return loadAgentMessagesListLinkContent({
+            return await loadAgentMessagesListLinkContent({
                 ...options,
                 link: {
                     type: "ChatMessages",
@@ -114,7 +114,7 @@ export async function loadInitialAgentMessagesContent({
             });
         }
         case "DocumentCommentThread": {
-            return loadAgentMessagesListLinkContent({
+            return await loadAgentMessagesListLinkContent({
                 ...options,
                 link: {
                     type: "DocumentCommentThreadComments",
@@ -127,7 +127,7 @@ export async function loadInitialAgentMessagesContent({
             });
         }
         case "Task": {
-            return loadAgentMessagesListLinkContent({
+            return await loadAgentMessagesListLinkContent({
                 ...options,
                 link: {
                     type: "TaskComments",
@@ -139,7 +139,7 @@ export async function loadInitialAgentMessagesContent({
             });
         }
         case "Post": {
-            return loadAgentPostCommentsLinkContent({
+            return await loadAgentPostCommentsLinkContent({
                 ...options,
                 link: {
                     type: "PostComments",

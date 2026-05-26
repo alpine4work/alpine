@@ -200,7 +200,7 @@ export class ImporterDevelopmentContextModule extends ImporterContextModuleBase<
 
     async hasUploadedFile(importKey: string): Promise<boolean> {
         const filePath = this._getUploadPath(importKey);
-        return doesFilePathExist(filePath);
+        return await doesFilePathExist(filePath);
     }
 
     /**

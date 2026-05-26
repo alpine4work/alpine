@@ -994,7 +994,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.createItemIfNoneExists(context, item);
+        return await this._table.createItemIfNoneExists(context, item);
     }
 
     /**
@@ -1183,7 +1183,7 @@ export class RynamoTableSchema<
     }> {
         let hasAttempted = false;
 
-        return context.dynamo.retryTransaction(async context => {
+        return await context.dynamo.retryTransaction(async context => {
             const isInitialAttempt = !hasAttempted;
             hasAttempted = true;
 
@@ -1220,9 +1220,11 @@ export class RynamoTableSchema<
             }
 
             if (item === null) {
-                return this.createItem(context, newItem, {isConditionCheckErrorRetriable: true});
+                return await this.createItem(context, newItem, {
+                    isConditionCheckErrorRetriable: true,
+                });
             } else {
-                return this.directlyUpdateItem(context, newItem);
+                return await this.directlyUpdateItem(context, newItem);
             }
         });
     }
@@ -2082,7 +2084,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table._getItemWithOldItemIfExists(context, itemKey, options);
+        return await this._table._getItemWithOldItemIfExists(context, itemKey, options);
     }
 
     /**
@@ -2133,7 +2135,7 @@ export class RynamoTableSchema<
         });
         if (item) return item;
 
-        return this.getItem(context, itemKey, {
+        return await this.getItem(context, itemKey, {
             ...options,
             consistency: "Strong",
         });

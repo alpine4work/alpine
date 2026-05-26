@@ -23,7 +23,7 @@ export async function sendNotificationToSlackIntegration(
         notificationContent: {title: string; body: string; plainText: string};
     },
 ) {
-    return context.tracer.withSpan(
+    return await context.tracer.withSpan(
         "Send Notification to Slack Integration",
         async (context, span) => {
             await runAllPromises([

@@ -121,5 +121,5 @@ export async function getSpaceAccountForTest(
 ): Promise<SpaceAccountItem | null> {
     assert(process.env.NODE_ENV === "test");
 
-    return getSpaceAccountItemIfExists(context, spaceId, accountId);
+    return await getSpaceAccountItemIfExists(context, spaceId, accountId);
 }

@@ -26,5 +26,5 @@ export async function dangerouslyGetPostAuthorWithoutAuthorization(
 ): Promise<AccountModel> {
     const postItem = await getPostItemForAuthorization(context, postId);
     await authorizeSpaceAccess(context, postItem.spaceId);
-    return getAccount(context, postItem.spaceId, postItem.authorId);
+    return await getAccount(context, postItem.spaceId, postItem.authorId);
 }

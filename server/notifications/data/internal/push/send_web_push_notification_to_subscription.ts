@@ -35,7 +35,7 @@ export async function sendWebPushNotificationToSubscription(
         options?: SendWebPushNotificationOptions;
     },
 ) {
-    return context.tracer.withSpan(
+    return await context.tracer.withSpan(
         "Send Web Push notification to subscription",
         async (context, span) => {
             await runAllPromises([

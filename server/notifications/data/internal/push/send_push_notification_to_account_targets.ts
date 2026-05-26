@@ -75,7 +75,7 @@ export async function sendPushNotificationToAccountTargets(
         return;
     }
 
-    return context.tracer.withSpan("Send push notification to devices", async context => {
+    return await context.tracer.withSpan("Send push notification to devices", async context => {
         const getLoudNotificationCount = async () => {
             const loudNotificationCounts = await parallelMapAsyncIterableToArray(
                 InboxTable.query(context, {

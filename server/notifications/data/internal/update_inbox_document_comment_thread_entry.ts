@@ -62,7 +62,8 @@ export function updateInboxDocumentCommentThreadEntry(
         async (oldItem, {addAdditionalTransactionEntry, updateOtherInboxEntry}) => {
             // If we're updating an existing `DocumentCommentThreadEntry` then don't bother
             // updating `DocumentNewCommentThreadsEntry`.
-            if (oldItem && !oldItem.archiveNewCommentThreadsEntryAgain) return update(oldItem);
+            if (oldItem && !oldItem.archiveNewCommentThreadsEntryAgain)
+                return await update(oldItem);
 
             let newItem = await update(oldItem);
 

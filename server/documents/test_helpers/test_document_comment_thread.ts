@@ -291,7 +291,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
     }
 
     public async get() {
-        return getDocumentCommentThread(this.space.systemAction(), {
+        return await getDocumentCommentThread(this.space.systemAction(), {
             documentId: this.document.id,
             commentThreadId: this.id,
         });

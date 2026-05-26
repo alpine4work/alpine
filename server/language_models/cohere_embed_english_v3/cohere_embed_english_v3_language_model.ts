@@ -88,7 +88,7 @@ export class CohereEmbedEnglishV3LanguageModel implements LanguageModelBase {
         texts: ReadonlyArray<string>,
         {inputType}: {inputType: "SearchDocument" | "SearchQuery"},
     ): Promise<Array<Array<number>>> {
-        return fetchWithTracer(
+        return await fetchWithTracer(
             tracer,
             "https://api.cohere.ai/v1/embed",
             {

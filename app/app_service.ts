@@ -726,7 +726,7 @@ function createActorContextModule(
     }>(async context => {
         const authorizationHeader = request.headers.get("authorization");
 
-        return authenticateActorContextModule(context, {
+        return await authenticateActorContextModule(context, {
             tokenAgent,
             sessionCookie,
             authorizationHeader,

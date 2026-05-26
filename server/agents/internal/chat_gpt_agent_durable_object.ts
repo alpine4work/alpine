@@ -159,7 +159,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     ): Promise<Response> {
         switch (route) {
             case "FetchConversationState": {
-                return this._fetchConversationState(context, request, span);
+                return await this._fetchConversationState(context, request, span);
             }
             case "NotFound": {
                 return new Response("404 Not Found", {
@@ -233,7 +233,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         const agentUsageLimitWindowsPromise = span.withSpan(
             "Get agent usage limit windows",
             async span =>
-                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                await getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
                     accountId: request.event.authorId,
                     currentTimestamp: currentTime.getTime(),
                 }),
@@ -535,7 +535,7 @@ async function requestChatGptAgent(
     await ensureMessagesInChatGptAgentConversation(span, request, session.newMessageIndex);
 
     // Send a message from ChatGPT.
-    return createChatGptAgentMessage(span, request, {
+    return await createChatGptAgentMessage(span, request, {
         env,
         model,
         session,
@@ -855,7 +855,14 @@ async function createChatGptAgentResponse(
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        return createChatGptAgentResponse(span, env, request, model, session, totalUsedMillicents);
+        return await createChatGptAgentResponse(
+            span,
+            env,
+            request,
+            model,
+            session,
+            totalUsedMillicents,
+        );
     }
 
     return {usedMillicents: totalUsedMillicents, model};
@@ -1122,7 +1129,7 @@ async function callChatGptAgentFunction({
                 );
             }
 
-            return handleCreateDocumentFunctionCall(span, request, session, {
+            return await handleCreateDocumentFunctionCall(span, request, session, {
                 title: functionCallArguments.title,
                 content: functionCallArguments.content,
             });

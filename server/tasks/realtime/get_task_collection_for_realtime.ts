@@ -54,7 +54,7 @@ export async function getTaskCollectionForRealtime(
     );
     if (!result?.ok) return {ok: true, collectionResult: result};
 
-    return dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
+    return await dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
         const collection = await server.getCollection(context, spaceId, collectionId);
 
         const collectionModel = prepareTaskCollectionForClient(collection);

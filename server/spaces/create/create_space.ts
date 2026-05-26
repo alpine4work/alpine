@@ -27,7 +27,7 @@ export async function createSpace(
 ): Promise<SpaceModel> {
     const accountId = context.actor.getAccountId();
 
-    return actuallyCreateSpace(context, {
+    return await actuallyCreateSpace(context, {
         name,
         ownerAccountId: accountId,
     });
@@ -47,7 +47,7 @@ export async function createSpaceForAccountAsAdmin(
 ): Promise<SpaceModel> {
     await authorizeInternalAccess(context);
 
-    return actuallyCreateSpace(context, {
+    return await actuallyCreateSpace(context, {
         name,
         ownerAccountId,
         spaceId,

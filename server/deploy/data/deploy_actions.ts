@@ -261,7 +261,7 @@ export async function scheduleDeploy(
                 deployItem.scheduledDeployment.commitSha,
             );
 
-            return dispatchOrSchedule(context, newDeployItem);
+            return await dispatchOrSchedule(context, newDeployItem);
         }
 
         span.addData({
@@ -334,10 +334,10 @@ export async function scheduleDeploy(
             // be handled above.
             assert(deployItem.scheduledDeployment === null);
 
-            return dispatch(context, deployItem, newCommitSha);
+            return await dispatch(context, deployItem, newCommitSha);
         }
 
-        return context.tracer.withSpan("Schedule deploy workflow", async (context, span) => {
+        return await context.tracer.withSpan("Schedule deploy workflow", async (context, span) => {
             span.addData({
                 deploy: {
                     newCommit: newCommitSha,
@@ -408,7 +408,7 @@ export async function scheduleDeploy(
                     nextDeployableTime,
                 },
             };
-            return DeployTable.directlyUpdateItem(context, newDeployItem);
+            return await DeployTable.directlyUpdateItem(context, newDeployItem);
         });
     };
 
@@ -462,8 +462,8 @@ async function resolveDeployItemDispatchedDeploymentResult(
     // `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches` the
     // workflow run is started asynchronously. Use exponential backoff to poll until we
     // find a matching deploy run.
-    return captureResultPromise(async () => {
-        return retryWithExponentialBackoff(async retry => {
+    return await captureResultPromise(async () => {
+        return await retryWithExponentialBackoff(async retry => {
             const searchWorkflowRunsResult = await context.github.request(
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
                 {
@@ -638,7 +638,7 @@ export async function prepareDeploy(
         );
     }
 
-    return DeployTable.updateItem(
+    return await DeployTable.updateItem(
         context,
         {partitionType: "Deploy", sortRangeType: "Attributes"},
         item => ({

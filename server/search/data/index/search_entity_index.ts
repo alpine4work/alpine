@@ -3259,7 +3259,7 @@ async function fallbackGetSearchContentReferencesForPostTitle(
 
                     // You may have copy/pasted some content from a different space. In that case a
                     // mentioned entity may not exist.
-                    return getSearchMentionEntityIfPossible(context, spaceId, entityId, seen);
+                    return await getSearchMentionEntityIfPossible(context, spaceId, entityId, seen);
                 },
             ),
         ),
@@ -3351,7 +3351,7 @@ async function getSearchEntityBaseIfPossible(
         // If the entity WAS found in the OpenSearch index but its access policy doesn't
         // allow us to read it then we don't check DynamoDB since we expect the same
         // result.
-        return fallbackGetSearchEntityBaseIfPossible(
+        return await fallbackGetSearchEntityBaseIfPossible(
             // Expect strong read consistency since if we can't find the entity in OpenSearch
             // that implies it was just created so we're running the risk of eventual
             // consistency lag anyway.

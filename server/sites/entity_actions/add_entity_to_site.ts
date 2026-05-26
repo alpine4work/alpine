@@ -83,14 +83,14 @@ async function runAddEntityToSiteByEntityType(
         case "Channel": {
             // TODO(#sites): Also return the channel's own update events so clients subscribed
             // to the channel see the access policy flip.
-            return updateChannelAccessPolicy(context, {
+            return await updateChannelAccessPolicy(context, {
                 channelId: entity.channelId,
                 accessPolicy: newAccessPolicy,
                 notification: null,
             });
         }
         case "Chat": {
-            return updateRoomChatAccessPolicy(context, {
+            return await updateRoomChatAccessPolicy(context, {
                 chatId: entity.chatId,
                 accessPolicy: newAccessPolicy,
                 notification: null,

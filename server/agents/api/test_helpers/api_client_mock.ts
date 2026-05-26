@@ -176,23 +176,23 @@ export class ApiClientMock implements ApiClient {
 
     // Implement ApiClient interface
     get: ApiClient["get"] = async (tracer, url, options) => {
-        return this.handleRequest("GET", tracer, url, options);
+        return await this.handleRequest("GET", tracer, url, options);
     };
 
     put: ApiClient["put"] = async (tracer, url, options) => {
-        return this.handleRequest("PUT", tracer, url, options);
+        return await this.handleRequest("PUT", tracer, url, options);
     };
 
     post: ApiClient["post"] = async (tracer, url, options) => {
-        return this.handleRequest("POST", tracer, url, options);
+        return await this.handleRequest("POST", tracer, url, options);
     };
 
     delete: ApiClient["delete"] = async (tracer, url, options) => {
-        return this.handleRequest("DELETE", tracer, url, options);
+        return await this.handleRequest("DELETE", tracer, url, options);
     };
 
     patch: ApiClient["patch"] = async (tracer, url, options) => {
-        return this.handleRequest("PATCH", tracer, url, options);
+        return await this.handleRequest("PATCH", tracer, url, options);
     };
 
     private async handleRequest(

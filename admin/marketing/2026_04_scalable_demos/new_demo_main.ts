@@ -110,7 +110,7 @@ async function getDemoName(): Promise<string> {
     }
 
     if (name === undefined) {
-        return inquirer.input({
+        return await inquirer.input({
             message: "Demo name (snake_case):",
             validate: value =>
                 demoNameRegExp.test(value) ||

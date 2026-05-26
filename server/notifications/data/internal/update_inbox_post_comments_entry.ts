@@ -50,7 +50,7 @@ export function updateInboxPostCommentsEntry(
         async (oldItem, {updateOtherInboxEntry, addAdditionalTransactionEntry}) => {
             // If we're updating an existing `PostCommentsEntry` then don't bother updating
             // `ChannelPostsEntry`.
-            if (oldItem && !oldItem.archiveChannelPostsEntryAgain) return update(oldItem);
+            if (oldItem && !oldItem.archiveChannelPostsEntryAgain) return await update(oldItem);
 
             let newItem = await update(oldItem);
 

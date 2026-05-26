@@ -81,7 +81,7 @@ export async function loadContentFileViewerData({
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return loadContentFileImageViewer({spaceId, file, platform});
+            return await loadContentFileImageViewer({spaceId, file, platform});
         }
         case "application/pdf":
         case "application/msword":
@@ -101,9 +101,9 @@ export async function loadContentFileViewerData({
         case "video/mpeg":
         case "video/x-matroska": {
             if (platform === "mobile") {
-                return loadContentFileVideoViewerMobile({spaceId, file});
+                return await loadContentFileVideoViewerMobile({spaceId, file});
             } else {
-                return loadContentFileImageViewer({
+                return await loadContentFileImageViewer({
                     spaceId,
                     file,
                     platform,
@@ -120,7 +120,7 @@ export async function loadContentFileViewerData({
         case "audio/mp4": {
             if (platform !== "mobile") return null;
 
-            return loadContentFileAudioViewerMobile({spaceId, file});
+            return await loadContentFileAudioViewerMobile({spaceId, file});
         }
         case "text/plain":
         case "text/javascript":
@@ -159,7 +159,7 @@ export async function loadContentFileViewerData({
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            return loadContentFileCodeViewer({spaceId, file});
+            return await loadContentFileCodeViewer({spaceId, file});
         }
         default:
             throw exhaustive(file.contentType);
@@ -330,7 +330,7 @@ async function loadContentFileCodeViewer({
                 );
             }
 
-            return response.text();
+            return await response.text();
         })(),
     ]);
 

@@ -77,7 +77,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
 
             const bucketGeneration = inboxItem?.generation ?? initialInboxGeneration;
 
-            return updateInboxEntry(
+            return await updateInboxEntry(
                 context,
                 event.authorId,
                 {
@@ -163,7 +163,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
             );
         }
 
-        return updateInboxDocumentCommentThreadEntry(
+        return await updateInboxDocumentCommentThreadEntry(
             context,
             event.authorId,
             {

@@ -1293,7 +1293,7 @@ export async function getChatMessage(
 
     if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
-    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
 }
 
 /**
@@ -1329,7 +1329,7 @@ export async function getChatMessageAtVersion(
         })(),
     ]);
 
-    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
 }
 
 /**
@@ -2269,7 +2269,7 @@ export async function backfillChatMessages(
                     getChatMessageItemIfExists(context, chatId, messageIndex, options),
                 createMessageModelFromItem: async (context, item) => {
                     const {spaceId} = await chatItemPromise;
-                    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+                    return await createChatMessageModelFromItem(context, spaceId, chatId, item);
                 },
             }),
         ]);

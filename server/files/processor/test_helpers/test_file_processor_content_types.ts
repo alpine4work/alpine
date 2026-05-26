@@ -247,7 +247,7 @@ export function testFileProcessorContentTypes(
         // while for some files to process.
         await ProcessContextModule.waitForTestTasks({withoutDeadlineExceededLog: true});
 
-        return getFileAsUploader(session.action(), fileId);
+        return await getFileAsUploader(session.action(), fileId);
     }
 
     // Make sure file processing is idempotent by running each twice. The first time

@@ -14,5 +14,5 @@ export async function getRegisteredAppleDevicesForAccount(
     accountId: AccountId,
 ): Promise<ReadonlyArray<AppleDeviceTarget>> {
     await authorizeOwnSpaceAccountAccess(context, accountId);
-    return getRegisteredAppleDevicesForAccountWithoutAuthorization(context, accountId);
+    return await getRegisteredAppleDevicesForAccountWithoutAuthorization(context, accountId);
 }

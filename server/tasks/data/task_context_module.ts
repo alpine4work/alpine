@@ -209,7 +209,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         const url = new URL(`http://${host}/${spaceId}/loadQueries`);
         if (consistency !== "Eventual") url.searchParams.set("consistency", consistency);
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             this._context.tracer.getTracer(),
             url.toString(),
             {

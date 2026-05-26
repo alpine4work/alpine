@@ -164,6 +164,6 @@ export async function createChannel(
             return item;
         },
         getRynamoEventsForSite: async context =>
-            runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
+            await runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
     };
 }

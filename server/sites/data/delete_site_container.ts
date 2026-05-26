@@ -42,7 +42,7 @@ export async function deleteSiteContainer(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return context.dynamo.retryTransaction(async () => {
+    return await context.dynamo.retryTransaction(async () => {
         const {siteTree, siteAttributesItem} = await getSiteTreeForUpdate(
             context,
             siteId,

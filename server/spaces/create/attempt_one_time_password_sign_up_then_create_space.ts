@@ -95,7 +95,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         oneTimePassword,
         options,
         async (accountEmailAddressItem, span) => {
-            return context
+            return await context
                 .clone({tracer: new TracerContextModule(span)})
                 .tracer.withSpan("Create space after sign up", context => {
                     let hasAlreadyAttempted = false;
@@ -171,7 +171,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                     },
                 });
 
-                return invite(
+                return await invite(
                     context,
                     personalSpaceResult.spaceId,
                     inviteEmailAddressesToPersonalSpace,

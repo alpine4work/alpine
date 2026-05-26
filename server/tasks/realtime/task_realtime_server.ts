@@ -296,7 +296,7 @@ export class TaskRealtimeServer {
             return;
         }
 
-        return getOrSetDefaultMapValue(
+        return await getOrSetDefaultMapValue(
             this._backfillActionHistoryPromiseBySpaceId,
             spaceId,
             async () => {
@@ -369,7 +369,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.loadQuery(context, options);
+        return await store.loadQuery(context, options);
     }
 
     public async subscribeToQuery(
@@ -408,7 +408,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.subscribeToTask(context, eventBuilder, options);
+        return await store.subscribeToTask(context, eventBuilder, options);
     }
 
     public async subscribeToCollection(
@@ -427,7 +427,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, options.spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
-        return store.subscribeToCollection(context, eventBuilder, options);
+        return await store.subscribeToCollection(context, eventBuilder, options);
     }
 
     public async applyActionTransaction(
@@ -504,7 +504,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(spaceId);
-        return store.getTask(context, taskId);
+        return await store.getTask(context, taskId);
     }
 
     /**
@@ -529,7 +529,7 @@ export class TaskRealtimeServer {
         await authorizeSpaceAccess(context, spaceId);
 
         const store = this._storeBySpaceId.getOrSetDefault(spaceId);
-        return store.getCollection(context, collectionId);
+        return await store.getCollection(context, collectionId);
     }
 
     /**

@@ -183,7 +183,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
 }
 
 async function getFileMd5Hash(path: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
         const hash = crypto.createHash("md5");
         const stream = fs.createReadStream(path);
 

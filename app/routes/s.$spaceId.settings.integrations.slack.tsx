@@ -204,7 +204,7 @@ export default function SpaceSlackIntegrationSettingsRoute() {
                     slackWorkspace={slackWorkspace}
                     hasAdminAccess={hasAdminAccess}
                     onConnect={handleConnectToSlack}
-                    onDisconnect={async () => revalidator.revalidate()}
+                    onDisconnect={async () => await revalidator.revalidate()}
                 />
                 <SlackAccountSection
                     context={context}

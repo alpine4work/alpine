@@ -111,7 +111,7 @@ export function createHttpLambdaHandler({
             tokenAgentAndOptionsPromise ??= span.withSpan(
                 "Allocate token agent and context options",
                 async childSpan =>
-                    getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
+                    await getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
                         async options => {
                             const tokenAgent = await childSpan.withSpan(
                                 "Creating token agent",
@@ -136,7 +136,10 @@ export function createHttpLambdaHandler({
                 tracer,
             });
 
-            return await actuallyHandleRequest({
+            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether
+            // this `try`/`catch` should handle async request failures.
+            // eslint-disable-next-line @typescript-eslint/return-await
+            return actuallyHandleRequest({
                 handleRequest,
                 lambdaContext,
                 abortController,
@@ -198,7 +201,10 @@ async function actuallyHandleRequest({
     url: URL;
 }) {
     try {
-        return await withLambdaTimeout(lambdaContext, abortController, async () => {
+        // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether
+        // this `try`/`catch` should handle async timeout failures.
+        // eslint-disable-next-line @typescript-eslint/return-await
+        return withLambdaTimeout(lambdaContext, abortController, async () => {
             // stream response here, wait for process event after
             const response = await handleRequest(actionContext, {
                 request,

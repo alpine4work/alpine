@@ -58,7 +58,7 @@ async function main() {
                     tracer: new TracerContextModule(span),
                 });
 
-                return createScenario(contextWithSpan, options);
+                return await createScenario(contextWithSpan, options);
             });
 
         return output;

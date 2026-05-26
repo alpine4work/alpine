@@ -26,7 +26,7 @@ export async function updateSiteName(
     getRynamoEvents: (context: ServerActionContext) => Promise<RynamoEvent<SitePreviewModel>>;
     site: SitePreviewModel;
 }> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const siteAttributesItem = await authorizeSiteAccessAndReturnItem(
             context,
             siteId,

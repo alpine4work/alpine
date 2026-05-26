@@ -30,7 +30,7 @@ export async function handler(
 ): Promise<CdkCustomResourceResponse> {
     const abortController = new AbortController();
 
-    return withLambdaTimeout(lambdaContext, abortController, async () => {
+    return await withLambdaTimeout(lambdaContext, abortController, async () => {
         if (event.RequestType === "Delete") {
             return {
                 StackId: event.StackId,

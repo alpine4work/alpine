@@ -319,7 +319,7 @@ export async function putFileMultipartUploadPart(
                     },
                 });
 
-                return multipartUpload.uploadPart(partNumber, requestBody);
+                return await multipartUpload.uploadPart(partNumber, requestBody);
             },
         );
 

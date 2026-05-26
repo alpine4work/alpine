@@ -40,7 +40,7 @@ export async function getSiteItemForAuthorizationIfExists(
     siteId: SiteId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DynamoItem<SiteAttributesItem> | null> {
-    return SiteItemAuthorizationCache.get(context, consistency, siteId, consistency =>
+    return await SiteItemAuthorizationCache.get(context, consistency, siteId, consistency =>
         SitesTable.getItemIfExists(
             context,
             {

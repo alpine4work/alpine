@@ -109,7 +109,7 @@ async function createDemoSpaceAccounts(space: TestSpace, options?: {stableRandom
     const currentTime = Date.now();
     const createdTimes = createArrayWithLength(7, index => new Date(currentTime + index));
 
-    return runAllObjectPromises({
+    return await runAllObjectPromises({
         // Chief of Staff (landing page is from Cass's perspective)
         cassCade: space.createSession({
             id: accountIds[0],

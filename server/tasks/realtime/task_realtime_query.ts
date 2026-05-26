@@ -365,7 +365,7 @@ export class TaskRealtimeQuery {
 
         while (this._loadingState !== null) {
             // The pending load will cover this call...
-            if (this._loadingState.limit >= limit) return this._loadingState.promise;
+            if (this._loadingState.limit >= limit) return await this._loadingState.promise;
 
             try {
                 await this._loadingState.promise;
@@ -389,7 +389,7 @@ export class TaskRealtimeQuery {
         };
         void this._loadingState.promise.finally(() => (this._loadingState = null));
 
-        return this._loadingState.promise;
+        return await this._loadingState.promise;
     }
 
     /**

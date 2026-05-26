@@ -130,7 +130,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                     });
                     this._socket.send(JSON.stringify(serializedMessage));
 
-                    return pongPromiseResolver.promise;
+                    return await pongPromiseResolver.promise;
                 },
             );
         };

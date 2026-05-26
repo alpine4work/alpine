@@ -801,7 +801,7 @@ export class TestTask extends TestCommentRoomBase {
         text: string | Node | ReadonlyArray<Node> | Fragment,
         {secondText}: {secondText?: string} = {},
     ) {
-        return this._notesState.withLock(async stateRef => {
+        return await this._notesState.withLock(async stateRef => {
             if (typeof text === "string") {
                 if (text.length === 0) text = Fragment.empty;
                 else text = Fragment.from(schema.text(text));

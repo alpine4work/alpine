@@ -40,7 +40,7 @@ export async function getOurAccountInboxes(
             // from a space we don't clean up their inbox item in case they're re-added.
             if (!spaceIds.has(item.spaceId)) return null;
 
-            return InboxTable.buildRealtimeItem(context, item);
+            return await InboxTable.buildRealtimeItem(context, item);
         },
     );
 

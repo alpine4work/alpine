@@ -180,9 +180,11 @@ export async function updateChannelAccessPolicyBase(
                     shouldAddFeedCandidateEntry:
                         newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
                     getRynamoEvents: async (context: ServerActionContext) =>
-                        runAllPromises(forumEntries.map(entry => entry.getEvent(context))),
+                        await runAllPromises(forumEntries.map(entry => entry.getEvent(context))),
                     getRynamoEventsForSite: async (context: ServerActionContext) =>
-                        runAllPromises(transactionEntries.map(entry => entry.getEvent(context))),
+                        await runAllPromises(
+                            transactionEntries.map(entry => entry.getEvent(context)),
+                        ),
                 };
             },
         );

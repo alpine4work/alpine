@@ -250,7 +250,7 @@ export class TestDocument {
     ): Promise<
         Awaited<ReturnType<typeof updateDocumentContent>> & {range: {from: number; to: number}}
     > {
-        return this._state.withLock(async stateRef => {
+        return await this._state.withLock(async stateRef => {
             const {lastUpdatePos} = stateRef.current;
 
             if (typeof text === "string") {
@@ -316,7 +316,7 @@ export class TestDocument {
             "id" | "version" | "steps" | "clientId"
         > & {versionOverride?: number} = {},
     ) {
-        return this._state.withLock(async stateRef => {
+        return await this._state.withLock(async stateRef => {
             const result = await updateDocumentContent(session.action(), {
                 ...options,
                 id: this.id,

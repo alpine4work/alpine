@@ -37,7 +37,7 @@ export async function expensivelyGetAllSpaceAccounts(
         // internally, so only check for strong consistency block.
         await authorizeSpaceAccess(context, spaceId);
 
-        return getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(context, spaceId, {
+        return await getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(context, spaceId, {
             isBlocking: true,
             consistency: "Strong",
         });

@@ -102,19 +102,19 @@ async function loadPageMessages(options: {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
-            return getMarkdownContentForPageFromStart({
+            return await getMarkdownContentForPageFromStart({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
         }
         case "Middle": {
-            return getMarkdownContentForPageFromMiddle({
+            return await getMarkdownContentForPageFromMiddle({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
         }
         case "End": {
-            return getMarkdownContentForPageFromEnd({
+            return await getMarkdownContentForPageFromEnd({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
@@ -142,17 +142,17 @@ async function getPagePreambleElements(options: {
 }): Promise<Array<RootContent>> {
     switch (options.link.type) {
         case "ChatMessages":
-            return getPreambleForChatMessages({
+            return await getPreambleForChatMessages({
                 ...options,
                 link: options.link,
             });
         case "DocumentCommentThreadComments":
-            return getPreambleForDocumentComments({
+            return await getPreambleForDocumentComments({
                 ...options,
                 link: options.link,
             });
         case "TaskComments":
-            return getPreambleForTaskComments({
+            return await getPreambleForTaskComments({
                 ...options,
                 link: options.link,
             });

@@ -367,7 +367,7 @@ export const emailTemplatePreviewBySlug = new Map(
             {
                 title: preview.title,
                 render: async (tracer: TracerContextModule): Promise<RenderedEmail> =>
-                    renderReactEmailTemplate(tracer, {
+                    await renderReactEmailTemplate(tracer, {
                         resourceServiceUrl: emailPreviewResourceServiceUrl,
                         templateName: name as keyof EmailTemplates,
                         templateProps: preview.props as any,

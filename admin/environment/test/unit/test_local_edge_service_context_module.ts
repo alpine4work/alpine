@@ -75,7 +75,7 @@ export class TestLocalEdgeServiceContextModule
             body?: SchemaSerializedValue | null;
         },
     ): Promise<any> {
-        return this._sendRequestToDurableObject(this._context, {url, body});
+        return await this._sendRequestToDurableObject(this._context, {url, body});
     }
 
     public fork() {

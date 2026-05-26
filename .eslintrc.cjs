@@ -115,6 +115,10 @@ const typeCheckingConfigOverride = {
             },
         ],
 
+        // `return await` preserves async stack traces, which makes debugging thrown errors
+        // much easier.
+        "@typescript-eslint/return-await": ["error", "always"],
+
         // We may rethrow `unknown` typed errors, in Remix we throw `Response` objects, and
         // this rule also warns on `retry()` calls from `retryWithExponentialBackoff()`
         // which is incorrect. Our developers are perfectly capable of throwing values of

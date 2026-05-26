@@ -239,7 +239,7 @@ export class OpensearchContextModule
     >(
         commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
     ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
-        return this._client.multiGetDocByIdByIndexIfExist(
+        return await this._client.multiGetDocByIdByIndexIfExist(
             this._context.tracer.getTracer(),
             commands,
         );

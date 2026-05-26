@@ -31,7 +31,7 @@ export async function dangerouslyGetSiteEntryItemIfExists(
 ): Promise<DynamoItem<SiteEntryItem> | null> {
     switch (item.type) {
         case "TopBar":
-            return SitesTable.getItemIfExists(
+            return await SitesTable.getItemIfExists(
                 context,
                 {
                     partitionType: "Site",
@@ -42,7 +42,7 @@ export async function dangerouslyGetSiteEntryItemIfExists(
                 {consistency},
             );
         case "SideBar":
-            return SitesTable.getItemIfExists(
+            return await SitesTable.getItemIfExists(
                 context,
                 {
                     partitionType: "Site",
@@ -53,7 +53,7 @@ export async function dangerouslyGetSiteEntryItemIfExists(
                 {consistency},
             );
         case "SideBarSection":
-            return SitesTable.getItemIfExists(
+            return await SitesTable.getItemIfExists(
                 context,
                 {
                     partitionType: "Site",
@@ -64,7 +64,7 @@ export async function dangerouslyGetSiteEntryItemIfExists(
                 {consistency},
             );
         case "Entity":
-            return SitesTable.getItemIfExists(
+            return await SitesTable.getItemIfExists(
                 context,
                 {
                     partitionType: "Site",

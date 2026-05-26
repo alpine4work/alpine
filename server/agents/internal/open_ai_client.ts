@@ -139,6 +139,10 @@ export class OpenAiClient implements OpenAiClientInterface {
             const responseStream = await retryWithExponentialBackoff(
                 async retry => {
                     try {
+                        // TODO: Re-enable `@typescript-eslint/return-await` after
+                        // deciding whether this `try`/`catch` should handle async
+                        // OpenAI request failures.
+                        // eslint-disable-next-line @typescript-eslint/return-await
                         return this._client.responses.create(body, {
                             // NOTE(ifitzsimmons, 2026-01-13): We've had several instances where the agent ran
                             // for 15 minutes [1] while stuck waiting for a response from OpenAI (which

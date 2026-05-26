@@ -17,7 +17,7 @@ export function createIntoApiChatMessageContentPayloadParent(
             parent,
             consistency: "StrongWithinCache",
         });
-        return intoApiMessageContentPayloadParent(context, spaceId, {
+        return await intoApiMessageContentPayloadParent(context, spaceId, {
             ...parent,
             content: parentContent.content,
             authorId: parentContent.authorId,

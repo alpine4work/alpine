@@ -148,7 +148,7 @@ export async function parseNotionImportAndMapReferences(
     diskPathToUnzippedFiles: string,
     notionImportItem: NotionImportItem,
 ): Promise<NotionImportMappedReferencesResult | null> {
-    return context.tracer.withSpan("Parse notion import and map references", async () => {
+    return await context.tracer.withSpan("Parse notion import and map references", async () => {
         // List all files using the context module
         const filePaths = await context.importerService.listUnzippedFiles({
             diskPathToUnzippedFiles,

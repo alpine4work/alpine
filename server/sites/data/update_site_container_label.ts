@@ -36,7 +36,7 @@ export async function updateSiteContainerLabel(
         context: ServerActionContext,
     ) => Promise<Array<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         // Fetch site attributes for authorization
         const [siteAttributesItem, siteContainerItem] = await runAllPromises([
             authorizeSiteAccessAndReturnItem(context, siteId, "Manage"),

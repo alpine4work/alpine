@@ -1010,7 +1010,7 @@ async function addSearchAffinityEntityPoints(
             if (isActorBot) return;
 
             // If the actor is not a bot, assert that they have access to the account.
-            return authorizeOwnSpaceAccountAccess(context, accountId);
+            return await authorizeOwnSpaceAccountAccess(context, accountId);
         })(),
         isBotSpaceAccount(context, spaceId, accountId),
     ]);
@@ -1642,7 +1642,7 @@ export async function internalGetUnorderedSearchAffinityEntitiesWithStrongReadCo
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ) {
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         SearchEntityTable.query(context, {
             consistency: "Strong",
             limit,
@@ -1679,7 +1679,7 @@ export async function internalDangerouslyGetSpaceChannelSearchAffinityEntities(
         item: {channelId: ChannelId};
     }>
 > {
-    return internalGetSearchAffinitiesEntitiesBase(context, {
+    return await internalGetSearchAffinitiesEntitiesBase(context, {
         spaceId,
         limit,
         queryItems: () =>
@@ -1724,7 +1724,7 @@ export async function internalDangerouslyGetSpaceTaskCollectionSearchAffinityEnt
         item: {collectionId: TaskCollectionId};
     }>
 > {
-    return internalGetSearchAffinitiesEntitiesBase(context, {
+    return await internalGetSearchAffinitiesEntitiesBase(context, {
         spaceId,
         limit,
         queryItems: () =>
@@ -2020,7 +2020,7 @@ export async function getPossiblyStaleAccountSearchAffinityEntityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Iterable<{id: AccountId; points: number}>> {
-    return querySessionActorSearchAffinityEntities<AccountId>(context, spaceId, "Account");
+    return await querySessionActorSearchAffinityEntities<AccountId>(context, spaceId, "Account");
 }
 
 /**
@@ -2094,7 +2094,7 @@ export async function favoriteSearchEntity(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+    return await dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
         spaceId,
         accountId,
         entityId,
@@ -2349,7 +2349,7 @@ export async function internalGetSearchFavoriteEntities(
 ): Promise<Array<{entityId: SearchAffinityEntityId; orderKey: OrderKey}>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         AccountSearchFavoriteEntitiesIndex.query(context, {
             partitionKey: {
                 spaceId,

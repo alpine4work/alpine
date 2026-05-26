@@ -33,7 +33,7 @@ export async function updateChannelAccessPolicy(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return updateChannelAccessPolicyBase(context, {
+    return await updateChannelAccessPolicyBase(context, {
         channelId,
         updateAccessPolicy: () => accessPolicy,
         notification,

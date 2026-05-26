@@ -144,7 +144,7 @@ export function processFileWebSafeAudio(
             stderr += string;
         });
 
-        return context.tracer.withSpan(
+        return await context.tracer.withSpan(
             `FFmpeg decode ${getFileContentTypeName(contentType)} duration`,
             async (context, span) => {
                 span.addData({

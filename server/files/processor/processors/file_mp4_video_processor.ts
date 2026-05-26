@@ -126,7 +126,7 @@ export function createFileMp4VideoProcessor(contentType: FileMp4VideoContentType
             // If we have both a web safe audio codec and a web safe video codec then we can
             // use the cheaper web safe processor and skip an expensive transcode.
             if (!hasWebSafeVideoCodec || !hasWebSafeAudioCodec) {
-                return processFileWebUnsafeVideo(context, inputUrl, {
+                return await processFileWebUnsafeVideo(context, inputUrl, {
                     signal,
                     contentType,
                     contentLength,
@@ -182,7 +182,7 @@ export function createFileMp4VideoProcessor(contentType: FileMp4VideoContentType
                 //
                 // [1]:
                 //     https://developer.apple.com/documentation/quicktime-file-format/quicktime_movie_files
-                return processFileMp4VideoWithMoovAtomAtStart(context, inputUrl, {
+                return await processFileMp4VideoWithMoovAtomAtStart(context, inputUrl, {
                     signal,
                     contentType,
                     contentLength,

@@ -117,7 +117,7 @@ export async function backfillInboxEntries(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    return InboxEntriesIndex.backfillRealtimeQuery(context, {
+    return await InboxEntriesIndex.backfillRealtimeQuery(context, {
         partitionKey: {spaceId, accountId},
         checkpoint,
     });

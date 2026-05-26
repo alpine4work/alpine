@@ -67,7 +67,7 @@ export function createFileWebUnsafeVideoProcessor(
                 }),
             ]);
 
-            return processFileWebUnsafeVideo(context, inputUrl, {
+            return await processFileWebUnsafeVideo(context, inputUrl, {
                 signal,
                 contentType,
                 contentLength,

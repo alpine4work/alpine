@@ -28,7 +28,7 @@ export async function updateSpaceAccountWithInviteDecision(
     const accountId = context.actor.getAccountId();
     await authorizeOwnSpaceAccountAccess(context, accountId);
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const [spaceAccountItem, account, accountSpacesItem] = await runAllPromises([
             getSpaceAccountItemIfExists(context, spaceId, accountId, {
                 consistency: "Strong",

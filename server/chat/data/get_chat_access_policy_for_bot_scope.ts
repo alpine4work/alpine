@@ -42,7 +42,7 @@ export async function getChatAccessPolicyForBotScope(
                     };
                 }
                 case "Room": {
-                    return intoEffectiveAccessPolicy(
+                    return await intoEffectiveAccessPolicy(
                         context,
                         chatItem.attributesItem.definition.accessPolicy,
                     );

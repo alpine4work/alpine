@@ -52,7 +52,7 @@ export async function moveSpaceAccountOwnerRole(
 
     await authorizeSpaceAccess(context, spaceId, "Owner");
 
-    return moveSpaceAccountOwnerRoleWithoutAuthorization(context, {
+    return await moveSpaceAccountOwnerRoleWithoutAuthorization(context, {
         spaceId,
         oldOwnerAccountId: context.actor.getAccountId(),
         newOwnerAccountId,
@@ -75,7 +75,7 @@ export async function moveSpaceAccountOwnerRoleForTest(
 
     await authorizeSpaceAccess(context, spaceId, "Owner");
 
-    return moveSpaceAccountOwnerRoleWithoutAuthorization(context, {
+    return await moveSpaceAccountOwnerRoleWithoutAuthorization(context, {
         spaceId,
         oldOwnerAccountId,
         newOwnerAccountId,

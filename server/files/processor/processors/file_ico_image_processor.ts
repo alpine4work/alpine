@@ -90,21 +90,29 @@ export function createFileIcoImageProcessor(
 
                     switch (bestImage.type) {
                         case "png": {
-                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
-                                contentType: "image/png",
-                                contentLength: bestImage.data.length,
-                            });
+                            return await processFileImagePreviewPlaceholder(
+                                context,
+                                bestImage.data,
+                                {
+                                    contentType: "image/png",
+                                    contentLength: bestImage.data.length,
+                                },
+                            );
                         }
                         case "bmp": {
-                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
-                                contentType: "image/bmp",
-                                contentLength: bestImage.data.length,
-                                raw: {
-                                    width: bestImage.width,
-                                    height: bestImage.height,
-                                    channels: 4,
+                            return await processFileImagePreviewPlaceholder(
+                                context,
+                                bestImage.data,
+                                {
+                                    contentType: "image/bmp",
+                                    contentLength: bestImage.data.length,
+                                    raw: {
+                                        width: bestImage.width,
+                                        height: bestImage.height,
+                                        channels: 4,
+                                    },
                                 },
-                            });
+                            );
                         }
                         default:
                             throw exhaustive(bestImage);

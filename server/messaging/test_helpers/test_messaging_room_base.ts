@@ -292,7 +292,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 
     public async get() {
-        return this.room._getMessage(this.space.systemAction(), this.index);
+        return await this.room._getMessage(this.space.systemAction(), this.index);
     }
 
     public async updateContent(session: TestSession, content: string | Node) {
@@ -305,7 +305,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._updateMessageContent(session.action(), {
+        return await this.room._updateMessageContent(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             steps: [
@@ -366,7 +366,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._setMessageReaction(
+        return await this.room._setMessageReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
@@ -397,7 +397,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         assert(message.payload.type === "Content");
 
-        return this.room._deleteMessageReaction(session.action(), {
+        return await this.room._deleteMessageReaction(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             pos: pos ?? message.payload.content.doc.content.size,

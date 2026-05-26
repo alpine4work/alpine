@@ -617,7 +617,7 @@ export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdate
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 
         await this._finish();
-        return this._buildEvent(context, this._connection, this._event);
+        return await this._buildEvent(context, this._connection, this._event);
     }
 }
 

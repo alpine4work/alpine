@@ -20,14 +20,14 @@ export function createIntoApiPostCommentContentPayloadParent(
 
         switch (parent.type) {
             case "Message":
-                return intoApiMessageContentPayloadParent(context, spaceId, {
+                return await intoApiMessageContentPayloadParent(context, spaceId, {
                     index: parent.index,
                     content: assertMessageContent(content),
                     authorId,
                     type: "Message",
                 });
             case "MessagesRange": {
-                return intoApiMessageContentPayloadParent(context, spaceId, {
+                return await intoApiMessageContentPayloadParent(context, spaceId, {
                     startIndex: parent.startIndex,
                     endIndex: parent.endIndex,
                     content: assertMessageContent(content),
@@ -36,7 +36,7 @@ export function createIntoApiPostCommentContentPayloadParent(
                 });
             }
             case "PostRange": {
-                return intoApiMessageContentPayloadParent(context, spaceId, {
+                return await intoApiMessageContentPayloadParent(context, spaceId, {
                     authorId,
                     content: assertPostContent(content),
                     type: "PostRange",

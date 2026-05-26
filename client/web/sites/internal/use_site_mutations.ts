@@ -198,7 +198,7 @@ export function useSiteMutations() {
         ): Promise<{entityId: SiteItemSearchEntityId}> => {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the entity may appear in the site chrome before we navigate to it.
-            return withPausedRealtimeEvents(async () => {
+            return await withPausedRealtimeEvents(async () => {
                 // TODO(#sites): How should we handle entities in other sites? For now, we add them
                 // to the new site if possible, otherwise we throw an access error.
                 const {events} = await addEntityToSite(context, {

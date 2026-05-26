@@ -144,7 +144,12 @@ export class PostRealtimeConnection {
         },
 
         createComment: async (context, {parent, content, fileIds, createdTimeZone}) =>
-            this._connection.createMessage(context, {parent, content, fileIds, createdTimeZone}),
+            await this._connection.createMessage(context, {
+                parent,
+                content,
+                fileIds,
+                createdTimeZone,
+            }),
 
         updateCommentContent: (context, {commentIndex: messageIndex, contentVersion, steps}) =>
             this._connection.updateMessageContent(context, {messageIndex, contentVersion, steps}),

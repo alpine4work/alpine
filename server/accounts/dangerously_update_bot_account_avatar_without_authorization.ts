@@ -17,7 +17,7 @@ export async function dangerouslyUpdateBotAccountAvatarWithoutAuthorization(
     botAccountId: AccountId,
     {avatarId, avatarContent}: {avatarId: AvatarId; avatarContent: Uint8Array},
 ) {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldAccountItem = await getAccountItem(context, botAccountId);
 
         assert(oldAccountItem.bot !== undefined);

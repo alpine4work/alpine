@@ -84,7 +84,7 @@ export async function evaluateAccessPolicy(
                 return false;
             }
 
-            return evaluateAccessPolicyForAccount(
+            return await evaluateAccessPolicyForAccount(
                 context,
                 spaceId,
                 context.actor.getAccountId(),

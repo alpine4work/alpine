@@ -34,7 +34,7 @@ function looksLikeStackTrace(text: string): boolean {
 async function getStackTraceInput(): Promise<string> {
     // If stdin is piped (not a TTY), read from it.
     if (!process.stdin.isTTY) {
-        return readStdin();
+        return await readStdin();
     }
 
     // Not piped. Check clipboard for a stack trace.
@@ -50,7 +50,7 @@ async function getStackTraceInput(): Promise<string> {
 
     // No clipboard stack trace. Prompt the user.
     console.error("Paste a stack trace, then press Ctrl-D:");
-    return readStdin();
+    return await readStdin();
 }
 
 function readStdin(): Promise<string> {

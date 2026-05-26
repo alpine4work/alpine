@@ -135,7 +135,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             if (isInitialAttempt && initialInboxItemIfExists !== undefined)
                 return initialInboxItemIfExists;
 
-            return InboxTable.getItemIfExists(context, {
+            return await InboxTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "InboxAttributes",
                 spaceId: itemKey.spaceId,

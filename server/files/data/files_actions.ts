@@ -323,7 +323,7 @@ export async function startUploadingFile(
         fileId = providedFileId;
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const fileTotalsItem = (await FilesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "FileTotals",
@@ -474,7 +474,7 @@ export async function finishUploadingAndStartProcessingFile(
         assert(process.env.NODE_ENV === "test");
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         let item = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Eventual",
         });
@@ -977,7 +977,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             if (!itemRef.current.preview) {
                 throw new InternalError("File doesn\u2019t have a preview");
             }
@@ -1054,7 +1054,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1109,7 +1109,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1166,7 +1166,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
@@ -1579,7 +1579,7 @@ export async function attachFileAsUploader(
             consistency: "Eventual",
         });
         if (file) return file;
-        return getFileAsUploader(context, fileId, {consistency: "Strong"});
+        return await getFileAsUploader(context, fileId, {consistency: "Strong"});
     })();
 
     await targetAuthorizer.authorizeTargetAccess(context, "Edit");
@@ -1686,7 +1686,7 @@ export async function getPostDraftFileAttachments(
         .bind({type: "PostDraft", spaceId, accountId, draftId})
         .authorizeTargetAccess(context, "View");
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             PostDraftFile2AttachmentsIndex.query(context, {
                 partitionKey: {accountId, draftId},

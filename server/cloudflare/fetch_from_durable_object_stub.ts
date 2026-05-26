@@ -66,5 +66,5 @@ export async function fetchFromDurableObjectStub({
         newRequest.headers.set("authorization", `bearer ${requestToken}`);
     }
 
-    return durableObjectStub.fetch(newRequest);
+    return await durableObjectStub.fetch(newRequest);
 }

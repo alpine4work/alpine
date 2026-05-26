@@ -928,7 +928,7 @@ export class OpensearchClient implements OpensearchClientInterface {
     ) {
         assert(process.env.NODE_ENV === "production");
 
-        return this._deployIndex(tracer, index, signal);
+        return await this._deployIndex(tracer, index, signal);
     }
 
     /**
@@ -953,7 +953,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>,
         signal: AbortSignal,
     ) {
-        return tracer.withSpan("Deploy OpenSearch index", async tracer => {
+        return await tracer.withSpan("Deploy OpenSearch index", async tracer => {
             await retryWithExponentialBackoff(async retry => {
                 const getBody = await fetchWithTracer(
                     tracer,
@@ -2522,7 +2522,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_analyze");
         }
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             tracer,
             url,
             {

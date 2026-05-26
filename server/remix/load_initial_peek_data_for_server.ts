@@ -90,7 +90,7 @@ async function processLoaderResult(result: unknown): Promise<unknown> {
         const originalData = (result as any)[Symbol.for("remix.response.json")];
         return originalData !== undefined ? originalData : await result.json();
     } else {
-        return result.text();
+        return await result.text();
     }
 }
 

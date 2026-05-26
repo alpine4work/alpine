@@ -759,7 +759,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        return context.tracer.withSpan("Ensure local DynamoDB table", async context => {
+        return await context.tracer.withSpan("Ensure local DynamoDB table", async context => {
             await retryWithExponentialBackoff(async retry => {
                 const internalClient = client.getInternalClient();
                 const tableName = this.getName();
@@ -1803,7 +1803,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
         if (item) return item;
 
-        return this.getItem(context, key, {
+        return await this.getItem(context, key, {
             ...options,
             consistency: "Strong",
         });
@@ -2374,7 +2374,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
-            return client.putItem(context, {
+            return await client.putItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -2392,7 +2392,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            return client.putItem(context, {
+            return await client.putItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -2573,7 +2573,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem(context, {
+            return await client.deleteItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 debugItemType: {
@@ -2592,7 +2592,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.deleteItem(context, {
+            return await client.deleteItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -2625,7 +2625,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): Promise<void> {
         const client = getDynamoClient(context);
 
-        return client.executeTransaction(context, entries, {
+        return await client.executeTransaction(context, entries, {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });

@@ -123,7 +123,7 @@ export function renderReactEmailTemplate<Template extends keyof EmailTemplates>(
         // emailTemplates. Given we don't know which templateName is going to be passed in
         // here, TS has a hard time finding which props it expects here. The usage of this
         // function should validate templateProps' just fine.
-        return emailTemplates[templateName]({
+        return await emailTemplates[templateName]({
             ...templateProps,
             resourceServiceUrl,
         } as any);

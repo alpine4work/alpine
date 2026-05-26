@@ -178,7 +178,7 @@ export class TaskRealtimeStore {
         loadedState: TaskRealtimeQueryLoadedState;
         tasks: Array<TaskIndexDoc>;
     }> {
-        return this._withFatalErrorHandling(context, () =>
+        return await this._withFatalErrorHandling(context, () =>
             this._internal.loadQuery(context, options),
         );
     }

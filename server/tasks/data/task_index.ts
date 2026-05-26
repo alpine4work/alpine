@@ -789,7 +789,7 @@ class TaskActionTransactionIndexState {
 
         let hasAlreadyAttempted = false;
 
-        return retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
+        return await retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
 
         async function run(_retry: (error?: unknown) => never) {
             const isInitialAttempt = !hasAlreadyAttempted;
@@ -2021,7 +2021,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
     // If this is a test where OpenSearch is disabled then don't bother trying to
     // schedule a search entity indexing job.
     if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) {
-        return action();
+        return await action();
     }
 
     const [value, initialTask] = await runAllPromises([

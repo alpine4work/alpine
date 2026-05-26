@@ -1171,7 +1171,7 @@ export class DocumentCollaborationContentManager {
                         };
                     }
 
-                    return getDocumentContentReferences(context, {
+                    return await getDocumentContentReferences(context, {
                         documentId: this.id,
                         referencedIds,
                     });

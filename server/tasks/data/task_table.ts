@@ -1315,7 +1315,7 @@ export async function getTaskItemForTest(
 ): Promise<TaskEssentialAttributesItem> {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    return TaskTable.getItem(context, {
+    return await TaskTable.getItem(context, {
         partitionType: "Task",
         sortRangeType: "EssentialAttributes",
         taskId,
@@ -1328,7 +1328,7 @@ export async function getTaskCommentsSummaryItemIfExistsForTest(
 ): Promise<TaskCommentsSummaryItem | null> {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    return TaskTable.getItemIfExists(context, {
+    return await TaskTable.getItemIfExists(context, {
         partitionType: "Task",
         sortRangeType: "CommentsSummary",
         taskId,
@@ -1344,7 +1344,7 @@ export async function getTaskCollectionItemForTest(
 ): Promise<TaskCollectionEssentialAttributesItem> {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    return TaskTable.getItem(context, {
+    return await TaskTable.getItem(context, {
         partitionType: "TaskCollection",
         sortRangeType: "EssentialAttributes",
         collectionId,
@@ -1880,7 +1880,7 @@ class TaskActionTransactionCommitState {
                 }
             }
 
-            return state._applyCommit(actions, {
+            return await state._applyCommit(actions, {
                 clientId,
                 extraTransactionEntries,
             });
@@ -4651,7 +4651,7 @@ async function getTaskCollectionItemForAuthorizationIfExists(
         consistency,
         collectionId,
         async consistency =>
-            TaskTable.getItemIfExists(
+            await TaskTable.getItemIfExists(
                 context,
                 {
                     partitionType: "TaskCollection",
@@ -4726,7 +4726,7 @@ async function authorizeTaskCollectionItemAccessIfPossible(
         };
     }
 
-    return authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
+    return await authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
         context,
         collectionItem,
         expectedAccessLevel,
@@ -5030,7 +5030,7 @@ async function authorizeTaskItemAccessIfPossible(
         };
     }
 
-    return authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
+    return await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
         context,
         taskItem,
         expectedAccessLevel,
@@ -5147,7 +5147,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 // parent task that is not deleted then check it before throwing a permission
                 // denied error.
                 if (!parentTaskItem.deletedTime) {
-                    return authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
+                    return await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                         context,
                         parentTaskItem,
                         expectedAccessLevel,
@@ -5474,7 +5474,7 @@ async function doesTaskItemHaveDefaultGrant(
         // Parent tasks implicitly grant access to all of their child tasks. If we have a
         // parent task that is not deleted then check it before returning false.
         if (!parentTaskItem.deletedTime) {
-            return doesTaskItemHaveDefaultGrant(context, parentTaskItem, loaders);
+            return await doesTaskItemHaveDefaultGrant(context, parentTaskItem, loaders);
         }
     }
 
@@ -5680,7 +5680,7 @@ export async function getTaskComment(
 
     if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
-    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
+    return await createTaskCommentModelFromItem(context, spaceId, taskId, item);
 }
 
 export async function getTaskCommentAtVersion(
@@ -5712,7 +5712,7 @@ export async function getTaskCommentAtVersion(
         })(),
     ]);
 
-    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
+    return await createTaskCommentModelFromItem(context, spaceId, taskId, item);
 }
 
 export async function getTaskCommentPayload(
@@ -6177,7 +6177,7 @@ export async function createTaskComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const [{spaceId, commentsSummaryItem, taskAccessPolicy}, parentForEvent] =
             await runAllPromiseThunks(
                 async () => {
@@ -7736,7 +7736,7 @@ export async function backfillTaskComments(
                     const {
                         item: {spaceId},
                     } = await authorizationPromise;
-                    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
+                    return await createTaskCommentModelFromItem(context, spaceId, taskId, item);
                 },
             }),
         ]);
@@ -8611,7 +8611,7 @@ export async function getTaskCollectionSearchResult(
     // collection search index might be out of date.
     await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);
 
-    return createTaskCollectionModelSearchResultFromItem(context, collectionItem);
+    return await createTaskCollectionModelSearchResultFromItem(context, collectionItem);
 }
 
 /**

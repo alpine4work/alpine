@@ -130,7 +130,7 @@ export async function updateRoomChatAccessPolicy(
                             accountItems: emptyArray,
                         }),
                     getRynamoEventsForSite: async (eventContext: ServerActionContext) =>
-                        runAllPromises(
+                        await runAllPromises(
                             transactionEntries.map(entry => entry.getEvent(eventContext)),
                         ),
                 };

@@ -18,7 +18,7 @@ export class TraceOnlyEmailContextModule extends EmailContextModuleBase {
     ): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can\u2019t use `TraceOnlyEmailContextModule` in production.");
-        return this._context.tracer.withSpan("Console SendEmail", async (context, span) => {
+        return await this._context.tracer.withSpan("Console SendEmail", async (context, span) => {
             span.addData({
                 email: {
                     template: email.templateName,

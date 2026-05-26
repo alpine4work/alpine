@@ -79,7 +79,7 @@ export async function getFeedCandidateEntriesForTest(
     assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             FeedTable.query(context, {
                 limit,
@@ -114,7 +114,7 @@ export async function getFeedAccountCandidateEntriesForTest(
     assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             FeedTable.query(context, {
                 limit,
@@ -366,7 +366,7 @@ export async function getAndUpdateFeedEntries(
     const {feedItem, wasFeedCreated, newEntryBlocks} = await context.tracer.withSpan(
         "Update feed entries",
         async (context, span) =>
-            context.dynamo.retryTransaction(async context => {
+            await context.dynamo.retryTransaction(async context => {
                 const feedItem = await FeedTable.getItemIfExists(context, {
                     partitionType: "Feed",
                     sortRangeType: "Attributes",
@@ -911,10 +911,13 @@ async function authorizeFeedEntryIfPossible(
             return okResult;
         }
         case "Post": {
-            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+            return await context.forumInjection.authorizeChannelAccessIfPossible(
+                entry.channelId,
+                "View",
+            );
         }
         case "Document": {
-            return context.documentsInjection.authorizeDocumentAccessIfPossible(
+            return await context.documentsInjection.authorizeDocumentAccessIfPossible(
                 entry.documentId,
                 "View",
             );
@@ -936,10 +939,13 @@ async function authorizeFeedEntryIfPossible(
             return result;
         }
         case "Channel": {
-            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+            return await context.forumInjection.authorizeChannelAccessIfPossible(
+                entry.channelId,
+                "View",
+            );
         }
         case "RoomChat": {
-            return context.chatInjection.authorizeChatAccessIfPossible(entry.chatId, "View");
+            return await context.chatInjection.authorizeChatAccessIfPossible(entry.chatId, "View");
         }
         default:
             throw exhaustive(entry);

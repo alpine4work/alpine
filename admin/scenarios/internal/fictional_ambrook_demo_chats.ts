@@ -23,7 +23,7 @@ export async function createFictionalAmbrookDemoChats(
         chatGpt: TestBotAccount;
     },
 ) {
-    return runAllPromises([
+    return await runAllPromises([
         createFictionalAmbrookDemoChat1(tokenAgent, accounts),
         createFictionalAmbrookDemoChat2(tokenAgent, accounts),
     ]);

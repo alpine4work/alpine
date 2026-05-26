@@ -115,7 +115,7 @@ export async function sendPendingSubtleNotificationsForInbox(
     await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
         switch (target.type) {
             case "SlackIntegration":
-                return context.jobs.sendAndWait({
+                return await context.jobs.sendAndWait({
                     type: "SendNotificationToSlackIntegration",
                     spaceId,
                     accountId,
@@ -128,7 +128,7 @@ export async function sendPendingSubtleNotificationsForInbox(
                     entryPath: `/s/${spaceId}/inbox`,
                 });
             case "WebPushSubscription":
-                return context.jobs.sendAndWait({
+                return await context.jobs.sendAndWait({
                     type: "SendWebPushNotification",
                     spaceId,
                     accountId,
@@ -139,7 +139,7 @@ export async function sendPendingSubtleNotificationsForInbox(
                     },
                 });
             case "AppleDevice":
-                return Promise.resolve();
+                return await Promise.resolve();
         }
     });
 

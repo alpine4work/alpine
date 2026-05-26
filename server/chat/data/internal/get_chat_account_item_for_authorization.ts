@@ -30,7 +30,7 @@ export async function getChatAccountItemIfExistsForAuthorization(
         return chatItem.accountItems.find(item => item.accountId === accountId) ?? null;
     }
 
-    return ChatAccountItemAuthorizationCache.get(
+    return await ChatAccountItemAuthorizationCache.get(
         context,
         consistency,
         `${chatId}:${accountId}`,

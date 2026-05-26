@@ -175,7 +175,7 @@ export async function resizeFile(
     // fiber. That way if our CPU is busy processing files from the job queue we wait
     // to resize until that's done. Also if multiple resize requests come in at once
     // we'll throttle processing to a rate our machine can handle.
-    return withFiber(context, () =>
+    return await withFiber(context, () =>
         withTemporaryDirectory(parentTemporaryDirectoryPath, `${fileId}_${width}_`, run),
     );
 

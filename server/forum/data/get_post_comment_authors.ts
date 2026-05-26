@@ -30,7 +30,7 @@ export async function getPostCommentAuthors(
 
     await authorizeChannelAccess(context, postItem.channelId, "View");
 
-    return runAllPromises(
+    return await runAllPromises(
         Array.from(
             sliceIterable(postItem.commentsSummary.commentCountByAuthorId.keys(), 0, limit),
             accountId => getAccount(context, postItem.spaceId, accountId),

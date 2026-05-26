@@ -92,7 +92,7 @@ export class CursorClient {
         assert(path.startsWith("/"));
 
         // Cursor recommends retrying with exponential backoff on 429s.
-        return retryWithExponentialBackoff(retry => {
+        return await retryWithExponentialBackoff(retry => {
             const requestHeaders = new Headers(requestInit?.headers);
             requestHeaders.set("authorization", `basic ${btoa(`${this._cloudAgentApiKey}:`)}`);
 
@@ -193,7 +193,7 @@ export class CursorClient {
                         }
                     }
 
-                    return response.json();
+                    return await response.json();
                 },
             );
         });

@@ -229,7 +229,7 @@ function resolveDemoName(demoNames: ReadonlyArray<string>, demoArg: string): str
 }
 
 async function getInteractivePlatform(): Promise<Platform> {
-    return inquirer.select({
+    return await inquirer.select({
         message: "Platform",
         choices: [
             {name: "X", value: "x"},
@@ -239,7 +239,7 @@ async function getInteractivePlatform(): Promise<Platform> {
 }
 
 async function getInteractiveDemoName(demoNames: ReadonlyArray<string>): Promise<string> {
-    return inquirer.select({
+    return await inquirer.select({
         message: "Demo",
         choices: demoNames
             .map(demoName => ({

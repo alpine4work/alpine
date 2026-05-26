@@ -2098,12 +2098,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
             const [, result] = await runAllPromises([
                 collectionPromise,
-                impersonateAccountAsSystemContext(context, this.accountId, async accountContext =>
-                    authorizeTaskCollectionIndexDocAccessIfPossible(
-                        accountContext,
-                        await collectionPromise,
-                        "View",
-                    ),
+                impersonateAccountAsSystemContext(
+                    context,
+                    this.accountId,
+                    async accountContext =>
+                        await authorizeTaskCollectionIndexDocAccessIfPossible(
+                            accountContext,
+                            await collectionPromise,
+                            "View",
+                        ),
                 ),
             ]);
 

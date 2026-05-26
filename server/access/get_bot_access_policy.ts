@@ -64,19 +64,28 @@ export async function getBotAccessPolicy(
             };
         }
         case "Chat": {
-            return context.chatInjection.getChatAccessPolicyForBotScope(scope.chatId, options);
+            return await context.chatInjection.getChatAccessPolicyForBotScope(
+                scope.chatId,
+                options,
+            );
         }
         case "Document": {
-            return context.documentsInjection.getDocumentAccessPolicyForBotScope(
+            return await context.documentsInjection.getDocumentAccessPolicyForBotScope(
                 scope.documentId,
                 options,
             );
         }
         case "Post": {
-            return context.forumInjection.getPostAccessPolicyForBotScope(scope.postId, options);
+            return await context.forumInjection.getPostAccessPolicyForBotScope(
+                scope.postId,
+                options,
+            );
         }
         case "Task": {
-            return context.tasksInjection.getTaskAccessPolicyForBotScope(scope.taskId, options);
+            return await context.tasksInjection.getTaskAccessPolicyForBotScope(
+                scope.taskId,
+                options,
+            );
         }
         default:
             throw exhaustive(scope);
