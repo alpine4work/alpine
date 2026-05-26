@@ -79,6 +79,7 @@ Hello there.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Time",
@@ -86,6 +87,76 @@ Hello there.
                     },
                     {
                         type: "Message",
+                        idAttribute: null,
+                        author: aliceTarget,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello there.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "message id attributes",
+            pageLink: true,
+            markdown: `\
+<message id=42 from="[Alice](/human/alice)">
+
+Single message block.
+
+</message>
+
+<message id=4-7 from="[Bob](/human/bob)">
+
+Merged message block.
+
+</message>
+`,
+            page: {
+                preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: {startMessageIndex: 42, endMessageIndex: 43},
+                        author: aliceTarget,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Single message block.")])]),
+                    },
+                    {
+                        type: "Message",
+                        idAttribute: {startMessageIndex: 4, endMessageIndex: 8},
+                        author: bobTarget,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Merged message block.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "message log at end of messages",
+            pageLink: true,
+            markdown: `\
+<message from="[Alice](/human/alice)">
+
+Hello there.
+
+</message>
+
+End of messages.
+`,
+            page: {
+                preamble: {elements: [], pagination: null},
+                isEndOfMessages: true,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -118,9 +189,11 @@ Hello there.
                     ],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -149,6 +222,7 @@ Hello there.
                     elements: [text("The current page starts after the May planning sync.")],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Time",
@@ -156,6 +230,7 @@ Hello there.
                     },
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -176,6 +251,7 @@ No messages matched the current filters.
                     elements: [text("No messages matched the current filters.")],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
         },
@@ -198,6 +274,7 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
                         nextLink: null,
                     },
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
             createParseError:
@@ -222,6 +299,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
                         nextLink: {afterMessageIndex: 9},
                     },
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
             createParseError:
@@ -246,6 +324,7 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
                         nextLink: {afterMessageIndex: 9},
                     },
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
             createParseError:
@@ -267,6 +346,7 @@ Some messages in Engineering Room. [« Previous page](https://example.com/chat?b
                     ],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
         },
@@ -308,6 +388,7 @@ Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/en
                     ],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
         },
@@ -335,9 +416,11 @@ const done = true;
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: assistantTarget,
                         timeAttribute: "12 minutes later",
                         timeZoneAttribute: null,
@@ -398,6 +481,7 @@ Escaped attributes survive.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Time",
@@ -405,6 +489,7 @@ Escaped attributes survive.
                     },
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: escapedAliceBobTeamTarget,
                         timeAttribute: `5 < 10 & ${doubleQuote}later${doubleQuote}`,
                         timeZoneAttribute: "GMT+0 & east",
@@ -433,9 +518,11 @@ After the empty paragraph.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -712,9 +799,11 @@ Hello.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -771,9 +860,11 @@ bar&#x20;
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -869,9 +960,11 @@ Hello there.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
@@ -895,6 +988,7 @@ Hello there.
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [{type: "Time", timeContent: ""}],
             },
         },
@@ -919,6 +1013,7 @@ Hello there.
                     ],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
         },
@@ -935,6 +1030,7 @@ Hello there.
                     ],
                     pagination: null,
                 },
+                isEndOfMessages: false,
                 blocks: [],
             },
         },
@@ -956,9 +1052,11 @@ Second render:
 `,
             page: {
                 preamble: {elements: [], pagination: null},
+                isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
+                        idAttribute: null,
                         author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,

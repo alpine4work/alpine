@@ -64,6 +64,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebMessagingPageBase = {
     readonly preamble: AgentWebMessagingPageBasePreamble;
+    readonly isEndOfMessages: boolean;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
 };
 
@@ -94,8 +95,16 @@ export type AgentWebMessagingPageTimeBlock = {
     readonly timeContent: string;
 };
 
+export type AgentWebMessagingPageMessageBlockIdAttribute = {
+    /** Inclusive */
+    readonly startMessageIndex: number;
+    /** Exclusive */
+    readonly endMessageIndex: number;
+};
+
 export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
+    readonly idAttribute: AgentWebMessagingPageMessageBlockIdAttribute | null;
     readonly author: ApiAccountTargetResponse;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
@@ -262,6 +271,7 @@ export async function readAgentWebMessagingPageBase<Page>(
     let cursor: number | null = direction === "Start" ? afterMessageIndex : beforeMessageIndex;
     let totalLengthEstimate = 0;
     let hasMoreMessages = false;
+    let isEndOfMessages = direction === "End" && beforeMessageIndex === null;
     const messages: Array<ApiMessageResponse> = [];
 
     // Load messages until we reach our token limit.
@@ -281,6 +291,7 @@ export async function readAgentWebMessagingPageBase<Page>(
 
         cursor = nextCursor;
         hasMoreMessages = cursor !== null;
+        if (direction === "Start") isEndOfMessages = cursor === null;
 
         for (const message of direction === "Start"
             ? currentMessages
@@ -304,6 +315,7 @@ export async function readAgentWebMessagingPageBase<Page>(
                 totalLengthEstimate + lengthEstimate > limitLength
             ) {
                 hasMoreMessages = true;
+                if (direction === "Start") isEndOfMessages = false;
                 break outer;
             } else {
                 totalLengthEstimate += lengthEstimate;
@@ -336,6 +348,7 @@ export async function readAgentWebMessagingPageBase<Page>(
             roomMetadata,
             messages,
             hasMoreMessages,
+            isEndOfMessages,
         });
 
         page = buildPage(messagingPage);
@@ -353,6 +366,7 @@ export async function readAgentWebMessagingPageBase<Page>(
         hasMoreMessages = true;
 
         if (direction === "Start") {
+            isEndOfMessages = false;
             messages.pop();
         } else {
             messages.shift();
@@ -401,6 +415,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
     let afterCursor: number | null = initialMessages[initialMessages.length - 1]!.index;
     let totalLengthEstimate = 0;
     let hasMoreMessages = false;
+    let isEndOfMessages = false;
     const beforeMessages: Array<ApiMessageResponse> = [];
     const afterMessages: Array<ApiMessageResponse> = [];
 
@@ -438,6 +453,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
         afterCursor = nextAfterCursor;
 
         hasMoreMessages = beforeCursor !== null || afterCursor !== null;
+        isEndOfMessages = afterCursor === null;
 
         for (const {type, message} of alternateIterables(
             mapIterable(currentAfterMessages, message => ({type: "After", message})),
@@ -465,6 +481,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
                 totalLengthEstimate + lengthEstimate > limitLength
             ) {
                 hasMoreMessages = true;
+                if (type === "After") isEndOfMessages = false;
                 break outer;
             } else {
                 totalLengthEstimate += lengthEstimate;
@@ -503,6 +520,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
             roomMetadata,
             messages,
             hasMoreMessages,
+            isEndOfMessages,
         });
 
         page = buildPage(messagingPage);
@@ -526,12 +544,14 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
         // remove from the end. If that's the last message then always remove from the
         // start.
         if (messages[0]!.index === aroundMessageIndex) {
+            isEndOfMessages = false;
             messages.pop();
         } else if (messages[messages.length - 1]!.index === aroundMessageIndex) {
             messages.shift();
         } else if (removeCount % 2 === 0) {
             messages.shift();
         } else {
+            isEndOfMessages = false;
             messages.pop();
         }
 
@@ -697,6 +717,7 @@ function buildAgentWebMessagingPageFromApiMessages(
         roomMetadata,
         messages,
         hasMoreMessages,
+        isEndOfMessages,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         direction: "Start" | "End" | "Around";
@@ -706,6 +727,7 @@ function buildAgentWebMessagingPageFromApiMessages(
         };
         messages: ReadonlyArray<ApiMessageResponse>;
         hasMoreMessages: boolean;
+        isEndOfMessages: boolean;
     },
 ): AgentWebMessagingPageBaseWithMetadata {
     const contextTime = new Date();
@@ -864,6 +886,7 @@ function buildAgentWebMessagingPageFromApiMessages(
 
     return {
         preamble: {elements: preambleElements, pagination},
+        isEndOfMessages,
         blocks,
         metadata: {messageIndexesByBlockIndex},
     };
@@ -940,6 +963,10 @@ function buildAgentWebMessagingPageFromApiMessages(
 
         blocks.push({
             type: "Message",
+            idAttribute: {
+                startMessageIndex: firstMessage.index,
+                endMessageIndex: lastMessage.index + 1,
+            },
             author: intoApiAccountTarget(firstMessage.author),
             timeAttribute,
             timeZoneAttribute,
@@ -990,6 +1017,10 @@ export async function updateAgentWebMessagingPageBase(
         throw new UnimplementedError("NOCOMMIT");
     }
 
+    if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
+        throw new UnimplementedError("NOCOMMIT");
+    }
+
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
     for (let index = 0; index < commonBlocksLength; index++) {
@@ -1004,6 +1035,7 @@ export async function updateAgentWebMessagingPageBase(
 
             return {
                 type: "Message",
+                idAttribute: block.idAttribute,
                 author: normalizeApiTarget(block.author),
                 timeAttribute: block.timeAttribute,
                 timeZoneAttribute: block.timeZoneAttribute,
@@ -1230,7 +1262,28 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                     children: [{type: "text", value: block.author.shortName}],
                 };
 
-                let openTag = `<${messageNouns.noun} from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+                let openTag = `<${messageNouns.noun}`;
+
+                if (block.idAttribute !== null) {
+                    const startMessageIndex = block.idAttribute.startMessageIndex;
+                    const endMessageIndexInclusive = block.idAttribute.endMessageIndex - 1;
+
+                    assert(startMessageIndex >= 0);
+                    assert(Number.isInteger(startMessageIndex));
+
+                    assert(endMessageIndexInclusive >= 0);
+                    assert(Number.isInteger(endMessageIndexInclusive));
+
+                    // We make a judgement call to omit quotes for the `id` attribute to save tokens
+                    // since the quotes aren't required by HTML.
+                    if (startMessageIndex === endMessageIndexInclusive) {
+                        openTag += ` id=${startMessageIndex}`;
+                    } else {
+                        openTag += ` id=${startMessageIndex}-${endMessageIndexInclusive}`;
+                    }
+                }
+
+                openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
 
                 if (block.timeAttribute !== null) {
                     openTag += ` time="${escapeHtml(block.timeAttribute)}"`;
@@ -1284,6 +1337,13 @@ export async function printAgentWebMessagingPageBase<PageLink>(
         }
     }
 
+    if (page.isEndOfMessages) {
+        children.push({
+            type: "paragraph",
+            children: [{type: "text", value: `End of ${messageNouns.pluralNoun}.`}],
+        });
+    }
+
     return {type: "root", children};
 }
 
@@ -1326,12 +1386,14 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
     blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>>,
 ): Promise<Omit<AgentWebMessagingPageBase, "blocks">> {
     let hasFinishedPreamble = false;
+    let isEndOfMessages = false;
     const preamble: Array<RootContent> = [];
 
     let state: {
         openTagPosition: Node["position"];
         hasEndedOpenTag: boolean;
-        startedAttribute: "from" | "time" | "timezone" | null;
+        startedAttribute: "id" | "from" | "time" | "timezone" | null;
+        idAttribute: string | null;
         fromAttribute: string | null;
         timeAttribute: string | null;
         timeZoneAttribute: string | null;
@@ -1369,6 +1431,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 openTagPosition: node.position,
                                 hasEndedOpenTag: false,
                                 startedAttribute: null,
+                                idAttribute: null,
                                 fromAttribute: null,
                                 timeAttribute: null,
                                 timeZoneAttribute: null,
@@ -1504,6 +1567,12 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 return pageLink;
                             };
 
+                            const idAttribute = parseAgentWebMessagingPageMessageBlockIdAttribute(
+                                messageNouns,
+                                state.openTagPosition,
+                                state.idAttribute,
+                            );
+
                             const block: Replace<
                                 AgentWebMessagingPageMessageBlock,
                                 {
@@ -1515,6 +1584,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 }
                             > = {
                                 type: "Message",
+                                idAttribute,
                                 author: parseAccountLink(
                                     state.openTagPosition,
                                     state.fromAttribute,
@@ -1579,6 +1649,13 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                         const attributeName = node.value.slice(start, end).toLowerCase();
 
                         switch (attributeName) {
+                            case "id": {
+                                if (!state.hasEndedOpenTag) {
+                                    state.startedAttribute = "id";
+                                    state.idAttribute = "";
+                                }
+                                break;
+                            }
                             case "from": {
                                 if (!state.hasEndedOpenTag) {
                                     state.startedAttribute = "from";
@@ -1616,6 +1693,10 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
 
                         if (!state.hasEndedOpenTag) {
                             switch (state.startedAttribute) {
+                                case "id": {
+                                    state.idAttribute += attributeData;
+                                    break;
+                                }
                                 case "from": {
                                     state.fromAttribute += attributeData;
                                     break;
@@ -1645,6 +1726,10 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
 
                         if (!state.hasEndedOpenTag) {
                             switch (state.startedAttribute) {
+                                case "id": {
+                                    state.idAttribute += attributeData;
+                                    break;
+                                }
                                 case "from": {
                                     state.fromAttribute += attributeData;
                                     break;
@@ -1741,7 +1826,19 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
         return false;
     };
 
-    for (let node of root.children) {
+    for (let nodeIndex = 0; nodeIndex < root.children.length; nodeIndex++) {
+        let node = root.children[nodeIndex]!;
+
+        if (
+            nodeIndex === root.children.length - 1 &&
+            state === null &&
+            isAgentWebMessagingPageEndOfMessagesParagraph(messageNouns, node)
+        ) {
+            isEndOfMessages = true;
+            hasFinishedPreamble = true;
+            continue;
+        }
+
         if (node.type === "html" && parseHtml(node)) {
             hasFinishedPreamble = true;
             continue;
@@ -1910,7 +2007,55 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
 
     return {
         preamble: {elements: actualPreamble, pagination},
+        isEndOfMessages,
     };
+}
+
+function isAgentWebMessagingPageEndOfMessagesParagraph(
+    messageNouns: AgentWebMessagingPageNouns,
+    node: RootContent,
+): boolean {
+    if (node.type !== "paragraph") return false;
+    if (node.children.length !== 1) return false;
+
+    const child = node.children[0]!;
+    return child.type === "text" && child.value === `End of ${messageNouns.pluralNoun}.`;
+}
+
+function parseAgentWebMessagingPageMessageBlockIdAttribute(
+    messageNouns: AgentWebMessagingPageNouns,
+    position: Node["position"],
+    idAttribute: string | null,
+): AgentWebMessagingPageMessageBlockIdAttribute | null {
+    if (idAttribute === null) return null;
+
+    const integerPattern = "(0|[1-9][0-9]*)";
+    const singleMessageIndexMatch = new RegExp(`^${integerPattern}$`).exec(idAttribute);
+
+    if (singleMessageIndexMatch) {
+        const messageIndex = parseInt(singleMessageIndexMatch[1]!, 10);
+        return {startMessageIndex: messageIndex, endMessageIndex: messageIndex + 1};
+    }
+
+    const messageIndexRangeMatch = new RegExp(`^${integerPattern}-${integerPattern}$`).exec(
+        idAttribute,
+    );
+
+    if (messageIndexRangeMatch) {
+        const startMessageIndex = parseInt(messageIndexRangeMatch[1]!, 10);
+        const endMessageIndexInclusive = parseInt(messageIndexRangeMatch[2]!, 10);
+
+        if (endMessageIndexInclusive >= startMessageIndex) {
+            return {
+                startMessageIndex,
+                endMessageIndex: endMessageIndexInclusive + 1,
+            };
+        }
+    }
+
+    throw new InvalidArgumentError("Invalid message `id` attribute", {
+        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`.`,
+    });
 }
 
 function createUnexpectedMarkdownError(

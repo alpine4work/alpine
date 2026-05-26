@@ -29,6 +29,18 @@ const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTi
 const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPageMessageBlock> =
     fc.record({
         type: fc.constant("Message"),
+        idAttribute: fc.oneof(
+            {weight: 10, arbitrary: fc.constant(null)},
+            {
+                weight: 1,
+                arbitrary: fc
+                    .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
+                    .map(([startMessageIndex, length]) => ({
+                        startMessageIndex,
+                        endMessageIndex: startMessageIndex + length,
+                    })),
+            },
+        ),
         author: ApiAccountTargetArbitrary,
         timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
@@ -77,6 +89,7 @@ const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> =
             {weight: 1, arbitrary: AgentWebMessagingPageBasePreamblePaginationArbitrary},
         ),
     }),
+    isEndOfMessages: fc.boolean(),
     blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
 });
 

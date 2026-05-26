@@ -334,11 +334,13 @@ Some messages in a chat with Alice.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Hello world!
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("reads a room chat with multiple human participants", async () => {
@@ -366,17 +368,19 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Hello!
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=1 from="[Bob](/human/bob)">
 
 Hello hello!
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("groups consecutive messages from the same author within 10 minutes", async () => {
@@ -404,13 +408,15 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0-1 from="[Alice](/human/alice)">
 
 First message
 
 Second message
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("separates messages from the same author after 10 minutes with a relative time", async () => {
@@ -438,17 +444,19 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 First message
 
 </message>
 
-<message from="[Alice](/human/alice)" time="30 minutes later">
+<message id=1 from="[Alice](/human/alice)" time="30 minutes later">
 
 Second message
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("injects a new time block when messages are at least an hour apart", async () => {
@@ -476,7 +484,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Morning message
 
@@ -484,11 +492,13 @@ Morning message
 
 <time>May 14th at 12:00pm EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=1 from="[Alice](/human/alice)">
 
 Noon message
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("prints bot messages with bot tags", async () => {
@@ -510,11 +520,13 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Assistant](/bot/assistant)">
+<message id=0 from="[Assistant](/bot/assistant)">
 
 Hello human!
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("escapes author names in message tags", async () => {
@@ -542,11 +554,13 @@ Some messages in Escaping Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/bot/alice-and-bob-s-bot)">
+<message id=0 from="[Alice](/bot/alice-and-bob-s-bot)">
 
 Hello
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("prints rich message content using agent web markdown links", async () => {
@@ -588,11 +602,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Review **carefully** in [Release Plan](/document/release-plan) before running \`deploy\`.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("prints timezone attributes when human message timezones differ from context", async () => {
@@ -615,11 +631,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)" timezone="PDT">
+<message id=0 from="[Alice](/human/alice)" timezone="PDT">
 
 Hello from the west coast.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("omits timezone attributes for bot messages", async () => {
@@ -642,11 +660,13 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Assistant](/bot/assistant)">
+<message id=0 from="[Assistant](/bot/assistant)">
 
 I keep bot messages timezone-free.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("prints reply previews in blockquotes", async () => {
@@ -673,7 +693,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<message from="[Bob](/human/bob)">
+<message id=0 from="[Bob](/human/bob)">
 
 <blockquote cite="[Alice](/human/alice)">
 
@@ -683,7 +703,9 @@ Can you review the rollout?
 
 Taking a look now.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("marks truncated reply previews with an ellipsis", async () => {
@@ -710,7 +732,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<message from="[Bob](/human/bob)">
+<message id=0 from="[Bob](/human/bob)">
 
 <blockquote cite="[Alice](/human/alice)">
 
@@ -720,7 +742,9 @@ Can you review \\[\u2026]
 
 Taking a look now.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("prints deleted messages", async () => {
@@ -741,11 +765,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Deleted message
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("reads older messages with the before search parameter", async () => {
@@ -784,13 +810,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 10:50am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=4 from="[Alice](/human/alice)">
 
 Older context
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=5 from="[Bob](/human/bob)">
 
 Still relevant
 
@@ -846,17 +872,19 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:20am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=3 from="[Alice](/human/alice)">
 
 Newer context
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=4 from="[Bob](/human/bob)">
 
 Latest reply
 
-</message>`);
+</message>
+
+End of messages.`);
 
     expect(api.getRequestHistory()).toEqual(
         expect.arrayContaining([
@@ -938,29 +966,31 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:40am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=8 from="[Alice](/human/alice)">
 
 Message 8
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=9 from="[Bob](/human/bob)">
 
 Message 9
 
-</message>`,
+</message>
+
+End of messages.`,
         `\
 Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=6)
 
 <time>May 14th at 11:30am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=6 from="[Alice](/human/alice)">
 
 Message 6
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=7 from="[Bob](/human/bob)">
 
 Message 7
 
@@ -970,13 +1000,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:20am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=4 from="[Alice](/human/alice)">
 
 Message 4
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=5 from="[Bob](/human/bob)">
 
 Message 5
 
@@ -986,13 +1016,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:10am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=2 from="[Alice](/human/alice)">
 
 Message 2
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=3 from="[Bob](/human/bob)">
 
 Message 3
 
@@ -1002,13 +1032,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
 Message 0
 
 </message>
 
-<message from="[Bob](/human/bob)">
+<message id=1 from="[Bob](/human/bob)">
 
 Message 1
 
@@ -1352,7 +1382,7 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
 
 <time>May 14th at 2:20pm EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=40 from="[Alice](/human/alice)">
 
 Message 40
 
@@ -1362,7 +1392,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=4
 
 <time>May 14th at 2:25pm EDT</time>
 
-<message from="[Bob](/human/bob)">
+<message id=41 from="[Bob](/human/bob)">
 
 Message 41
 
@@ -1372,7 +1402,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=4
 
 <time>May 14th at 2:30pm EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=42 from="[Alice](/human/alice)">
 
 Message 42
 
@@ -1382,11 +1412,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 2:35pm EDT</time>
 
-<message from="[Bob](/human/bob)">
+<message id=43 from="[Bob](/human/bob)">
 
 Message 43
 
-</message>`,
+</message>
+
+End of messages.`,
     ]);
 });
 
@@ -1415,11 +1447,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:05am EDT</time>
 
-<message from="[Bob](/human/bob)">
+<message id=1 from="[Bob](/human/bob)">
 
 Latest update stays visible.
 
-</message>`);
+</message>
+
+End of messages.`);
 });
 
 test("caches the full chat read response for scroll", async () => {
@@ -1443,9 +1477,9 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message from="[Alice](/human/alice)">
+<message id=0 from="[Alice](/human/alice)">
 
-(Page truncated, 151b remaining. Showing lines 1-6 of 27. Call the \`scroll\` tool with an \`offset\` of 6 to continue.)`);
+(Page truncated, 169b remaining. Showing lines 1-6 of 29. Call the \`scroll\` tool with an \`offset\` of 6 to continue.)`);
 
     await expect(
         callAgentWebScrollTool(context, {
@@ -1470,5 +1504,7 @@ Paragraph 10.
 
 </message>
 
-(End of file. Showing lines 13-27 of 27.)`);
+End of messages.
+
+(End of file. Showing lines 13-29 of 29.)`);
 });
