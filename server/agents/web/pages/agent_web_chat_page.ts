@@ -76,7 +76,7 @@ export async function readAgentWebChatMessagePage(
         {
             room: {type: "Chat", id},
             roomMetadataPromise: getChatRoomMetadata(context, id),
-            aroundMessageIndex: index,
+            around: {startMessageIndex: index, endMessageIndex: index + 1},
             limitLength,
             computeLength,
             buildPage: page => ({...page, type: "Chat", metadata: {id}}),

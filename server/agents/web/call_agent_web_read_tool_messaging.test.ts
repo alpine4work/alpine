@@ -4,6 +4,11 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageLinkPathname} from "~/server/agents/web/agent_web_page_link.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
+import {
+    AgentWebMessagingPageBase,
+    agentWebMessagingPageMessageNouns,
+    readAgentWebMessagingPageBaseAroundMessage,
+} from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
@@ -13,6 +18,7 @@ import {
     ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -267,6 +273,19 @@ function createPaginationMessageRange(
     );
 }
 
+function createVerbosePaginationMessage(index: number): ApiMessageResponse {
+    return createPaginationMessage(index, `Message ${index} ${"x".repeat(120)}`);
+}
+
+function createVerbosePaginationMessageRange(
+    startIndex: number,
+    endIndex: number,
+): ReadonlyArray<ApiMessageResponse> {
+    return Array.from({length: endIndex - startIndex + 1}, (_, offset) =>
+        createVerbosePaginationMessage(startIndex + offset),
+    );
+}
+
 function createPaginationMessageIndexRange(
     startIndex: number,
     endIndex: number,
@@ -304,10 +323,30 @@ function getPaginationMessageIndexes(response: string): ReadonlyArray<number> {
     );
 }
 
+function getMessagingPageMessageIndexes(page: AgentWebMessagingPageBase): ReadonlyArray<number> {
+    return page.blocks.flatMap(block =>
+        block.type !== "Message" || !block.idAttribute
+            ? []
+            : createArrayWithLength(
+                  block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex,
+                  index => block.idAttribute!.startMessageIndex + index,
+              ),
+    );
+}
+
 function getChatMessagesListRequestParams(): ReadonlyArray<unknown> {
     return api
         .getRequestHistory()
         .filter(request => request.path === "/chats/{id}/messages")
+        .map(request => request.params);
+}
+
+function getChatMessagesListRequestParamsForChat(chatId: ChatId): ReadonlyArray<unknown> {
+    return api
+        .getRequestHistory()
+        .filter(
+            request => request.path === "/chats/{id}/messages" && request.params.path.id === chatId,
+        )
         .map(request => request.params);
 }
 
@@ -1096,6 +1135,159 @@ test("loads the initial around-message window with one fewer message before than
     });
 });
 
+test("loads a centered direct message range with different limits", async () => {
+    async function readRange(limitLength: number) {
+        const chatId = generateId<ChatId>();
+
+        mockGetChatMessagesListPage(chatId, createPaginationMessageRange(85, 114), {
+            cursor: 84,
+            limit: 30,
+            totalMessageCount: 200,
+        });
+        mockGetChatMessagesListPage(chatId, createPaginationMessageRange(70, 84), {
+            cursor: 85,
+            direction: "End",
+            limit: 15,
+            nextCursor: 70,
+            totalMessageCount: 200,
+        });
+        mockGetChatMessagesListPage(chatId, createPaginationMessageRange(115, 129), {
+            cursor: 114,
+            limit: 15,
+            nextCursor: 129,
+            totalMessageCount: 200,
+        });
+
+        if (limitLength > 315) {
+            mockGetChatMessagesListPage(chatId, createPaginationMessageRange(55, 69), {
+                cursor: 70,
+                direction: "End",
+                limit: 15,
+                nextCursor: 55,
+                totalMessageCount: 200,
+            });
+            mockGetChatMessagesListPage(chatId, createPaginationMessageRange(130, 144), {
+                cursor: 129,
+                limit: 15,
+                nextCursor: 144,
+                totalMessageCount: 200,
+            });
+        }
+
+        const page = await readAgentWebMessagingPageBaseAroundMessage(
+            context,
+            agentWebMessagingPageMessageNouns,
+            {
+                room: {type: "Chat", id: chatId},
+                roomMetadataPromise: Promise.resolve({
+                    target: {type: "Chat", id: chatId, title: "Engineering Room"},
+                    description: [{type: "Text", text: "in Engineering Room"}],
+                }),
+                around: {startMessageIndex: 94, endMessageIndex: 106},
+                limitLength,
+                computeLength: async page => getMessagingPageMessageIndexes(page).length,
+                buildPage: page => page,
+            },
+        );
+
+        return {
+            limitLength,
+            messages: getMessagingPageMessageIndexes(page),
+            requests: getChatMessagesListRequestParamsForChat(chatId),
+        };
+    }
+
+    const results = [
+        await readRange(12),
+        await readRange(18),
+        await readRange(30),
+        await readRange(500),
+    ];
+
+    expect(results).toEqual([
+        {
+            limitLength: 12,
+            messages: createPaginationMessageIndexRange(94, 105),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limitLength: 18,
+            messages: createPaginationMessageIndexRange(92, 109),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limitLength: 30,
+            messages: createPaginationMessageIndexRange(85, 114),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limitLength: 500,
+            messages: createPaginationMessageIndexRange(65, 134),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 70, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 129},
+                },
+            ],
+        },
+    ]);
+});
+
 test("loads a page around the message search parameter", async () => {
     const chatId = generateId<ChatId>();
     const path = await seedChatPath(chatId, "Engineering Room");
@@ -1143,6 +1335,171 @@ test("loads a page around the message search parameter", async () => {
             },
         ],
     });
+});
+
+test("loads a centered message range search parameter with different limits", async () => {
+    async function readRange(limit: string) {
+        const chatId = generateId<ChatId>();
+        const path = await seedChatPath(chatId, "Engineering Room");
+
+        mockGetRoomChat(chatId, "Engineering Room");
+        mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(85, 114), {
+            cursor: 84,
+            limit: 30,
+            totalMessageCount: 200,
+        });
+        mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(70, 84), {
+            cursor: 85,
+            direction: "End",
+            limit: 15,
+            nextCursor: 70,
+            totalMessageCount: 200,
+        });
+        mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(115, 129), {
+            cursor: 114,
+            limit: 15,
+            nextCursor: 129,
+            totalMessageCount: 200,
+        });
+
+        if (limit === "12kb") {
+            mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(55, 69), {
+                cursor: 70,
+                direction: "End",
+                limit: 15,
+                nextCursor: 55,
+                totalMessageCount: 200,
+            });
+            mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(130, 144), {
+                cursor: 129,
+                limit: 15,
+                nextCursor: 144,
+                totalMessageCount: 200,
+            });
+            mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(40, 54), {
+                cursor: 55,
+                direction: "End",
+                limit: 15,
+                nextCursor: 40,
+                totalMessageCount: 200,
+            });
+            mockGetChatMessagesListPage(chatId, createVerbosePaginationMessageRange(145, 159), {
+                cursor: 144,
+                limit: 15,
+                nextCursor: 159,
+                totalMessageCount: 200,
+            });
+        }
+
+        const response = await callAgentWebReadTool(context, {
+            path: `${path}?message=94-105`,
+            limit,
+        });
+
+        return {
+            limit,
+            messages: getPaginationMessageIndexes(response),
+            requests: getChatMessagesListRequestParamsForChat(chatId),
+        };
+    }
+
+    const results = [
+        await readRange("3kb"),
+        await readRange("3.5kb"),
+        await readRange("3.9kb"),
+        await readRange("12kb"),
+    ];
+
+    expect(results).toEqual([
+        {
+            limit: "3kb",
+            messages: createPaginationMessageIndexRange(93, 106),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limit: "3.5kb",
+            messages: createPaginationMessageIndexRange(92, 108),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limit: "3.9kb",
+            messages: createPaginationMessageIndexRange(91, 109),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+            ],
+        },
+        {
+            limit: "12kb",
+            messages: createPaginationMessageIndexRange(71, 130),
+            requests: [
+                {
+                    path: expect.any(Object),
+                    query: {limit: 30, cursor: 84},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 85, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 114},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 70, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 129},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 55, from: "End"},
+                },
+                {
+                    path: expect.any(Object),
+                    query: {limit: 15, cursor: 144},
+                },
+            ],
+        },
+    ]);
 });
 
 test("loads more around-message context with half-batch requests before and after", async () => {

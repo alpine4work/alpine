@@ -4,7 +4,11 @@ import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {produce} from "immer";
 import {Html, Link, Node, PhrasingContent, Root, RootContent} from "mdast";
-import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
+import {
+    createApiMessage,
+    getApiMessagesFromEnd,
+    getApiMessagesFromStart,
+} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
@@ -85,6 +89,13 @@ export type AgentWebMessagingPageBasePreamblePagination = {
       }
 );
 
+export type AgentWebMessagingPageMessageRange = {
+    /** Inclusive */
+    readonly startMessageIndex: number;
+    /** Exclusive */
+    readonly endMessageIndex: number;
+};
+
 export type AgentWebMessagingPageBlock =
     | AgentWebMessagingPageTimeBlock
     | AgentWebMessagingPageMessageBlock;
@@ -96,7 +107,7 @@ export type AgentWebMessagingPageTimeBlock = {
 
 export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
-    readonly idAttribute: AgentWebMessagingPageMessageBlockIdAttribute | null;
+    readonly idAttribute: AgentWebMessagingPageMessageRange | null;
     readonly author: ApiAccountTargetResponse;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
@@ -104,35 +115,10 @@ export type AgentWebMessagingPageMessageBlock = {
     readonly content: ApiContentResponse;
 };
 
-export type AgentWebMessagingPageMessageBlockIdAttribute = {
-    /** Inclusive */
-    readonly startMessageIndex: number;
-    /** Exclusive */
-    readonly endMessageIndex: number;
-};
-
 export type AgentWebMessagingPageMessageBlockParent = {
-    readonly citeAttribute: {
-        /** Inclusive */
-        readonly startMessageIndex: number;
-        /** Exclusive */
-        readonly endMessageIndex: number;
-    };
+    readonly citeAttribute: AgentWebMessagingPageMessageRange;
     readonly author: ApiAccountTargetResponse;
     readonly previewContent: ApiContentResponse;
-};
-
-export type AgentWebMessagingPageBaseMetadata = {
-    readonly messageIndexesByBlockIndex: ReadonlyArray<{
-        /** Inclusive */
-        readonly startMessageIndex: number;
-        /** Exclusive */
-        readonly endMessageIndex: number;
-    }>;
-};
-
-export type AgentWebMessagingPageBaseWithMetadata = AgentWebMessagingPageBase & {
-    readonly metadata: AgentWebMessagingPageBaseMetadata;
 };
 
 type AgentWebMessagingPageNouns = {
@@ -179,16 +165,16 @@ export async function readAgentWebMessagingPageBase<Page>(
         searchParams: URLSearchParams;
         limitLength: number;
         computeLength: (page: Page) => Promise<number>;
-        buildPage: (page: AgentWebMessagingPageBaseWithMetadata) => Page;
+        buildPage: (page: AgentWebMessagingPageBase) => Page;
     },
 ): Promise<Page> {
     const beforeMessageIndexSearchParam = searchParams.get("before");
     const afterMessageIndexSearchParam = searchParams.get("after");
-    const aroundMessageIndexSearchParam = searchParams.get(messageNouns.noun);
+    const aroundMessageRangeSearchParam = searchParams.get(messageNouns.noun);
 
     let beforeMessageIndex: number | null = null;
     let afterMessageIndex: number | null = null;
-    let aroundMessageIndex: number | null = null;
+    let around: AgentWebMessagingPageMessageRange | null = null;
 
     if (beforeMessageIndexSearchParam) {
         beforeMessageIndex = parseInt(beforeMessageIndexSearchParam, 10);
@@ -226,19 +212,14 @@ export async function readAgentWebMessagingPageBase<Page>(
         }
     }
 
-    if (aroundMessageIndexSearchParam) {
-        aroundMessageIndex = parseInt(aroundMessageIndexSearchParam, 10);
+    if (aroundMessageRangeSearchParam) {
+        around = parseAgentWebMessagingPageMessageIndexRange(aroundMessageRangeSearchParam);
 
-        if (
-            !/^(0|[1-9][0-9]*)$/.test(aroundMessageIndexSearchParam) ||
-            isNaN(aroundMessageIndex) ||
-            !Number.isInteger(aroundMessageIndex) ||
-            aroundMessageIndex < 0
-        ) {
+        if (around === null) {
             throw new InvalidArgumentError(
-                `Expected \`${messageNouns.noun}\` search param to be a positive integer`,
+                `Expected \`${messageNouns.noun}\` search param to be a positive integer or range`,
                 {
-                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be a positive integer, but got \`${aroundMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be a positive integer or integer range, but got \`${aroundMessageRangeSearchParam}\`. Try again with an integer, an integer range, or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
                 },
             );
         }
@@ -247,7 +228,7 @@ export async function readAgentWebMessagingPageBase<Page>(
     let searchParamCount = 0;
     if (beforeMessageIndex !== null) searchParamCount++;
     if (afterMessageIndex !== null) searchParamCount++;
-    if (aroundMessageIndex !== null) searchParamCount++;
+    if (around !== null) searchParamCount++;
 
     if (searchParamCount > 1) {
         throw new InvalidArgumentError("Expected only one pagination search param", {
@@ -257,11 +238,11 @@ export async function readAgentWebMessagingPageBase<Page>(
 
     // If the agent passes in a specific message/comment link then we have a different
     // code path for reading messages around some index. Bail and call that code path.
-    if (aroundMessageIndex !== null) {
+    if (around !== null) {
         return readAgentWebMessagingPageBaseAroundMessage(context, messageNouns, {
             room,
             roomMetadataPromise,
-            aroundMessageIndex,
+            around,
             limitLength,
             computeLength,
             buildPage,
@@ -399,15 +380,10 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
             target: ApiMentionTargetResponse;
             description: ReadonlyArray<ApiContentInlineElementResponse>;
         }>;
-        around: {
-            // Inclusive
-            startMessageIndex: number;
-            // Exclusive
-            endMessageIndex: number;
-        };
+        around: AgentWebMessagingPageMessageRange;
         limitLength: number;
         computeLength: (page: Page) => Promise<number>;
-        buildPage: (page: AgentWebMessagingPageBaseWithMetadata) => Page;
+        buildPage: (page: AgentWebMessagingPageBase) => Page;
     },
 ): Promise<Page> {
     assert(around.endMessageIndex > around.startMessageIndex);
@@ -432,7 +408,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
             1,
     });
 
-    // We expect at least `aroundMessageIndex` to exist.
+    // We expect at least one message in `around` to exist.
     assert(initialMessages.length > 0);
 
     let beforeCursor: number | null = initialMessages[0]!.index;
@@ -762,14 +738,12 @@ function buildAgentWebMessagingPageFromApiMessages(
         hasMoreMessages: boolean;
         isEndOfMessages: boolean;
     },
-): AgentWebMessagingPageBaseWithMetadata {
+): AgentWebMessagingPageBase {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
     const contextFormattedTimeZone = formatTimeZoneAbbreviation(context.timeZone, contextTime);
 
     const blocks: Array<AgentWebMessagingPageBlock> = [];
-    const messageIndexesByBlockIndex: Array<{startMessageIndex: number; endMessageIndex: number}> =
-        [];
     let previousTimeInjectionTime: Date | null = null;
 
     let currentBlock: {
@@ -849,11 +823,6 @@ function buildAgentWebMessagingPageFromApiMessages(
                 type: "Time",
                 timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
             });
-
-            messageIndexesByBlockIndex.push({
-                startMessageIndex: message.index,
-                endMessageIndex: message.index,
-            });
         }
 
         currentBlock = {
@@ -921,7 +890,6 @@ function buildAgentWebMessagingPageFromApiMessages(
         preamble: {elements: preambleElements, pagination},
         isEndOfMessages,
         blocks,
-        metadata: {messageIndexesByBlockIndex},
     };
 
     function flushCurrentBlock() {
@@ -1029,11 +997,6 @@ function buildAgentWebMessagingPageFromApiMessages(
             content: {elements},
         });
 
-        messageIndexesByBlockIndex.push({
-            startMessageIndex: firstMessage.index,
-            endMessageIndex: lastMessage.index + 1,
-        });
-
         currentBlock = null;
     }
 }
@@ -1050,9 +1013,13 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
 
 export async function updateAgentWebMessagingPageBase(
     context: AgentWebContextWithoutStorage,
-    oldPage: AgentWebMessagingPageBaseWithMetadata,
+    room: ApiMessageRoomTarget,
+    oldPage: AgentWebMessagingPageBase,
     newPage: AgentWebMessagingPageBase,
 ): Promise<void> {
+    const updateThunks: Array<() => Promise<void>> = [];
+    const createThunks: Array<() => Promise<void>> = [];
+
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `target.title`s aren't equal. The `title` might have changed
     // between the old page load time and new page generation time.
@@ -1124,44 +1091,121 @@ export async function updateAgentWebMessagingPageBase(
             throw new UnimplementedError("NOCOMMIT");
         }
 
-        const messageIndexes = oldPage.metadata.messageIndexesByBlockIndex[index]!;
+        if (!normalizedNewBlock.idAttribute) {
+            throw new InternalError("Missing `idAttribute` on existing message block");
+        }
 
-        if (messageIndexes.startMessageIndex !== messageIndexes.endMessageIndex - 1) {
+        if (
+            normalizedNewBlock.idAttribute.startMessageIndex !==
+            normalizedNewBlock.idAttribute.endMessageIndex - 1
+        ) {
             throw new InternalError("We should never merge the current bot\u2019s messages");
         }
 
-        // NOCOMMIT: Update content! Delete if new content is empty.
+        updateThunks.push(async () => {
+            if (
+                normalizedNewBlock.content.elements.length === 0 ||
+                (normalizedNewBlock.content.elements[0]!.type === "Paragraph" &&
+                    normalizedNewBlock.content.elements[0].elements.length === 0)
+            ) {
+                // TODO(#agents-web): Implement message delete endpoint
+                throw new UnimplementedError(
+                    "Message delete API endpoint hasn\u2019t been implemented yet",
+                );
+            } else {
+                // TODO(#agents-web): Implement message delete endpoint
+                throw new UnimplementedError(
+                    "Message update API endpoint hasn\u2019t been implemented yet",
+                );
+            }
+        });
     }
 
     if (oldPage.blocks.length > newPage.blocks.length) {
         throw new UnimplementedError("NOCOMMIT");
     }
 
-    let hasCreatedMessage = false;
+    const lastCommonNewBlock = newPage.blocks[commonBlocksLength - 1];
+
+    const lastMessageIndex =
+        lastCommonNewBlock?.type === "Message"
+            ? (lastCommonNewBlock.idAttribute?.endMessageIndex ?? 0)
+            : 0;
 
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
+
+        if (!oldPage.isEndOfMessages) {
+            throw new UnimplementedError("NOCOMMIT");
+        }
 
         if (newBlock.type !== "Message" || newBlock.author.id !== context.botAccountId) {
             throw new UnimplementedError("NOCOMMIT");
         }
 
-        hasCreatedMessage = true;
+        if (
+            newBlock.idAttribute &&
+            (newBlock.idAttribute.startMessageIndex !==
+                lastMessageIndex + (index - commonBlocksLength) ||
+                newBlock.idAttribute.endMessageIndex !==
+                    lastMessageIndex + (index - commonBlocksLength) + 1)
+        ) {
+            throw new UnimplementedError("NOCOMMIT");
+        }
 
-        // NOCOMMIT: Create message! But only if we're at the end of all messages in this
-        // room.
+        if (newBlock.timeAttribute) {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+
+        createThunks.push(async () => {
+            if (newBlock.parent) {
+                // TODO(#agents-web): Implement creating message with parent. There's a range of
+                // options for how we can do this. From only allowing full message replies to
+                // figuring out the exact range of text the agent is replying to. Going to leave
+                // this unimplemented for now.
+                throw new UnimplementedError(
+                    "Creating message with parent as agent isn\u2019t implemented yet",
+                );
+            }
+
+            if (newBlock.timeZoneAttribute) {
+                // TODO(#agents-web): Implement parsing of time zone attribute.
+                throw new UnimplementedError(
+                    "Parsing of time zone attribute into `TimeZone` type hasn\u2019t been implemented",
+                );
+            }
+
+            await createApiMessage(context.span, context.api, room, {
+                content: newBlock.content,
+            });
+        });
     }
 
     if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
         // If the agent replaced our "End of messages." paragraph with a new message, we're
         // ok with that. The "End of messages." paragraph exists as a hook for the agent to
         // easily append a new message to the end of the page.
-        const ignore = oldPage.isEndOfMessages && !newPage.isEndOfMessages && hasCreatedMessage;
+        const ignore =
+            oldPage.isEndOfMessages && !newPage.isEndOfMessages && createThunks.length > 0;
 
         if (!ignore) {
             throw new UnimplementedError("NOCOMMIT");
         }
     }
+
+    // Finally now that we're done validating the update, actually make all changes!
+    await runAllPromises([
+        // Run all update thunks in parallel.
+        runAllPromises(updateThunks.map(updateThunk => updateThunk())),
+
+        // Update all create thunks in sequence to make sure they're added in the right
+        // order.
+        (async () => {
+            for (const createThunk of createThunks) {
+                await createThunk();
+            }
+        })(),
+    ]);
 }
 
 export function normalizeAgentWebMessagingPageBase<Page extends AgentWebMessagingPageBase>(
@@ -1403,10 +1447,7 @@ export async function printAgentWebMessagingPageBase<PageLink>(
 function printAgentWebMessagingPageMessageIndexRange({
     startMessageIndex,
     endMessageIndex,
-}: {
-    readonly startMessageIndex: number;
-    readonly endMessageIndex: number;
-}): string {
+}: AgentWebMessagingPageMessageRange): string {
     const endMessageIndexInclusive = endMessageIndex - 1;
 
     assert(startMessageIndex >= 0);
@@ -2246,20 +2287,29 @@ function parseAgentWebMessagingPageMessageBlockIdAttribute(
     messageNouns: AgentWebMessagingPageNouns,
     position: Node["position"],
     idAttribute: string | null,
-): AgentWebMessagingPageMessageBlockIdAttribute | null {
+): AgentWebMessagingPageMessageRange | null {
     if (idAttribute === null) return null;
 
+    const range = parseAgentWebMessagingPageMessageIndexRange(idAttribute);
+    if (range !== null) return range;
+
+    throw new InvalidArgumentError("Invalid message `id` attribute", {
+        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.`,
+    });
+}
+
+function parseAgentWebMessagingPageMessageIndexRange(
+    string: string,
+): AgentWebMessagingPageMessageRange | null {
     const integerPattern = "(0|[1-9][0-9]*)";
-    const singleMessageIndexMatch = new RegExp(`^${integerPattern}$`).exec(idAttribute);
+    const singleMessageIndexMatch = new RegExp(`^${integerPattern}$`).exec(string);
 
     if (singleMessageIndexMatch) {
         const messageIndex = parseInt(singleMessageIndexMatch[1]!, 10);
         return {startMessageIndex: messageIndex, endMessageIndex: messageIndex + 1};
     }
 
-    const messageIndexRangeMatch = new RegExp(`^${integerPattern}-${integerPattern}$`).exec(
-        idAttribute,
-    );
+    const messageIndexRangeMatch = new RegExp(`^${integerPattern}-${integerPattern}$`).exec(string);
 
     if (messageIndexRangeMatch) {
         const startMessageIndex = parseInt(messageIndexRangeMatch[1]!, 10);
@@ -2273,9 +2323,7 @@ function parseAgentWebMessagingPageMessageBlockIdAttribute(
         }
     }
 
-    throw new InvalidArgumentError("Invalid message `id` attribute", {
-        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.`,
-    });
+    return null;
 }
 
 function createUnexpectedMarkdownError(

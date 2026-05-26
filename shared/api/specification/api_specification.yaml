@@ -1416,6 +1416,8 @@ components:
         # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
         # bodies for objects of the same type. So `GetMessage` should be
         # assignable to `CreateMessage`.
+        #
+        # This means we need to nest these properties in a `message` object right?
         CreateMessage:
             required: true
             content:
