@@ -49,6 +49,7 @@ import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_key
 import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -134,14 +135,20 @@ const ApiPreviewTargetArbitraries = {
     }),
 };
 
+export const ApiAccountTargetArbitrary = fc.record({
+    type: fc.constant("Account"),
+    id: createIdArbitrary<AccountId>(),
+    title: ApiContentTextArbitrary,
+    shortName: ApiContentTextArbitrary,
+    botId: fc.oneof(
+        {weight: 10, arbitrary: fc.constant(undefined)},
+        {weight: 1, arbitrary: createIdArbitrary<BotId>()},
+    ),
+});
+
 export const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
     ...ApiPreviewTargetArbitraries,
-    Account: fc.record({
-        type: fc.constant("Account"),
-        id: createIdArbitrary<AccountId>(),
-        title: ApiContentTextArbitrary,
-        shortName: ApiContentTextArbitrary,
-    }),
+    Account: ApiAccountTargetArbitrary,
 });
 
 const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =

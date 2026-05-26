@@ -6,6 +6,7 @@ import {
     Paragraph,
     PhrasingContent,
     Root,
+    RootContent,
     TableCell,
     TableRow,
 } from "mdast";
@@ -112,7 +113,7 @@ function actuallyPrintApiContentToMarkdown(
     return printMarkdownTree(root);
 }
 
-export function printMarkdownTree(root: Root): string {
+export function printMarkdownTree(root: Root | RootContent): string {
     return toMarkdown(root, {
         bullet: "-",
         rule: "-",

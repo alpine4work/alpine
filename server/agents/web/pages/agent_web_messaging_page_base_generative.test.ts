@@ -15,6 +15,7 @@ import {
     ApiContentInlineElementWithoutCommentMarkArbitrary,
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
+    ApiAccountTargetArbitrary,
     ApiMentionTargetArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
@@ -28,8 +29,7 @@ const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTi
 const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPageMessageBlock> =
     fc.record({
         type: fc.constant("Message"),
-        tagName: fc.oneof(fc.constant("human"), fc.constant("bot")),
-        nameAttribute: ApiContentTextArbitrary,
+        author: ApiAccountTargetArbitrary,
         timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         parent: fc.oneof(
@@ -37,7 +37,7 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
             {
                 weight: 1,
                 arbitrary: fc.record({
-                    nameAttribute: ApiContentTextArbitrary,
+                    author: ApiAccountTargetArbitrary,
                     previewContent: ApiContentWithoutCommentMarkArbitrary,
                 }),
             },

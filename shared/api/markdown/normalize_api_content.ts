@@ -47,6 +47,16 @@ export function normalizeApiContentBlockElement(
     });
 }
 
+export function normalizeApiContentInlineElements(
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ReadonlyArray<ApiContentInlineElement> {
+    return produce(elements, elements => {
+        ApiContentNormalizer.with(normalizer => {
+            normalizer.normalizeInlineElements(elements);
+        });
+    });
+}
+
 export function normalizeApiTarget(target: ApiMentionTarget): ApiMentionTarget {
     return produce(target, target => {
         ApiContentNormalizer.with(normalizer => {

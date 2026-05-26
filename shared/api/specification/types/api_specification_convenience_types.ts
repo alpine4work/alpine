@@ -2,6 +2,11 @@ import {ApiSpecification} from "~/shared/api/specification/types/api_specificati
 
 export type ApiMessageRoomTarget = ApiSpecification.components["schemas"]["MessageRoomTarget"];
 
+export type ApiAccountTarget = ApiSpecification.components["schemas"]["AccountTarget"];
+
+export type ApiAccountTargetResponse =
+    ApiSpecification.components["schemas"]["AccountTarget_Response"];
+
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
 
 export type ApiMentionTargetResponse =
