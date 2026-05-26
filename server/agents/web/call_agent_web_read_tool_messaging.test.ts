@@ -334,11 +334,11 @@ Some messages in a chat with Alice.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello world!
 
-</human>`);
+</message>`);
 });
 
 test("reads a room chat with multiple human participants", async () => {
@@ -366,17 +366,17 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello!
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Hello hello!
 
-</human>`);
+</message>`);
 });
 
 test("groups consecutive messages from the same author within 10 minutes", async () => {
@@ -404,13 +404,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 First message
 
 Second message
 
-</human>`);
+</message>`);
 });
 
 test("separates messages from the same author after 10 minutes with a relative time", async () => {
@@ -438,17 +438,17 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 First message
 
-</human>
+</message>
 
-<human name="Alice" time="30 minutes later">
+<message from="[Alice](/human/alice)" time="30 minutes later">
 
 Second message
 
-</human>`);
+</message>`);
 });
 
 test("injects a new time block when messages are at least an hour apart", async () => {
@@ -476,19 +476,19 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Morning message
 
-</human>
+</message>
 
 <time>May 14th at 12:00pm EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Noon message
 
-</human>`);
+</message>`);
 });
 
 test("prints bot messages with bot tags", async () => {
@@ -510,11 +510,11 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<bot name="Assistant">
+<message from="[Assistant](/bot/assistant)">
 
 Hello human!
 
-</bot>`);
+</message>`);
 });
 
 test("escapes author names in message tags", async () => {
@@ -542,11 +542,11 @@ Some messages in Escaping Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<bot name="Alice &amp; Bob&#39;s &quot;Bot&quot;">
+<message from="[Alice](/bot/alice-and-bob-s-bot)">
 
 Hello
 
-</bot>`);
+</message>`);
 });
 
 test("prints rich message content using agent web markdown links", async () => {
@@ -588,11 +588,11 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Review **carefully** in [Release Plan](/document/release-plan) before running \`deploy\`.
 
-</human>`);
+</message>`);
 });
 
 test("prints timezone attributes when human message timezones differ from context", async () => {
@@ -615,11 +615,11 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice" timezone="PDT">
+<message from="[Alice](/human/alice)" timezone="PDT">
 
 Hello from the west coast.
 
-</human>`);
+</message>`);
 });
 
 test("omits timezone attributes for bot messages", async () => {
@@ -642,11 +642,11 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<bot name="Assistant">
+<message from="[Assistant](/bot/assistant)">
 
 I keep bot messages timezone-free.
 
-</bot>`);
+</message>`);
 });
 
 test("prints reply previews in blockquotes", async () => {
@@ -673,9 +673,9 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
-<blockquote cite="Alice">
+<blockquote cite="[Alice](/human/alice)">
 
 Can you review the rollout?
 
@@ -683,7 +683,7 @@ Can you review the rollout?
 
 Taking a look now.
 
-</human>`);
+</message>`);
 });
 
 test("marks truncated reply previews with an ellipsis", async () => {
@@ -710,9 +710,9 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
-<blockquote cite="Alice">
+<blockquote cite="[Alice](/human/alice)">
 
 Can you review \\[\u2026]
 
@@ -720,7 +720,7 @@ Can you review \\[\u2026]
 
 Taking a look now.
 
-</human>`);
+</message>`);
 });
 
 test("prints deleted messages", async () => {
@@ -741,11 +741,11 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Deleted message
 
-</human>`);
+</message>`);
 });
 
 test("reads older messages with the before search parameter", async () => {
@@ -784,17 +784,17 @@ Some messages in Engineering Room.
 
 <time>May 14th at 10:50am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Older context
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Still relevant
 
-</human>`);
+</message>`);
 
     expect(api.getRequestHistory()).toEqual(
         expect.arrayContaining([
@@ -846,17 +846,17 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:20am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Newer context
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Latest reply
 
-</human>`);
+</message>`);
 
     expect(api.getRequestHistory()).toEqual(
         expect.arrayContaining([
@@ -925,11 +925,11 @@ test("paginates through five chat pages from newest to oldest", async () => {
     });
 
     const responses = [
-        await callAgentWebReadTool(context, {path, limit: "230b"}),
-        await callAgentWebReadTool(context, {path: `${path}?before=8`, limit: "230b"}),
-        await callAgentWebReadTool(context, {path: `${path}?before=6`, limit: "230b"}),
-        await callAgentWebReadTool(context, {path: `${path}?before=4`, limit: "230b"}),
-        await callAgentWebReadTool(context, {path: `${path}?before=2`, limit: "230b"}),
+        await callAgentWebReadTool(context, {path, limit: "280b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=8`, limit: "280b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=6`, limit: "280b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=4`, limit: "280b"}),
+        await callAgentWebReadTool(context, {path: `${path}?before=2`, limit: "280b"}),
     ];
 
     expect(responses).toEqual([
@@ -938,81 +938,81 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:40am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 8
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 9
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=6)
 
 <time>May 14th at 11:30am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 6
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 7
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=4)
 
 <time>May 14th at 11:20am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 4
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 5
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room. [Previous page »](/chat/engineering-room?before=2)
 
 <time>May 14th at 11:10am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 2
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 3
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 0
 
-</human>
+</message>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 1
 
-</human>`,
+</message>`,
     ]);
 });
 
@@ -1196,7 +1196,7 @@ test("trims an around-message page from the older side first", async () => {
     const response = await readChatMessageForTest({
         chatId,
         aroundMessageIndex: 14,
-        limit: "260b",
+        limit: "330b",
     });
 
     expect(getPaginationMessageIndexes(response)).toEqual([14, 15]);
@@ -1225,7 +1225,7 @@ test("keeps the target message when trimming an around-message page from the old
     const response = await readChatMessageForTest({
         chatId,
         aroundMessageIndex: 14,
-        limit: "220b",
+        limit: "260b",
     });
 
     expect(getPaginationMessageIndexes(response)).toEqual([14]);
@@ -1254,7 +1254,7 @@ test("keeps the target message when trimming an around-message page from the new
     const response = await readChatMessageForTest({
         chatId,
         aroundMessageIndex: 0,
-        limit: "220b",
+        limit: "260b",
     });
 
     expect(getPaginationMessageIndexes(response)).toEqual([0]);
@@ -1283,7 +1283,7 @@ test("alternates trimming an around-message page after dropping from the older s
     const response = await readChatMessageForTest({
         chatId,
         aroundMessageIndex: 14,
-        limit: "420b",
+        limit: "540b",
     });
 
     expect(getPaginationMessageIndexes(response)).toEqual([13, 14, 15, 16, 17]);
@@ -1331,19 +1331,19 @@ test("reads a single chat message and paginates forward through next links", asy
 
     const firstResponse = await callAgentWebReadTool(context, {
         path: chatMessagePath,
-        limit: "220b",
+        limit: "250b",
     });
     const secondResponse = await callAgentWebReadTool(context, {
         path: readNextPagePath(firstResponse),
-        limit: "180b",
+        limit: "220b",
     });
     const thirdResponse = await callAgentWebReadTool(context, {
         path: readNextPagePath(secondResponse),
-        limit: "180b",
+        limit: "220b",
     });
     const fourthResponse = await callAgentWebReadTool(context, {
         path: readNextPagePath(thirdResponse),
-        limit: "180b",
+        limit: "220b",
     });
 
     expect([firstResponse, secondResponse, thirdResponse, fourthResponse]).toEqual([
@@ -1352,41 +1352,41 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
 
 <time>May 14th at 2:20pm EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 40
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=41)
 
 <time>May 14th at 2:25pm EDT</time>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 41
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=42)
 
 <time>May 14th at 2:30pm EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message 42
 
-</human>`,
+</message>`,
         `\
 Some messages in Engineering Room.
 
 <time>May 14th at 2:35pm EDT</time>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Message 43
 
-</human>`,
+</message>`,
     ]);
 });
 
@@ -1415,11 +1415,11 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:05am EDT</time>
 
-<human name="Bob">
+<message from="[Bob](/human/bob)">
 
 Latest update stays visible.
 
-</human>`);
+</message>`);
 });
 
 test("caches the full chat read response for scroll", async () => {
@@ -1443,11 +1443,9 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-Paragraph 1.
-
-(Page truncated, 135b remaining. Showing lines 1-8 of 27. Call the \`scroll\` tool with an \`offset\` of 8 to continue.)`);
+(Page truncated, 151b remaining. Showing lines 1-6 of 27. Call the \`scroll\` tool with an \`offset\` of 6 to continue.)`);
 
     await expect(
         callAgentWebScrollTool(context, {
@@ -1470,7 +1468,7 @@ Paragraph 9.
 
 Paragraph 10.
 
-</human>
+</message>
 
 (End of file. Showing lines 13-27 of 27.)`);
 });

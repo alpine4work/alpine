@@ -1,5 +1,5 @@
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.js";
-import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
@@ -13,47 +13,22 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
 import {
-    AccountId,
-    BotId,
-    ChannelId,
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
     PostId,
-    TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
 export type AgentWebPageLink =
-    | {
-          readonly type: "Account";
-          readonly id: AccountId;
-          readonly title: string;
-          readonly shortName: string;
-          readonly botId?: BotId;
-      }
-    | {
-          readonly type: "Channel";
-          readonly id: ChannelId;
-          readonly title: string;
-      }
-    | {
-          readonly type: "Chat";
-          readonly id: ChatId;
-          readonly title: string;
-      }
+    | ApiMentionTargetResponse
     | {
           readonly type: "ChatMessage";
           readonly id: ChatId;
           readonly index: number;
           readonly authorShortName: string;
           readonly bodySnippet: string;
-      }
-    | {
-          readonly type: "Document";
-          readonly id: DocumentId;
-          readonly title: string;
       }
     | {
           readonly type: "DocumentMessage";
@@ -64,11 +39,6 @@ export type AgentWebPageLink =
           readonly bodySnippet: string;
       }
     | {
-          readonly type: "Post";
-          readonly id: PostId;
-          readonly title: string;
-      }
-    | {
           readonly type: "PostMessage";
           readonly id: PostId;
           readonly index: number;
@@ -76,22 +46,11 @@ export type AgentWebPageLink =
           readonly bodySnippet: string;
       }
     | {
-          readonly type: "Task";
-          readonly id: TaskId;
-          readonly title: string;
-          readonly status: ApiTaskStatus;
-      }
-    | {
           readonly type: "TaskMessage";
           readonly id: TaskId;
           readonly index: number;
           readonly authorShortName: string;
           readonly bodySnippet: string;
-      }
-    | {
-          readonly type: "TaskCollection";
-          readonly id: TaskCollectionId;
-          readonly title: string;
       }
     | {
           readonly type: "File";

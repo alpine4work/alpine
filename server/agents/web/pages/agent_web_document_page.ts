@@ -19,13 +19,13 @@ export type AgentWebDocumentPage = {
     readonly content: ApiContentResponse;
 };
 
-export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
-    readonly metadata: AgentWebDocumentPageMetadata;
-};
-
 export type AgentWebDocumentPageMetadata = {
     readonly id: DocumentId;
     readonly version: number;
+};
+
+export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
+    readonly metadata: AgentWebDocumentPageMetadata;
 };
 
 export async function readAgentWebDocumentPage(
