@@ -101,13 +101,13 @@ Hello there.
             name: "message id attributes",
             pageLink: true,
             markdown: `\
-<message id=42 from="[Alice](/human/alice)">
+<message id="42" from="[Alice](/human/alice)">
 
 Single message block.
 
 </message>
 
-<message id=4-7 from="[Bob](/human/bob)">
+<message id="4-7" from="[Bob](/human/bob)">
 
 Merged message block.
 
@@ -586,7 +586,7 @@ Hello.
             name: "message with invalid id attribute range",
             pageLink: true,
             markdown: `\
-<message id=7-4 from="[Alice](/human/alice)">
+<message id="7-4" from="[Alice](/human/alice)">
 
 Hello.
 
@@ -815,7 +815,7 @@ Quoted.
 </message>
 `,
             parseError:
-                "`<blockquote>` content on line 3 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`.",
+                "`<blockquote>` content on line 3 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`. Try again with a link to the message author.",
         },
         {
             name: "close blockquote without open tag",

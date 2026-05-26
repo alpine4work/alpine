@@ -336,7 +336,7 @@ Some messages in a chat with Alice.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Hello world!
 
@@ -370,13 +370,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Hello!
 
 </message>
 
-<message id=1 from="[Bob](/human/bob)">
+<message id="1" from="[Bob](/human/bob)">
 
 Hello hello!
 
@@ -410,7 +410,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0-1 from="[Alice](/human/alice)">
+<message id="0-1" from="[Alice](/human/alice)">
 
 First message
 
@@ -446,13 +446,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 First message
 
 </message>
 
-<message id=1 from="[Alice](/human/alice)" time="30 minutes later">
+<message id="1" from="[Alice](/human/alice)" time="30 minutes later">
 
 Second message
 
@@ -486,7 +486,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Morning message
 
@@ -494,7 +494,7 @@ Morning message
 
 <time>May 14th at 12:00pm EDT</time>
 
-<message id=1 from="[Alice](/human/alice)">
+<message id="1" from="[Alice](/human/alice)">
 
 Noon message
 
@@ -522,7 +522,7 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Assistant](/bot/assistant)">
+<message id="0" from="[Assistant](/bot/assistant)">
 
 Hello human!
 
@@ -556,7 +556,7 @@ Some messages in Escaping Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/bot/alice-and-bob-s-bot)">
+<message id="0" from="[Alice](/bot/alice-and-bob-s-bot)">
 
 Hello
 
@@ -604,7 +604,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Review **carefully** in [Release Plan](/document/release-plan) before running \`deploy\`.
 
@@ -633,7 +633,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)" timezone="PDT">
+<message id="0" from="[Alice](/human/alice)" timezone="PDT">
 
 Hello from the west coast.
 
@@ -662,7 +662,7 @@ Some messages in a chat with Agent Chat.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Assistant](/bot/assistant)">
+<message id="0" from="[Assistant](/bot/assistant)">
 
 I keep bot messages timezone-free.
 
@@ -696,7 +696,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<message id=0 from="[Bob](/human/bob)">
+<message id="0" from="[Bob](/human/bob)">
 
 <blockquote cite="?message=4-7">
 
@@ -735,7 +735,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:05am EDT</time>
 
-<message id=0 from="[Bob](/human/bob)">
+<message id="0" from="[Bob](/human/bob)">
 
 <blockquote cite="?message=0">
 
@@ -768,7 +768,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Deleted message
 
@@ -813,13 +813,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 10:50am EDT</time>
 
-<message id=4 from="[Alice](/human/alice)">
+<message id="4" from="[Alice](/human/alice)">
 
 Older context
 
 </message>
 
-<message id=5 from="[Bob](/human/bob)">
+<message id="5" from="[Bob](/human/bob)">
 
 Still relevant
 
@@ -875,13 +875,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:20am EDT</time>
 
-<message id=3 from="[Alice](/human/alice)">
+<message id="3" from="[Alice](/human/alice)">
 
 Newer context
 
 </message>
 
-<message id=4 from="[Bob](/human/bob)">
+<message id="4" from="[Bob](/human/bob)">
 
 Latest reply
 
@@ -969,13 +969,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:40am EDT</time>
 
-<message id=8 from="[Alice](/human/alice)">
+<message id="8" from="[Alice](/human/alice)">
 
 Message 8
 
 </message>
 
-<message id=9 from="[Bob](/human/bob)">
+<message id="9" from="[Bob](/human/bob)">
 
 Message 9
 
@@ -987,13 +987,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:30am EDT</time>
 
-<message id=6 from="[Alice](/human/alice)">
+<message id="6" from="[Alice](/human/alice)">
 
 Message 6
 
 </message>
 
-<message id=7 from="[Bob](/human/bob)">
+<message id="7" from="[Bob](/human/bob)">
 
 Message 7
 
@@ -1003,13 +1003,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:20am EDT</time>
 
-<message id=4 from="[Alice](/human/alice)">
+<message id="4" from="[Alice](/human/alice)">
 
 Message 4
 
 </message>
 
-<message id=5 from="[Bob](/human/bob)">
+<message id="5" from="[Bob](/human/bob)">
 
 Message 5
 
@@ -1019,13 +1019,13 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:10am EDT</time>
 
-<message id=2 from="[Alice](/human/alice)">
+<message id="2" from="[Alice](/human/alice)">
 
 Message 2
 
 </message>
 
-<message id=3 from="[Bob](/human/bob)">
+<message id="3" from="[Bob](/human/bob)">
 
 Message 3
 
@@ -1035,13 +1035,13 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 Message 0
 
 </message>
 
-<message id=1 from="[Bob](/human/bob)">
+<message id="1" from="[Bob](/human/bob)">
 
 Message 1
 
@@ -1434,7 +1434,7 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
 
 <time>May 14th at 2:20pm EDT</time>
 
-<message id=40 from="[Alice](/human/alice)">
+<message id="40" from="[Alice](/human/alice)">
 
 Message 40
 
@@ -1444,7 +1444,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=4
 
 <time>May 14th at 2:25pm EDT</time>
 
-<message id=41 from="[Bob](/human/bob)">
+<message id="41" from="[Bob](/human/bob)">
 
 Message 41
 
@@ -1454,7 +1454,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=4
 
 <time>May 14th at 2:30pm EDT</time>
 
-<message id=42 from="[Alice](/human/alice)">
+<message id="42" from="[Alice](/human/alice)">
 
 Message 42
 
@@ -1464,7 +1464,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 2:35pm EDT</time>
 
-<message id=43 from="[Bob](/human/bob)">
+<message id="43" from="[Bob](/human/bob)">
 
 Message 43
 
@@ -1499,7 +1499,7 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
 
 <time>May 14th at 11:05am EDT</time>
 
-<message id=1 from="[Bob](/human/bob)">
+<message id="1" from="[Bob](/human/bob)">
 
 Latest update stays visible.
 
@@ -1529,7 +1529,7 @@ Some messages in Engineering Room.
 
 <time>May 14th at 11:00am EDT</time>
 
-<message id=0 from="[Alice](/human/alice)">
+<message id="0" from="[Alice](/human/alice)">
 
 (Page truncated, 169b remaining. Showing lines 1-6 of 29. Call the \`scroll\` tool with an \`offset\` of 6 to continue.)`);
 
