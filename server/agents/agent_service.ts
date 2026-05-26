@@ -137,7 +137,7 @@ async function handleFetch(
                     });
                 }
                 case "ChatGptWebhook": {
-                    return handleDurableObjectPostRequest(
+                    return await handleDurableObjectPostRequest(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
                         request,
@@ -156,7 +156,7 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/conversation-state";
 
-                    return fetchFromDurableObject(
+                    return await fetchFromDurableObject(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
                         `${accountId}:${roomPath}`,
@@ -167,7 +167,7 @@ async function handleFetch(
                     );
                 }
                 case "CursorWebhook": {
-                    return handleDurableObjectPostRequest(
+                    return await handleDurableObjectPostRequest(
                         span,
                         env.CursorAgentDurableObjectNamespace,
                         request,
@@ -178,7 +178,7 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = `/cloud-agents-webhook/${route.agentId}`;
 
-                    return fetchFromDurableObjectWithId(
+                    return await fetchFromDurableObjectWithId(
                         span,
                         env.CursorAgentDurableObjectNamespace,
                         env.CursorAgentDurableObjectNamespace.idFromString(route.durableObjectId),
@@ -202,7 +202,7 @@ async function handleFetch(
                             throw exhaustive(route.bot);
                     }
 
-                    return handleDurableObjectPostRequest(
+                    return await handleDurableObjectPostRequest(
                         span,
                         durableObjectNamespace,
                         request,
@@ -233,7 +233,7 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/recording";
 
-                    return fetchFromDurableObject(
+                    return await fetchFromDurableObject(
                         span,
                         durableObjectNamespace,
                         `${accountId}:${roomPath}`,
@@ -296,7 +296,7 @@ async function handleDurableObjectPostRequest(
     const newUrl = new URL(request.url);
     newUrl.pathname = newUrlPath;
 
-    return fetchFromDurableObject(
+    return await fetchFromDurableObject(
         span,
         durableObjectNamespace,
         getDurableObjectIdFromApiBotWebhookEvent(requestBody),
@@ -308,7 +308,7 @@ async function handleDurableObjectPostRequest(
     );
 }
 
-function fetchFromDurableObject(
+async function fetchFromDurableObject(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     name: string,
@@ -316,10 +316,10 @@ function fetchFromDurableObject(
 ) {
     const id = durableObjectNamespace.idFromName(name);
 
-    return fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
+    return await fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
 }
 
-function fetchFromDurableObjectWithId(
+async function fetchFromDurableObjectWithId(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     id: DurableObjectId,
@@ -338,7 +338,7 @@ function fetchFromDurableObjectWithId(
 
     addTracerPropagationContextHeader(request.headers, span);
 
-    return durableObjectStub.fetch(request);
+    return await durableObjectStub.fetch(request);
 }
 
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
