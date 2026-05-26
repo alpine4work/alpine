@@ -125,13 +125,30 @@ export function runAgentWebPageTests<PageLink, Page>({
                         error = actualError;
                     }
 
-                    if (!(error instanceof ErrorBase) || !error.displayMessage) {
+                    let displayMessage: ErrorDisplayMessage;
+
+                    if (error instanceof ErrorBase && error.displayMessage) {
+                        displayMessage = error.displayMessage;
+                    } else if (
+                        error instanceof AggregateError &&
+                        error.errors[0] instanceof ErrorBase &&
+                        error.errors[0].displayMessage
+                    ) {
+                        // NOCOMMIT: Make sure tool calling code handles `displayMessage`s from
+                        // `AggregateError`s!
+                        //
+                        // What I want is some kind of function to extract + print an error to a string for
+                        // agents. I think this also means we need to replace any usages of `` ` `` in
+                        // display messages with a custom code error display message segment that prints to
+                        // inline code Markdown.
+                        displayMessage = error.errors[0].displayMessage;
+                    } else {
                         throw new InternalError(
                             "Expected `parse()` to throw an error with a `displayMessage`",
                         );
                     }
 
-                    expect(renderErrorDisplayMessage(error.displayMessage)).toEqual(
+                    expect(renderErrorDisplayMessage(displayMessage)).toEqual(
                         testCase.parseError ?? "",
                     );
                 }
@@ -156,13 +173,30 @@ export function runAgentWebPageTests<PageLink, Page>({
                         error = actualError;
                     }
 
-                    if (!(error instanceof ErrorBase) || !error.displayMessage) {
+                    let displayMessage: ErrorDisplayMessage;
+
+                    if (error instanceof ErrorBase && error.displayMessage) {
+                        displayMessage = error.displayMessage;
+                    } else if (
+                        error instanceof AggregateError &&
+                        error.errors[0] instanceof ErrorBase &&
+                        error.errors[0].displayMessage
+                    ) {
+                        // NOCOMMIT: Make sure tool calling code handles `displayMessage`s from
+                        // `AggregateError`s!
+                        //
+                        // What I want is some kind of function to extract + print an error to a string for
+                        // agents. I think this also means we need to replace any usages of `` ` `` in
+                        // display messages with a custom code error display message segment that prints to
+                        // inline code Markdown.
+                        displayMessage = error.errors[0].displayMessage;
+                    } else {
                         throw new InternalError(
                             "Expected `parse()` to throw an error with a `displayMessage`",
                         );
                     }
 
-                    expect(renderErrorDisplayMessage(error.displayMessage)).toEqual(
+                    expect(renderErrorDisplayMessage(displayMessage)).toEqual(
                         testCase.createParseError ?? testCase.parseError ?? "",
                     );
                 }

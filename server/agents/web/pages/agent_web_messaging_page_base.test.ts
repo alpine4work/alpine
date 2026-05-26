@@ -7,6 +7,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {
+    ApiAccountTargetResponse,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentParagraphBlockElementResponse,
@@ -15,12 +16,32 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.js";
 
 const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
 const paginationChatId = generateId<ChatId>();
 const duplicateFileId = generateChronologicalId<FileId>();
+
+function accountTarget({name, botId}: {name: string; botId?: BotId}): ApiAccountTargetResponse {
+    return {
+        type: "Account",
+        id: generateId<AccountId>(),
+        title: name,
+        shortName: name,
+        ...(botId ? {botId} : {}),
+    };
+}
+
+const aliceTarget = accountTarget({name: "Alice"});
+const bobTarget = accountTarget({name: "Bob"});
+const assistantTarget = accountTarget({name: "Assistant", botId: generateId<BotId>()});
+const escapedAliceBobTeamTarget = accountTarget({
+    name: `Alice & Bob${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
+});
+const escapedCarolDanTeamTarget = accountTarget({
+    name: `Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
+});
 
 function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
     return {elements};
@@ -50,11 +71,11 @@ runAgentWebPageTests<true, AgentWebMessagingPageBase>({
             markdown: `\
 <time>May 13, 2026 3:00 PM EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello there.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
@@ -65,8 +86,7 @@ Hello there.
                     },
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -81,11 +101,11 @@ Hello there.
             markdown: `\
 Viewing the **launch** thread for [Alpine](https://example.com/alpine).
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello there.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {
@@ -101,8 +121,7 @@ Hello there.
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -119,11 +138,11 @@ The current page starts after the May planning sync.
 
 <time>May 13, 2026 3:00 PM EDT</time>
 
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello there.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {
@@ -137,8 +156,7 @@ Hello there.
                     },
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -297,9 +315,9 @@ Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/en
             name: "bot message with reply preview and rich content",
             pageLink: true,
             markdown: `\
-<bot name="Assistant" time="12 minutes later">
+<message from="[Assistant](/bot/assistant)" time="12 minutes later">
 
-<blockquote cite="Alice">
+<blockquote cite="[Alice](/human/alice)">
 
 Can you review **this**?
 
@@ -313,19 +331,18 @@ Review **now** and *carefully*.
 const done = true;
 \`\`\`
 
-</bot>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "bot",
-                        nameAttribute: "Assistant",
+                        author: assistantTarget,
                         timeAttribute: "12 minutes later",
                         timeZoneAttribute: null,
                         parent: {
-                            nameAttribute: "Alice",
+                            author: aliceTarget,
                             previewContent: content([
                                 paragraph([
                                     text("Can you review "),
@@ -367,9 +384,9 @@ const done = true;
             markdown: `\
 <time>May & \u0022Later\u0022 \\<soon></time>
 
-<human name="Alice &amp; Bob&#39;s &quot;Team&quot;" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
+<message from="[Alice &amp; Bob&#39;s &quot;Team&quot;](/human/alice-and-bob-s-team)" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
 
-<blockquote cite="Carol &amp; Dan&#39;s &quot;Team&quot;">
+<blockquote cite="[Carol &amp; Dan&#39;s &quot;Team&quot;](/human/carol-and-dan-s-team)">
 
 Quoted reply.
 
@@ -377,7 +394,7 @@ Quoted reply.
 
 Escaped attributes survive.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
@@ -388,12 +405,11 @@ Escaped attributes survive.
                     },
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: `Alice & Bob${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
+                        author: escapedAliceBobTeamTarget,
                         timeAttribute: `5 < 10 & ${doubleQuote}later${doubleQuote}`,
                         timeZoneAttribute: "GMT+0 & east",
                         parent: {
-                            nameAttribute: `Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
+                            author: escapedCarolDanTeamTarget,
                             previewContent: content([paragraph([text("Quoted reply.")])]),
                         },
                         content: content([paragraph([text("Escaped attributes survive.")])]),
@@ -405,7 +421,7 @@ Escaped attributes survive.
             name: "message content with html blocks",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 <hr />
 
@@ -413,15 +429,14 @@ Escaped attributes survive.
 
 After the empty paragraph.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -435,19 +450,15 @@ After the empty paragraph.
             },
         },
         {
-            name: "content after message",
+            name: "content after time block",
             pageLink: true,
             markdown: `\
-<human name="Alice">
-
-Hello.
-
-</human>
+<time>May 13, 2026 3:00 PM EDT</time>
 
 Hello outside.
 `,
             parseError:
-                "Unexpected markdown on line 7. Messages markdown must be a list of `<human>` or `<bot>` elements.",
+                "Unexpected markdown on line 3. Messages markdown must be a list of `<message>` elements.",
         },
         {
             name: "preamble with multiple paragraphs",
@@ -456,159 +467,146 @@ Hello outside.
 First paragraph.
 
 Second paragraph.
-
-<human name="Alice">
-
-Hello.
-
-</human>
 `,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
             name: "preamble with non paragraph block",
             pageLink: true,
             markdown: `\
 ## Thread context
-
-<human name="Alice">
-
-Hello.
-
-</human>
 `,
             parseError:
-                "Unexpected markdown on line 1. Messages markdown must be a list of `<human>` or `<bot>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
+                "Unexpected markdown on line 1. Messages markdown must be a list of `<message>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
-            name: "message without name attribute",
+            name: "message without from attribute",
             pageLink: true,
             markdown: `\
-<human>
+<message>
 
 Hello.
 
-</human>
+</message>
 `,
             parseError:
-                "`<human>` element on line 1 is missing the `name` attribute. All messages must include the name of the author.",
+                "`<message>` element on line 1 is missing the `from` attribute. All messages must include a link to the author.",
         },
         {
             name: "unclosed message",
             pageLink: true,
             markdown: `\
-<bot name="Assistant">
+<message from="[Assistant](/bot/assistant)">
 
 Hello.
 `,
             parseError:
-                "`<bot>` element on line 1 is missing a closing tag. Add a `</bot>` closing tag and try again.",
+                "`<message>` element on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
         },
         {
             name: "nested message",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<bot name="Assistant">
+<message from="[Assistant](/bot/assistant)">
 
 Nested.
 
-</bot>
+</message>
 
-</human>
+</message>
 `,
             parseError:
-                "Can\u2019t open a new `<bot>` element on line 3. " +
-                "There\u2019s already an open `<human>` element and you can\u2019t nest message elements.",
+                "Can\u2019t open a new `<message>` element on line 3. " +
+                "There\u2019s already an open `<message>` element and you can\u2019t nest message elements.",
         },
         {
             name: "close message without open tag",
             pageLink: true,
             markdown: `\
-</human>
+</message>
 `,
             parseError:
-                "Can\u2019t close `</human>` element on line 1. " +
-                "There isn\u2019t a matching `<human>` open tag.",
+                "Can\u2019t close `</message>` element on line 1. " +
+                "There isn\u2019t a matching `<message>` open tag.",
         },
         {
-            name: "close mismatched message tag",
+            name: "wrong close tag does not close message",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-</bot>
+</comment>
 `,
             parseError:
-                "Can\u2019t close `</bot>` element on line 3. " +
-                "There isn\u2019t a matching `<bot>` open tag.",
+                "`<message>` element on line 1 is missing a closing tag. Add a `</message>` closing tag and try again.",
         },
         {
             name: "blockquote outside message",
             pageLink: true,
             markdown: `\
-<blockquote cite="Alice">
+<blockquote cite="[Alice](/human/alice)">
 
 Hello.
 
 </blockquote>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 1. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` element on line 1. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
         },
         {
             name: "blockquote after message content",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Message first.
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 Late reply.
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 5. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` element on line 5. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
         },
         {
             name: "second blockquote after reply preview",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 First reply.
 
 </blockquote>
 
-<blockquote cite="Carol">
+<blockquote cite="[Carol](/human/carol)">
 
 Second reply.
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
-                "Can\u2019t add `<blockquote>` element on line 9. `<blockquote>` elements can only be used at the beginning of a `<human>` or `<bot>` message element to indicate that the message is a reply to some other message.",
+                "Can\u2019t add `<blockquote>` element on line 9. `<blockquote>` elements can only be used at the beginning of a `<message>` element to indicate that the message is a reply to some other message.",
         },
         {
             name: "nested blockquote",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
-<blockquote cite="Carol">
+<blockquote cite="[Carol](/human/carol)">
 
 Nested reply.
 
@@ -616,7 +614,7 @@ Nested reply.
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
                 "Can\u2019t open a new `<blockquote>` element on line 5. " +
@@ -627,13 +625,13 @@ Nested reply.
             name: "unclosed blockquote",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 Quoted.
 
-</human>
+</message>
 `,
             parseError:
                 "`<blockquote>` element on line 3 is missing a closing tag. Add a `</blockquote>` closing tag and try again.",
@@ -642,7 +640,7 @@ Quoted.
             name: "blockquote without cite attribute",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 <blockquote>
 
@@ -650,10 +648,10 @@ Quoted.
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
-                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include the name of the message author you\u2019re replying to.",
+                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include a link to the message author you\u2019re replying to.",
         },
         {
             name: "close blockquote without open tag",
@@ -669,11 +667,11 @@ Quoted.
             name: "close blockquote without reply preview",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
                 "Can\u2019t close `</blockquote>` element on line 3. " +
@@ -683,9 +681,9 @@ Quoted.
             name: "close blockquote twice",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 Quoted.
 
@@ -693,7 +691,7 @@ Quoted.
 
 </blockquote>
 
-</human>
+</message>
 `,
             parseError:
                 "Can\u2019t close `</blockquote>` element on line 9. " +
@@ -703,22 +701,21 @@ Quoted.
             name: "message with inline html content",
             pageLink: true,
             markdown: `\
-<human name="Alice">Hello.</human>
+<message from="[Alice](/human/alice)">Hello.</message>
 `,
             printMarkdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 Hello.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -731,54 +728,53 @@ Hello.
             name: "message without newline between tags",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 Hello there.
-</human>
+</message>
 `,
             parseError:
-                "Must add an empty new line between the `<human>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` element must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
         },
         {
             name: "message without newline between tags (attached to open tag)",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 foo
 
 bar
 
-</human>
+</message>
 `,
             parseError:
-                "Must add an empty new line between the `<human>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<human>` element must be formatted like this: `<human>\\n\\n...\\n\\n</human>`.",
+                "Must add an empty new line between the `<message>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 2 will be parsed as HTML instead of markdown. The `<message>` element must be formatted like this: `<message>\\n\\n...\\n\\n</message>`.",
         },
         {
             name: "message without newline between tags (attached to closed tag)",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 foo
 
 bar
-</human>
+</message>
 `,
             printMarkdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 foo
 
 bar&#x20;
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -791,13 +787,13 @@ bar&#x20;
             name: "parent on one line",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">Hello, world!</blockquote>
+<blockquote cite="[Bob](/human/bob)">Hello, world!</blockquote>
 
 Hello there.
 
-</human>
+</message>
 `,
             parseError:
                 "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 3 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
@@ -806,15 +802,15 @@ Hello there.
             name: "parent without newline between tags",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 Hello, world!
 </blockquote>
 
 Hello there.
 
-</human>
+</message>
 `,
             parseError:
                 "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
@@ -823,9 +819,9 @@ Hello there.
             name: "parent without newline between tags (attached to open tag)",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 foo
 
 bar
@@ -834,7 +830,7 @@ bar
 
 Hello there.
 
-</human>
+</message>
 `,
             parseError:
                 "Must add an empty new line between the `<blockquote>` open tag and markdown text. Otherwise, due to a quirk in markdown, the text on line 4 will be parsed as HTML instead of markdown. The `<blockquote>` element must be formatted like this: `<blockquote>\\n\\n...\\n\\n</blockquote>`.",
@@ -843,9 +839,9 @@ Hello there.
             name: "parent without newline between tags (attached to closed tag)",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 foo
 
@@ -854,12 +850,12 @@ bar
 
 Hello there.
 
-</human>
+</message>
 `,
             printMarkdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
-<blockquote cite="Bob">
+<blockquote cite="[Bob](/human/bob)">
 
 foo
 
@@ -869,19 +865,18 @@ bar
 
 Hello there.
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
-                            nameAttribute: "Bob",
+                            author: bobTarget,
                             previewContent: content([
                                 paragraph([text("foo")]),
                                 paragraph([text("bar")]),
@@ -947,7 +942,7 @@ Hello there.
             name: "same file id with different sizes",
             pageLink: true,
             markdown: `\
-<human name="Alice">
+<message from="[Alice](/human/alice)">
 
 First render:
 
@@ -957,15 +952,14 @@ Second render:
 
 ![](/file/image.png)
 
-</human>
+</message>
 `,
             page: {
                 preamble: {elements: [], pagination: null},
                 blocks: [
                     {
                         type: "Message",
-                        tagName: "human",
-                        nameAttribute: "Alice",
+                        author: aliceTarget,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
