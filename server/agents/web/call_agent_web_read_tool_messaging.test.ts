@@ -81,6 +81,7 @@ function createMessage({
     parent?: {
         author: ApiAccount;
         index: number;
+        endIndex?: number;
         contentSnippet: ApiMessageContentPayloadParentContentSnippet;
     };
 }): ApiMessageResponse {
@@ -97,6 +98,7 @@ function createMessage({
                       parent: {
                           type: "Message" as const,
                           index: parent.index,
+                          ...(parent.endIndex !== undefined ? {endIndex: parent.endIndex} : {}),
                           author: parent.author,
                           contentSnippet: parent.contentSnippet,
                       },
@@ -681,7 +683,8 @@ test("prints reply previews in blockquotes", async () => {
             createdTime: "2026-05-14T15:05:00.000Z",
             parent: {
                 author: aliceAccount,
-                index: 0,
+                index: 4,
+                endIndex: 7,
                 contentSnippet: createParentSnippet("Can you review the rollout?"),
             },
             content: "Taking a look now.",
@@ -695,9 +698,9 @@ Some messages in Engineering Room.
 
 <message id=0 from="[Bob](/human/bob)">
 
-<blockquote cite="[Alice](/human/alice)">
+<blockquote cite="?message=4-7">
 
-Can you review the rollout?
+[Alice](/human/alice): Can you review the rollout?
 
 </blockquote>
 
@@ -734,9 +737,9 @@ Some messages in Engineering Room.
 
 <message id=0 from="[Bob](/human/bob)">
 
-<blockquote cite="[Alice](/human/alice)">
+<blockquote cite="?message=0">
 
-Can you review \\[\u2026]
+[Alice](/human/alice): Can you review \\[\u2026]
 
 </blockquote>
 
@@ -1080,6 +1083,55 @@ test("loads the initial around-message window with one fewer message before than
             {
                 path: {id: chatId},
                 query: {limit: 30, cursor: -1},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 0, from: "End"},
+            },
+            {
+                path: {id: chatId},
+                query: {limit: 15, cursor: 29},
+            },
+        ],
+    });
+});
+
+test("loads a page around the message search parameter", async () => {
+    const chatId = generateId<ChatId>();
+    const path = await seedChatPath(chatId, "Engineering Room");
+
+    mockGetRoomChat(chatId, "Engineering Room");
+    mockGetChatMessagesListPage(chatId, createPaginationMessageRange(0, 29), {
+        cursor: -11,
+        limit: 30,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 0,
+        direction: "End",
+        limit: 15,
+        totalMessageCount: 30,
+    });
+    mockGetChatMessagesListPage(chatId, [], {
+        cursor: 29,
+        limit: 15,
+        totalMessageCount: 30,
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: `${path}?message=4`,
+        limit: "10kb",
+    });
+
+    expect({
+        messages: getPaginationMessageIndexes(response),
+        requests: getChatMessagesListRequestParams(),
+    }).toEqual({
+        messages: createPaginationMessageIndexRange(0, 29),
+        requests: [
+            {
+                path: {id: chatId},
+                query: {limit: 30, cursor: -11},
             },
             {
                 path: {id: chatId},

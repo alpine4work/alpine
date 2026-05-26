@@ -398,9 +398,9 @@ Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/en
             markdown: `\
 <message from="[Assistant](/bot/assistant)" time="12 minutes later">
 
-<blockquote cite="[Alice](/human/alice)">
+<blockquote cite="?message=4">
 
-Can you review **this**?
+[Alice](/human/alice): Can you review **this**?
 
 </blockquote>
 
@@ -425,6 +425,7 @@ const done = true;
                         timeAttribute: "12 minutes later",
                         timeZoneAttribute: null,
                         parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
                             author: aliceTarget,
                             previewContent: content([
                                 paragraph([
@@ -469,9 +470,9 @@ const done = true;
 
 <message from="[Alice &amp; Bob&#39;s &quot;Team&quot;](/human/alice-and-bob-s-team)" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
 
-<blockquote cite="[Carol &amp; Dan&#39;s &quot;Team&quot;](/human/carol-and-dan-s-team)">
+<blockquote cite="?message=4-7">
 
-Quoted reply.
+[Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}](/human/carol-and-dan-s-team): Quoted reply.
 
 </blockquote>
 
@@ -494,6 +495,7 @@ Escaped attributes survive.
                         timeAttribute: `5 < 10 & ${doubleQuote}later${doubleQuote}`,
                         timeZoneAttribute: "GMT+0 & east",
                         parent: {
+                            citeAttribute: {startMessageIndex: 4, endMessageIndex: 8},
                             author: escapedCarolDanTeamTarget,
                             previewContent: content([paragraph([text("Quoted reply.")])]),
                         },
@@ -779,7 +781,41 @@ Quoted.
 </message>
 `,
             parseError:
-                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include a link to the message author you\u2019re replying to.",
+                "`<blockquote>` element on line 1 is missing the `cite` attribute. Must include a relative link to the message you\u2019re replying to.",
+        },
+        {
+            name: "blockquote with author cite link",
+            pageLink: true,
+            markdown: `\
+<message from="[Alice](/human/alice)">
+
+<blockquote cite="[Bob](/human/bob)">
+
+[Bob](/human/bob): Quoted.
+
+</blockquote>
+
+</message>
+`,
+            parseError:
+                "Invalid `<blockquote>` `cite` attribute on line 3. Expected `cite` to be a relative link like `?message=42` or `?message=4-7`. Try again with a valid `cite` attribute.",
+        },
+        {
+            name: "blockquote without author prefix",
+            pageLink: true,
+            markdown: `\
+<message from="[Alice](/human/alice)">
+
+<blockquote cite="?message=2">
+
+Quoted.
+
+</blockquote>
+
+</message>
+`,
+            parseError:
+                "`<blockquote>` content on line 3 must start with a link to the message author followed by a colon. For example: `[John](/human/john-doe): quoted text`.",
         },
         {
             name: "close blockquote without open tag",
@@ -973,9 +1009,9 @@ Hello there.
             markdown: `\
 <message from="[Alice](/human/alice)">
 
-<blockquote cite="[Bob](/human/bob)">
+<blockquote cite="?message=2">
 
-foo
+[Bob](/human/bob): foo
 
 bar
 </blockquote>
@@ -987,9 +1023,9 @@ Hello there.
             printMarkdown: `\
 <message from="[Alice](/human/alice)">
 
-<blockquote cite="[Bob](/human/bob)">
+<blockquote cite="?message=2">
 
-foo
+[Bob](/human/bob): foo
 
 bar
 
@@ -1010,6 +1046,7 @@ Hello there.
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
+                            citeAttribute: {startMessageIndex: 2, endMessageIndex: 3},
                             author: bobTarget,
                             previewContent: content([
                                 paragraph([text("foo")]),

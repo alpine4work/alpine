@@ -12,10 +12,10 @@ import {
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {
+    ApiAccountTargetArbitrary,
     ApiContentInlineElementWithoutCommentMarkArbitrary,
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
-    ApiAccountTargetArbitrary,
     ApiMentionTargetArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
@@ -49,6 +49,12 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
             {
                 weight: 1,
                 arbitrary: fc.record({
+                    citeAttribute: fc
+                        .tuple(fc.integer({min: 0}), fc.integer({min: 1, max: 10}))
+                        .map(([startMessageIndex, length]) => ({
+                            startMessageIndex,
+                            endMessageIndex: startMessageIndex + length,
+                        })),
                     author: ApiAccountTargetArbitrary,
                     previewContent: ApiContentWithoutCommentMarkArbitrary,
                 }),

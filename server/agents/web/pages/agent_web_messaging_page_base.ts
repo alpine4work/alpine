@@ -52,6 +52,7 @@ import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
@@ -95,6 +96,16 @@ export type AgentWebMessagingPageTimeBlock = {
     readonly timeContent: string;
 };
 
+export type AgentWebMessagingPageMessageBlock = {
+    readonly type: "Message";
+    readonly idAttribute: AgentWebMessagingPageMessageBlockIdAttribute | null;
+    readonly author: ApiAccountTargetResponse;
+    readonly timeAttribute: string | null;
+    readonly timeZoneAttribute: string | null;
+    readonly parent: AgentWebMessagingPageMessageBlockParent | null;
+    readonly content: ApiContentResponse;
+};
+
 export type AgentWebMessagingPageMessageBlockIdAttribute = {
     /** Inclusive */
     readonly startMessageIndex: number;
@@ -102,17 +113,15 @@ export type AgentWebMessagingPageMessageBlockIdAttribute = {
     readonly endMessageIndex: number;
 };
 
-export type AgentWebMessagingPageMessageBlock = {
-    readonly type: "Message";
-    readonly idAttribute: AgentWebMessagingPageMessageBlockIdAttribute | null;
+export type AgentWebMessagingPageMessageBlockParent = {
+    readonly citeAttribute: {
+        /** Inclusive */
+        readonly startMessageIndex: number;
+        /** Exclusive */
+        readonly endMessageIndex: number;
+    };
     readonly author: ApiAccountTargetResponse;
-    readonly timeAttribute: string | null;
-    readonly timeZoneAttribute: string | null;
-    readonly parent: {
-        readonly author: ApiAccountTargetResponse;
-        readonly previewContent: ApiContentResponse;
-    } | null;
-    readonly content: ApiContentResponse;
+    readonly previewContent: ApiContentResponse;
 };
 
 export type AgentWebMessagingPageBaseMetadata = {
@@ -177,7 +186,7 @@ export async function readAgentWebMessagingPageBase<Page>(
 ): Promise<Page> {
     const beforeMessageIndexSearchParam = searchParams.get("before");
     const afterMessageIndexSearchParam = searchParams.get("after");
-    const aroundMessageIndexSearchParam = searchParams.get("around");
+    const aroundMessageIndexSearchParam = searchParams.get(messageNouns.noun);
 
     let beforeMessageIndex: number | null = null;
     let afterMessageIndex: number | null = null;
@@ -195,7 +204,7 @@ export async function readAgentWebMessagingPageBase<Page>(
             throw new InvalidArgumentError(
                 "Expected `before` search param to be a positive integer",
                 {
-                    displayMessage: errorDisplayMessage`Expected \`before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`before\`. We recommend using a value for \`before\` that you\u2019ve seen previously in a pagination link.`,
+                    displayMessage: errorDisplayMessage`Expected \`?before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?before\`. We recommend using a value for \`?before\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
                 },
             );
         }
@@ -213,7 +222,7 @@ export async function readAgentWebMessagingPageBase<Page>(
             throw new InvalidArgumentError(
                 "Expected `after` search param to be a positive integer",
                 {
-                    displayMessage: errorDisplayMessage`Expected \`after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`after\`. We recommend using a value for \`after\` that you\u2019ve seen previously in a pagination link.`,
+                    displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?after\`. We recommend using a value for \`?after\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
                 },
             );
         }
@@ -229,9 +238,9 @@ export async function readAgentWebMessagingPageBase<Page>(
             aroundMessageIndex < 0
         ) {
             throw new InvalidArgumentError(
-                "Expected `around` search param to be a positive integer",
+                `Expected \`${messageNouns.noun}\` search param to be a positive integer`,
                 {
-                    displayMessage: errorDisplayMessage`Expected \`around\` URL search param to be a positive integer, but got \`${aroundMessageIndexSearchParam}\`. Try again with an integer or try omitting \`around\`. We recommend using a value for \`around\` that you\u2019ve seen previously in a pagination link.`,
+                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be a positive integer, but got \`${aroundMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
                 },
             );
         }
@@ -244,12 +253,12 @@ export async function readAgentWebMessagingPageBase<Page>(
 
     if (searchParamCount > 1) {
         throw new InvalidArgumentError("Expected only one pagination search param", {
-            displayMessage: errorDisplayMessage`Expected only one of \`before\`, \`after\`, or \`around\` URL search params. Try again with only one of \`before\`, \`after\`, or \`around\`. We recommend using a value for \`before\`, \`after\`, or \`around\` that you\u2019ve seen previously in a pagination link.`,
+            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` URL search params. Try again with only one of \`?before\`, \`?after\`, or \`?${messageNouns.noun}\`. We recommend using a value for \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
         });
     }
 
-    // If the agent passes in `around` then we have a different code path for reading
-    // messages around some index. Bail and call that code path.
+    // If the agent passes in a specific message/comment link then we have a different
+    // code path for reading messages around some index. Bail and call that code path.
     if (aroundMessageIndex !== null) {
         return readAgentWebMessagingPageBaseAroundMessage(context, messageNouns, {
             room,
@@ -931,12 +940,34 @@ function buildAgentWebMessagingPageFromApiMessages(
         let parent = null;
 
         if (firstMessage.payload.type === "Content" && firstMessage.payload.parent) {
-            parent = {
-                author: intoApiAccountTarget(firstMessage.payload.parent.author),
-                previewContent: convertApiMessageContentPayloadParentContentSnippetToContent(
-                    firstMessage.payload.parent.contentSnippet,
-                ),
-            };
+            const messageParent = firstMessage.payload.parent;
+
+            switch (messageParent.type) {
+                case "Message": {
+                    parent = {
+                        citeAttribute: {
+                            startMessageIndex: messageParent.index,
+                            endMessageIndex:
+                                messageParent.endIndex !== undefined
+                                    ? messageParent.endIndex + 1
+                                    : messageParent.index + 1,
+                        },
+                        author: intoApiAccountTarget(messageParent.author),
+                        previewContent:
+                            convertApiMessageContentPayloadParentContentSnippetToContent(
+                                messageParent.contentSnippet,
+                            ),
+                    };
+                    break;
+                }
+                case "Post": {
+                    throw new UnimplementedError(
+                        "Post parent quote references are not implemented.",
+                    );
+                }
+                default:
+                    throw exhaustive(messageParent);
+            }
         }
 
         const elements: Array<ApiContentBlockElementResponse> = [];
@@ -1017,10 +1048,6 @@ export async function updateAgentWebMessagingPageBase(
         throw new UnimplementedError("NOCOMMIT");
     }
 
-    if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
-        throw new UnimplementedError("NOCOMMIT");
-    }
-
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
     for (let index = 0; index < commonBlocksLength; index++) {
@@ -1041,6 +1068,7 @@ export async function updateAgentWebMessagingPageBase(
                 timeZoneAttribute: block.timeZoneAttribute,
                 parent: block.parent
                     ? {
+                          citeAttribute: block.parent.citeAttribute,
                           author: normalizeApiTarget(block.parent.author),
                           previewContent: normalizeApiContent(block.parent.previewContent),
                       }
@@ -1085,6 +1113,8 @@ export async function updateAgentWebMessagingPageBase(
         throw new UnimplementedError("NOCOMMIT");
     }
 
+    let hasCreatedMessage = false;
+
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
 
@@ -1092,8 +1122,21 @@ export async function updateAgentWebMessagingPageBase(
             throw new UnimplementedError("NOCOMMIT");
         }
 
+        hasCreatedMessage = true;
+
         // NOCOMMIT: Create message! But only if we're at the end of all messages in this
         // room.
+    }
+
+    if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
+        // If the agent replaced our "End of messages." paragraph with a new message, we're
+        // ok with that. The "End of messages." paragraph exists as a hook for the agent to
+        // easily append a new message to the end of the page.
+        const ignore = oldPage.isEndOfMessages && !newPage.isEndOfMessages && hasCreatedMessage;
+
+        if (!ignore) {
+            throw new UnimplementedError("NOCOMMIT");
+        }
     }
 }
 
@@ -1265,22 +1308,7 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                 let openTag = `<${messageNouns.noun}`;
 
                 if (block.idAttribute !== null) {
-                    const startMessageIndex = block.idAttribute.startMessageIndex;
-                    const endMessageIndexInclusive = block.idAttribute.endMessageIndex - 1;
-
-                    assert(startMessageIndex >= 0);
-                    assert(Number.isInteger(startMessageIndex));
-
-                    assert(endMessageIndexInclusive >= 0);
-                    assert(Number.isInteger(endMessageIndexInclusive));
-
-                    // We make a judgement call to omit quotes for the `id` attribute to save tokens
-                    // since the quotes aren't required by HTML.
-                    if (startMessageIndex === endMessageIndexInclusive) {
-                        openTag += ` id=${startMessageIndex}`;
-                    } else {
-                        openTag += ` id=${startMessageIndex}-${endMessageIndexInclusive}`;
-                    }
+                    openTag += ` id="${printAgentWebMessagingPageMessageIndexRange(block.idAttribute)}"`;
                 }
 
                 openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
@@ -1301,18 +1329,19 @@ export async function printAgentWebMessagingPageBase<PageLink>(
                 });
 
                 if (block.parent !== null) {
-                    const parentAuthorLink: Link = {
-                        type: "link",
-                        url: block.parent.authorPathname,
-                        children: [{type: "text", value: block.parent.author.shortName}],
-                    };
-
                     children.push({
                         type: "html",
-                        value: `<blockquote cite="${escapeHtml(printMarkdownTree(parentAuthorLink).trim())}">`,
+                        value: `<blockquote cite="${escapeHtml(
+                            printAgentWebMessagingPageParentCiteAttribute(
+                                messageNouns,
+                                block.parent.citeAttribute,
+                            ),
+                        )}">`,
                     });
 
-                    for (const childNode of block.parent.previewContentTree.children) {
+                    for (const childNode of printAgentWebMessagingPageParentPreviewContentTree(
+                        block.parent,
+                    )) {
                         children.push(childNode);
                     }
 
@@ -1345,6 +1374,67 @@ export async function printAgentWebMessagingPageBase<PageLink>(
     }
 
     return {type: "root", children};
+}
+
+function printAgentWebMessagingPageMessageIndexRange({
+    startMessageIndex,
+    endMessageIndex,
+}: {
+    readonly startMessageIndex: number;
+    readonly endMessageIndex: number;
+}): string {
+    const endMessageIndexInclusive = endMessageIndex - 1;
+
+    assert(startMessageIndex >= 0);
+    assert(Number.isInteger(startMessageIndex));
+
+    assert(endMessageIndexInclusive >= 0);
+    assert(Number.isInteger(endMessageIndexInclusive));
+
+    if (startMessageIndex === endMessageIndexInclusive) {
+        return `${startMessageIndex}`;
+    }
+
+    return `${startMessageIndex}-${endMessageIndexInclusive}`;
+}
+
+function printAgentWebMessagingPageParentCiteAttribute(
+    messageNouns: AgentWebMessagingPageNouns,
+    citeAttribute: AgentWebMessagingPageMessageBlockParent["citeAttribute"],
+): string {
+    return `?${messageNouns.noun}=${printAgentWebMessagingPageMessageIndexRange(citeAttribute)}`;
+}
+
+function printAgentWebMessagingPageParentPreviewContentTree(parent: {
+    author: ApiAccountTargetResponse;
+    authorPathname: string;
+    previewContentTree: Root;
+}): ReadonlyArray<RootContent> {
+    const authorLink: Link = {
+        type: "link",
+        url: parent.authorPathname,
+        children: [{type: "text", value: parent.author.shortName}],
+    };
+
+    const firstChild = parent.previewContentTree.children[0];
+
+    if (firstChild?.type === "paragraph") {
+        return [
+            {
+                ...firstChild,
+                children: [authorLink, {type: "text", value: ": "}, ...firstChild.children],
+            },
+            ...parent.previewContentTree.children.slice(1),
+        ];
+    }
+
+    return [
+        {
+            type: "paragraph",
+            children: [authorLink, {type: "text", value: ":"}],
+        },
+        ...parent.previewContentTree.children,
+    ];
 }
 
 export async function parseAgentWebMessagingPageBase<PageLink>(
@@ -1522,15 +1612,6 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 });
                             }
 
-                            if (state.parent && typeof state.parent.citeAttribute !== "string") {
-                                throw new InvalidArgumentError(
-                                    "Parent element is missing author link",
-                                    {
-                                        displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include a link to the ${messageNouns.noun} author you\u2019re replying to.`,
-                                    },
-                                );
-                            }
-
                             const parseAccountLink = async (
                                 position: Node["position"],
                                 string: string,
@@ -1573,14 +1654,50 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 state.idAttribute,
                             );
 
+                            let parent: Promise<AgentWebMessagingPageMessageBlockParent> | null =
+                                null;
+
+                            if (state.parent) {
+                                if (typeof state.parent.citeAttribute !== "string") {
+                                    throw new InvalidArgumentError(
+                                        "Parent element is missing message link",
+                                        {
+                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include a relative link to the ${messageNouns.noun} you\u2019re replying to.`,
+                                        },
+                                    );
+                                }
+
+                                const citeAttribute = parseAgentWebMessagingPageParentCiteAttribute(
+                                    messageNouns,
+                                    state.parent.openTagPosition,
+                                    state.parent.citeAttribute,
+                                );
+                                const {authorLink, previewChildren} =
+                                    takeAgentWebMessagingPageParentAuthorLinkFromChildren(
+                                        messageNouns,
+                                        state.parent.openTagPosition,
+                                        state.parent.children,
+                                    );
+
+                                parent = runAllObjectPromises({
+                                    citeAttribute,
+                                    author: parseAccountLink(
+                                        state.parent.openTagPosition,
+                                        authorLink,
+                                    ),
+                                    previewContent: parseApiContentFromAgentWebMarkdownTree(
+                                        storage,
+                                        {type: "root", children: previewChildren},
+                                    ),
+                                });
+                            }
+
                             const block: Replace<
                                 AgentWebMessagingPageMessageBlock,
                                 {
                                     author: Promise<ApiAccountTargetResponse>;
                                     content: Promise<ApiContentResponse>;
-                                    parent: Promise<
-                                        NonNullable<AgentWebMessagingPageMessageBlock["parent"]>
-                                    > | null;
+                                    parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
                                 }
                             > = {
                                 type: "Message",
@@ -1591,27 +1708,12 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 ),
                                 timeAttribute: state.timeAttribute,
                                 timeZoneAttribute: state.timeZoneAttribute,
-                                parent: null,
+                                parent,
                                 content: parseApiContentFromAgentWebMarkdownTree(storage, {
                                     type: "root",
                                     children: state.children,
                                 }),
                             };
-
-                            if (state.parent) {
-                                block.parent = runAllObjectPromises({
-                                    author: parseAccountLink(
-                                        state.parent.openTagPosition,
-                                        // We throw an error earlier that `citeAttribute` must exist if `state.parent`
-                                        // exists.
-                                        assertExists(state.parent.citeAttribute),
-                                    ),
-                                    previewContent: parseApiContentFromAgentWebMarkdownTree(
-                                        storage,
-                                        {type: "root", children: state.parent.children},
-                                    ),
-                                });
-                            }
 
                             blockPromises.push(runAllObjectPromises(block));
 
@@ -2020,6 +2122,100 @@ function isAgentWebMessagingPageEndOfMessagesParagraph(
 
     const child = node.children[0]!;
     return child.type === "text" && child.value === `End of ${messageNouns.pluralNoun}.`;
+}
+
+function parseAgentWebMessagingPageParentCiteAttribute(
+    messageNouns: AgentWebMessagingPageNouns,
+    position: Node["position"],
+    citeAttribute: string,
+): AgentWebMessagingPageMessageBlockParent["citeAttribute"] {
+    const searchParamName = messageNouns.noun;
+    const createError = () =>
+        new InvalidArgumentError("Invalid parent `cite` attribute", {
+            displayMessage: errorDisplayMessage`Invalid \`<blockquote>\` \`cite\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`cite\` to be a relative link like \`?${searchParamName}=42\` or \`?${searchParamName}=4-7\`. Try again with a valid \`cite\` attribute.`,
+        });
+
+    if (!citeAttribute.startsWith("?")) throw createError();
+
+    const searchParams = new URLSearchParams(citeAttribute.slice(1));
+    const value = searchParams.get(searchParamName);
+
+    if (value === null || iterableSome(searchParams.keys(), key => key !== searchParamName)) {
+        throw createError();
+    }
+
+    const integerPattern = "(0|[1-9][0-9]*)";
+    const singleMessageIndexMatch = new RegExp(`^${integerPattern}$`).exec(value);
+
+    if (singleMessageIndexMatch) {
+        const messageIndex = parseInt(singleMessageIndexMatch[1]!, 10);
+        return {startMessageIndex: messageIndex, endMessageIndex: messageIndex + 1};
+    }
+
+    const messageIndexRangeMatch = new RegExp(`^${integerPattern}-${integerPattern}$`).exec(value);
+
+    if (messageIndexRangeMatch) {
+        const startMessageIndex = parseInt(messageIndexRangeMatch[1]!, 10);
+        const endMessageIndexInclusive = parseInt(messageIndexRangeMatch[2]!, 10);
+
+        if (endMessageIndexInclusive >= startMessageIndex) {
+            return {
+                startMessageIndex,
+                endMessageIndex: endMessageIndexInclusive + 1,
+            };
+        }
+    }
+
+    throw createError();
+}
+
+function takeAgentWebMessagingPageParentAuthorLinkFromChildren(
+    messageNouns: AgentWebMessagingPageNouns,
+    position: Node["position"],
+    children: ReadonlyArray<RootContent>,
+): {authorLink: string; previewChildren: Array<RootContent>} {
+    const createError = () =>
+        new InvalidArgumentError("Parent content is missing author prefix", {
+            displayMessage: errorDisplayMessage`\`<blockquote>\` content on line ${position?.start.line ?? "unknown"} must start with a link to the ${messageNouns.noun} author followed by a colon. For example: \`[John](/human/john-doe): quoted text\`. Try again with a link to the ${messageNouns.noun} author.`,
+        });
+
+    const firstChild = children[0];
+    if (firstChild?.type !== "paragraph") throw createError();
+
+    const authorLinkNode = firstChild.children[0];
+    const separatorNode = firstChild.children[1];
+
+    if (authorLinkNode?.type !== "link") throw createError();
+    if (separatorNode?.type !== "text" || !separatorNode.value.startsWith(":")) {
+        throw createError();
+    }
+
+    const separatorValue = separatorNode.value.startsWith(": ")
+        ? separatorNode.value.slice(2)
+        : separatorNode.value.slice(1);
+    const firstPreviewParagraphChildren: typeof firstChild.children = [
+        ...(separatorValue.length > 0 ? [{...separatorNode, value: separatorValue}] : []),
+        ...firstChild.children.slice(2),
+    ];
+
+    const authorLink = printMarkdownTree({
+        type: "paragraph",
+        children: [authorLinkNode],
+    }).trim();
+
+    if (firstPreviewParagraphChildren.length === 0) {
+        if (children.length === 1 || children[1]?.type !== "paragraph") {
+            return {authorLink, previewChildren: children.slice(1)};
+        }
+    }
+
+    return {
+        authorLink,
+        previewChildren: [
+            {...firstChild, children: firstPreviewParagraphChildren},
+            ...children.slice(1),
+        ],
+    };
 }
 
 function parseAgentWebMessagingPageMessageBlockIdAttribute(
