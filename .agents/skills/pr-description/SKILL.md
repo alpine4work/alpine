@@ -11,6 +11,9 @@ description: |
 Use this skill to generate a well-structured PR description for the current branch. The description
 is compared against the parent branch (determined via Graphite) and copied to the clipboard.
 
+If the user explicitly asks you to update the PR description, use the generated markdown to edit the
+current branch's PR after showing it to the user.
+
 ## Workflow
 
 ### Step 1: Identify the parent branch
@@ -98,6 +101,29 @@ EOF
 
 Tell the user the description has been copied to their clipboard.
 
+### Step 5: Optionally update the PR body
+
+Only do this when the user asked you to update the PR description, not when they only asked you to
+draft one.
+
+After showing the generated description to the user, update the current branch's PR:
+
+```bash
+cat <<'EOF' | gh pr edit --body-file -
+<pr-description>
+EOF
+```
+
+If you need to target a different branch explicitly, use:
+
+```bash
+cat <<'EOF' | gh pr edit <branch-name> --body-file -
+<pr-description>
+EOF
+```
+
+Tell the user that you updated the PR body.
+
 ## Notes
 
 - Always use Graphite (`gt`) to determine the parent branch — do not assume it's `main`.
@@ -106,3 +132,4 @@ Tell the user the description has been copied to their clipboard.
 - Do not include the `### Further reading` section unless the PR is genuinely large or complex, or
   the user asks for it.
 - Show the generated description to the user before copying so they can review it.
+- When updating the PR body, still show the generated description to the user first.
