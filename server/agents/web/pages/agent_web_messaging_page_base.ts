@@ -145,8 +145,8 @@ export const agentWebMessagingPageCommentNouns: AgentWebMessagingPageNouns = {
 const agentWebMessagingPageApiMessagesBatchCount = 30;
 
 export async function readAgentWebMessagingPageBase<Page>(
-    context: AgentWebContextWithoutStorage,
     messageNouns: AgentWebMessagingPageNouns,
+    context: AgentWebContextWithoutStorage,
     {
         room,
         roomMetadataPromise,
@@ -171,12 +171,14 @@ export async function readAgentWebMessagingPageBase<Page>(
     const beforeMessageIndexSearchParam = searchParams.get("before");
     const afterMessageIndexSearchParam = searchParams.get("after");
     const aroundMessageRangeSearchParam = searchParams.get(messageNouns.noun);
+    const startSearchParam = searchParams.get("start");
+    const endSearchParam = searchParams.get("end");
 
     let beforeMessageIndex: number | null = null;
     let afterMessageIndex: number | null = null;
     let around: AgentWebMessagingPageMessageRange | null = null;
 
-    if (beforeMessageIndexSearchParam) {
+    if (beforeMessageIndexSearchParam !== null) {
         beforeMessageIndex = parseInt(beforeMessageIndexSearchParam, 10);
 
         if (
@@ -194,7 +196,7 @@ export async function readAgentWebMessagingPageBase<Page>(
         }
     }
 
-    if (afterMessageIndexSearchParam) {
+    if (afterMessageIndexSearchParam !== null) {
         afterMessageIndex = parseInt(afterMessageIndexSearchParam, 10);
 
         if (
@@ -212,7 +214,7 @@ export async function readAgentWebMessagingPageBase<Page>(
         }
     }
 
-    if (aroundMessageRangeSearchParam) {
+    if (aroundMessageRangeSearchParam !== null) {
         around = parseAgentWebMessagingPageMessageIndexRange(aroundMessageRangeSearchParam);
 
         if (around === null) {
@@ -225,21 +227,35 @@ export async function readAgentWebMessagingPageBase<Page>(
         }
     }
 
+    if (startSearchParam !== null && startSearchParam !== "") {
+        throw new InvalidArgumentError("Expected `start` search param to be empty", {
+            displayMessage: errorDisplayMessage`Expected \`?start\` URL search param to not have a value, but got \`${startSearchParam}\`. Try again without a value (no \`?start=...\`, just \`?start\`).`,
+        });
+    }
+
+    if (endSearchParam !== null && endSearchParam !== "") {
+        throw new InvalidArgumentError("Expected `end` search param to be empty", {
+            displayMessage: errorDisplayMessage`Expected \`?end\` URL search param to not have a value, but got \`${endSearchParam}\`. Try again without a value (no \`?end=...\`, just \`?end\`).`,
+        });
+    }
+
     let searchParamCount = 0;
     if (beforeMessageIndex !== null) searchParamCount++;
     if (afterMessageIndex !== null) searchParamCount++;
     if (around !== null) searchParamCount++;
+    if (startSearchParam !== null) searchParamCount++;
+    if (endSearchParam !== null) searchParamCount++;
 
     if (searchParamCount > 1) {
         throw new InvalidArgumentError("Expected only one pagination search param", {
-            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` URL search params. Try again with only one of \`?before\`, \`?after\`, or \`?${messageNouns.noun}\`. We recommend using a value for \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+            displayMessage: errorDisplayMessage`Expected only one of \`?before\`, \`?after\`, \`?${messageNouns.noun}\`, \`?start\`, or \`?end\` URL search params. Try again with only one of \`?before\`, \`?after\`, \`?${messageNouns.noun}\`, \`?start\`, or \`?end\`. We recommend using a value for \`?before\`, \`?after\`, or \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
         });
     }
 
     // If the agent passes in a specific message/comment link then we have a different
     // code path for reading messages around some index. Bail and call that code path.
     if (around !== null) {
-        return readAgentWebMessagingPageBaseAroundMessage(context, messageNouns, {
+        return readAgentWebMessagingPageBaseAroundMessage(messageNouns, context, {
             room,
             roomMetadataPromise,
             around,
@@ -250,9 +266,9 @@ export async function readAgentWebMessagingPageBase<Page>(
     }
 
     const direction: "Start" | "End" =
-        afterMessageIndex !== null
+        afterMessageIndex !== null || startSearchParam !== null
             ? "Start"
-            : beforeMessageIndex !== null
+            : beforeMessageIndex !== null || endSearchParam !== null
               ? "End"
               : defaultDirection;
 
@@ -365,8 +381,8 @@ export async function readAgentWebMessagingPageBase<Page>(
 }
 
 export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
-    context: AgentWebContextWithoutStorage,
     messageNouns: AgentWebMessagingPageNouns,
+    context: AgentWebContextWithoutStorage,
     {
         room,
         roomMetadataPromise,
@@ -783,7 +799,7 @@ function buildAgentWebMessagingPageFromApiMessages(
             differenceInMinutesSinceLastMessage < 10 &&
             // Never merge the current bot's messages. This makes it easier when we need to
             // update the current bot's message content.
-            message.author.id !== context.botAccountId &&
+            message.author.id !== context.botAccount.id &&
             // Special case: `index` -1 is used for posts which are formatted like a message
             // (see `getPostAgentMessage()`). We don't want the post to be merged with the
             // first comment from the same author as they'll be rendered as two distinct text
@@ -1012,10 +1028,19 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
 }
 
 export async function updateAgentWebMessagingPageBase(
+    messageNouns: AgentWebMessagingPageNouns,
     context: AgentWebContextWithoutStorage,
-    room: ApiMessageRoomTarget,
-    oldPage: AgentWebMessagingPageBase,
-    newPage: AgentWebMessagingPageBase,
+    {
+        pathname,
+        room,
+        oldPage,
+        newPage,
+    }: {
+        pathname: string;
+        room: ApiMessageRoomTarget;
+        oldPage: AgentWebMessagingPageBase;
+        newPage: AgentWebMessagingPageBase;
+    },
 ): Promise<void> {
     const updateThunks: Array<() => Promise<void>> = [];
     const createThunks: Array<() => Promise<void>> = [];
@@ -1036,7 +1061,9 @@ export async function updateAgentWebMessagingPageBase(
     };
 
     if (!isDeepEqual(normalizePreamble(oldPage.preamble), normalizePreamble(newPage.preamble))) {
-        throw new UnimplementedError("NOCOMMIT");
+        throw new InvalidArgumentError("Can\u2019t update messaging page preamble", {
+            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the metadata at the start of the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
+        });
     }
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
@@ -1075,11 +1102,27 @@ export async function updateAgentWebMessagingPageBase(
 
         if (
             normalizedOldBlock.type !== "Message" ||
-            normalizedOldBlock.author.id !== context.botAccountId ||
+            normalizedOldBlock.author.id !== context.botAccount.id ||
             normalizedNewBlock.type !== "Message" ||
-            normalizedNewBlock.author.id !== context.botAccountId
+            normalizedNewBlock.author.id !== context.botAccount.id
         ) {
-            throw new UnimplementedError("NOCOMMIT");
+            if (normalizedOldBlock.type !== "Message") {
+                throw new InvalidArgumentError(
+                    "Can\u2019t update message created by someone else",
+                    {
+                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the \`<time>\` previous \`<${messageNouns.noun}>\`s were sent at. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
+                    },
+                );
+            } else {
+                assert(oldBlock.type === "Message");
+
+                throw new InvalidArgumentError(
+                    "Can\u2019t update message created by someone else",
+                    {
+                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author.shortName}. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
+                    },
+                );
+            }
         }
 
         if (
@@ -1088,7 +1131,9 @@ export async function updateAgentWebMessagingPageBase(
                 omitObject(normalizedNewBlock, ["content"]),
             )
         ) {
-            throw new UnimplementedError("NOCOMMIT");
+            throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
+                displayMessage: errorDisplayMessage`You can only update the content of your \`<${messageNouns.noun}>\`s. Anything else (the \`id\`/\`from\`/\`time\` attributes or the \`<blockquote cite>\`) must be left unchanged. Try again with a more specific update that only affects the content of your ${messageNouns.pluralNoun}.`,
+            });
         }
 
         if (!normalizedNewBlock.idAttribute) {
@@ -1122,25 +1167,45 @@ export async function updateAgentWebMessagingPageBase(
     }
 
     if (oldPage.blocks.length > newPage.blocks.length) {
-        throw new UnimplementedError("NOCOMMIT");
+        throw new InvalidArgumentError("Can\u2019t remove messages, must delete in place", {
+            displayMessage: errorDisplayMessage`You can\u2019t remove \`<${messageNouns.noun}>\`s. If you want to delete one of your \`<${messageNouns.noun}>\`s, then delete all the content of your \`<${messageNouns.noun}>\`. You can only delete your own \`<${messageNouns.noun}>\`s. Try again with a more specific update that only affects the content of your ${messageNouns.pluralNoun}.`,
+        });
     }
 
-    const lastCommonNewBlock = newPage.blocks[commonBlocksLength - 1];
+    let lastMessageIndex: number | null;
+    let nullIdAttributeCount = 0;
 
-    const lastMessageIndex =
-        lastCommonNewBlock?.type === "Message"
-            ? (lastCommonNewBlock.idAttribute?.endMessageIndex ?? 0)
-            : 0;
+    for (const block of reverseIterable(newPage.blocks)) {
+        if (block.type !== "Message") continue;
+        if (block.idAttribute === null) {
+            nullIdAttributeCount++;
+            continue;
+        }
+        lastMessageIndex = block.idAttribute.endMessageIndex;
+        break;
+    }
+
+    lastMessageIndex ??= nullIdAttributeCount;
 
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
 
         if (!oldPage.isEndOfMessages) {
-            throw new UnimplementedError("NOCOMMIT");
+            throw new InvalidArgumentError("Can only create messages on the last page", {
+                displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} list. Call the \`read\` tool with \`${pathname}?end\` to jump to the end of a ${messageNouns.noun} list.`,
+            });
         }
 
-        if (newBlock.type !== "Message" || newBlock.author.id !== context.botAccountId) {
-            throw new UnimplementedError("NOCOMMIT");
+        if (newBlock.type !== "Message" || newBlock.author.id !== context.botAccount.id) {
+            const authorLink: Link = {
+                type: "link",
+                url: context.botAccount.pathname,
+                children: [{type: "text", value: context.botAccount.shortName}],
+            };
+
+            throw new InvalidArgumentError("Can only create messages as own account", {
+                displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` from yourself. Try again with a \`from\` attribute that references yourself (\`from="${escapeHtml(printMarkdownTree(authorLink))}"\`).`,
+            });
         }
 
         if (
@@ -1150,11 +1215,18 @@ export async function updateAgentWebMessagingPageBase(
                 newBlock.idAttribute.endMessageIndex !==
                     lastMessageIndex + (index - commonBlocksLength) + 1)
         ) {
-            throw new UnimplementedError("NOCOMMIT");
+            throw new InvalidArgumentError(
+                "Can\u2019t create message with incorrect `id` attribute",
+                {
+                    displayMessage: errorDisplayMessage`Invalid \`id\` attribute for new \`<${messageNouns.noun}>\`. The \`<${messageNouns.noun}>\` \`id\` attribute is an integer sequence so the next valid \`id\` is \`${lastMessageIndex + (index - commonBlocksLength)}\`. Try again with \`id="${lastMessageIndex + (index - commonBlocksLength)}"\`.`,
+                },
+            );
         }
 
         if (newBlock.timeAttribute) {
-            throw new UnimplementedError("NOCOMMIT");
+            throw new InvalidArgumentError("Can\u2019t set the created time of a new message", {
+                displayMessage: errorDisplayMessage`You can\u2019t add a \`<${messageNouns.noun}>\` with a \`time\` attribute. The creation time of the ${messageNouns.noun} will be decided by the server. Try again without the \`time\` attribute.`,
+            });
         }
 
         createThunks.push(async () => {
@@ -1182,14 +1254,20 @@ export async function updateAgentWebMessagingPageBase(
     }
 
     if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
-        // If the agent replaced our "End of messages." paragraph with a new message, we're
-        // ok with that. The "End of messages." paragraph exists as a hook for the agent to
-        // easily append a new message to the end of the page.
-        const ignore =
-            oldPage.isEndOfMessages && !newPage.isEndOfMessages && createThunks.length > 0;
-
-        if (!ignore) {
-            throw new UnimplementedError("NOCOMMIT");
+        if (!newPage.isEndOfMessages && createThunks.length > 0) {
+            throw new InvalidArgumentError(
+                "Can\u2019t remove the end of messages paragraph when creating messages",
+                {
+                    displayMessage: errorDisplayMessage`When you\u2019re adding a ${messageNouns.noun} you need to keep the \u201CEnd of ${messageNouns.pluralNoun}\u201D text at the end of the ${messageNouns.noun} list below your new ${messageNouns.noun}. Try again without removing the \u201CEnd of ${messageNouns.pluralNoun}\u201D text.`,
+                },
+            );
+        } else {
+            throw new InvalidArgumentError(
+                "Can\u2019t change whether this page is the end of messages or not",
+                {
+                    displayMessage: errorDisplayMessage`Can\u2019t ${newPage.isEndOfMessages ? "add" : "remove"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D text in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without ${newPage.isEndOfMessages ? "adding" : "removing"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D text.`,
+                },
+            );
         }
     }
 
@@ -1578,7 +1656,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                         case messageNouns.noun: {
                             if (state) {
                                 throw new InvalidArgumentError("Invalid message element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${messageNouns.noun}>\` element and you can\u2019t nest ${messageNouns.noun} elements.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${messageNouns.noun}>\` and you can\u2019t nest ${messageNouns.pluralNoun}.`,
                                 });
                             }
 
@@ -1604,14 +1682,14 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 throw new InvalidArgumentError(
                                     "Invalid parent element open tag (another parent tag was already opened)",
                                     {
-                                        displayMessage: errorDisplayMessage`Can\u2019t open a new \`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<blockquote>\` element and you can\u2019t nest \`<blockquote>\` elements. If you\u2019re trying to reply to a ${messageNouns.noun} that itself is replying to another ${messageNouns.noun} then just include the content of the ${messageNouns.noun} you\u2019re replying to and omit the extra \`<blockquote>\` element.`,
+                                        displayMessage: errorDisplayMessage`Can\u2019t open a new \`<blockquote>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<blockquote>\` and you can\u2019t nest \`<blockquote>\`s. If you\u2019re trying to reply to a ${messageNouns.noun} that itself is replying to another ${messageNouns.noun} then just include the content of the ${messageNouns.noun} you\u2019re replying to and omit the extra \`<blockquote>\`.`,
                                     },
                                 );
                             }
 
                             if (!state || state.parent || state.children.length > 0) {
                                 throw new InvalidArgumentError("Invalid parent element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t add \`<blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. \`<blockquote>\` elements can only be used at the beginning of a \`<${messageNouns.noun}>\` element to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t add \`<blockquote>\` on line ${node.position?.start.line ?? "unknown"}. \`<blockquote>\`s can only be used at the beginning of a \`<${messageNouns.noun}>\` to indicate that the ${messageNouns.noun} is a reply to some other ${messageNouns.noun}.`,
                                 });
                             }
 
@@ -1653,7 +1731,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 throw new InvalidArgumentError(
                                     "Invalid message element close tag",
                                     {
-                                        displayMessage: errorDisplayMessage`Can\u2019t close \`</${messageNouns.noun}>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${messageNouns.noun}>\` open tag.`,
+                                        displayMessage: errorDisplayMessage`Can\u2019t close \`</${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${messageNouns.noun}>\` open tag.`,
                                     },
                                 );
                             }
@@ -1666,14 +1744,14 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                 throw new InvalidArgumentError(
                                     "Message element is missing author link",
                                     {
-                                        displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. All ${messageNouns.pluralNoun} must include a link to the author.`,
+                                        displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. All ${messageNouns.pluralNoun} must include a link to the author.`,
                                     },
                                 );
                             }
 
                             if (state.parent && !state.parent.hasCloseTag) {
                                 throw new InvalidArgumentError("Missing parent element close tag", {
-                                    displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.parent.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</blockquote>\` closing tag and try again.`,
+                                    displayMessage: errorDisplayMessage`\`<blockquote>\` on line ${state.parent.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</blockquote>\` closing tag and try again.`,
                                 });
                             }
 
@@ -1727,7 +1805,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                                     throw new InvalidArgumentError(
                                         "Parent element is missing message link",
                                         {
-                                            displayMessage: errorDisplayMessage`\`<blockquote>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include a relative link to the ${messageNouns.noun} you\u2019re replying to.`,
+                                            displayMessage: errorDisplayMessage`\`<blockquote>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`cite\` attribute. Must include a relative link to the ${messageNouns.noun} you\u2019re replying to.`,
                                         },
                                     );
                                 }
@@ -1789,7 +1867,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                         case "blockquote": {
                             if (!state?.parent || state.parent.hasCloseTag) {
                                 throw new InvalidArgumentError("Invalid parent element close tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` element on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
                                 });
                             }
 
@@ -1982,7 +2060,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
                     throw new InvalidArgumentError(
                         "Unexpected text in the same HTML Markdown node as an open or close tag",
                         {
-                            displayMessage: errorDisplayMessage`Must add an empty new line between the \`${tag}\` ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The \`<${tagName}>\` element must be formatted like this: \`<${tagName}>\\n\\n...\\n\\n</${tagName}>\`.`,
+                            displayMessage: errorDisplayMessage`Must add an empty new line between the \`${tag}\` ${tagType} tag and markdown text. Otherwise, due to a quirk in markdown, the text on line ${line ?? "unknown"} will be parsed as HTML instead of markdown. The \`<${tagName}>\` must be formatted like this: \`<${tagName}>\\n\\n...\\n\\n</${tagName}>\`.`,
                         },
                     );
                 }
@@ -2141,7 +2219,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
 
     if (state) {
         throw new InvalidArgumentError("Missing message element close tag", {
-            displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` element on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
+            displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
         });
     }
 
@@ -2168,7 +2246,7 @@ async function actuallyParseAgentWebMessagingPageBase<PageLink>(
         actualPreamble = preambleContent.elements[0].elements;
     } else {
         throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
+            displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
         });
     }
 
@@ -2331,7 +2409,7 @@ function createUnexpectedMarkdownError(
     position: Node["position"],
 ) {
     return new InvalidArgumentError("Unexpected markdown node type", {
-        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\` elements.`,
+        displayMessage: errorDisplayMessage`Unexpected markdown on line ${position?.start.line ?? "unknown"}. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\`s.`,
     });
 }
 

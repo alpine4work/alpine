@@ -4,6 +4,10 @@ import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
+    parseAgentWebChatPage,
+    updateAgentWebChatPage,
+} from "~/server/agents/web/pages/agent_web_chat_page.js";
+import {
     parseAgentWebDocumentPage,
     updateAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -21,6 +25,7 @@ import {
 } from "~/shared/error/error_display_message.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -42,7 +47,7 @@ export async function callAgentWebUpdateTool(
 ): Promise<string> {
     assert(updates.length > 0);
 
-    const {path} = normalizeAgentWebPath(originalPath);
+    const {path, pathname} = normalizeAgentWebPath(originalPath);
 
     await getOrSetDefaultMapValue(
         context.storage.readResponseMutexByPath,
@@ -192,6 +197,7 @@ export async function callAgentWebUpdateTool(
         try {
             newPageMetadata = await updateAgentWebPageLink(
                 contextWithPartialSuccessDetection,
+                pathname,
                 readResponse.pageMetadata,
                 new Lazy(() => parseMarkdownTree(readResponse.response)),
                 (() => parseMarkdownTree(newResponse))(),
@@ -238,9 +244,10 @@ export async function callAgentWebUpdateTool(
 
 async function updateAgentWebPageLink(
     context: AgentWebContext,
+    pathname: string,
     oldPageMetadata: AgentWebPageMetadata,
     // Lazily compute the `oldResponse` since sometimes we don't need it.
-    oldResponse: Lazy<Root>,
+    oldResponseLazy: Lazy<Root>,
     newResponse: Root,
 ): Promise<AgentWebPageMetadata> {
     switch (oldPageMetadata.type) {
@@ -251,7 +258,23 @@ async function updateAgentWebPageLink(
                 newResponse,
             );
 
-            return updateAgentWebDocumentPage(context, oldPageMetadata, newPage);
+            return await updateAgentWebDocumentPage(context, oldPageMetadata, newPage);
+        }
+        case "Chat": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebChatPage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebChatPage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return await updateAgentWebChatPage(
+                context,
+                pathname,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+            );
         }
         default:
             throw exhaustive(oldPageMetadata);

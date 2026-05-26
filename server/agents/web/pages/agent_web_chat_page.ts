@@ -5,9 +5,11 @@ import {
     AgentWebMessagingPageBase,
     agentWebMessagingPageMessageNouns,
     normalizeAgentWebMessagingPageBase,
+    parseAgentWebMessagingPageBase,
     printAgentWebMessagingPageBase,
     readAgentWebMessagingPageBase,
     readAgentWebMessagingPageBaseAroundMessage,
+    updateAgentWebMessagingPageBase,
 } from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
 import {
     ApiContentInlineElementResponse,
@@ -42,8 +44,8 @@ export async function readAgentWebChatPage(
     },
 ): Promise<AgentWebChatPageWithMetadata> {
     const page = await readAgentWebMessagingPageBase<AgentWebChatPageWithMetadata>(
-        context,
         agentWebMessagingPageMessageNouns,
+        context,
         {
             room: {type: "Chat", id},
             roomMetadataPromise: getChatRoomMetadata(context, id),
@@ -71,8 +73,8 @@ export async function readAgentWebChatMessagePage(
     },
 ): Promise<AgentWebChatPageWithMetadata> {
     const page = await readAgentWebMessagingPageBaseAroundMessage<AgentWebChatPageWithMetadata>(
-        context,
         agentWebMessagingPageMessageNouns,
+        context,
         {
             room: {type: "Chat", id},
             roomMetadataPromise: getChatRoomMetadata(context, id),
@@ -84,6 +86,23 @@ export async function readAgentWebChatMessagePage(
     );
 
     return page;
+}
+
+export async function updateAgentWebChatPage(
+    context: AgentWebContextWithoutStorage,
+    pathname: string,
+    oldPageMetadata: AgentWebChatPageMetadata,
+    oldPage: AgentWebChatPage,
+    newPage: AgentWebChatPage,
+): Promise<AgentWebChatPageMetadata & {type: "Chat"}> {
+    await updateAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, context, {
+        pathname,
+        room: {type: "Chat", id: oldPageMetadata.id},
+        oldPage,
+        newPage,
+    });
+
+    return {type: "Chat", id: oldPageMetadata.id};
 }
 
 async function getChatRoomMetadata(
@@ -121,10 +140,30 @@ export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: P
     return normalizeAgentWebMessagingPageBase(page);
 }
 
-export function printAgentWebChatPage(
+export async function printAgentWebChatPage(
     storage: AgentWebSessionStorage,
     id: ChatId,
     page: AgentWebChatPage,
 ): Promise<Root> {
-    return printAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, storage, id, page);
+    return await printAgentWebMessagingPageBase(
+        agentWebMessagingPageMessageNouns,
+        storage,
+        id,
+        page,
+    );
+}
+
+export async function parseAgentWebChatPage(
+    storage: AgentWebSessionStorage,
+    id: ChatId | null,
+    root: Root,
+): Promise<AgentWebChatPage> {
+    const page = await parseAgentWebMessagingPageBase(
+        agentWebMessagingPageMessageNouns,
+        storage,
+        id,
+        root,
+    );
+
+    return {...page, type: "Chat"};
 }
