@@ -61,8 +61,6 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Update messaging page, create messaging room?
-
 export type AgentWebMessagingPageBase = {
     readonly preamble: AgentWebMessagingPageBasePreamble;
     readonly isEndOfMessages: boolean;
@@ -391,7 +389,7 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
     {
         room,
         roomMetadataPromise,
-        aroundMessageIndex,
+        around,
         limitLength,
         computeLength,
         buildPage,
@@ -401,20 +399,37 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
             target: ApiMentionTargetResponse;
             description: ReadonlyArray<ApiContentInlineElementResponse>;
         }>;
-        aroundMessageIndex: number;
+        around: {
+            // Inclusive
+            startMessageIndex: number;
+            // Exclusive
+            endMessageIndex: number;
+        };
         limitLength: number;
         computeLength: (page: Page) => Promise<number>;
         buildPage: (page: AgentWebMessagingPageBaseWithMetadata) => Page;
     },
 ): Promise<Page> {
+    assert(around.endMessageIndex > around.startMessageIndex);
+
+    assert(Number.isInteger(around.startMessageIndex));
+    assert(around.startMessageIndex >= 0);
+
+    assert(Number.isInteger(around.endMessageIndex));
+    assert(around.endMessageIndex >= 0);
+
     const {
         data: {messages: initialMessages},
     } = await getApiMessagesFromStart(context.span, context.api, room, {
         limit: agentWebMessagingPageApiMessagesBatchCount,
         cursor:
-            aroundMessageIndex -
-            1 -
-            Math.floor((agentWebMessagingPageApiMessagesBatchCount - 1) / 2),
+            around.startMessageIndex -
+            Math.floor(
+                (agentWebMessagingPageApiMessagesBatchCount -
+                    (around.endMessageIndex - around.startMessageIndex)) /
+                    2,
+            ) -
+            1,
     });
 
     // We expect at least `aroundMessageIndex` to exist.
@@ -546,16 +561,25 @@ export async function readAgentWebMessagingPageBaseAroundMessage<Page>(
 
         hasMoreMessages = true;
 
+        const firstMessageIndex = messages[0]!.index;
+        const lastMessageIndex = messages[messages.length - 1]!.index;
+
         // Alternate removing messages from the beginning and end of the page. Always start
         // by removing messages from the beginning.
         //
-        // Never remove `aroundMessageIndex`. If that's the first message then always
-        // remove from the end. If that's the last message then always remove from the
-        // start.
-        if (messages[0]!.index === aroundMessageIndex) {
+        // Try to avoid removing messages from `around`. If that's the first message then
+        // always remove from the end. If that's the last message then always remove from
+        // the start.
+        if (
+            around.startMessageIndex <= firstMessageIndex &&
+            firstMessageIndex < around.endMessageIndex
+        ) {
             isEndOfMessages = false;
             messages.pop();
-        } else if (messages[messages.length - 1]!.index === aroundMessageIndex) {
+        } else if (
+            around.startMessageIndex <= lastMessageIndex &&
+            lastMessageIndex < around.endMessageIndex
+        ) {
             messages.shift();
         } else if (removeCount % 2 === 0) {
             messages.shift();
