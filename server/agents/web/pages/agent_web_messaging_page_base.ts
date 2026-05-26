@@ -2054,7 +2054,7 @@ function parseAgentWebMessagingPageMessageBlockIdAttribute(
     }
 
     throw new InvalidArgumentError("Invalid message `id` attribute", {
-        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`.`,
+        displayMessage: errorDisplayMessage`Invalid \`<${messageNouns.noun}>\` \`id\` attribute on line ${position?.start.line ?? "unknown"}. Expected \`id\` to be an integer like \`42\` or an integer range like \`4-7\`. Try again with a valid \`id\` attribute.`,
     });
 }
 

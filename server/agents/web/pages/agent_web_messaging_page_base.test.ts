@@ -568,6 +568,47 @@ Second paragraph.
                 "Unexpected markdown on line 1. Messages markdown must be a list of `<message>` elements. Though it may start with a single paragraph with a short description of what we\u2019re looking at.",
         },
         {
+            name: "message with invalid id attribute syntax",
+            pageLink: true,
+            markdown: `\
+<message id=abc from="[Alice](/human/alice)">
+
+Hello.
+
+</message>
+`,
+            parseError:
+                "Invalid `<message>` `id` attribute on line 1. Expected `id` to be an integer like `42` or an integer range like `4-7`. Try again with a valid `id` attribute.",
+        },
+        {
+            name: "message with invalid id attribute range",
+            pageLink: true,
+            markdown: `\
+<message id=7-4 from="[Alice](/human/alice)">
+
+Hello.
+
+</message>
+`,
+            parseError:
+                "Invalid `<message>` `id` attribute on line 1. Expected `id` to be an integer like `42` or an integer range like `4-7`. Try again with a valid `id` attribute.",
+        },
+        {
+            name: "wrong end of messages text",
+            pageLink: true,
+            markdown: `\
+<message from="[Alice](/human/alice)">
+
+Hello.
+
+</message>
+
+End of comments.
+`,
+            parseError:
+                "Unexpected markdown on line 7. Messages markdown must be a list of `<message>` elements.",
+        },
+        {
             name: "message without from attribute",
             pageLink: true,
             markdown: `\
