@@ -10,6 +10,7 @@
         }
     },
     "dependencies": {
+        "@aws-sdk/client-bedrock-runtime": "3.787.0",
         "@aws-sdk/client-cloudformation": "3.787.0",
         "@aws-sdk/client-dynamodb": "3.787.0",
         "@aws-sdk/client-ec2": "3.787.0",

@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+set -o errexit -o nounset -o pipefail
+
+function print_usage {
+    cat <<'EOF'
+Usage:
+  ./admin/experimental/imjoshin/media-tagging/imjoshin_tags_test <file-path> [probe flags...]
+
+Examples:
+  ./admin/experimental/imjoshin/media-tagging/imjoshin_tags_test ~/Documents/file.png
+  ./admin/experimental/imjoshin/media-tagging/imjoshin_tags_test ../../Downloads/file.mp4 --asrModel=Xenova/whisper-tiny.en
+EOF
+}
+
+function expand_leading_tilde {
+    local input_path="$1"
+
+    if [ "$input_path" = "~" ]; then
+        printf '%s\n' "$HOME"
+        return
+    fi
+
+    if [ "${input_path:0:2}" = "~/" ]; then
+        printf '%s/%s\n' "$HOME" "${input_path:2}"
+        return
+    fi
+
+    printf '%s\n' "$input_path"
+}
+
+function resolve_full_path {
+    local input_path
+    input_path="$(expand_leading_tilde "$1")"
+
+    local parent_directory
+    parent_directory="$(dirname "$input_path")"
+
+    local file_name
+    file_name="$(basename "$input_path")"
+
+    local resolved_parent_directory
+    resolved_parent_directory="$(
+        cd "$parent_directory" >/dev/null 2>&1 || exit 1
+        pwd -P
+    )" || return 1
+
+    printf '%s/%s\n' "$resolved_parent_directory" "$file_name"
+}
+
+if [ "${1:-}" = "--help" ]; then
+    print_usage
+    exit 0
+fi
+
+if [ "$#" -lt 1 ]; then
+    print_usage >&2
+    exit 1
+fi
+
+input_file_path="$1"
+shift
+
+resolved_file_path="$(resolve_full_path "$input_file_path")" || {
+    printf 'Could not resolve file path: %s\n' "$input_file_path" >&2
+    exit 1
+}
+
+if [ ! -e "$resolved_file_path" ]; then
+    printf 'Resolved file does not exist: %s\n' "$resolved_file_path" >&2
+    exit 1
+fi
+
+script_directory="$(
+    cd "$(dirname "${BASH_SOURCE[0]}")"
+    pwd -P
+)"
+repository_root_directory="$(
+    cd "$script_directory/../../../.."
+    pwd -P
+)"
+
+cd "$repository_root_directory"
+
+exec bazel run //admin/experimental/imjoshin/media-tagging:file_content_probe -- \
+    --file="$resolved_file_path" \
+    "$@"
