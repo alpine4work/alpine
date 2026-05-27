@@ -1,6 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableItemType} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
+import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_attachment_target_authorizer.js";
 import {FilesTable} from "~/server/files/data/internal/files_table.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -25,7 +25,6 @@ type FileItem = DynamoTableItemType<typeof FilesTable, "File2", "Attributes">;
 export async function getFileFromAnyAttachment(
     context: ServerActionContext,
     fileId: FileId,
-    getAuthorizer: (target: FileAttachmentTarget) => FileAuthorizer,
 ): Promise<FileModel> {
     const targets: Array<FileAttachmentTarget> = [];
 
@@ -108,7 +107,7 @@ export async function getFileFromAnyAttachment(
     // checking them sequentially.
     const results = await runAllPromises(
         targets.map(target => {
-            const authorizer = getAuthorizer(target);
+            const authorizer = getFileAttachmentTargetAuthorizer(context, target);
             return authorizer.authorizeTargetAccessIfPossible(context, "View", {
                 consistency: "Strong",
             });

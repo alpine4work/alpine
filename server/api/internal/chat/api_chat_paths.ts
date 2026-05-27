@@ -1,5 +1,4 @@
 import {createIntoApiChatMessageContentPayloadParent} from "~/server/api/internal/chat/internal/create_into_api_chat_message_content_payload_parent.js";
-import {getFileAttachmentTargetAuthorizer} from "~/server/api/internal/files/get_file_attachment_target_authorizer.js";
 import {
     ApiOperation200JsonResponseType,
     ApiPaths,
@@ -226,7 +225,6 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                             type: "ChatMessages",
                             chatId: pathParameters.id,
                         }),
-                        {getFileAttachmentTargetAuthorizer},
                     ),
                 ),
             );

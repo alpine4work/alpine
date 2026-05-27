@@ -1,4 +1,3 @@
-import {getFileAttachmentTargetAuthorizer} from "~/server/api/internal/files/get_file_attachment_target_authorizer.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
@@ -35,11 +34,7 @@ export const apiFilesPaths: Pick<ApiPaths, keyof ApiPaths & `/files/${string}`> 
                 };
             }
 
-            const file = await getFileFromAnyAttachment(
-                context,
-                fileId,
-                getFileAttachmentTargetAuthorizer,
-            );
+            const file = await getFileFromAnyAttachment(context, fileId);
 
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 file.spaceId,
@@ -75,11 +70,7 @@ export const apiFilesPaths: Pick<ApiPaths, keyof ApiPaths & `/files/${string}`> 
                 };
             }
 
-            const {spaceId} = await getFileFromAnyAttachment(
-                context,
-                fileId,
-                getFileAttachmentTargetAuthorizer,
-            );
+            const {spaceId} = await getFileFromAnyAttachment(context, fileId);
 
             const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                 spaceId,

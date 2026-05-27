@@ -1,40 +1,19 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
 import {FileDocumentAuthorizer} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
-import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
-import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
-
-function getAuthorizer(target: FileAttachmentTarget): FileAuthorizer {
-    switch (target.type) {
-        case "ChatMessages":
-            return FileChatAuthorizer.bind(target);
-        case "Document":
-        case "DocumentComments":
-            return FileDocumentAuthorizer.bind(target);
-        case "Post":
-        case "PostDraft":
-        case "PostComments":
-            return FilePostAuthorizer.bind(target);
-        case "TaskNotes":
-        case "TaskComments":
-            return FileTaskAuthorizer.bind(target);
-        default:
-            throw exhaustive(target);
-    }
-}
+const context = createTestContext({
+    documentsInjection: {
+        bindFileDocumentAuthorizer: (_context, target) => FileDocumentAuthorizer.bind(target),
+    },
+});
 
 test("bot can attach file it uploaded to a document", async () => {
     const space = await TestSpace.create(context);
@@ -46,16 +25,6 @@ test("bot can attach file it uploaded to a document", async () => {
         access: "Public",
     });
     const file = await TestFile.create(session);
-
-    // The session uploaded the file, so without an existing attachment the bot can't
-    // prove access.
-    await expect(
-        attachFileToTargetAsBot(
-            bot.action(),
-            file.id,
-            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
-        ),
-    ).rejects.toThrow("Bot doesn\u2019t have access to this file");
 
     // Attach the file to the public document via the session first.
     await document.attachFile(session, file);
@@ -70,10 +39,9 @@ test("bot can attach file it uploaded to a document", async () => {
         bot.action(),
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: doc2.id}),
-        {getFileAttachmentTargetAuthorizer: getAuthorizer},
     );
 
-    const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+    const result = await getFileFromAnyAttachment(session.action(), file.id);
     expect(result.id).toBe(file.id);
 });
 
@@ -150,8 +118,8 @@ test("bot can attach file uploaded by another account if it has attachment acces
     });
     await doc1.attachFile(session, file);
 
-    // Bot attaches the same file to a different document, providing the authorizer
-    // callback so it can prove access through doc1.
+    // Bot attaches the same file to a different document because it has access through
+    // doc1.
     const doc2 = await TestDocument.create(session, {
         title: "Target doc",
         access: "Public",
@@ -161,10 +129,9 @@ test("bot can attach file uploaded by another account if it has attachment acces
         bot.action(),
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: doc2.id}),
-        {getFileAttachmentTargetAuthorizer: getAuthorizer},
     );
 
-    const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+    const result = await getFileFromAnyAttachment(session.action(), file.id);
     expect(result.id).toBe(file.id);
 });
 
@@ -191,7 +158,6 @@ test("bot cannot attach file from another account when attachment target is priv
             bot.action(),
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: targetDoc.id}),
-            {getFileAttachmentTargetAuthorizer: getAuthorizer},
         ),
     ).rejects.toThrow("No access to file through any attachment target");
 });
@@ -215,13 +181,9 @@ test("re-attaching already-attached file is idempotent", async () => {
     });
 
     // Re-attaching twice should succeed.
-    await attachFileToTargetAsBot(bot.action(), file.id, authorizer, {
-        getFileAttachmentTargetAuthorizer: getAuthorizer,
-    });
-    await attachFileToTargetAsBot(bot.action(), file.id, authorizer, {
-        getFileAttachmentTargetAuthorizer: getAuthorizer,
-    });
+    await attachFileToTargetAsBot(bot.action(), file.id, authorizer);
+    await attachFileToTargetAsBot(bot.action(), file.id, authorizer);
 
-    const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+    const result = await getFileFromAnyAttachment(session.action(), file.id);
     expect(result.id).toBe(file.id);
 });

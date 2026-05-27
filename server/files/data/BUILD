@@ -11,6 +11,7 @@ ts_project(
         "//server/forum/data",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/tasks/data",
         "//server/tasks/test_helpers",
     ],
     visibility = [

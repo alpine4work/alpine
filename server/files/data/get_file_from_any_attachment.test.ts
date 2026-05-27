@@ -10,32 +10,24 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
-
-function getAuthorizer(target: FileAttachmentTarget) {
-    switch (target.type) {
-        case "ChatMessages":
-            return FileChatAuthorizer.bind(target);
-        case "Document":
-        case "DocumentComments":
-            return FileDocumentAuthorizer.bind(target);
-        case "Post":
-        case "PostDraft":
-        case "PostComments":
-            return FilePostAuthorizer.bind(target);
-        case "TaskNotes":
-        case "TaskComments":
-            return FileTaskAuthorizer.bind(target);
-        default:
-            throw exhaustive(target);
-    }
-}
+const context = createTestContext({
+    chatInjection: {
+        bindFileChatAuthorizer: (_context, target) => FileChatAuthorizer.bind(target),
+    },
+    documentsInjection: {
+        bindFileDocumentAuthorizer: (_context, target) => FileDocumentAuthorizer.bind(target),
+    },
+    forumInjection: {
+        bindFilePostAuthorizer: (_context, target) => FilePostAuthorizer.bind(target),
+    },
+    tasksInjection: {
+        bindFileTaskAuthorizer: (_context, target) => FileTaskAuthorizer.bind(target),
+    },
+});
 
 test("throws NotFoundError for nonexistent file", async () => {
     const space = await TestSpace.create(context);
@@ -43,9 +35,9 @@ test("throws NotFoundError for nonexistent file", async () => {
 
     const fakeFileId = generateChronologicalId<FileId>();
 
-    await expect(
-        getFileFromAnyAttachment(session.action(), fakeFileId, getAuthorizer),
-    ).rejects.toThrow("File not found");
+    await expect(getFileFromAnyAttachment(session.action(), fakeFileId)).rejects.toThrow(
+        "File not found",
+    );
 });
 
 test("throws PermissionDeniedError when file has no attachment targets", async () => {
@@ -53,9 +45,9 @@ test("throws PermissionDeniedError when file has no attachment targets", async (
     const session = await space.createSession();
     const file = await TestFile.create(session);
 
-    await expect(
-        getFileFromAnyAttachment(session.action(), file.id, getAuthorizer),
-    ).rejects.toThrow("File is not attached to any entity");
+    await expect(getFileFromAnyAttachment(session.action(), file.id)).rejects.toThrow(
+        "File is not attached to any entity",
+    );
 });
 
 describe("Document attachment", () => {
@@ -67,7 +59,7 @@ describe("Document attachment", () => {
         const file = await TestFile.create(session);
         await document.attachFile(session, file);
 
-        const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+        const result = await getFileFromAnyAttachment(session.action(), file.id);
 
         expect(result.id).toBe(file.id);
         expect(result.spaceId).toBe(space.id);
@@ -85,9 +77,9 @@ describe("Document attachment", () => {
         const file = await TestFile.create(owner);
         await document.attachFile(owner, file);
 
-        await expect(
-            getFileFromAnyAttachment(viewer.action(), file.id, getAuthorizer),
-        ).rejects.toThrow(PermissionDeniedError);
+        await expect(getFileFromAnyAttachment(viewer.action(), file.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
     });
 });
 
@@ -100,7 +92,7 @@ describe("Post attachment", () => {
         const file = await TestFile.create(session);
         await channel.createPost(session, "Post with file", {files: [file]});
 
-        const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+        const result = await getFileFromAnyAttachment(session.action(), file.id);
 
         expect(result.id).toBe(file.id);
     });
@@ -115,7 +107,7 @@ describe("Task attachment", () => {
         const file = await TestFile.create(session);
         await task.attachFile(session, file);
 
-        const result = await getFileFromAnyAttachment(session.action(), file.id, getAuthorizer);
+        const result = await getFileFromAnyAttachment(session.action(), file.id);
 
         expect(result.id).toBe(file.id);
     });
@@ -131,9 +123,9 @@ describe("Task attachment", () => {
         const file = await TestFile.create(space1Session);
         await task.attachFile(space1Session, file);
 
-        await expect(
-            getFileFromAnyAttachment(space2Session.action(), file.id, getAuthorizer),
-        ).rejects.toThrow(PermissionDeniedError);
+        await expect(getFileFromAnyAttachment(space2Session.action(), file.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
     });
 });
 
@@ -150,7 +142,7 @@ describe("Chat attachment", () => {
         const file = await TestFile.create(session1);
         await file.attach(session1, FileChatAuthorizer.bind({type: "ChatMessages", chatId}));
 
-        const result = await getFileFromAnyAttachment(session1.action(), file.id, getAuthorizer);
+        const result = await getFileFromAnyAttachment(session1.action(), file.id);
 
         expect(result.id).toBe(file.id);
     });
@@ -167,9 +159,9 @@ describe("Chat attachment", () => {
         const file = await TestFile.create(session1);
         await file.attach(session1, FileChatAuthorizer.bind({type: "ChatMessages", chatId}));
 
-        await expect(
-            getFileFromAnyAttachment(session3.action(), file.id, getAuthorizer),
-        ).rejects.toThrow(PermissionDeniedError);
+        await expect(getFileFromAnyAttachment(session3.action(), file.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
     });
 });
 
@@ -200,7 +192,7 @@ describe("multiple attachment targets", () => {
                 ),
             );
 
-        const result = await getFileFromAnyAttachment(viewer.action(), file.id, getAuthorizer);
+        const result = await getFileFromAnyAttachment(viewer.action(), file.id);
 
         expect(result.id).toBe(file.id);
     });
@@ -232,37 +224,8 @@ describe("multiple attachment targets", () => {
                 ),
             );
 
-        await expect(
-            getFileFromAnyAttachment(viewer.action(), file.id, getAuthorizer),
-        ).rejects.toThrow("No access to file through any attachment target");
-    });
-
-    test("does not swallow unexpected errors from authorizer", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession();
-
-        const document = await TestDocument.create(session, {
-            title: "Doc",
-            access: "Public",
-        });
-
-        const file = await TestFile.create(session);
-        await document.attachFile(session, file);
-
-        // An authorizer that throws InternalError should propagate, not be swallowed.
-        const brokenGetAuthorizer = () => ({
-            target: {type: "Document" as const, documentId: document.id},
-            authorizeTargetAccessIfPossible: () => {
-                throw new InternalError("database connection failed");
-            },
-        });
-
-        await expect(
-            getFileFromAnyAttachment(
-                session.action(),
-                file.id,
-                brokenGetAuthorizer as unknown as typeof getAuthorizer,
-            ),
-        ).rejects.toThrow("database connection failed");
+        await expect(getFileFromAnyAttachment(viewer.action(), file.id)).rejects.toThrow(
+            "No access to file through any attachment target",
+        );
     });
 });

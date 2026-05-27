@@ -1,6 +1,3 @@
-import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
-import {FileDocumentAuthorizer} from "~/server/documents/data/documents_actions.js";
-import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -9,33 +6,11 @@ import {
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_actions.js";
+import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_attachment_target_authorizer.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
-import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import * as definitions from "~/shared/rpc/files_rpc_definitions.js";
-
-export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget): FileAuthorizer {
-    switch (target.type) {
-        case "ChatMessages":
-            return FileChatAuthorizer.bind(target);
-        case "Document":
-        case "DocumentComments":
-            return FileDocumentAuthorizer.bind(target);
-        case "Post":
-        case "PostDraft":
-        case "PostComments":
-            return FilePostAuthorizer.bind(target);
-        case "TaskNotes":
-        case "TaskComments":
-            return FileTaskAuthorizer.bind(target);
-        default:
-            throw exhaustive(target);
-    }
-}
 
 export default implementRpcs(definitions, {
     startUploadingFile: {
@@ -47,7 +22,7 @@ export default implementRpcs(definitions, {
                 contentType: input.contentType,
                 contentLength: input.contentLength,
                 attachTargetAuthorizer: input.attachTarget
-                    ? getFileAttachmentTargetAuthorizer(input.attachTarget)
+                    ? getFileAttachmentTargetAuthorizer(context, input.attachTarget)
                     : null,
             });
 
@@ -103,7 +78,7 @@ export default implementRpcs(definitions, {
             const file = await getFileFromAttachment(
                 context,
                 input.fileId,
-                getFileAttachmentTargetAuthorizer(input.target),
+                getFileAttachmentTargetAuthorizer(context, input.target),
             );
 
             // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
@@ -134,7 +109,7 @@ export default implementRpcs(definitions, {
             const file = await getFileFromAttachment(
                 context,
                 input.fileId,
-                getFileAttachmentTargetAuthorizer(input.target),
+                getFileAttachmentTargetAuthorizer(context, input.target),
             );
 
             return {
@@ -165,7 +140,7 @@ export default implementRpcs(definitions, {
             const file = await getFileFromAttachment(
                 context,
                 input.fileId,
-                getFileAttachmentTargetAuthorizer(input.target),
+                getFileAttachmentTargetAuthorizer(context, input.target),
             );
 
             // It's ok to generate a signed URL here since `getFileFromAttachment()` authorizes
@@ -185,7 +160,7 @@ export default implementRpcs(definitions, {
             const file = await attachFileAsUploader(
                 context,
                 input.fileId,
-                getFileAttachmentTargetAuthorizer(input.target),
+                getFileAttachmentTargetAuthorizer(context, input.target),
             );
 
             // It's ok to generate a signed URL here since `attachFileAsUploader()` authorizes
@@ -206,8 +181,8 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const file = await attachFileFromAttachment(context, input.fileId, {
-                from: getFileAttachmentTargetAuthorizer(input.fromTarget),
-                to: getFileAttachmentTargetAuthorizer(input.toTarget),
+                from: getFileAttachmentTargetAuthorizer(context, input.fromTarget),
+                to: getFileAttachmentTargetAuthorizer(context, input.toTarget),
             });
 
             // It's ok to generate a signed URL here since `attachFileFromAttachment()`

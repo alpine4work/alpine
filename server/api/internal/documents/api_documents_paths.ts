@@ -1,6 +1,5 @@
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
-import {getFileAttachmentTargetAuthorizer} from "~/server/api/internal/files/get_file_attachment_target_authorizer.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -103,7 +102,6 @@ export const apiDocumentsPaths: Pick<
                                 type: "Document",
                                 documentId,
                             }),
-                            {getFileAttachmentTargetAuthorizer},
                         ),
                     ),
                 );
@@ -193,7 +191,6 @@ export const apiDocumentsPaths: Pick<
                                 type: "Document",
                                 documentId: pathParameters.id,
                             }),
-                            {getFileAttachmentTargetAuthorizer},
                         ),
                     ),
                 );
@@ -443,7 +440,6 @@ export const apiDocumentsPaths: Pick<
                             type: "DocumentComments",
                             documentId: pathParameters.id,
                         }),
-                        {getFileAttachmentTargetAuthorizer},
                     ),
                 ),
             );

@@ -11,8 +11,6 @@ import {
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
-import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
-import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     attachFileFromAttachment,
     detachFile,
@@ -36,7 +34,6 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {RynamoEvent, RynamoPutItemEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -67,7 +64,6 @@ export async function createPost(
         createdTimeZone,
         consistency,
         overrideCreatedTimeForTest,
-        getFileAttachmentTargetAuthorizer,
     }: {
         id?: PostId;
         channelId: ChannelId;
@@ -76,7 +72,6 @@ export async function createPost(
         createdTimeZone: TimeZone;
         consistency?: DynamoCacheReadConsistency;
         overrideCreatedTimeForTest?: Date;
-        getFileAttachmentTargetAuthorizer?: (target: FileAttachmentTarget) => FileAuthorizer;
     },
 ): Promise<{
     id: PostId;
@@ -152,13 +147,12 @@ export async function createPost(
                     }),
                 });
             } else if (context.actor.type === "Bot") {
-                // No draft — attach the file directly (API service path).
-                await attachFileToTargetAsBot(
-                    context,
-                    fileId,
-                    FilePostAuthorizer.bind({type: "Post", postId}),
-                    {getFileAttachmentTargetAuthorizer},
-                );
+                // Bots are responsible for attaching files before calling `createPost`. The API
+                // layer handles this. \
+
+                // TODO: we should validate that all files are attached before creating the post.
+                // To do this right we'd need attachFileFromAttachment() to cache the attachment in
+                // ContextCache so the check here is 0-cost for the API.
             } else {
                 throw new FailedPreconditionError("Must create post from draft to attach files");
             }

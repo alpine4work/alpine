@@ -55,6 +55,10 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoEvent, RynamoItem, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
+import {
+    FileAttachmentTarget,
+    FileAttachmentTargetByArea,
+} from "~/shared/files/file_attachment_target.js";
 import {ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -90,12 +94,29 @@ const ContextModuleBase = _ContextModuleBase;
 type ContextModuleBase<Modules extends {[key: string]: ContextModuleBase | undefined} = {}> =
     _ContextModuleBase<Modules>;
 
+export type InjectedFileAuthorizer = {
+    readonly target: FileAttachmentTarget;
+
+    authorizeTargetAccess(
+        context: ServerActionContext,
+        expectedAccessLevel: "View" | "Edit",
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<void>;
+
+    authorizeTargetAccessIfPossible(
+        context: ServerActionContext,
+        expectedAccessLevel: "View" | "Edit",
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<void, Error>>;
+};
+
 export type ChatInjectionContextModule = InstanceType<typeof ChatInjectionContextModule>;
 
 export const ChatInjectionContextModule = createInjectionContextModule<ChatInjection>({
     getChatAccessPolicyForBotScope: true,
     authorizeChatAccessIfPossible: true,
     getChatAndInitialMessagesIfPossible: true,
+    bindFileChatAuthorizer: true,
 });
 
 export type ChatInjection = {
@@ -124,6 +145,11 @@ export type ChatInjection = {
         },
         ErrorBase
     > | null>;
+
+    bindFileChatAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Chat"],
+    ): InjectedFileAuthorizer;
 };
 
 export type DocumentsInjectionContextModule = InstanceType<typeof DocumentsInjectionContextModule>;
@@ -132,6 +158,7 @@ export const DocumentsInjectionContextModule = createInjectionContextModule<Docu
     authorizeDocumentAccessIfPossible: true,
     getDocumentContentPreviewIfPossible: true,
     getDocumentAccessPolicyForBotScope: true,
+    bindFileDocumentAuthorizer: true,
 });
 
 export type DocumentsInjection = {
@@ -165,6 +192,11 @@ export type DocumentsInjection = {
         documentId: DocumentId,
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<EffectiveAccessPolicy>;
+
+    bindFileDocumentAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Document"],
+    ): InjectedFileAuthorizer;
 };
 
 export type ForumInjectionContextModule = InstanceType<typeof ForumInjectionContextModule>;
@@ -175,6 +207,7 @@ export const ForumInjectionContextModule = createInjectionContextModule<ForumInj
     isSubscribedToChannel: true,
     getPostIfPossible: true,
     getPostAccessPolicyForBotScope: true,
+    bindFilePostAuthorizer: true,
 });
 
 export type ForumInjection = {
@@ -212,6 +245,11 @@ export type ForumInjection = {
         postId: PostId,
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<EffectiveAccessPolicy>;
+
+    bindFilePostAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Post"],
+    ): InjectedFileAuthorizer;
 };
 
 export type NotificationsInjectionContextModule = InstanceType<
@@ -418,6 +456,7 @@ export const TasksInjectionContextModule = createInjectionContextModule<TasksInj
     authorizeTaskCollectionAccessIfPossible: true,
     internalGetUpdateOurAccountNameTaskTransactionEntries: true,
     getTaskAccessPolicyForBotScope: true,
+    bindFileTaskAuthorizer: true,
 });
 
 export type TasksInjection = {
@@ -452,6 +491,11 @@ export type TasksInjection = {
         taskId: TaskId,
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<EffectiveAccessPolicy>;
+
+    bindFileTaskAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Task"],
+    ): InjectedFileAuthorizer;
 };
 
 type ArrayTail<T extends ReadonlyArray<unknown>> = T extends readonly [any, ...infer U] ? U : [];

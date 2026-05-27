@@ -991,6 +991,55 @@ describe("post comment parents", () => {
     });
 });
 
+test("can create post with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {access: "Public"});
+
+    // Upload a file and attach it to a public document so the bot can access it.
+    const file = await TestFile.create(session);
+    const document = await TestDocument.create(session, {
+        title: "Source",
+        access: "Public",
+    });
+    await document.attachFile(session, file);
+
+    const response = await server.POST("/posts", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            channelId: channel.id,
+            content: {
+                elements: [
+                    {
+                        type: "File",
+                        id: file.id,
+                    },
+                ],
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            post: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
 test("can read post with file attachment", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
