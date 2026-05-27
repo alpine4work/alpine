@@ -136,10 +136,7 @@ export function createHttpLambdaHandler({
                 tracer,
             });
 
-            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether
-            // this `try`/`catch` should handle async request failures.
-            // eslint-disable-next-line @typescript-eslint/return-await
-            return actuallyHandleRequest({
+            return await actuallyHandleRequest({
                 handleRequest,
                 lambdaContext,
                 abortController,
@@ -201,10 +198,7 @@ async function actuallyHandleRequest({
     url: URL;
 }) {
     try {
-        // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether
-        // this `try`/`catch` should handle async timeout failures.
-        // eslint-disable-next-line @typescript-eslint/return-await
-        return withLambdaTimeout(lambdaContext, abortController, async () => {
+        return await withLambdaTimeout(lambdaContext, abortController, async () => {
             // stream response here, wait for process event after
             const response = await handleRequest(actionContext, {
                 request,
