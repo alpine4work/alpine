@@ -12,6 +12,7 @@ import {
 } from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
+import {contentEditorDateDecorationPlugin} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
 import {
     openContentEditorCommentInputFloaterMetaKey,
@@ -56,6 +57,7 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {hasSpellCheckFeature} from "~/shared/spaces/has_spell_check_feature.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
@@ -98,12 +100,22 @@ function buildPlugins<Content extends ContentWithReferences>({
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 
-    // A bit of a hack to get the spaceId while this plugin is feature flagged We don't
-    // run harper server side, so we won't show errors outside the browser anyways
+    // A bit of a hack to get the spaceId while these plugins are feature flagged. We
+    // only show this UI in the browser, so browser-only gating is sufficient here.
     const spaceId =
         typeof window !== "undefined"
             ? (window.location.pathname.match(/\/s\/([^/]+)/)?.[1] as SpaceId) || null
             : null;
+
+    if (
+        spaceId &&
+        hasDatePickerFeature(spaceId) &&
+        !isMobileWebKit &&
+        // Create an escape hatch while we're testing in case things break
+        localStorage.getItem("disableDatePicker") !== "true"
+    ) {
+        plugins.push(contentEditorDateDecorationPlugin());
+    }
 
     // Native spellcheck is often more distracting then it's worth. It puts a red
     // squiggly under names, nouns, industry terms, and oddly sometimes contractions

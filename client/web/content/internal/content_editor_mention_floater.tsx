@@ -1,6 +1,6 @@
 import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {CalendarBlank, IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -48,6 +48,7 @@ import {renderTextWithEmojiFontFamily} from "~/client/web/helpers/render_text_wi
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {
     useSearchEntityModel,
@@ -63,8 +64,11 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {formatContentDateString} from "~/shared/content/content_date_helpers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {formatContentDateAbsolute} from "~/shared/content/format_content_date.js";
+import {getContentDateSuggestions} from "~/shared/content/get_content_date_suggestions.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
@@ -98,6 +102,7 @@ import {
     printSearchEntityModelId,
 } from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {Store} from "~/shared/store/store.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -169,6 +174,9 @@ export function ContentEditorMentionFloater({
     const context = useAppContext();
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
+    const isDatePickerDisabled =
+        typeof window !== "undefined" && localStorage.getItem("disableDatePicker") === "true";
+    const hasDatePickerUiFeature = !isDatePickerDisabled && hasDatePickerFeature(space.id);
     const searchEntityRegistry = useSearchEntityRegistry();
 
     const overlayRef = useRef<OverlayRef>(null);
@@ -523,7 +531,7 @@ export function ContentEditorMentionFloater({
             );
         }
 
-        return TextSelection.between($to, $from);
+        return TextSelection.between($from, $to);
     });
 
     const insertMenuActions = useMemo(
@@ -545,6 +553,41 @@ export function ContentEditorMentionFloater({
         });
     }, [insertMenuActions]);
 
+    // Date suggestions use exact prefix matching (no fuzzy) and are computed
+    // separately from the Fuse.js insert action search.
+    const currentDate = useCurrentDate();
+    const todayString = useMemo(
+        () => formatContentDateString(currentDate.year, currentDate.month, currentDate.day),
+        [currentDate.day, currentDate.month, currentDate.year],
+    );
+
+    const dateSuggestionActions: ReadonlyArray<ContentEditorInsertMenuAction> = useMemo(() => {
+        if (!hasDatePickerUiFeature || searchMentionOutput.queryText.length === 0) {
+            return emptyArray;
+        }
+
+        const suggestions = getContentDateSuggestions(searchMentionOutput.queryText, todayString);
+        return suggestions.map(suggestion => ({
+            label: suggestion.label,
+            icon: <CalendarBlank />,
+            isSuggestedInMentionFloater: false,
+            onPress: () => {
+                const view = assertExists(viewRef.current);
+                const absoluteDateText = formatContentDateAbsolute(suggestion.dateString);
+
+                const $to = view.state.doc.resolve(range.to);
+                const $from = view.state.doc.resolve(range.from);
+                const selection = TextSelection.between($from, $to);
+
+                let tr = view.state.tr;
+                tr = tr.setSelection(selection);
+                tr = tr.replaceSelectionWith(view.state.schema.text(absoluteDateText), false);
+
+                view.dispatch(tr.scrollIntoView());
+            },
+        }));
+    }, [hasDatePickerUiFeature, range, searchMentionOutput.queryText, todayString, viewRef]);
+
     // We use `searchMentionOutput.queryText` for searching menu actions not the prop
     // `searchQuery`. That's because we want our menu action search result to update at
     // the same time as our entity mentions search result.
@@ -553,14 +596,25 @@ export function ContentEditorMentionFloater({
             return insertMenuActions.filter(action => action.isSuggestedInMentionFloater);
         }
 
-        return filterMapArray(
+        const fuseResults = filterMapArray(
             insertMenuActionsFuse.search(searchMentionOutput.queryText),
             ({item, score}) => {
                 if (score! >= fuseScoreMatchCutoff) return;
                 return item;
             },
         );
-    }, [insertMenuActions, insertMenuActionsFuse, searchMentionOutput.queryText]);
+
+        // Prepend exact-match date suggestions before fuzzy results.
+        if (dateSuggestionActions.length > 0) {
+            return [...dateSuggestionActions, ...fuseResults];
+        }
+        return fuseResults;
+    }, [
+        dateSuggestionActions,
+        insertMenuActions,
+        insertMenuActionsFuse,
+        searchMentionOutput.queryText,
+    ]);
 
     const accountRegistry = useAccountRegistry();
     const allAccounts = useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output

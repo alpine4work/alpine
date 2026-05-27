@@ -23,6 +23,7 @@ import {
 import {CalendarState, CalendarStateOptions, useCalendarState} from "react-stately";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -34,66 +35,84 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-const taskDateInputCalendarDaySize = "8";
-const taskDateInputCalendarDaySizeRem = parseRemLength(taskDateInputCalendarDaySize);
+const dateInputCalendarDaySize = "8";
+const dateInputCalendarDaySizeRem = parseRemLength(dateInputCalendarDaySize);
 
-const taskDateInputCalendarWeekDayHeight = "6";
-const taskDateInputCalendarWeekDayHeightRem = parseRemLength(taskDateInputCalendarWeekDayHeight);
+const dateInputCalendarWeekDayHeight = "6";
+const dateInputCalendarWeekDayHeightRem = parseRemLength(dateInputCalendarWeekDayHeight);
 
-const mobileTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRem * 5.25;
-const desktopTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRem * 6;
+const mobileDateInputCalendarWeeksHeightRem = dateInputCalendarDaySizeRem * 5.25;
+const desktopDateInputCalendarWeeksHeightRem = dateInputCalendarDaySizeRem * 6;
 
-const taskDateInputCalendarPadding = {desktop: "3", mobile: "2.5"} as const;
+const dateInputCalendarPadding = {desktop: "3", mobile: "2.5"} as const;
 
-const taskDateInputCalendarHeaderHeight = {desktop: "6", mobile: "5"} as const;
-const taskDateInputCalendarHeaderMarginBottom = {desktop: "3", mobile: "1"} as const;
+const dateInputCalendarHeaderHeight = {desktop: "6", mobile: "5"} as const;
+const dateInputCalendarHeaderMarginBottom = {desktop: "3", mobile: "1"} as const;
 
-const taskDateInputFooterMarginTop = {desktop: "3", mobile: "0"} as const;
-const taskDateInputFooterPaddingY = {desktop: "2", mobile: "1"} as const;
-const taskDateInputFooterButtonHeight = "5";
+const dateInputCalendarFooterMarginTop = {desktop: "3", mobile: "0"} as const;
+const dateInputCalendarFooterPaddingY = {desktop: "2", mobile: "1"} as const;
+const dateInputCalendarFooterButtonHeight = "5";
 
-const taskDateInputFooterHeight = mapObjectValues(
-    taskDateInputFooterPaddingY,
-    taskDateInputFooterPaddingY =>
-        addRemLengths(
-            taskDateInputFooterPaddingY,
-            taskDateInputFooterButtonHeight,
-            taskDateInputFooterPaddingY,
-        ),
+const dateInputCalendarFooterHeight = {
+    mobile: addRemLengths(
+        dateInputCalendarFooterPaddingY.mobile,
+        dateInputCalendarFooterButtonHeight,
+        dateInputCalendarFooterPaddingY.mobile,
+    ),
+    desktop: addRemLengths(
+        dateInputCalendarFooterPaddingY.desktop,
+        dateInputCalendarFooterButtonHeight,
+        dateInputCalendarFooterPaddingY.desktop,
+    ),
+};
+
+// Ok since this exports a string constant.
+// eslint-disable-next-line react-refresh/only-export-components
+export const dateInputCalendarMobileHeight = addRemLengths(
+    dateInputCalendarPadding.mobile,
+    dateInputCalendarHeaderHeight.mobile,
+    dateInputCalendarHeaderMarginBottom.mobile,
+    dateInputCalendarWeekDayHeight,
+    `${mobileDateInputCalendarWeeksHeightRem}rem`,
 );
 
 // Ok since this exports a string constant.
 // eslint-disable-next-line react-refresh/only-export-components
-export const taskDateInputCalendarMobileHeight = addRemLengths(
-    taskDateInputCalendarPadding.mobile,
-    taskDateInputCalendarHeaderHeight.mobile,
-    taskDateInputCalendarHeaderMarginBottom.mobile,
-    taskDateInputCalendarWeekDayHeight,
-    `${mobileTaskDateInputCalendarWeeksHeightRem}rem`,
-    taskDateInputFooterMarginTop.mobile,
-    taskDateInputFooterHeight.mobile,
+export const dateInputCalendarDesktopHeight = addRemLengths(
+    dateInputCalendarPadding.desktop,
+    dateInputCalendarHeaderHeight.desktop,
+    dateInputCalendarHeaderMarginBottom.desktop,
+    dateInputCalendarWeekDayHeight,
+    `${desktopDateInputCalendarWeeksHeightRem}rem`,
 );
 
 // Ok since this exports a string constant.
 // eslint-disable-next-line react-refresh/only-export-components
-export const taskDateInputCalendarDesktopHeight = addRemLengths(
-    taskDateInputCalendarPadding.desktop,
-    taskDateInputCalendarHeaderHeight.desktop,
-    taskDateInputCalendarHeaderMarginBottom.desktop,
-    taskDateInputCalendarWeekDayHeight,
-    `${desktopTaskDateInputCalendarWeeksHeightRem}rem`,
-    taskDateInputFooterMarginTop.desktop,
-    taskDateInputFooterHeight.desktop,
+export const dateInputCalendarWithFooterMobileHeight = addRemLengths(
+    dateInputCalendarMobileHeight,
+    dateInputCalendarFooterMarginTop.mobile,
+    dateInputCalendarFooterHeight.mobile,
 );
 
-export function TaskDateInputCalendar({
+// Ok since this exports a string constant.
+// eslint-disable-next-line react-refresh/only-export-components
+export const dateInputCalendarWithFooterDesktopHeight = addRemLengths(
+    dateInputCalendarDesktopHeight,
+    dateInputCalendarFooterMarginTop.desktop,
+    dateInputCalendarFooterHeight.desktop,
+);
+
+export function DateInputCalendar({
     date,
     onDateChange,
+    monthCount,
+    onClear,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
+    monthCount: 1 | 2;
+    onClear?: () => void;
 }) {
     const platform = usePlatform();
     const {locale, timeZone} = useClientInfo();
@@ -110,7 +129,7 @@ export function TaskDateInputCalendar({
     const calendarProps: CalendarStateOptions & AriaCalendarProps<DateValue> = {
         locale,
         createCalendar: useCallback(
-            actualCalendarName => {
+            (actualCalendarName: string) => {
                 assert(actualCalendarName === calendarName);
                 return calendar;
             },
@@ -127,13 +146,13 @@ export function TaskDateInputCalendar({
         //
         // On mobile, we don't have enough space on screen for two months.
         selectionAlignment: "start",
-        visibleDuration: {months: platform === "mobile" ? 1 : 2},
+        visibleDuration: {months: monthCount},
     };
 
     const originalState = useCalendarState(calendarProps);
 
     const actualStartDate1 = originalState.visibleRange.start;
-    const actualStartDate2 = platform !== "mobile" ? actualStartDate1.add({months: 1}) : null;
+    const actualStartDate2 = monthCount > 1 ? actualStartDate1.add({months: 1}) : null;
     const actualEndDate = originalState.visibleRange.end;
 
     // We want dates for the full week in the first and last weeks of the month. To do
@@ -146,9 +165,8 @@ export function TaskDateInputCalendar({
             start: startOfWeek(originalState.visibleRange.start, locale),
             end: endOfWeek(originalState.visibleRange.end, locale),
         },
-        isCellDisabled: date => {
+        isCellDisabled: (date: CalendarDate) => {
             return (
-                calendarProps.isDisabled ||
                 date.compare(startOfWeek(originalState.visibleRange.start, locale)) < 0 ||
                 date.compare(endOfWeek(originalState.visibleRange.end, locale)) > 0 ||
                 originalState.isInvalid(date)
@@ -191,26 +209,30 @@ export function TaskDateInputCalendar({
     // month.
     const weekHeightRem =
         platform === "mobile"
-            ? mobileTaskDateInputCalendarWeeksHeightRem / maxWeeksInMonth
-            : taskDateInputCalendarDaySizeRem;
+            ? mobileDateInputCalendarWeeksHeightRem / maxWeeksInMonth
+            : dateInputCalendarDaySizeRem;
 
     return (
         <Box
             {...calendarDomProps}
-            paddingX={taskDateInputCalendarPadding}
-            paddingTop={taskDateInputCalendarPadding}
+            paddingX={dateInputCalendarPadding}
+            paddingTop={dateInputCalendarPadding}
             style={{
                 height:
                     platform === "mobile"
-                        ? taskDateInputCalendarMobileHeight
-                        : taskDateInputCalendarDesktopHeight,
+                        ? onClear
+                            ? dateInputCalendarWithFooterMobileHeight
+                            : dateInputCalendarMobileHeight
+                        : onClear
+                          ? dateInputCalendarWithFooterDesktopHeight
+                          : dateInputCalendarDesktopHeight,
             }}
         >
             <Box
                 display="flex"
                 alignItems="center"
-                height={taskDateInputCalendarHeaderHeight}
-                marginBottom={taskDateInputCalendarHeaderMarginBottom}
+                height={dateInputCalendarHeaderHeight}
+                marginBottom={dateInputCalendarHeaderMarginBottom}
             >
                 <IconButton
                     // Not focusable since when clicked we don't want to unfocus the text input.
@@ -260,8 +282,8 @@ export function TaskDateInputCalendar({
                     withoutTooltip
                     description={assertExists(nextButtonProps["aria-label"])}
                     isDisabled={assertExists(nextButtonProps["isDisabled"])}
-                    onFocus={() => assertExists(prevButtonProps["onFocusChange"])(true)}
-                    onBlur={() => assertExists(prevButtonProps["onFocusChange"])(false)}
+                    onFocus={() => assertExists(nextButtonProps["onFocusChange"])(true)}
+                    onBlur={() => assertExists(nextButtonProps["onFocusChange"])(false)}
                     onPress={assertExists(nextButtonProps["onPress"])}
                 >
                     <CaretRight />
@@ -272,15 +294,15 @@ export function TaskDateInputCalendar({
                 gap="3"
                 style={{
                     height: `${
-                        taskDateInputCalendarWeekDayHeightRem +
+                        dateInputCalendarWeekDayHeightRem +
                         (platform === "mobile"
-                            ? mobileTaskDateInputCalendarWeeksHeightRem
-                            : desktopTaskDateInputCalendarWeeksHeightRem)
+                            ? mobileDateInputCalendarWeeksHeightRem
+                            : desktopDateInputCalendarWeeksHeightRem)
                     }rem`,
                 }}
             >
                 <Box>
-                    <TaskDateInputCalendarGrid
+                    <DateInputCalendarGrid
                         state={state}
                         actualStartDate={actualStartDate1}
                         actualEndDate={actualEndDate}
@@ -291,7 +313,7 @@ export function TaskDateInputCalendar({
                 </Box>
                 {actualStartDate2 && (
                     <Box>
-                        <TaskDateInputCalendarGrid
+                        <DateInputCalendarGrid
                             state={state}
                             actualStartDate={actualStartDate2}
                             actualEndDate={actualEndDate}
@@ -302,33 +324,32 @@ export function TaskDateInputCalendar({
                     </Box>
                 )}
             </Box>
-            <Box
-                marginTop={taskDateInputFooterMarginTop}
-                paddingY={taskDateInputFooterPaddingY}
-                borderTop="grey-5"
-                display="flex"
-                justifyContent="flex-end"
-                style={{height: taskDateInputFooterHeight[platform]}}
-            >
-                <Button
-                    // Not focusable since when clicked we don't want to unfocus the text input.
-                    // Particularly on mobile. All keyboard interactivity is done through the text
-                    // input. The calendar is purely a pointer affordance for convenience.
-                    isFocusable={false}
-                    variant="quiet"
-                    height={taskDateInputFooterButtonHeight}
-                    paddingX="2"
-                    fontSize={platform === "mobile" ? "50" : "75"}
-                    onPress={() => onDateChange(null)}
+            {onClear && (
+                <Box
+                    marginTop={dateInputCalendarFooterMarginTop}
+                    paddingY={dateInputCalendarFooterPaddingY}
+                    borderTop="grey-5"
+                    display="flex"
+                    justifyContent="flex-end"
+                    style={{height: dateInputCalendarFooterHeight[platform]}}
                 >
-                    Clear
-                </Button>
-            </Box>
+                    <Button
+                        isFocusable={false}
+                        variant="quiet"
+                        height={dateInputCalendarFooterButtonHeight}
+                        paddingX="2"
+                        fontSize={platform === "mobile" ? "50" : "75"}
+                        onPress={onClear}
+                    >
+                        Clear
+                    </Button>
+                </Box>
+            )}
         </Box>
     );
 }
 
-function TaskDateInputCalendarGrid({
+function DateInputCalendarGrid({
     state,
     actualStartDate,
     actualEndDate,
@@ -359,8 +380,8 @@ function TaskDateInputCalendarGrid({
                         <th key={index}>
                             <div
                                 className={sprinkles({
-                                    width: taskDateInputCalendarDaySize,
-                                    height: taskDateInputCalendarWeekDayHeight,
+                                    width: dateInputCalendarDaySize,
+                                    height: dateInputCalendarWeekDayHeight,
                                     display: "flex",
                                     justifyContent: "center",
                                     alignItems: "center",
@@ -380,9 +401,9 @@ function TaskDateInputCalendarGrid({
                     <tr key={weekIndex}>
                         {state
                             .getDatesInWeek(weekIndex, startDate)
-                            .map((date, i) =>
+                            .map((date: CalendarDate | null, i: number) =>
                                 date ? (
-                                    <TaskDateInputCalendarCell
+                                    <DateInputCalendarCell
                                         key={i}
                                         state={state}
                                         actualStartDate={actualStartDate}
@@ -403,7 +424,7 @@ function TaskDateInputCalendarGrid({
     );
 }
 
-function TaskDateInputCalendarCell({
+function DateInputCalendarCell({
     state,
     actualStartDate,
     actualEndDate,
@@ -436,6 +457,7 @@ function TaskDateInputCalendarCell({
         buttonProps,
         isPressed,
         isSelected: _isSelected,
+        isFocused,
         formattedDate,
     } = useCalendarCell(
         {date},
@@ -463,52 +485,54 @@ function TaskDateInputCalendarCell({
 
     return (
         <td {...cellProps}>
-            <div
-                {...mergeProps(buttonProps, hoverProps)}
-                ref={ref}
-                className={sprinkles({
-                    width: taskDateInputCalendarDaySize,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                })}
-                style={{height: weekHeight}}
-            >
+            <FocusRing isVisible={isFocused} shouldIgnoreFocusEvents offset="inset">
                 <div
-                    // Put border radius on a nested `<div>` so entire parent is clickable.
+                    {...mergeProps(buttonProps, hoverProps)}
+                    ref={ref}
                     className={sprinkles({
-                        position: "relative",
-                        // Selected cell backgrounds should cover overlapping hovered cell backgrounds.
-                        zIndex: isSelected ? "10" : "0",
-                        fontSize: "75",
-                        fontStyle: isCurrentDate && !isDimmed ? "ultra-bold" : undefined,
-                        borderRadius: "full",
-                        backgroundColor: isSelected
-                            ? "grey-10"
-                            : // We use a hover state here since picking the right date requires some motor
-                              // precision. So hovering helps reduce the mental load as your mouse tracks to the
-                              // right position.
-                              isHovered
-                              ? "grey-5"
-                              : undefined,
-                        color:
-                            isCurrentDate && !isDimmed
-                                ? {light: "theme-50", dark: "theme-70"}
-                                : isDimmed && !isSelected
-                                  ? "grey-40"
-                                  : undefined,
+                        width: dateInputCalendarDaySize,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
                     })}
-                    style={{
-                        width: `calc(${spacing[taskDateInputCalendarDaySize]} - 2px)`,
-                        height: `calc(${spacing[taskDateInputCalendarDaySize]} - 2px)`,
-                    }}
+                    style={{height: weekHeight}}
                 >
-                    {formattedDate}
+                    <div
+                        // Put border radius on a nested `<div>` so entire parent is clickable.
+                        className={sprinkles({
+                            position: "relative",
+                            // Selected cell backgrounds should cover overlapping hovered cell backgrounds.
+                            zIndex: isSelected ? "10" : "0",
+                            fontSize: "75",
+                            fontStyle: isCurrentDate && !isDimmed ? "ultra-bold" : undefined,
+                            borderRadius: "full",
+                            backgroundColor: isSelected
+                                ? "grey-10"
+                                : // We use a hover state here since picking the right date requires some motor
+                                  // precision. So hovering helps reduce the mental load as your mouse tracks to the
+                                  // right position.
+                                  isHovered
+                                  ? "grey-5"
+                                  : undefined,
+                            color:
+                                isCurrentDate && !isDimmed
+                                    ? {light: "theme-50", dark: "theme-70"}
+                                    : isDimmed && !isSelected
+                                      ? "grey-40"
+                                      : undefined,
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                        })}
+                        style={{
+                            width: `calc(${spacing[dateInputCalendarDaySize]} - 2px)`,
+                            height: `calc(${spacing[dateInputCalendarDaySize]} - 2px)`,
+                        }}
+                    >
+                        {formattedDate}
+                    </div>
                 </div>
-            </div>
+            </FocusRing>
         </td>
     );
 }

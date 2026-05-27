@@ -49,6 +49,7 @@ import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/web/
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/web/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/web/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/web/content/internal/content_editor_comment_mark_view.js";
+import {ContentEditorDatePickerOverlay} from "~/client/web/content/internal/content_editor_date_picker_overlay.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/web/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/web/content/internal/content_editor_dom_parser.js";
 import {createContentEditorFileFloatNodeViewConstructor} from "~/client/web/content/internal/content_editor_file_float_node_view.js";
@@ -97,6 +98,10 @@ import {
 import {createContentEditorTableNodeView} from "~/client/web/content/internal/table/content_editor_table_node_view.js";
 import {uploadFile} from "~/client/web/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/web/content/internal/use_content_editor_debug_tools.js";
+import {
+    ContentEditorDateDecorationMatch,
+    getContentEditorDateMatchAtPos,
+} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
 import {ContentSpellCheckSuggestion} from "~/client/web/content/state/content_editor_spell_checker_configuration.js";
 import {getContentEditorSpellCheckerLints} from "~/client/web/content/state/content_editor_spell_checker_plugin.js";
@@ -166,6 +171,7 @@ import {
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {formatDateInOriginalFormat} from "~/shared/content/content_editor_date_format.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
@@ -237,6 +243,7 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
@@ -992,6 +999,13 @@ function ContentEditor<Content extends ContentWithReferences>(
         hasGifPickerFeature(spaceContext.space.id) &&
         isGiphyEnabled();
 
+    const isDatePickerDisabled =
+        typeof window !== "undefined" && localStorage.getItem("disableDatePicker") === "true";
+    const hasDatePickerUiFeature =
+        spaceContext !== null && !isDatePickerDisabled
+            ? hasDatePickerFeature(spaceContext.space.id)
+            : false;
+
     // We choose our interaction mode based on whether the device's primary input can
     // hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g. iOS).
     // Haven't tested this with an iPad. Ideally it's true when a hardware trackpad is
@@ -1240,6 +1254,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
+        // This editor view is initialized once and remounts when the space changes, so
+        // it's safe to capture the date picker feature flag at mount time.
+        const hasDatePickerUiFeatureForEditorView =
+            spaceContextRef.current !== null
+                ? hasDatePickerFeature(spaceContextRef.current.space.id)
+                : false;
 
         const initialIsDualModality = isDualModalityRef.current;
         const initialAccessLevel = propsRef.current.accessLevel ?? "Manage";
@@ -1530,11 +1550,41 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
         };
 
+        function openDatePicker(
+            view: EditorView,
+            dateMatch: ContentEditorDateDecorationMatch,
+            autoFocus: boolean,
+        ) {
+            if (!hasDatePickerUiFeatureForEditorView) return;
+
+            const savedSelection = view.state.selection;
+            const tr = view.state.tr.setSelection(
+                TextSelection.create(view.state.doc, dateMatch.from, dateMatch.to),
+            );
+            view.dispatch(tr);
+            setDatePickerState({
+                key: generateId(),
+                match: dateMatch,
+                isVisible: true,
+                autoFocus,
+                savedSelection,
+            });
+        }
+
         /* ========================================================================== *\
          *                                Click events                                *
         \* ========================================================================== */
 
         viewProps.handleClick = (view, pos, event) => {
+            // Open date picker when clicking a detected date decoration.
+            if (hasDatePickerUiFeatureForEditorView) {
+                const dateMatch = getContentEditorDateMatchAtPos(view.state, pos);
+                if (dateMatch && pos > dateMatch.from && pos < dateMatch.to) {
+                    openDatePicker(view, dateMatch, false);
+                    return true;
+                }
+            }
+
             // Don't perform the default ProseMirror behavior when clicking a file.
             //
             // We have pointer event listeners in `content_editor_file_node_view.ts` that
@@ -3195,6 +3245,24 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (event.defaultPrevented) return true;
             }
 
+            // Open date picker with keyboard when Enter is pressed inside a date decoration.
+            if (
+                hasDatePickerUiFeatureForEditorView &&
+                event.key === "Enter" &&
+                !event.altKey &&
+                !event.shiftKey &&
+                !event.metaKey &&
+                !event.ctrlKey
+            ) {
+                const {from} = view.state.selection;
+                const dateMatch = getContentEditorDateMatchAtPos(view.state, from);
+                if (dateMatch && from > dateMatch.from && from < dateMatch.to) {
+                    event.preventDefault();
+                    openDatePicker(view, dateMatch, true);
+                    return true;
+                }
+            }
+
             if (
                 typeof propsRef.current.onModEnterKeyDown === "function" &&
                 event.key === "Enter" &&
@@ -4791,6 +4859,45 @@ function ContentEditor<Content extends ContentWithReferences>(
     }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
 
     /* ========================================================================== *\
+     *                            Date picker state                               *
+    \* ========================================================================== */
+
+    const [datePickerState, setDatePickerState] = useState<{
+        key: Id;
+        match: ContentEditorDateDecorationMatch;
+        isVisible: boolean;
+        autoFocus: boolean;
+        savedSelection: Selection;
+    } | null>(null);
+
+    // A hidden anchor element positioned over the detected date text so that
+    // OverlayAnimated can position the picker relative to it.
+    const [datePickerAnchorElement, setDatePickerAnchorElement] = useState<HTMLDivElement | null>(
+        null,
+    );
+    useLayoutEffect(() => {
+        if (
+            !hasDatePickerUiFeature ||
+            !datePickerState?.isVisible ||
+            !viewRef.current ||
+            !datePickerAnchorElement
+        ) {
+            return;
+        }
+
+        const view = viewRef.current;
+        const startCoords = view.coordsAtPos(datePickerState.match.from);
+        const endCoords = view.coordsAtPos(datePickerState.match.to);
+        const editorRect = view.dom.getBoundingClientRect();
+
+        datePickerAnchorElement.style.position = "absolute";
+        datePickerAnchorElement.style.left = `${startCoords.left - editorRect.left}px`;
+        datePickerAnchorElement.style.top = `${startCoords.top - editorRect.top}px`;
+        datePickerAnchorElement.style.width = `${endCoords.right - startCoords.left}px`;
+        datePickerAnchorElement.style.height = `${endCoords.bottom - startCoords.top}px`;
+    }, [datePickerAnchorElement, datePickerState, hasDatePickerUiFeature]);
+
+    /* ========================================================================== *\
      *                          Code block toolbar state                          *
     \* ========================================================================== */
 
@@ -5119,6 +5226,64 @@ function ContentEditor<Content extends ContentWithReferences>(
     }, [getContextMenuActions]);
 
     /* ========================================================================== *\
+     *                           Date picker handlers                             *
+    \* ========================================================================== */
+
+    function handleDatePickerChange(newDateString: string) {
+        if (!datePickerState) return;
+        const view = viewRef.current;
+        if (!view) return;
+
+        const newText = formatDateInOriginalFormat(newDateString, datePickerState.match.format);
+        const {from, to} = datePickerState.match;
+
+        // Re-focus the editor first so ProseMirror can accept the selection change. Focus
+        // may have moved to the calendar overlay.
+        view.focus();
+
+        let tr = view.state.tr.replaceWith(from, to, view.state.schema.text(newText));
+
+        // Restore the selection to where it was before the picker opened. Map through the
+        // replacement in case positions shifted.
+        const mappedSelection = datePickerState.savedSelection.map(tr.doc, tr.mapping);
+        tr = tr.setSelection(mappedSelection);
+
+        view.dispatch(tr);
+
+        setDatePickerState(state => (state ? {...state, isVisible: false} : null));
+    }
+
+    // Close the date picker as soon as the cursor position changes (e.g. arrow keys,
+    // clicking elsewhere). We store the selection at open time and compare on every
+    // editor state update.
+    const datePickerSelectionAtOpenRef = useRef<Selection | null>(null);
+    useEffect(() => {
+        if (!hasDatePickerUiFeature) {
+            datePickerSelectionAtOpenRef.current = null;
+            if (datePickerState !== null) {
+                setDatePickerState(null);
+            }
+            return;
+        }
+
+        if (!datePickerState?.isVisible) {
+            datePickerSelectionAtOpenRef.current = null;
+            return;
+        }
+
+        // Record the selection on the first render after open.
+        if (datePickerSelectionAtOpenRef.current === null) {
+            datePickerSelectionAtOpenRef.current = unwrappedState.selection;
+            return;
+        }
+
+        // Close if the selection changed at all.
+        if (!unwrappedState.selection.eq(datePickerSelectionAtOpenRef.current)) {
+            setDatePickerState(prev => (prev ? {...prev, isVisible: false} : null));
+        }
+    }, [datePickerState, hasDatePickerUiFeature, unwrappedState]);
+
+    /* ========================================================================== *\
      *                                   Render                                   *
     \* ========================================================================== */
 
@@ -5155,6 +5320,34 @@ function ContentEditor<Content extends ContentWithReferences>(
                 onPasteOrDropFiles={onPasteOrDropFiles}
                 onSelectGif={isGifPickerEnabled ? onSelectGif : undefined}
             />
+            {hasDatePickerUiFeature && datePickerState && (
+                <>
+                    <div
+                        ref={setDatePickerAnchorElement}
+                        style={{position: "absolute", pointerEvents: "none"}}
+                    />
+                    {datePickerAnchorElement && (
+                        <ContentEditorDatePickerOverlay
+                            key={datePickerState.key}
+                            targetElement={datePickerAnchorElement}
+                            isVisible={datePickerState.isVisible}
+                            date={datePickerState.match.date}
+                            onDateChange={handleDatePickerChange}
+                            onCloseWithAnimation={() => {
+                                viewRef.current?.focus();
+                                setDatePickerState(state =>
+                                    state ? {...state, isVisible: false} : null,
+                                );
+                            }}
+                            onCloseWithoutAnimation={() => {
+                                viewRef.current?.focus();
+                                setDatePickerState(null);
+                            }}
+                            autoFocus={datePickerState.autoFocus}
+                        />
+                    )}
+                </>
+            )}
             <ContentEditorFileToolbarController
                 state={unwrappedState}
                 viewRef={viewRef}

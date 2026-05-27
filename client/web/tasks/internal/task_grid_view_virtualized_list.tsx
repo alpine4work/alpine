@@ -16,6 +16,10 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
+import {
+    dateInputCalendarWithFooterDesktopHeight,
+    dateInputCalendarWithFooterMobileHeight,
+} from "~/client/web/design/date_input_calendar.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
@@ -59,10 +63,6 @@ import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_vi
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/web/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {withApplyTaskGridViewUndoStackEntry} from "~/client/web/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {showTaskDeleteConfirmationModalDialog} from "~/client/web/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
-import {
-    taskDateInputCalendarDesktopHeight,
-    taskDateInputCalendarMobileHeight,
-} from "~/client/web/tasks/internal/task_date_input_calendar.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewHasDndContext} from "~/client/web/tasks/internal/task_grid_view_has_dnd_context.js";
 import {TaskGridViewMobileKeyboardToolbarContainer} from "~/client/web/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
@@ -852,8 +852,8 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
                     // scrolled to preserve enough onscreen space for the calendar should it open next.
                     const calendarHeightPx = convertRemLengthToPx(
                         platform === "mobile"
-                            ? taskDateInputCalendarMobileHeight
-                            : taskDateInputCalendarDesktopHeight,
+                            ? dateInputCalendarWithFooterMobileHeight
+                            : dateInputCalendarWithFooterDesktopHeight,
                         getSpacingScaleWithoutListening(),
                     );
 

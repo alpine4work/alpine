@@ -3072,3 +3072,54 @@ globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassN
 globalStyle(`${docClassName} > ${tableWrapperClassName} td > ${fileRowLikeClassName}:last-child`, {
     marginBottom: subtractRemLengths(tableCellPaddingX, tableCellPaddingY),
 });
+
+// Date decoration — detected dates in plain text that can open a date picker.
+// Shows a dotted underline on hover and when the cursor is inside the date range.
+export const dateDecorationClassName = style({
+    cursor: "pointer",
+    selectors: {
+        "&:hover": {
+            textDecoration: "underline",
+            textDecorationStyle: "dotted",
+            textDecorationColor: colorSchemeVars["grey-60"],
+        },
+    },
+});
+
+export const dateDecorationActiveClassName = style({
+    textDecoration: "underline",
+    textDecorationStyle: "dotted",
+    textDecorationColor: colorSchemeVars["grey-60"],
+});
+
+export const dateDecorationHintWrapperClassName = style({
+    display: "inline-block",
+    position: "relative",
+    width: 0,
+    height: 0,
+    verticalAlign: "baseline",
+    overflow: "visible",
+});
+
+export const dateDecorationHintClassName = style({
+    position: "absolute",
+    left: 0,
+    fontSize: "0.75rem",
+    lineHeight: 1,
+    height: "auto",
+    fontWeight: "normal",
+    letterSpacing: "0.0005em",
+    color: colorSchemeVars["grey-100"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    borderRadius: borderRadius["0.5"],
+    boxShadow: elevationVars["elevation-20"],
+    paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1.5"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
+    pointerEvents: "none",
+    userSelect: "none",
+    whiteSpace: "nowrap",
+    width: "max-content",
+    zIndex: 1,
+});
