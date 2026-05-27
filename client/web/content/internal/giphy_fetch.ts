@@ -95,7 +95,7 @@ export async function giphyFetchPage(
     query: string,
     offset: number,
 ): Promise<GiphyPageResult> {
-    return createGiphyFetcher(context)(giphySwrKey(query, offset));
+    return await createGiphyFetcher(context)(giphySwrKey(query, offset));
 }
 
 /**
