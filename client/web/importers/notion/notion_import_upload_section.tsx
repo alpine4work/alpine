@@ -248,7 +248,87 @@ export function NotionImportUploadSection({
                 const queue = [...partUploadUrls];
                 const errors: Array<Error> = [];
 
+                const maxRetries = 3;
+
                 await new Promise<void>((resolve, reject) => {
+                    // Uploads a single part with retry logic. On network errors or non-2xx responses,
+                    // retries up to `maxRetries` times with exponential backoff before giving up.
+                    function uploadPart(
+                        part: {partNumber: number; presignedUrl: string},
+                        attempt: number,
+                    ) {
+                        // Slice the file into the byte range for this part. Part numbers are 1-based (S3
+                        // convention).
+                        const start = (part.partNumber - 1) * partSize;
+                        const end = Math.min(start + partSize, file.size);
+                        const blob = file.slice(start, end);
+
+                        const xhr = new XMLHttpRequest();
+                        activeNotionImportUploadRef.current?.xhrRequests.push(xhr);
+
+                        xhr.upload.addEventListener("progress", event => {
+                            if (event.lengthComputable) {
+                                partProgress.set(part.partNumber, event.loaded);
+                                updateTotalProgress();
+                            }
+                        });
+
+                        const retry = (errorMessage: string) => {
+                            if (attempt < maxRetries) {
+                                // Reset progress for this part before retrying.
+                                partProgress.set(part.partNumber, 0);
+                                updateTotalProgress();
+
+                                const delay = 1000 * 2 ** attempt;
+                                setTimeout(() => uploadPart(part, attempt + 1), delay);
+                            } else {
+                                errors.push(new UnknownError(errorMessage));
+                                reject(errors[0]);
+                            }
+                        };
+
+                        xhr.addEventListener("load", () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                // S3 returns an ETag header for each uploaded part. We need to collect these and
+                                // send them to CompleteMultipartUpload.
+                                const etag = xhr.getResponseHeader("ETag");
+                                if (!etag) {
+                                    errors.push(
+                                        new UnknownError(
+                                            `Missing ETag for part ${part.partNumber}`,
+                                        ),
+                                    );
+                                    reject(errors[0]);
+                                    return;
+                                }
+
+                                // Mark this part's progress as fully complete.
+                                partProgress.set(part.partNumber, end - start);
+                                completedParts.push({
+                                    partNumber: part.partNumber,
+                                    etag,
+                                });
+
+                                updateTotalProgress();
+                            } else {
+                                retry(
+                                    `Part ${part.partNumber} upload failed with status ${xhr.status}`,
+                                );
+                                return;
+                            }
+
+                            activeCount--;
+                            startNext();
+                        });
+
+                        xhr.addEventListener("error", () => {
+                            retry(`Part ${part.partNumber} upload network request failed`);
+                        });
+
+                        xhr.open("PUT", part.presignedUrl, true);
+                        xhr.send(blob);
+                    }
+
                     // Recursively starts the next part upload. Called once initially and then again
                     // each time a part completes, creating a self-draining queue.
                     function startNext() {
@@ -265,72 +345,7 @@ export function NotionImportUploadSection({
                         while (activeCount < maxConcurrent && queue.length > 0) {
                             const part = queue.shift()!;
                             activeCount++;
-
-                            // Slice the file into the byte range for this part. Part numbers are 1-based (S3
-                            // convention).
-                            const start = (part.partNumber - 1) * partSize;
-                            const end = Math.min(start + partSize, file.size);
-                            const blob = file.slice(start, end);
-
-                            const xhr = new XMLHttpRequest();
-                            activeNotionImportUploadRef.current?.xhrRequests.push(xhr);
-
-                            xhr.upload.addEventListener("progress", event => {
-                                if (event.lengthComputable) {
-                                    partProgress.set(part.partNumber, event.loaded);
-                                    updateTotalProgress();
-                                }
-                            });
-
-                            xhr.addEventListener("load", () => {
-                                if (xhr.status >= 200 && xhr.status < 300) {
-                                    // S3 returns an ETag header for each uploaded part. We need to collect these and
-                                    // send them to CompleteMultipartUpload.
-                                    const etag = xhr.getResponseHeader("ETag");
-                                    if (!etag) {
-                                        errors.push(
-                                            new UnknownError(
-                                                `Missing ETag for part ${part.partNumber}`,
-                                            ),
-                                        );
-                                        reject(errors[0]);
-                                        return;
-                                    }
-
-                                    // Mark this part's progress as fully complete.
-                                    partProgress.set(part.partNumber, end - start);
-                                    completedParts.push({
-                                        partNumber: part.partNumber,
-                                        etag,
-                                    });
-
-                                    updateTotalProgress();
-                                } else {
-                                    errors.push(
-                                        new UnknownError(
-                                            `Part ${part.partNumber} upload failed with status ${xhr.status}`,
-                                        ),
-                                    );
-
-                                    reject(errors[0]);
-                                    return;
-                                }
-
-                                activeCount--;
-                                startNext();
-                            });
-
-                            xhr.addEventListener("error", () => {
-                                errors.push(
-                                    new UnknownError(
-                                        `Part ${part.partNumber} upload network request failed`,
-                                    ),
-                                );
-                                reject(errors[0]);
-                            });
-
-                            xhr.open("PUT", part.presignedUrl, true);
-                            xhr.send(blob);
+                            uploadPart(part, 0);
                         }
                     }
 
