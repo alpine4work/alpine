@@ -6,9 +6,46 @@ on:
             - main
 
 jobs:
+    # On ASG-backed runners, warm the exact-key shared cache once before the test
+    # fan-out so later jobs can start after the cache volume is already hydrated.
+    #
+    # We intentionally do not use a job-level `if` here. The test jobs `need` this
+    # job, and GitHub Actions skips downstream `needs` jobs when an upstream job is
+    # skipped. So on legacy branches we run this job and fast exit instead.
+    ensure-cache-volume:
+        name: Ensure cache volume
+        runs-on:
+            [
+                self-hosted,
+                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
+            ]
+        steps:
+            - name: Fast exit on legacy runners
+              if: ${{ !startsWith(github.ref_name, 'CI-ASG/') }}
+              run: echo "Legacy runners do not use the shared cache volume."
+
+            - if: startsWith(github.ref_name, 'CI-ASG/')
+              name: Checkout repo
+              uses: actions/checkout@v3
+
+            - name: Check for “[SKIP CI]”
+              if: startsWith(github.ref_name, 'CI-ASG/') && github.ref != 'refs/heads/main'
+              uses: ./.github/actions/check-skip-ci
+
+            - if: startsWith(github.ref_name, 'CI-ASG/')
+              name: Ensure cache volume
+              uses: ./.github/actions/initialize-bazel-cache
+              with:
+                  start-bazel-remote-cache: "false"
+
     unit-tests:
         name: Unit tests (${{ matrix.bucket }}/2)
-        runs-on: [self-hosted, aws-test]
+        needs: [ensure-cache-volume]
+        runs-on:
+            [
+                self-hosted,
+                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
+            ]
         strategy:
             matrix:
                 bucket:
@@ -64,7 +101,12 @@ jobs:
 
     integration-tests:
         name: Integration tests (${{ matrix.bucket }}/3)
-        runs-on: [self-hosted, aws-test]
+        needs: [ensure-cache-volume]
+        runs-on:
+            [
+                self-hosted,
+                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
+            ]
         strategy:
             matrix:
                 bucket:
@@ -123,7 +165,12 @@ jobs:
 
     screenshot-tests:
         name: Screenshot tests
-        runs-on: [self-hosted, aws-test]
+        needs: [ensure-cache-volume]
+        runs-on:
+            [
+                self-hosted,
+                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
+            ]
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3

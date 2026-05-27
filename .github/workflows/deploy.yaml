@@ -54,7 +54,7 @@ jobs:
                   # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. We want to
                   # share our cache between the two workflows.
                   key: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
                   restore-keys: |
                       bazel-${{ runner.os }}-${{ runner.arch }}-
 

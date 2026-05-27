@@ -19,11 +19,12 @@ diff --git a/lib/providers/ec2.js b/lib/providers/ec2.js
 index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40dcf95bb5 100644
 --- a/lib/providers/ec2.js
 +++ b/lib/providers/ec2.js
-@@ -22,6 +22,7 @@ repoPath="{}"
+@@ -22,6 +22,8 @@ repoPath="{}"
  runnerTokenPath="{}"
  labels="{}"
  registrationURL="{}"
 +export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
++export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRunnerTag || ''))")"
  
  heartbeat () {
    while true; do
@@ -32,7 +33,7 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40
  
    # Execute the run command
 -  sudo --preserve-env=AWS_REGION -Hu runner /home/runner/run.sh || exit 2
-+  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA -Hu runner /home/runner/run.sh || exit 2
++  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner /home/runner/run.sh || exit 2
  
    # Retrieve the status
    STATUS=$(grep -Phors "finish job request for job [0-9a-f\\-]+ with result: \K.*" /home/runner/_diag/ | tail -n1)

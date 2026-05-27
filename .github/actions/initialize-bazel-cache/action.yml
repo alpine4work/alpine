@@ -1,9 +1,138 @@
 name: "Initialize Bazel cache"
 description: "Sets up the Bazel repository cache and remote cache"
+inputs:
+    start-bazel-remote-cache:
+        description: "Whether to start the Bazel remote cache proxy."
+        required: false
+        default: "true"
 
 runs:
     using: "composite"
     steps:
+        - if: env.ALPINE_RUNNER_TAG == 'aws-test-asg'
+          id: legacy-cache
+          name: Restore legacy Bazel repositories cache
+          uses: actions/cache/restore@v3
+          with:
+              path: |
+                  /tmp/alpine-legacy-bazel-cache/bazelisk
+                  /tmp/alpine-legacy-bazel-cache/bazel
+              key: |
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+              restore-keys: |
+                  bazel-${{ runner.os }}-${{ runner.arch }}-
+
+        - if: env.ALPINE_RUNNER_TAG == 'aws-test-asg'
+          id: shared-cache
+          name: Initialize shared Bazel repositories cache
+          shell: bash
+          env:
+              BAZEL_CACHE_KEY: bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+              BAZEL_CACHE_PREFIX: bazel-${{ runner.os }}-${{ runner.arch }}-
+              LEGACY_CACHE_DIRECTORY: /tmp/alpine-legacy-bazel-cache
+          run: |
+              # `aws-test-asg` runners keep their warm Bazel repository cache on a
+              # shared EFS volume instead of restoring into `~/.cache` from GitHub's
+              # cache artifact on every job.
+              #
+              # That shared filesystem means these runners are only partially
+              # isolated: jobs can affect later jobs that trust the same cache
+              # scope. Do not copy this cache pattern into a multi-tenant or
+              # stricter authz environment unless those workloads are meant to
+              # trust each other at the filesystem level.
+              shared_cache_root="$GITHUB_RUNNER_SHARED_BAZEL_CACHE_DIR"
+              # Scope the shared cache by ref so untrusted feature branches can't
+              # mutate the cache later consumed by `main`.
+              if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+                  cache_scope_directory="$shared_cache_root/main"
+              else
+                  cache_scope_hash=$(printf '%s' "$GITHUB_REF" | sha256sum | cut -d ' ' -f1)
+                  cache_scope_directory="$shared_cache_root/ref-$cache_scope_hash"
+              fi
+              # Within a ref scope we still use the exact dependency hash so
+              # multiple revisions of the same branch can reuse the warmed cache.
+              exact_cache_directory="$cache_scope_directory/$BAZEL_CACHE_KEY"
+              cache_updated=false
+
+              mkdir -p "$cache_scope_directory" ~/.cache
+
+              # Warm-cache hits should avoid taking the hydrate lock so fan-out jobs
+              # can all start immediately once the exact-key cache is ready.
+              if [ ! -f "$exact_cache_directory/.ready" ]; then
+                  # Cold-cache hydration is serialized per ref scope so only one job
+                  # performs the expensive fetch/build bootstrap.
+                  exec 9>"$cache_scope_directory/.hydrate.lock"
+                  flock 9
+
+                  # Re-check after taking the lock in case another job finished
+                  # hydrating the exact-key cache while we were waiting.
+                  if [ ! -f "$exact_cache_directory/.ready" ]; then
+                      rm -rf "$exact_cache_directory"
+                      mkdir -p "$exact_cache_directory"
+
+                      # Prefer restoring from the newest exact-scope cache entry so
+                      # adjacent commits on the same branch can share fetched
+                      # repositories. If the branch has never hydrated this cache
+                      # before, fall back to the legacy GitHub cache artifact.
+                      restore_directory=$(
+                          find "$cache_scope_directory" -mindepth 1 -maxdepth 1 -type d \
+                              -name "${BAZEL_CACHE_PREFIX}*" \
+                              ! -path "$exact_cache_directory" \
+                              -printf '%T@ %p\n' \
+                              | sort -n \
+                              | tail -n 1 \
+                              | cut -d ' ' -f2-
+                      )
+
+                      if [ -n "$restore_directory" ]; then
+                          rsync -a --delete "$restore_directory/." "$exact_cache_directory/"
+                      elif [ -d "$LEGACY_CACHE_DIRECTORY/bazel" ] || [ -d "$LEGACY_CACHE_DIRECTORY/bazelisk" ]; then
+                          rsync -a "$LEGACY_CACHE_DIRECTORY/." "$exact_cache_directory/"
+                      fi
+
+                      rm -f "$exact_cache_directory/.ready"
+                      mkdir -p "$exact_cache_directory/bazel" "$exact_cache_directory/bazelisk"
+
+                      # Only the hydrating job runs the expensive Bazel bootstrap.
+                      # Everyone else waits for `.ready` and then reuses the result.
+                      admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos
+                      admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache=
+                      touch "$exact_cache_directory/.ready"
+                      cache_updated=true
+                  fi
+              fi
+
+              # Point the runner-local cache paths at the shared exact-key cache so
+              # the rest of the workflow can keep using the usual `~/.cache/*`
+              # locations without knowing about EFS.
+              rm -rf ~/.cache/bazel ~/.cache/bazelisk
+              ln -sfn "$exact_cache_directory/bazel" ~/.cache/bazel
+              ln -sfn "$exact_cache_directory/bazelisk" ~/.cache/bazelisk
+
+              if [ "$cache_updated" = true ]; then
+                  # Keep the exact-key shared cache warm on every branch. The shared
+                  # cache lives on the runner volume, so we don't need a `main`-only
+                  # gate like the legacy GitHub cache artifact.
+                  rm -rf "$LEGACY_CACHE_DIRECTORY"
+                  mkdir -p "$LEGACY_CACHE_DIRECTORY"
+                  rsync -a --delete "$exact_cache_directory/bazel/." "$LEGACY_CACHE_DIRECTORY/bazel/"
+                  rsync -a --delete "$exact_cache_directory/bazelisk/." "$LEGACY_CACHE_DIRECTORY/bazelisk/"
+              fi
+
+              echo "cache-updated=$cache_updated" >> "$GITHUB_OUTPUT"
+
+        # Only the legacy GitHub cache artifact is restricted to `main`. The shared
+        # runner-volume cache above is updated for exact-key misses on every branch.
+        - if: env.ALPINE_RUNNER_TAG == 'aws-test-asg' && steps.shared-cache.outputs.cache-updated == 'true' && github.ref == 'refs/heads/main'
+          name: Save legacy Bazel repositories cache
+          uses: actions/cache/save@v3
+          with:
+              path: |
+                  /tmp/alpine-legacy-bazel-cache/bazelisk
+                  /tmp/alpine-legacy-bazel-cache/bazel
+              key: |
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+
         # We cache Bazel external repositories with [GitHub's cache action][1]. We
         # cache individual build rule results with [Bazel remote caching][2].
         #
@@ -18,7 +147,8 @@ runs:
         #
         # [1]: https://github.com/actions/cache
         # [2]: https://bazel.build/remote/caching
-        - id: cache
+        - if: env.ALPINE_RUNNER_TAG != 'aws-test-asg'
+          id: cache
           name: Restore Bazel repositories cache
           uses: actions/cache/restore@v3
           with:
@@ -28,7 +158,7 @@ runs:
               # IMPORTANT: Should have the same `hashFiles()` as `deploy.yaml`. We want to
               # share our cache between the two workflows.
               key: |
-                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
               restore-keys: |
                   bazel-${{ runner.os }}-${{ runner.arch }}-
 
@@ -44,7 +174,7 @@ runs:
         # > miss, it will be set to `false`.
         #
         # [1]: https://github.com/actions/cache/blob/main/restore/README.md
-        - if: steps.cache.outputs.cache-hit != 'true'
+        - if: env.ALPINE_RUNNER_TAG != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true'
           name: Fetch Bazel repositories
           shell: bash
           run: |
@@ -57,7 +187,7 @@ runs:
         #
         # We only save new cache entries on the `main` branch. So if you're iterating
         # on a PR we don't save a bunch of cache entries that'll never be used again.
-        - if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        - if: env.ALPINE_RUNNER_TAG != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
           name: Save Bazel repositories cache
           uses: actions/cache/save@v3
           with:
@@ -131,7 +261,8 @@ runs:
         # [1]: https://bazel.build/remote/caching
         # [2]: https://bazel.build/remote/cache-remote
         # [3]: https://github.com/buchgr/bazel-remote
-        - name: Start Bazel remote cache
+        - if: inputs.start-bazel-remote-cache == 'true'
+          name: Start Bazel remote cache
           shell: bash
           run: |
               admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
