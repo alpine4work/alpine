@@ -4,6 +4,8 @@ ts_project(
     name = "entity_actions",
     test_deps = [
         "//server/chat/test_helpers",
+        "//server/documents/data",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/forum/test_helpers",
         "//server/sites/test_helpers",

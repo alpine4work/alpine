@@ -1,4 +1,11 @@
+import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel, FileEntityModelResult} from "~/shared/files/file_entity_model.js";
+import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
+import {FilePostEntityModelSchema} from "~/shared/forum/file_post_entity_model_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
@@ -14,6 +21,9 @@ import {
     SiteItemSearchEntityId,
     parseSiteItemSearchEntityId,
 } from "~/shared/search/site_item_search_entity_id.js";
+import {FileSiteEntityModelSchema} from "~/shared/sites/file_site_entity_model_schema.js";
+import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
+import {FileTaskEntityModelSchema} from "~/shared/tasks/file_task_entity_model.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
@@ -376,6 +386,112 @@ function intoSearchDynamicEntityIdObject(
         }
         default: {
             throw exhaustive(entity);
+        }
+    }
+}
+
+export function getDynamicSearchEntityPathForFileEntity({
+    spaceId,
+    fileEntityId,
+    fileEntityResult,
+}: {
+    spaceId: SpaceId;
+    fileEntityId: FileEntityId;
+    // Required + nullable (rather than optional) so callers must make a deliberate
+    // decision: pass the loaded entity result, or explicitly `null` to fall back to
+    // the wide-path heuristic derived from the id alone.
+    fileEntityResult: FileEntityModelResult | null;
+}): string {
+    if (!fileEntityResult || !fileEntityResult.ok) {
+        const idObject = parseFileEntityId(fileEntityId);
+        return getSearchDynamicEntityPathFromEntityIdObject(
+            spaceId,
+            idObject.type === "Site"
+                ? {type: "Site", siteId: idObject.siteId, firstEntityId: null}
+                : idObject,
+            "wide",
+        );
+    }
+
+    const fileEntity = fileEntityResult.value;
+
+    switch (fileEntity.type) {
+        case "Channel":
+        case "Chat":
+        case "Document":
+        case "Post":
+        case "Task":
+        case "TaskCollection": {
+            const idObject = parseFileEntityId(fileEntityId);
+            assert(idObject.type === fileEntity.type);
+            return getSearchDynamicEntityPathFromEntityIdObject(spaceId, idObject, "wide");
+        }
+        case "Site": {
+            const idObject = parseFileEntityId(fileEntityId);
+            assert(idObject.type === fileEntity.type);
+
+            const fileEntityData = fileEntity.deserialize(FileSiteEntityModelSchema);
+
+            if (!fileEntityData.firstEntity) {
+                return getSearchDynamicEntityPathFromEntityIdObject(
+                    spaceId,
+                    {type: "Site", siteId: idObject.siteId, firstEntityId: null},
+                    "wide",
+                );
+            }
+
+            const firstEntityIdObject = getSearchEntityIdObjectFromFileEntity(
+                fileEntityData.firstEntity,
+            );
+            assert(firstEntityIdObject.type !== "Site");
+
+            return getSearchDynamicEntityPathFromEntityIdObject(
+                spaceId,
+                firstEntityIdObject,
+                "wide",
+            );
+        }
+
+        default: {
+            throw exhaustive(fileEntity.type);
+        }
+    }
+}
+
+function getSearchEntityIdObjectFromFileEntity(
+    fileEntity: FileEntityModel,
+): SearchDynamicEntityIdObject {
+    switch (fileEntity.type) {
+        case "Channel": {
+            const fileEntityData = fileEntity.deserialize(FileChannelEntityModelSchema);
+            return {type: "Channel", channelId: fileEntityData.id};
+        }
+        case "Chat": {
+            const fileEntityData = fileEntity.deserialize(FileChatEntityModelSchema);
+            return {type: "Chat", chatId: fileEntityData.id};
+        }
+        case "Document": {
+            const fileEntityData = fileEntity.deserialize(FileDocumentEntityModelSchema);
+            return {type: "Document", documentId: fileEntityData.id};
+        }
+        case "Post": {
+            const fileEntityData = fileEntity.deserialize(FilePostEntityModelSchema);
+            return {type: "Post", postId: fileEntityData.id};
+        }
+        case "Task": {
+            const fileEntityData = fileEntity.deserialize(FileTaskEntityModelSchema);
+            return {type: "Task", taskId: fileEntityData.task.id};
+        }
+        case "TaskCollection": {
+            const fileEntityData = fileEntity.deserialize(FileTaskCollectionEntityModelSchema);
+            return {type: "TaskCollection", collectionId: fileEntityData.collection.id};
+        }
+        case "Site": {
+            const fileEntityData = fileEntity.deserialize(FileSiteEntityModelSchema);
+            return {type: "Site", siteId: fileEntityData.id};
+        }
+        default: {
+            throw exhaustive(fileEntity.type);
         }
     }
 }

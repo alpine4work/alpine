@@ -7,22 +7,12 @@ import {
     EditorView,
     __serializeForClipboard as serializeForClipboard,
 } from "prosemirror-view";
-import {
-    CSSProperties,
-    Memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {addContentViewLinkBehavior} from "~/client/web/content/add_content_view_link_behavior.js";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {getContentViewLastParagraphChild} from "~/client/web/content/get_content_view_depth_to_last_paragraph_child.js";
 import {getContentViewPosFromDom} from "~/client/web/content/get_content_view_pos_from_dom.js";
@@ -63,6 +53,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
@@ -84,11 +75,7 @@ import {
     paragraphClassName,
 } from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {
-    FileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -319,7 +306,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const fileRegistry = useFileRegistry();
     const siteRegistry = useSiteRegistry();
     const reporter = useReporter();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
 
     // Don't get the current account when running in a unit test so we don't need to
@@ -1460,7 +1447,13 @@ export function ContentView<Content extends ContentWithReferences>({
                             if (!spaceId) return;
 
                             const url = new URL(
-                                printFileEntityIdIntoPath(spaceId, mention.entityId),
+                                getDynamicSearchEntityPathForFileEntity({
+                                    spaceId,
+                                    fileEntityId: mention.entityId,
+                                    fileEntityResult:
+                                        content.references.fileEntityById?.get(mention.entityId) ??
+                                        null,
+                                }),
                                 window.location.href,
                             );
                             await writeTextToClipboard(url.toString());
@@ -1475,7 +1468,13 @@ export function ContentView<Content extends ContentWithReferences>({
         return () => {
             element.removeEventListener("contextmenu", handleContextMenu);
         };
-    }, [content.doc, spaceId]);
+    }, [
+        content.doc,
+        spaceId,
+        content.references.searchEntityById,
+        searchEntityRegistry,
+        content.references,
+    ]);
 
     return (
         <>

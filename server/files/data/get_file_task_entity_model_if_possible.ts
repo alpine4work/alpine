@@ -15,6 +15,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     TaskDueDateRegister,
@@ -107,6 +108,7 @@ export async function getFileTaskEntityModelIfPossible(
                 parent: null,
                 collections: emptyArray,
                 referencedSites: emptyArray,
+                site: null,
             },
         };
     }
@@ -243,6 +245,22 @@ export async function getFileTaskEntityModelIfPossible(
         5,
     );
 
+    // Derive the task's own site (if any) from its access policy. `loadQueries`
+    // already returns the matching `SitePreviewModel` in `referencedSites`, so reuse
+    // it instead of refetching. Fall back to the prefetcher (or `siteIfAlreadyLoaded`)
+    // if `referencedSites` somehow doesn't have it.
+    const taskAccessPolicy = task.getAccessPolicy();
+    let site: SitePreviewModel | null = null;
+    if (taskAccessPolicy?.type === "Site") {
+        const referencedSite = result.value.updateEvent.referencedSites.find(
+            referencedSiteResult =>
+                referencedSiteResult.ok &&
+                referencedSiteResult.value.id === taskAccessPolicy.siteId,
+        );
+        assert(referencedSite?.ok);
+        site = assertExists(referencedSite.value);
+    }
+
     return {
         ok: true,
         value: {
@@ -257,6 +275,7 @@ export async function getFileTaskEntityModelIfPossible(
             parent,
             collections: Array.from(collections),
             referencedSites: result.value.updateEvent.referencedSites,
+            site,
         },
     };
 }

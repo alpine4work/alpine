@@ -13,9 +13,9 @@ import {
 } from "~/client/web/content/file_entity/internal/content_file_chat_entity_preview.js";
 import {renderContentFileDocumentEntityPreview} from "~/client/web/content/file_entity/internal/content_file_document_entity_preview.js";
 import {renderContentFilePostEntityPreview} from "~/client/web/content/file_entity/internal/content_file_post_entity_preview.js";
+import {renderContentFileSiteEntityPreview} from "~/client/web/content/file_entity/internal/content_file_site_entity_preview.js";
 import {renderContentFileTaskCollectionEntityPreview} from "~/client/web/content/file_entity/internal/content_file_task_collection_entity_preview.js";
 import {renderContentFileTaskEntityPreview} from "~/client/web/content/file_entity/internal/content_file_task_entity_preview.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 
 // NOTE(calebmer): We export a React component instead of exporting
 // `contentFileEntityRenderers` so that file entity renderers can be hot reloaded
@@ -37,10 +37,7 @@ const contentFileEntityRenderers: ContentFileEntityRenderers = {
         Task: renderContentFileTaskEntityPreview,
         TaskCollection: renderContentFileTaskCollectionEntityPreview,
         Post: renderContentFilePostEntityPreview,
-        Site: () => {
-            // TODO(#sites): Implement proper site preview renderer
-            throw new UnimplementedError("Site entity preview is not yet implemented");
-        },
+        Site: renderContentFileSiteEntityPreview,
     },
     addPreviewBehaviorByType: {
         Channel: addContentFileChannelEntityPreviewBehavior,

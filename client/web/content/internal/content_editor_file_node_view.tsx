@@ -5,7 +5,10 @@ import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {RefObject} from "react";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {
+    ContentFileEntityRenderers,
+    contentFileEntityRenderersForTest,
+} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {ContentEditorFileToolbarController} from "~/client/web/content/internal/content_editor_file_toolbar.js";
 import {
@@ -312,12 +315,17 @@ export function createContentEditorFileNodeViewConstructor({
                     const fileEntityRenderersStore = getFileEntityRenderers();
 
                     // Support store file entity renders in hot reloading environments.
-                    const fileEntityRenderers =
+                    let fileEntityRenderers =
                         import.meta.hot &&
                         fileEntityRenderersStore !== null &&
                         "getSnapshot" in fileEntityRenderersStore
                             ? get(fileEntityRenderersStore)
                             : (fileEntityRenderersStore as ContentFileEntityRenderers | null);
+
+                    if (!fileEntityRenderers) {
+                        assert(import.meta.jest);
+                        fileEntityRenderers = contentFileEntityRenderersForTest;
+                    }
 
                     if (isFileEntity) {
                         const clientInfo = getClientInfo();

@@ -2,6 +2,7 @@
 
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {contentFileEntityRenderersForTest} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentToHtmlStoreForTest} from "~/client/web/content/render_content_to_html.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
@@ -113,7 +114,7 @@ test("will properly number list items", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -211,7 +212,7 @@ test("will properly number list items with indentation", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -267,7 +268,7 @@ test("will properly number list items in quote blocks", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -328,7 +329,7 @@ test("will render code block", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),

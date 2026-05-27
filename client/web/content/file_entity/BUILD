@@ -48,6 +48,7 @@ ts_project(
         "//shared/prosemirror",
         "//shared/remix",
         "//shared/rpc",
+        "//shared/sites",
         "//shared/spaces",
         "//shared/store",
         "//shared/tasks",

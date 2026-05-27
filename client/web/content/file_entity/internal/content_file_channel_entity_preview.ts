@@ -9,6 +9,7 @@ import {
     addContentFileEntitySubscribeButtonBehavior,
     renderContentFileEntitySubscribeButton,
 } from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {AppContext} from "~/client/web/context/app_context.js";
@@ -80,7 +81,7 @@ export function renderContentFileChannelEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
@@ -99,8 +100,19 @@ export function renderContentFileChannelEntityPreview(
             }),
         });
 
+    // Header group: breadcrumb + name container. Wrapped in a no-gap column so the
+    // parent's `channelViewHeaderSectionGap` flex gap doesn't contribute to the
+    // breadcrumb-to-title spacing — that gap is owned by the breadcrumb's own
+    // `paddingBottom` (see `siteBreadcrumbToTitleSpacing`).
+    const headerGroupHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+    headerGroupHtml.setAttribute("class", sprinkles({display: "flex", flexDirection: "column"}));
+
+    if (fileEntity.site) {
+        renderContentFileEntitySiteBreadcrumb(get, siteRegistry, headerGroupHtml, fileEntity.site);
+    }
+
     {
-        const nameContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+        const nameContainerHtml = headerGroupHtml.appendChild(new HtmlElementGenerator("div"));
 
         nameContainerHtml.setAttribute(
             "class",

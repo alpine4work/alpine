@@ -3,6 +3,7 @@ import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_en
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {
     encodeContentDuplicationVariableSchemaForUrl,
     extractContentDuplicationVariableSchema,
@@ -511,7 +512,20 @@ the page so future us doesn\u2019t have to go through this debate again.
     await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
     await runner.screenshot("a7", "url-grant");
 
-    await screenshotFileEntity(runner, accounts.cassCade, "a7", "a8", `Document:${document.id}`);
+    const oldDocumentAccessPolicy = await document.access.get();
+    assert(oldDocumentAccessPolicy.type === "Local");
+
+    const documentSite = await TestSite.create(accounts.cassCade, {
+        name: "FY2026 H2 Planning",
+        access: "Public",
+    });
+    await screenshotFileEntity(runner, accounts.cassCade, "a7", "a8", `Document:${document.id}`, {
+        siteOptions: {
+            site: documentSite,
+            revertAccessPolicy: () =>
+                document.access.set(accounts.cassCade, oldDocumentAccessPolicy),
+        },
+    });
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${generateId()}?create`);
     await runner.screenshot("a8", "new");

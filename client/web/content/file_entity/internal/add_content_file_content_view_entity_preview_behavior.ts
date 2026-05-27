@@ -48,7 +48,7 @@ export function addContentFileContentViewEntityPreviewBehavior(
         getReporter,
     }: {
         fileEntity: FileEntityModel;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         spaceId: SpaceId;
         getReporter: () => Reporter;
     },

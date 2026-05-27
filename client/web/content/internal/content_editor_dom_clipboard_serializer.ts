@@ -5,6 +5,7 @@ import {renderContentMentionToTextForClient} from "~/client/web/content/render_c
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
 import {
+    getDynamicSearchEntityPathForFileEntity,
     getSearchDynamicEntityPath,
     getSearchDynamicEntityPathFromEntityIdObject,
 } from "~/client/web/search/core/get_search_entity_path.js";
@@ -25,7 +26,7 @@ import {
     isFileWebSafeAudioContentType,
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
-import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -328,7 +329,12 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 fileDom.setAttribute(
                     "src",
                     new URL(
-                        printFileEntityIdIntoPath(this._getSpaceId(), fileId),
+                        getDynamicSearchEntityPathForFileEntity({
+                            spaceId: this._getSpaceId(),
+                            fileEntityId: fileId,
+                            fileEntityResult:
+                                this._getContentReferences().fileEntityById?.get(fileId) ?? null,
+                        }),
                         // NOTE(calebmer): This must be `window.location.origin` not `resourceServiceUrl`.
                         // Since the URL is something like `/s/:spaceId/documents/:documentId`. It's a URL
                         // into our app since we're dealing with a file entity here.

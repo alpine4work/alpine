@@ -231,13 +231,17 @@ test("returns empty array for empty input", async () => {
     expect(results).toMatchObject([]);
 });
 
-test("Site FileEntityId is not supported by parseFileEntityId", async () => {
+// TODO(#sites): Once sites are generally available, add `Site` to the API
+// `PreviewTarget` schema and update this test to expect a Site preview.
+test("skips Site FileEntityId since the API PreviewTarget does not yet include Site", async () => {
     const space = await TestSpace.create(context);
     const siteId = generateId<DocumentId>();
 
-    await expect(
-        resolveFilesForApiResponse(space.systemAction(), space.id, [`Site:${siteId}`]),
-    ).rejects.toThrow("Unrecognized `FileEntityId` type `Site`");
+    const results = await resolveFilesForApiResponse(space.systemAction(), space.id, [
+        `Site:${siteId}`,
+    ]);
+
+    expect(results).toMatchObject([]);
 });
 
 test("splits files into rows of up to three items and annotates row widths", async () => {

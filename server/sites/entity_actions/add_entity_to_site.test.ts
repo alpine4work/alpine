@@ -4,6 +4,10 @@
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -41,7 +45,15 @@ const searchInjection: Partial<SearchInjection> = {
     },
 };
 
-const context = createTestContext({sitesInjection, searchInjection});
+const context = createTestContext({
+    sitesInjection,
+    searchInjection,
+    documentsInjection,
+    // Documents are added to a site by sending an access-policy update to the
+    // document's collaboration durable object, which doesn't run in the in-process
+    // test context. Reimplement that one route directly against the test database.
+    sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
+});
 
 describe("addEntityToSite", () => {
     // The `Record<SiteItemSearchEntityIdObject["type"], …>` makes TypeScript fail if a
@@ -305,11 +317,57 @@ describe("addEntityToSite", () => {
             });
         },
         Document: () => {
-            // TODO(#sites): Documents are added via
-            // `context.edge.sendRequestToDurableObject(...)` to the document's collaboration
-            // durable object, which isn't wired up in this test context. Either move this case
-            // into `document_collaboration_durable_object.test.ts` or add edge wiring here.
-            test.todo("adds a Document to a site");
+            test("adds a Document to a site", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+                const site = await TestSite.create(session, {name: "Test Site"});
+                const siteId = site.id;
+                const document = await TestDocument.create(session, {title: "Test Document"});
+                const entityId: SiteItemSearchEntityId = `Document:${document.id}`;
+
+                await addEntityToSite(session.action(), {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                    parentId: site.initialRootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                });
+
+                const [siteItems, sitePreview, documentContent] = await runAllPromises([
+                    getSite(session.action(), {siteId}),
+                    getSitePreview(session.action(), siteId),
+                    getDocumentContent(session.action(), document.id),
+                ]);
+
+                expect(sitePreview.initialData).toEqual(
+                    expect.objectContaining({
+                        id: siteId,
+                        version: 1,
+                        firstEntityId: entityId,
+                        rootContainerId: site.initialRootContainerId,
+                    }),
+                );
+                expect(documentContent.content.attrs.accessPolicy).toEqual({
+                    type: "Site",
+                    siteId,
+                });
+                expect(siteItems.items.map(item => item.model)).toEqual([
+                    sitePreview,
+                    expect.objectContaining({
+                        id: site.initialRootContainerId,
+                        parentId: null,
+                        type: "SideBar",
+                        label: "Test Site",
+                        version: 1,
+                    }),
+                    expect.objectContaining({
+                        id: entityId,
+                        parentId: site.initialRootContainerId,
+                        initialEntityData: expect.objectContaining({type: "Document"}),
+                        version: 1,
+                    }),
+                ]);
+            });
         },
     };
     for (const setup of Object.values(entityTypeTests)) setup();

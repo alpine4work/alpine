@@ -135,7 +135,7 @@ export type ChatInjection = {
 
     getChatAndInitialMessagesIfPossible(
         context: ServerActionContext,
-        options: {chatId: ChatId; messagesLimit: number},
+        options: {chatId: ChatId; messagesLimit: number; onSiteId?: (siteId: SiteId) => void},
     ): Promise<Result<
         {
             chat: ChatModel;
@@ -177,7 +177,10 @@ export type DocumentsInjection = {
     getDocumentContentPreviewIfPossible(
         context: ServerActionContext,
         documentId: DocumentId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {
+            consistency?: DynamoCacheReadConsistency;
+            onSiteId?: (siteId: SiteId) => void;
+        },
     ): Promise<Result<
         {
             version: number;
@@ -225,6 +228,7 @@ export type ForumInjection = {
             postFilesLimit: number;
             afterItemKey?: DynamoItemKey | null;
             consistency?: DynamoReadConsistency;
+            onSiteId?: (siteId: SiteId) => void;
         },
     ): Promise<Result<RynamoQueryResult<ChannelOrMetadataModel>, ErrorBase> | null>;
 

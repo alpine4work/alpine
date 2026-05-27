@@ -37,7 +37,7 @@ export async function getChannelNotificationSubscribers(
         consistency,
     });
 
-    await authorizeChannelItemAccess(context, channelItem, "View");
+    await authorizeChannelItemAccess(context, channelItem, "View", {consistency});
 
     const accountIds = await arrayFromAsyncIterable(
         mapAsyncIterableIterator(

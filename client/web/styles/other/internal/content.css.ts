@@ -206,6 +206,16 @@ export const withUserSelectNoneDocClassName = style({
     },
 });
 
+/**
+ * Strip the title node's natural top breathing room (its `padding-top` and the
+ * matching slice of `min-height` that comes from `titlePaddingTop`). Used by file
+ * entity previews that render a doc whose title sits directly below some other
+ * element (e.g. a site breadcrumb) — without this override, the title's
+ * `min-height` leaves a `titlePaddingTop`-sized empty band between the title text
+ * and the first body block.
+ */
+export const withoutTitleTopSpacingDocClassName = style({});
+
 const blockStyles = {
     position: "relative",
     width: "100%",
@@ -216,6 +226,16 @@ const blockStyles = {
     // be rendered besides `fileFloat` you must explicitly omit this `clear` property.
     clear: "both",
 } as const;
+
+/**
+ * A class that pins a non-ProseMirror element to the same horizontal block
+ * geometry as the doc's blocks (`max-width: blockMaxWidthVar` + centered with
+ * `margin-{left,right}: auto`). Use it for chrome that sits inside a doc preview
+ * but isn't itself ProseMirror content (e.g. the site breadcrumb above a document
+ * title in a file entity preview) so it lines up with the title and paragraphs
+ * below it.
+ */
+export const docBlockClassName = style({...blockStyles});
 
 export const paragraphActualFontSize = "100";
 
@@ -347,6 +367,30 @@ globalStyle(
         minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
             titlePaddingTop.mobileNarrow
         })`,
+    },
+);
+
+// Strip the title's top breathing room — both `padding-top` and the
+// `titlePaddingTop` slice of `min-height` — when the doc opts in via
+// `withoutTitleTopSpacingDocClassName`. Covers wide, desktop-narrow, and mobile
+// variants since each declares its own `padding-top` / `min-height`.
+globalStyle(`${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`, {
+    paddingTop: "var(--safe-area-inset-top, 0px)",
+    minHeight: fontSizes[titleFontSize.wide].lineHeight,
+});
+globalStyle(
+    `${docClassName}${withoutTitleTopSpacingDocClassName}${narrowRouteLayoutDocClassName} ${titleClassName}, ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    {
+        minHeight: fontSizes[titleFontSize.narrow].lineHeight,
+    },
+);
+globalStyle(
+    [
+        `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        minHeight: fontSizes[titleFontSize.narrow].lineHeight,
     },
 );
 

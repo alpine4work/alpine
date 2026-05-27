@@ -285,15 +285,6 @@ class DocumentCollaborationDurableObject {
             ];
         }
 
-        // TODO(#sites): Remove this after deploy that removes all calls to
-        // `/put-content-without-optimistic-broadcast`.
-        if (url.pathname === "/put-content-without-optimistic-broadcast") {
-            return [
-                "/put-content-without-optimistic-broadcast",
-                {type: "UpdateContentWithoutOptimisticBroadcast"},
-            ];
-        }
-
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",

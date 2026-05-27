@@ -4,8 +4,10 @@ import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_fi
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
 import {uploadScreenshotTestFixtureFile} from "~/app/screenshot_tests/helpers/upload_screenshot_test_fixture_file.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
@@ -243,7 +245,23 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     await runner.goto(null, channelPath);
     await runner.screenshot("a1", "channel-url-grant");
 
-    await screenshotFileEntity(runner, accounts.cassCade, "a1", "a2", `Channel:${channel.id}`);
+    const oldChannelAccessPolicy = await channel.access.get();
+    assert(oldChannelAccessPolicy.type === "Local");
+
+    // Screenshot the channel standalone and inside a site (showing the site
+    // breadcrumb). Reuses the existing "Craft" channel; `screenshotFileEntity` adds it
+    // to the site, screenshots, then removes it.
+    const designSite = await TestSite.create(accounts.mattRHorn, {
+        name: "Design",
+        access: "Public",
+    });
+    await screenshotFileEntity(runner, accounts.cassCade, "a1", "a2", `Channel:${channel.id}`, {
+        siteOptions: {
+            site: designSite,
+            revertAccessPolicy: () =>
+                channel.access.set(accounts.mattRHorn, oldChannelAccessPolicy),
+        },
+    });
 
     await runner.goto(accounts.cassCade, channelPath, {
         peekPath: `/s/${space.id}/channels/${channel.id}/files`,
@@ -263,7 +281,10 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     await runner.getByText("Hover-reveal is cleaner").waitFor();
     await runner.screenshot("a5", "post-url-grant");
 
-    await screenshotFileEntity(runner, accounts.cassCade, "a5", "a6", `Post:${codeBlockPost.id}`);
+    // Posts live in a channel, not directly in a site, so there's no in-site variant.
+    await screenshotFileEntity(runner, accounts.cassCade, "a5", "a6", `Post:${codeBlockPost.id}`, {
+        siteOptions: null,
+    });
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
         peekPath: `/s/${space.id}/posts/new/${postDraftId}`,

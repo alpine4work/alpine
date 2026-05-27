@@ -8,6 +8,7 @@ import {
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
     refreshTaskCollectionIndexForTest,
@@ -17,7 +18,9 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -239,8 +242,34 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
     await runner.screenshot("aA", "collection");
 
+    // Reuse the `Tables` project task and the `Bugs` collection (which already has
+    // tasks) for their in-site previews. `screenshotFileEntity` screenshots each
+    // standalone, adds it to the site, screenshots it in-site, then removes it. This
+    // runs after the url-grant screenshots above because the cycle mutates the
+    // originals' access policy.
+    //
+    // The site is named "Q4 Planning" (the planning workspace the Tables project lives
+    // in) rather than "Tables" so the breadcrumb doesn't read "Tables › Tables".
+    const tablesProjectSite = await TestSite.create(accounts.cassCade, {
+        name: "Q4 Planning",
+        access: "Public",
+    });
+
+    const [oldBugsCollectionAccessPolicy, oldProjectTaskAccessPolicy] = await runAllPromises([
+        collections.bugs.access.get(),
+        projectTask.access.get(),
+    ]);
+
+    assert(oldProjectTaskAccessPolicy.type === "Local");
+    assert(oldBugsCollectionAccessPolicy.type === "Local");
+
     await screenshotFileEntity(runner, accounts.cassCade, "aA", "aB", `Task:${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
+        siteOptions: {
+            site: tablesProjectSite,
+            revertAccessPolicy: () =>
+                projectTask.access.set(accounts.cassCade, oldProjectTaskAccessPolicy),
+        },
     });
 
     await screenshotFileEntity(
@@ -249,7 +278,14 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         "aB",
         "aC",
         `TaskCollection:${collections.bugs.id}`,
-        {fixedTime: sprintScreenshotTime},
+        {
+            fixedTime: sprintScreenshotTime,
+            siteOptions: {
+                site: tablesProjectSite,
+                revertAccessPolicy: () =>
+                    collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy),
+            },
+        },
     );
 
     await projectTask.access.grantUrl(accounts.cassCade);
@@ -317,6 +353,101 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.pauseNetwork();
         await scrollLocatorToBottom(runner.getByTestId("TaskDetailScrollView"));
         await runner.screenshot("aI", "task-see-more");
+    }
+
+    {
+        // Subtask file-entity previews, covering two site-membership cases (both reuse
+        // `tablesProjectSite` so the subtasks share the same "Q4 Planning" site as the
+        // root task and collection previews above):
+        //
+        // - Variant 2: subtask whose root parent is in the same site — site breadcrumb
+        //   shown above the parent task breadcrumb.
+        // - Variant 3: subtask in a site whose root parent is NOT in that site — site
+        //   breadcrumb hidden (the chain would otherwise misrepresent the root's access
+        //   policy); parent task breadcrumb only.
+
+        // Variant 2: root + subtask both in `tablesProjectSite`.
+        const rootInSubtaskSite = await TestTask.create(accounts.cassCade, {
+            title: "Tables",
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            layout: "Project",
+            priority: "High",
+        });
+        await tablesProjectSite.addEntity(accounts.cassCade, {
+            entityId: `Task:${rootInSubtaskSite.id}`,
+            parentId: tablesProjectSite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+        const subtaskWithRootInSite = await TestTask.create(accounts.cassCade, {
+            title: "Keyboard navigation between cells",
+            parent: rootInSubtaskSite,
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            priority: "High",
+        });
+
+        // Variant 3: subtask in `tablesProjectSite`, root parent stays `Local`.
+        const rootNotInSubtaskSite = await TestTask.create(accounts.cassCade, {
+            title: "Tables",
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            layout: "Project",
+            priority: "High",
+        });
+        const subtaskInSiteWithRootNotInSite = await TestTask.create(accounts.cassCade, {
+            title: "Keyboard navigation between cells",
+            parent: rootNotInSubtaskSite,
+            assignee: accounts.masonClay,
+            assigneeStatus: "Active",
+            priority: "High",
+        });
+        await tablesProjectSite.addEntity(accounts.cassCade, {
+            entityId: `Task:${subtaskInSiteWithRootNotInSite.id}`,
+            parentId: tablesProjectSite.initialRootContainerId,
+            orderKey: assertOrderKey("a2"),
+        });
+
+        // Variant 2 — subtask whose root parent is in the same site (site breadcrumb shown
+        // above the parent task breadcrumb).
+        await screenshotFileEntity(
+            runner,
+            accounts.cassCade,
+            "aZc",
+            "aZd",
+            `Task:${subtaskWithRootInSite.id}`,
+            {
+                fixedTime: sprintScreenshotTime,
+                namePrefix: "subtask-file-entity",
+                // The subtask is already in `tablesProjectSite`, so the preview shows the site
+                // breadcrumb without the helper's add/remove cycle.
+                siteOptions: {
+                    site: tablesProjectSite,
+                    // We don't do anything else with this task, so no need to revert.
+                    revertAccessPolicy: () => Promise.resolve(),
+                },
+            },
+        );
+
+        // Variant 3 — named to make the "in site, root not in site" condition explicit.
+        await screenshotFileEntity(
+            runner,
+            accounts.cassCade,
+            "aZd",
+            "aZe",
+            `Task:${subtaskInSiteWithRootNotInSite.id}`,
+            {
+                fixedTime: sprintScreenshotTime,
+                namePrefix: "subtask-file-entity-in-site-without-root-in-site",
+                // The subtask is already in `tablesProjectSite`, so the preview shows the site
+                // breadcrumb without the helper's add/remove cycle.
+                siteOptions: {
+                    site: tablesProjectSite,
+                    // We don't do anything else with this task, so no need to revert.
+                    revertAccessPolicy: () => Promise.resolve(),
+                },
+            },
+        );
     }
 }
 

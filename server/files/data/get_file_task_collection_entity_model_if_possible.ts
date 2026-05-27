@@ -14,6 +14,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {FileTaskCollectionEntityModel} from "~/shared/tasks/file_task_collection_entity_model.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
@@ -73,6 +74,7 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                     ),
                 }),
                 previewTasks: emptyArray,
+                site: null,
             },
         };
     }
@@ -186,6 +188,21 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         return task;
     });
 
+    // Derive the collection's own site (if any) from its access policy. As with the
+    // task loader, `loadQueries` returns the matching `SitePreviewModel` in
+    // `referencedSites`, so reuse it instead of refetching when available.
+    const collectionAccessPolicy = collection.getAccessPolicy();
+    let site: SitePreviewModel | null = null;
+    if (collectionAccessPolicy?.type === "Site") {
+        const referencedSite = result.value.updateEvent.referencedSites.find(
+            referencedSiteResult =>
+                referencedSiteResult.ok &&
+                referencedSiteResult.value.id === collectionAccessPolicy.siteId,
+        );
+        assert(referencedSite?.ok);
+        site = assertExists(referencedSite.value);
+    }
+
     return {
         ok: true,
         value: {
@@ -197,6 +214,7 @@ export async function getFileTaskCollectionEntityModelIfPossible(
             versions: maxTime,
             collection,
             previewTasks: tasks,
+            site,
         },
     };
 }

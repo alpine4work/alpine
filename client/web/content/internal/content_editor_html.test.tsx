@@ -2013,6 +2013,7 @@ test("file row (one file, channel entity)", async () => {
                         },
                         contributorCount: 2,
                         topContributors: [currentAccount, otherAccount],
+                        site: null,
                     }),
                 },
             ],

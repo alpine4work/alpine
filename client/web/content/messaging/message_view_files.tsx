@@ -1,10 +1,10 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
-import {Memo, useContext, useMemo, useRef, useState} from "react";
+import {Memo, useMemo, useRef, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {registerClipboardSerializer} from "~/client/web/content/handle_copy_event_if_not_text_input_element.js";
@@ -82,7 +82,7 @@ export function MessageViewFiles({
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const siteRegistry = useSiteRegistry();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
     const blockWidth = useContentBlockWidth();
 

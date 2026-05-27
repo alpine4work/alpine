@@ -17,17 +17,14 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/i
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {
-    isFileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -198,7 +195,12 @@ export function createContentEditorMentionNodeViewConstructor({
                         iconPlacement: "end",
                         onPress: async () => {
                             const url = new URL(
-                                printFileEntityIdIntoPath(spaceId, mentionEntityId),
+                                getDynamicSearchEntityPathForFileEntity({
+                                    spaceId,
+                                    fileEntityId: mentionEntityId,
+                                    fileEntityResult:
+                                        references.fileEntityById?.get(mentionEntityId) ?? null,
+                                }),
                                 window.location.href,
                             );
                             await writeTextToClipboard(url.toString());

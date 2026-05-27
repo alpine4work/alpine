@@ -4,6 +4,7 @@ import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_en
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -130,7 +131,23 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.getByText("No, the doc is doing its job").waitFor();
         await runner.screenshot("a9", "room-url-grant");
 
-        await screenshotFileEntity(runner, accounts.cassCade, "a9", "aA", `Chat:${roomChat.id}`);
+        const oldRoomAccessPolicy = await roomChat.roomAccess.get();
+        assert(oldRoomAccessPolicy.type === "Local");
+
+        // Screenshot the room standalone and inside a site (showing the site breadcrumb).
+        // Reuses the existing "Incident Response" room; `screenshotFileEntity` adds it to
+        // the site, screenshots, then removes it.
+        const reliabilitySite = await TestSite.create(accounts.cassCade, {
+            name: "Realtime Reliability",
+            access: "Public",
+        });
+        await screenshotFileEntity(runner, accounts.cassCade, "a9", "aA", `Chat:${roomChat.id}`, {
+            siteOptions: {
+                site: reliabilitySite,
+                revertAccessPolicy: () =>
+                    roomChat.roomAccess.set(accounts.cassCade, oldRoomAccessPolicy),
+            },
+        });
     }
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {

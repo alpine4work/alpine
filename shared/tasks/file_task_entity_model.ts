@@ -32,4 +32,14 @@ export const FileTaskEntityModelSchema = FileEntityModel.implement({
             Schema.object({ok: Schema.value(false), error: ErrorSchema}),
         ),
     ).default(emptyArray),
+    /**
+     * The site this task directly belongs to, if any. Populated when the task's own
+     * access policy resolves to a `Site` policy. Used by the file entity preview to
+     * render a site breadcrumb above the task title.
+     *
+     * Separate from `referencedSites` (which covers sites referenced by collections
+     * and other related entities) so the breadcrumb logic doesn't have to filter the
+     * larger list.
+     */
+    site: SitePreviewModel.schema.nullable().default(null),
 });

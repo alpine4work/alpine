@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import {useContext, useMemo, useRef} from "react";
+import {useMemo, useRef} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/web/content/internal/content_base_schema_with_files.js";
 import {
@@ -59,7 +59,7 @@ export function ContentFileEntityPreview({
     const fileRegistry = useFileRegistry();
     const siteRegistry = useSiteRegistry();
     const currentDate = useCurrentDate();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
 
     const containerRef = useRef<HTMLDivElement>(null);
 

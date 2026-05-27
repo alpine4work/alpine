@@ -4,6 +4,10 @@
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -41,7 +45,15 @@ const searchInjection: Partial<SearchInjection> = {
     },
 };
 
-const context = createTestContext({sitesInjection, searchInjection});
+const context = createTestContext({
+    sitesInjection,
+    searchInjection,
+    documentsInjection,
+    // Documents are removed from a site by sending an access-policy update to the
+    // document's collaboration durable object, which doesn't run in the in-process
+    // test context. Reimplement that one route directly against the test database.
+    sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
+});
 
 describe("removeEntityFromSite", () => {
     // The `Record<SiteItemSearchEntityIdObject["type"], \u2026>` makes TypeScript fail
@@ -291,11 +303,53 @@ describe("removeEntityFromSite", () => {
             });
         },
         Document: () => {
-            // TODO(#sites): Documents are added/removed via
-            // `context.edge.sendRequestToDurableObject(...)` to the document's collaboration
-            // durable object, which isn't wired up in this test context. Either move this case
-            // into `document_collaboration_durable_object.test.ts` or add edge wiring here.
-            test.todo("removes a Document from a site and restores Local access policy");
+            test("removes a Document from a site and restores Local access policy", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+                const site = await TestSite.create(session, {name: "Test Site"});
+                const siteId = site.id;
+                const rootContainerId = site.initialRootContainerId;
+
+                const document = await TestDocument.create(session, {title: "Test Document"});
+                const entityId: SiteItemSearchEntityId = `Document:${document.id}`;
+
+                await updateSiteAccessPolicy(session.action(), {
+                    siteId,
+                    accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "View"},
+                        urlGrant: null,
+                    },
+                });
+                await addEntityToSite(session.action(), {
+                    siteId,
+                    spaceId: space.id,
+                    entityId,
+                    parentId: rootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                });
+
+                // Verify the entity was added.
+                const previewAfterAdd = await getSitePreview(session.action(), siteId);
+                expect(previewAfterAdd.initialData.firstEntityId).toBe(entityId);
+
+                await removeEntityFromSite(session.action(), {siteId, spaceId: space.id, entityId});
+
+                const [sitePreview, documentContent] = await runAllPromises([
+                    getSitePreview(session.action(), siteId),
+                    getDocumentContent(session.action(), document.id),
+                ]);
+
+                expect(sitePreview.initialData.firstEntityId).toBeNull();
+                // `removeEntityFromSite` copies the site's Local access policy onto the document,
+                // so it's no longer a `Site` policy.
+                expect(documentContent.content.attrs.accessPolicy).toEqual(
+                    expect.objectContaining({type: "Local"}),
+                );
+            });
         },
     };
     for (const setup of Object.values(entityTypeTests)) setup();

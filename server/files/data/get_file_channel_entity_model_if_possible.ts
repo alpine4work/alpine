@@ -1,5 +1,6 @@
 import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {createFileEntitySitePreviewPrefetcher} from "~/server/files/data/internal/create_file_entity_site_preview_prefetcher.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
@@ -13,15 +14,29 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function getFileChannelEntityModelIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
+    options?: {
+        /**
+         * If the caller already has a `SitePreviewModel` loaded (e.g. the site file entity
+         * loader passing its own site down to its first entity) and it matches the
+         * channel's site, skip the extra preview fetch and reuse it.
+         */
+        siteIfAlreadyLoaded?: SitePreviewModel;
+    },
 ): Promise<Result<FileChannelEntityModel, ErrorBase>> {
+    const sitePreviewPrefetcher = createFileEntitySitePreviewPrefetcher(context, {
+        siteIfAlreadyLoaded: options?.siteIfAlreadyLoaded,
+    });
+
     const [channelQueryResult, isSubscribedResult] = await runAllPromises([
         context.forumInjection.getChannelAndMetadataIfPossible({
             channelId,
             postFilesLimit: 0,
+            onSiteId: sitePreviewPrefetcher.onSiteId,
         }),
         context.actor.type === "Session"
             ? captureResultPromise(
@@ -63,6 +78,7 @@ export async function getFileChannelEntityModelIfPossible(
             isSubscribed,
             contributorCount: channelContributors?.contributorCount ?? 0,
             topContributors: channelContributors?.topContributors ?? emptyArray,
+            site: await sitePreviewPrefetcher.get(),
         },
     };
 

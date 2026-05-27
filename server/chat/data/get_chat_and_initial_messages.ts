@@ -49,10 +49,12 @@ export function getChatAndInitialMessagesIfPossible(
         chatId,
         messagesLimit,
         onChat,
+        onSiteId,
     }: {
         chatId: ChatId;
         messagesLimit: number;
         onChat?: (chat: ChatModel) => void;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<Result<
     {
@@ -69,5 +71,6 @@ export function getChatAndInitialMessagesIfPossible(
         result: {type: "FoundIdOnly", chatId},
         messagesLimit,
         onChat,
+        onSiteId,
     });
 }

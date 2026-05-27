@@ -16,6 +16,7 @@ import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -25,6 +26,7 @@ import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
@@ -325,8 +327,21 @@ export function actuallyCreateIntegrationTestEnvironment(
         forumInjection,
         notificationsInjection,
         searchInjection,
+        sitesInjection,
         spacesInjection,
         tasksInjection,
+
+        // Documents are added to a site by sending an access-policy update to the
+        // document's collaboration durable object. The DO runs in the spawned edge service
+        // but isn't reachable from this in-process setup context, so reimplement that one
+        // route directly against the test database — this lets `screenshotFileEntity()`
+        // exercise the in-site cycle for documents like every other entity type. \
+        //
+        // NOTE(ifitzsimmons, 2026-05-26): This is a workaround to allow the integration
+        // test environment to add documents to sites. In the future, we may need to parse
+        // out all of the routes we may want to handle and call the relevant logic for each
+        // route.
+        sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
 
         // In integration tests we run the full `TaskRealtimeService` server so when using
         // `context.tasks` you can directly access `TaskRealtimeService`.

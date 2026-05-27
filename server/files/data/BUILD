@@ -26,6 +26,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/rynamo",
         "//server/helpers",
+        "//server/sites/data",
         "//server/spaces",
         "//shared/context",
         "//shared/error",
@@ -33,5 +34,6 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
+        "//shared/sites",
     ],
 )

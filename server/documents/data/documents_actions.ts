@@ -1757,7 +1757,13 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
 export async function getDocumentContentPreviewIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = emptyObject,
 ): Promise<Result<
     {
         version: number;
@@ -1807,6 +1813,10 @@ export async function getDocumentContentPreviewIfPossible(
 
     const {attributesItem, contentPreviewItem} = await itemsPromise;
     if (!attributesItem) return null;
+
+    if (attributesItem.accessPolicy.type === "Site") {
+        onSiteId?.(attributesItem.accessPolicy.siteId);
+    }
 
     // Must have the view access level to read a document.
     const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");

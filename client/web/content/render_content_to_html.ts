@@ -99,7 +99,7 @@ export function renderContentToHtmlStoreForTest(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         withPosAttribute?: boolean;
         placeholder?: string;
     },
@@ -192,7 +192,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         withPosAttribute?: boolean;
         posAttributeOffset?: number;
         withFileIdAttribute?: boolean;
