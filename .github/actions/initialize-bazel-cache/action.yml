@@ -196,6 +196,11 @@ runs:
                   ~/.cache/bazel
               key: ${{ steps.cache.outputs.cache-primary-key }}
 
+        - name: Configure Bazel remote cache log path
+          shell: bash
+          run: |
+              echo "BAZEL_REMOTE_CACHE_LOG_PATH=$RUNNER_TEMP/bazel-remote-cache.log" >> "$GITHUB_ENV"
+
         # This starts the Bazel remote cache proxy server. We store [Bazel remote
         # cache][1] files in AWS S3. The AWS S3 API is mostly compatible with what
         # Bazel remote caching expects (`PUT` request to write file, `GET` request to

@@ -18,7 +18,15 @@ if [ -z "$1" ]; then
     #    `test.xml` but for a failed flaky test attempt.
     find "$testlogs" -name "attempt_*.xml" -type f -exec rm {} \;
 
-    # 4. Recursively cleanup empty directories.
+    # 4. Copy CI helper logs into the artifact so we can inspect failures that
+    #    happened outside an individual Bazel test target.
+    if [ -n "$BAZEL_REMOTE_CACHE_LOG_PATH" ] && [ -f "$BAZEL_REMOTE_CACHE_LOG_PATH" ]; then
+        ci_logs_path="$testlogs/ci"
+        mkdir -p "$ci_logs_path"
+        cp "$BAZEL_REMOTE_CACHE_LOG_PATH" "$ci_logs_path/bazel_remote_cache.log"
+    fi
+
+    # 5. Recursively cleanup empty directories.
     find "$testlogs" -type d -empty -delete
 else
     # Determine whether the test was successful or not by parsing the JUnit
