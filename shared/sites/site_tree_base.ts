@@ -5,14 +5,14 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {computeFirstEntityId} from "~/shared/sites/compute_first_entity_id.js";
 import {SiteContainerId, isSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteContainerEntry, SiteEntityEntry} from "~/shared/sites/site_entry_schema.js";
+import {SiteEntryContainer, SiteEntryEntity} from "~/shared/sites/site_entry_schema.js";
 import {createSiteItemNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {validateSiteContainerIsEmpty} from "~/shared/sites/validate_site_container_is_empty.js";
 
 export type SiteTreeEntry =
-    | (SiteEntityEntry & {id: SiteItemSearchEntityId})
-    | (SiteContainerEntry & {id: SiteContainerId});
+    | (SiteEntryEntity & {id: SiteItemSearchEntityId})
+    | (SiteEntryContainer & {id: SiteContainerId});
 /**
  * Indexed data structure for efficient site tree operations.
  *

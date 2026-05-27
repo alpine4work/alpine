@@ -209,6 +209,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This bot doesn\u2019t exist")).toBeVisible();
         });
     },
+    "sites.$siteId._index": () => {
+        test("not found error for route `sites.$siteId._index`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/sites/${generateId()}`);
+
+            await expect(page.getByText("This site doesn\u2019t exist")).toBeVisible();
+        });
+    },
     "tasks.$taskId._index": () => {
         test("not found error for route `tasks.$taskId._index`", async ({
             page,

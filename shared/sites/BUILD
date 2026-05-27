@@ -7,6 +7,7 @@ ts_project(
         "//shared/access",
         "//shared/dynamo",
         "//shared/error",
+        "//shared/files",
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",

@@ -79,7 +79,8 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
@@ -329,6 +330,7 @@ export function TaskDetailView({
     const peekStackContext = usePeekStackContextIfExists();
     const currentDate = useCurrentDate();
     const isInitialAppRender = useIsInitialAppRender();
+    const siteContext = useSiteContextIfExists();
 
     const spaceId = space.id;
 
@@ -466,7 +468,6 @@ export function TaskDetailView({
         }, [currentAccount, taskSubscription]),
     );
 
-    useRevalidateOnAccessPolicySiteChange(immediateAccessPolicy);
     /* ========================================================================= *\
      *                        Task detail notes WebSocket                        *
     \* ========================================================================= */
@@ -2126,7 +2127,16 @@ export function TaskDetailView({
                       taskSubscription,
                   }),
               },
-              onAccessPolicyChange: (notification, accessPolicy) => {
+              onAccessPolicyChange: async (notification, accessPolicy) => {
+                  if (accessPolicy.type === "Site") {
+                      await applySiteAccessPolicyChange({
+                          context,
+                          accessPolicy,
+                          handleEventForSite: assertExists(siteContext).handleEventForSite,
+                      });
+                      return;
+                  }
+
                   commitActionTransactionAndCreateIfNeeded(
                       () => {
                           const action: TaskActionModel = {

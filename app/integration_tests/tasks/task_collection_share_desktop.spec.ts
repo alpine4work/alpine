@@ -1,5 +1,9 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {
+    ShareSwitchInSiteScenario,
+    expectShareSwitchInSiteToggle,
+} from "~/app/integration_tests/helpers/expect_share_switch_in_site_toggle.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -2404,3 +2408,46 @@ test("will send a notification when sharing with account", async ({
 
     await browserContext1.close();
 });
+
+/**
+ * The share switch shows a different confirmation modal when the resolved access
+ * policy is of type `"Site"`, because pressing the toggle affects every entity in
+ * the site rather than just the current entity. Run the shared helper across every
+ * branch of `getNextAccessPolicyAction` so we exercise the full Site-policy flow
+ * against a task collection.
+ */
+for (const scenario of [
+    "PrivateToPublic",
+    "DefaultGrantToPrivate",
+    "UrlGrantToPrivate",
+    "DefaultAndUrlGrantToPrivate",
+] as const satisfies ReadonlyArray<ShareSwitchInSiteScenario>) {
+    test(`can toggle task collection sharing in a site (${scenario})`, async ({
+        context: browserContext,
+        page,
+    }) => {
+        await expectShareSwitchInSiteToggle({
+            page,
+            browserContext,
+            context,
+            services,
+            entityNoun: "task collection",
+            createEntity: async session => {
+                const collection = await TestTaskCollection.create(session, {
+                    name: "Test Collection",
+                });
+
+                return {
+                    entityId: `TaskCollection:${collection.id}`,
+                    path: `/tasks/collections/${collection.id}`,
+                    expectLoaded: async page => {
+                        await expect(
+                            page.getByRole("heading", {name: "Test Collection"}),
+                        ).toBeVisible();
+                    },
+                };
+            },
+            scenario,
+        });
+    });
+}

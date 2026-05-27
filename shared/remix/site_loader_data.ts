@@ -28,7 +28,13 @@ export const SiteLoaderDataSchema = Schema.union({
          * never need to imperatively call `setActiveEntityId`. Routes that don't render a
          * specific entity (e.g. the site root) omit this.
          */
-        activeEntityId: SiteItemSearchEntityIdSchema,
+        activeEntityId: SiteItemSearchEntityIdSchema.optional(),
+        /**
+         * Whether the actor has favorited this site. Computed in the same loader pass as
+         * the site itself (via the site prefetcher) so site chrome can render the
+         * filled-vs-outlined star without a flash on first paint.
+         */
+        isFavorite: Schema.boolean,
     }),
     UseActiveSite: Schema.object({
         type: Schema.value("UseActiveSite"),
@@ -39,6 +45,6 @@ export const SiteLoaderDataSchema = Schema.union({
          * never need to imperatively call `setActiveEntityId`. Routes that don't render a
          * specific entity (e.g. the site root) omit this.
          */
-        activeEntityId: SiteItemSearchEntityIdSchema,
+        activeEntityId: SiteItemSearchEntityIdSchema.optional(),
     }),
 });

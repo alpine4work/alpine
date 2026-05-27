@@ -1,5 +1,11 @@
 import {ReactElement, ReactNode} from "react";
+import {Box} from "~/client/web/design/box.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {SiteChrome} from "~/client/web/sites/site_chrome.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
  * Hook that wraps entity content with site chrome (sidebars/topbars) based on the
@@ -14,10 +20,47 @@ import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id
  * is in the site tree.
  */
 export function useSiteChromeContainer<Children extends ReactNode>(
-    // TODO(#sites): We'll use this "hook" to render entities within the site chrome. No-ops for now
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     {entityId}: {entityId: SiteItemSearchEntityId},
     children: Children,
 ): ReactElement | Children {
-    return children;
+    const siteContext = useSiteContextIfExists();
+    const {space} = useSpaceContext();
+    const routeLayout = useRouteLayout();
+
+    // TODO(#sites): Remove this gate once we release sites publically.
+    if (process.env.NODE_ENV === "production" && space.id !== alpineCompanyKnownSpaceId) {
+        return children;
+    }
+
+    if (!siteContext) {
+        return children;
+    }
+
+    const {tree} = siteContext;
+    const entityEntry = tree.entryById.get(entityId);
+
+    if (!entityEntry) {
+        return children;
+    }
+
+    if (routeLayout === "narrow") {
+        // TODO(#sites): Implement narrow (peek and mobile) layout support in following PR.
+        return children;
+    }
+
+    return (
+        <Box
+            flexGrow="1"
+            position="relative"
+            zIndex="0"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            marginLeft="12"
+        >
+            <SiteChrome tree={tree} parentId={entityEntry.parentId}>
+                {children}
+            </SiteChrome>
+        </Box>
+    );
 }

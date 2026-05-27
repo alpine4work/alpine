@@ -12,7 +12,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteContainerId, parseSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {isSiteItemContainer} from "~/shared/sites/site_entry_schema.js";
+import {isSiteEntryContainer} from "~/shared/sites/site_entry_schema.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
@@ -43,7 +43,7 @@ export async function updateSiteContainerLabel(
             dangerouslyGetSiteEntryItem(context, siteId, parseSiteContainerId(id)),
         ]);
 
-        assert(isSiteItemContainer(siteContainerItem));
+        assert(isSiteEntryContainer(siteContainerItem));
 
         const updatedItem = siteContainerItem.update({label});
         const updateContainerTransactionEntry =

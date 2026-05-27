@@ -63,6 +63,9 @@ ts_project(
     },
     visibility = [
         "//admin:__subpackages__",
+        # Lets the search modal screenshot test index entities and refresh the
+        # keyword index so search results are available when the page loads.
+        "//app/screenshot_tests:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

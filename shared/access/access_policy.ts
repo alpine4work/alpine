@@ -404,8 +404,7 @@ export type ValidateAccessPolicyUpdateResult =
               | "Can\u2019t revoke manage access from an account with a manage generation less than our actor"
               | "Can\u2019t set new default grant manage generation to be less than or equal to our actor\u2019s manage generation"
               | "Can\u2019t update access policy so that no one has manage access"
-              | "Can\u2019t reorder manage grant generations"
-              | "Can\u2019t change site without manage access";
+              | "Can\u2019t reorder manage grant generations";
       };
 
 /**

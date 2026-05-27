@@ -28,7 +28,8 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
@@ -150,6 +151,7 @@ export function TaskCollectionView({
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
+    const siteContext = useSiteContextIfExists();
 
     const accessPolicy = useStore(
         useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
@@ -211,7 +213,6 @@ export function TaskCollectionView({
         }, [collectionSubscription, currentAccount]),
     );
 
-    useRevalidateOnAccessPolicySiteChange(accessPolicy);
     const accessLevel = useMemo(
         () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
         [accessPolicy, currentAccount?.id],
@@ -839,7 +840,16 @@ export function TaskCollectionView({
                   entityNoun: "task collection",
                   entityId: `TaskCollection:${collectionId}`,
                   accessPolicy,
-                  onAccessPolicyChange: (notification, accessPolicy) => {
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
+
                       store.commitTaskActionTransaction(
                           context,
                           [

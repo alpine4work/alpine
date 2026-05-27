@@ -1,0 +1,266 @@
+import {redirect} from "@remix-run/node";
+import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
+import {Plus} from "phosphor-react";
+import {useCallback, useEffect, useState} from "react";
+import {
+    deserializeSiteIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
+import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
+import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
+import {AddExistingEntityToSiteModal} from "~/client/web/sites/add_existing_entity_to_site_modal.js";
+import {useCanManageSite, useSite, useSiteTree} from "~/client/web/sites/context/site_context.js";
+import {SiteChrome} from "~/client/web/sites/site_chrome.js";
+import {useAddEntityToSiteMenuActions} from "~/client/web/sites/use_add_entity_to_site_menu_actions.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeSiteAccess} from "~/server/sites/data/authorize_site_access.js";
+import {createSite} from "~/server/sites/data/create_site.js";
+import {getSite} from "~/server/sites/data/get_site.js";
+import {getSitePreviewIfExists} from "~/server/sites/data/get_site_preview.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
+import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {parseSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+
+const LoaderSchema = Schema.object({});
+
+export function meta() {
+    return [{title: `Site${metaTitlePostfix}`}];
+}
+
+export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
+    const context = await unauthenticatedContext.actor.authenticate();
+
+    const url = new URL(request.url);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const siteId = deserializeSiteIdForLoader(params.siteId);
+
+    // The "create site" flow generates the `siteId` on the client and navigates here
+    // with `?create` (mirroring the document and task-collection create flows). Create
+    // the site before loading it. Putting the client-generated id in the URL and
+    // treating a `FailedPrecondition` as a no-op keeps this GET idempotent: prefetch,
+    // refresh, and "open in new tab" all target the same `siteId`, so at most one site
+    // is ever created.
+    if (url.searchParams.get("create") !== null) {
+        try {
+            await createSite(context.actor.authorizeSession(), {
+                spaceId,
+                siteId,
+                name: "New site",
+                root: {type: "SideBar"},
+            });
+        } catch (error) {
+            if (!(error instanceof FailedPreconditionError)) {
+                throw error;
+            }
+
+            // Creation failed its `attribute_not_exists` condition, so the site already
+            // exists. Confirm the actor can view it before falling through to render — if they
+            // can't, this surfaces a proper authorization error.
+            await authorizeSiteAccess(context, siteId, "View");
+        }
+    }
+
+    const consistency = url.searchParams.get("consistency") === "strong" ? "Strong" : "Eventual";
+
+    const activeSiteId = request.headers.get("cyberworlds-active-site-id")?.trim();
+
+    const siteLoaderDataPromise: Promise<SiteLoaderData> = (async () => {
+        if (activeSiteId && activeSiteId === siteId) {
+            return {type: "UseActiveSite", siteId};
+        }
+
+        const [initialQueryResult, isFavorite] = await runAllPromises([
+            getSite(context, {siteId, consistency}),
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
+        ]);
+        return {
+            type: "UseNewSite",
+            siteId,
+            initialQueryResult,
+            isFavorite,
+        };
+    })();
+
+    const sitePreview = await getSitePreviewIfExists(context, siteId);
+
+    if (sitePreview?.initialData.firstEntityId) {
+        const idObject = parseSiteItemSearchEntityId(sitePreview.initialData.firstEntityId);
+        const path = getSearchDynamicEntityPathFromEntityIdObject(spaceId, idObject, "wide");
+
+        // The peek embed runs its own router whose route table only contains routes under
+        // `routes/s.$spaceId.peek`. A space-path redirect would 404 inside it, so when
+        // this loader is running for a peek request rewrite the target to the matching
+        // peek path.
+        const isPeekRequest = url.pathname.startsWith(`/s/${spaceId}/peek/`);
+        const peekPath = isPeekRequest
+            ? convertSpacePathToPeekPath({pathname: path, search: "", hash: ""})
+            : null;
+
+        // In local development, surface internal navigations that hit `/sites/$siteId`
+        // directly when the site already has a first entity — those should navigate to the
+        // entity URL up front instead of bouncing through this redirect. Peek requests are
+        // the legitimate paste/mention/preview path, and a cross-origin referer means the
+        // user clicked a shared link from somewhere else (also legitimate). Scoped to
+        // `NODE_ENV === "development"` (rather than `!== "production"`) so screenshot
+        // tests and integration tests — which run with `NODE_ENV === "test"` and navigate
+        // through the bare URL — don't trip the check.
+        if (process.env.NODE_ENV === "development") {
+            throw new InternalError(
+                `Internal navigation to bare /sites/${siteId} when the site already ` +
+                    `has a firstEntityId. The caller should navigate to ${path} ` +
+                    `directly.`,
+            );
+        }
+
+        // `getSite()` is kicked off above to run in parallel with the preview fetch, but
+        // the `firstEntityId` redirect path returns without awaiting it. An orphaned
+        // `getSite()` keeps building site item models after this request's action context
+        // is torn down, and the next `context.searchInjection` access then rejects with
+        // "Context was destroyed". Attach a no-op handler so that orphaned rejection never
+        // surfaces as an uncaught exception. The non-redirect path still `await`s the same
+        // promise below, so real errors propagate unchanged.
+        siteLoaderDataPromise.catch(() => {});
+
+        return redirect(peekPath?.pathname ?? path);
+    }
+
+    return jsonWithSchema(LoaderSchema, {}, {siteLoaderData: await siteLoaderDataPromise});
+}
+
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: originalCurrentUrl,
+    nextUrl: originalNextUrl,
+}) => {
+    const currentUrl = new URL(originalCurrentUrl);
+    const nextUrl = new URL(originalNextUrl);
+
+    // The client removes the `create` and `consistency` search params after creating a
+    // new site. Don't revalidate when the client does this.
+    currentUrl.searchParams.delete("create");
+    nextUrl.searchParams.delete("create");
+    currentUrl.searchParams.delete("consistency");
+    nextUrl.searchParams.delete("consistency");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
+type SearchModalState = {
+    readonly parentId: SiteContainerId;
+    readonly getNextOrderKey: (previousOrderKey: OrderKey | null) => OrderKey;
+};
+
+export default function SiteRoute() {
+    const site = useSite();
+    const tree = useSiteTree();
+    const canManage = useCanManageSite();
+    const [searchModalState, setSearchModalState] = useState<SearchModalState | null>(null);
+
+    // Remove the `create` and `consistency` search params after they've been consumed
+    // by the loader.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const hasSearchParamToDelete = searchParams.has("create") || searchParams.has("consistency");
+    useEffect(() => {
+        if (hasSearchParamToDelete) {
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("create");
+                    newSearchParams.delete("consistency");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
+        }
+    }, [hasSearchParamToDelete, setSearchParams]);
+
+    const rootChildren = tree.getChildrenForParent(site.rootContainerId);
+    const lastRootChildKey = rootChildren[rootChildren.length - 1]?.orderKey ?? null;
+    const getRootNextOrderKey = useCallback(
+        (previousOrderKey: OrderKey | null) =>
+            generateOrderKeyBetween(previousOrderKey ?? lastRootChildKey, null),
+        [lastRootChildKey],
+    );
+    const rootAddEntityMenuActions = useAddEntityToSiteMenuActions({
+        parentId: site.rootContainerId,
+        getOrderKey: () => getRootNextOrderKey(null),
+        onSearchExisting: () =>
+            setSearchModalState({
+                parentId: site.rootContainerId,
+                getNextOrderKey: getRootNextOrderKey,
+            }),
+    });
+
+    const welcome = (
+        <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            height="full"
+            width="full"
+            padding="6"
+        >
+            <Box
+                display="flex"
+                flexDirection="column"
+                gap="2"
+                alignItems="center"
+                maxWidth="1/3"
+                textAlign="center"
+            >
+                <Box fontSize="200" fontStyle="bold">
+                    Start building {site.name}
+                </Box>
+                <Box fontSize="100" color="grey-50">
+                    {canManage
+                        ? "Add a document, channel, task, or task collection to get started."
+                        : // TODO(#sites): Maybe add messaging to inform user that they don't have the
+                          // ability to add anything to the site, and that they should ask someone who can
+                          // share the site to give them ability to add content.
+                          "This site doesn\u2019t have any content yet."}
+                </Box>
+                {canManage && (
+                    <Box paddingTop="2">
+                        <MenuButton actions={rootAddEntityMenuActions} placement="bottom">
+                            {/* TODO(#sites): Maybe add quick buttons for each entity type? */}
+                            <Button icon={<Plus size={14} />}>Add to site</Button>
+                        </MenuButton>
+                    </Box>
+                )}
+            </Box>
+        </Box>
+    );
+
+    return (
+        <Box
+            flexGrow="1"
+            position="relative"
+            zIndex="0"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            marginLeft="12"
+        >
+            <SiteChrome tree={tree} parentId={site.rootContainerId}>
+                {welcome}
+            </SiteChrome>
+            {searchModalState && (
+                <AddExistingEntityToSiteModal
+                    parentId={searchModalState.parentId}
+                    getNextOrderKey={searchModalState.getNextOrderKey}
+                    onClose={() => setSearchModalState(null)}
+                />
+            )}
+        </Box>
+    );
+}

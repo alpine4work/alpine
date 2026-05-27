@@ -13,7 +13,8 @@ import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_cont
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -202,7 +203,7 @@ updates. If a launch is coming in the next six months and it touches customers, 
     });
 
     await TestTask.create(accounts.cassCade, {
-        title: "Tables GA — stabilize and announce",
+        title: "Stabilize and announce Tables GA",
         assignee: accounts.masonClay,
         assigneeStatus: "Active",
         collections: taskCollection,
@@ -249,7 +250,7 @@ updates. If a launch is coming in the next six months and it touches customers, 
         access: "Public",
     });
     await taskCollectionSite.addEntity(accounts.cassCade, {
-        entityId: `TaskCollection:${taskCollection.id}` satisfies SiteItemSearchEntityId,
+        entityId: `TaskCollection:${taskCollection.id}`,
         parentId: taskCollectionSite.initialRootContainerId,
         orderKey: initialOrderKey,
     });
@@ -303,7 +304,7 @@ build out underneath: bets, owners, measurable signals, and the rough sequencing
         access: "Public",
     });
     await taskSite.addEntity(accounts.cassCade, {
-        entityId: `Task:${projectTask.id}` satisfies SiteItemSearchEntityId,
+        entityId: `Task:${projectTask.id}`,
         parentId: taskSite.initialRootContainerId,
         orderKey: initialOrderKey,
     });
@@ -313,6 +314,10 @@ build out underneath: bets, owners, measurable signals, and the rough sequencing
         access: "Public",
     });
     const roomChat = await TestChat.createRoom(accounts.cassCade, {
+        // Pin the chat ID so the account-pile preview (seeded by `Chat:${chatId}`) is
+        // identical across runs. Without this the facepile members/order shuffle each run,
+        // making the screenshot flaky.
+        id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "planningRoomChat"),
         name: "Planning room",
         access: {
             type: "Site",
@@ -332,7 +337,7 @@ stays a clean read.
     await roomChat.sendMessage(
         accounts.cassCade,
         markdown`
-First draft of the bets doc is up. Owners — your sections are flagged. Comments by Friday.
+First draft of the bets doc is up. Owners – your sections are flagged. Comments by Friday.
         `,
         {overrideCreatedTime: new Date("2025-12-09T09:14:00-05:00")},
     );
@@ -347,7 +352,7 @@ comfortable committing to it.
     await roomChat.sendMessage(
         accounts.cliffWeathers,
         markdown`
-SSO pilot — two design partners verbally in. Will know who\u2019s signed by January.
+Two design partners verbally in for SSO pilot. Will know who\u2019s signed by January.
         `,
         {overrideCreatedTime: new Date("2025-12-10T16:08:00-05:00")},
     );
@@ -361,7 +366,7 @@ Third case study is drafted, customer review next week. Should publish early H2.
     await roomChat.sendMessage(
         accounts.cassCade,
         markdown`
-Great. Locking the doc Monday — last call for pushback before then.
+Great. Locking the doc Monday. Last call for pushback before then.
         `,
         {overrideCreatedTime: new Date("2025-12-12T17:30:00-05:00")},
     );

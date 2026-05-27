@@ -15,16 +15,16 @@ import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_p
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
-import {SiteContainerEntry, SiteEntityEntry} from "~/shared/sites/site_entry_schema.js";
+import {SiteEntryContainer, SiteEntryEntity} from "~/shared/sites/site_entry_schema.js";
 import {createSiteNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {SiteTreeBase} from "~/shared/sites/site_tree_base.js";
 
 export type SiteTreeItem =
-    | (SiteEntityEntry & {
+    | (SiteEntryEntity & {
           readonly id: SiteItemSearchEntityId;
           readonly item: DynamoItem<SiteEntityItem>;
       })
-    | (SiteContainerEntry & {
+    | (SiteEntryContainer & {
           readonly id: SiteContainerId;
           readonly item: DynamoItem<SiteContainerItem>;
       });

@@ -47,6 +47,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.settings.people"
     | "routes/s.$spaceId.settings.profile"
     | "routes/s.$spaceId.settings"
+    | "routes/s.$spaceId.sites.$siteId._index"
     | "routes/s.$spaceId.tasks.$taskId._index"
     | "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions"
     | "routes/s.$spaceId.tasks.$taskId.duplicate"

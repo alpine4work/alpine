@@ -2,11 +2,11 @@ import {useId, useMemo, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
+import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/helpers/use_revalidate_on_access_policy_site_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     AccessLevel,
     EffectiveAccessPolicy,
-    LocalAccessPolicy,
     ResolvedAccessPolicyWithGenerations,
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
@@ -18,8 +18,7 @@ import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_pol
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -44,13 +43,14 @@ export function useShareState(
             // The `notification` argument comes first to make it harder for the implementation
             // of this function to ignore the `notification` argument.
             notification: ShareNotification | null,
-            accessPolicy: LocalAccessPolicy,
+            accessPolicy: ResolvedAccessPolicyWithGenerations,
         ) => MaybePromise<void>;
         isReadOnly?: boolean;
     } | null,
 ) {
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    useRevalidateOnAccessPolicySiteChange(props?.accessPolicy ?? null);
 
     const modalOwnerId = useId();
 
@@ -63,13 +63,6 @@ export function useShareState(
     // share dialog to be read-only.
     const isReadOnly = useMemo(() => {
         if (props?.isReadOnly) return true;
-
-        // TODO(#sites): In this case, we should give the user quick access to edit the
-        // site permissions if the user has Manage access on the site.
-
-        // We cannot directly update the access policy of a site through one of its
-        // entities
-        if (props?.accessPolicy.type === "Site") return true;
 
         const accessPolicy = props?.accessPolicy;
         const inheritedAccessPolicy = props?.inherited?.accessPolicy;
@@ -120,9 +113,6 @@ export function useShareState(
             accessPolicy: oldAccessPolicy,
             onAccessPolicyChangeWithoutValidations,
         } = props;
-
-        // isReadOnly should always be true for site entities
-        assert(oldAccessPolicy.type !== "Site");
 
         const newAccessPolicy = reduceAccessPolicy(currentAccount.id, oldAccessPolicy, action);
 
@@ -252,10 +242,6 @@ export function useShareState(
                     break;
                 }
 
-                case "Can\u2019t change site without manage access": {
-                    // TODO(#sites): support sites
-                    throw new UnimplementedError("Sites are not supported yet");
-                }
                 default:
                     throw exhaustive(validationResult.reason);
             }
@@ -344,9 +330,6 @@ export function useShareState(
                     cancelButtonPressErrorTitle="Couldn&#x2019;t make this change"
                     onCancelButtonPress={() => {
                         if (!props) return;
-
-                        // We can't change a site's access policy through a Site's entity.
-                        if (props.accessPolicy.type === "Site") return;
 
                         return props.onAccessPolicyChangeWithoutValidations(
                             null,

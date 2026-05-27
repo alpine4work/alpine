@@ -26,6 +26,7 @@ import {ChannelBrandIcon} from "~/client/web/icons/brand/channel_brand_icon.js";
 import {ChatBrandIcon} from "~/client/web/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/web/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/web/icons/brand/post_brand_icon.js";
+import {SiteBrandIcon} from "~/client/web/icons/brand/site_brand_icon.js";
 import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
@@ -78,6 +79,7 @@ import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js"
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
 export type CreateWidgetSecondaryMenuBarRef = {
@@ -115,6 +117,9 @@ export function CreateWidgetSecondaryMenuBar({
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
+    const canRenderSiteButton =
+        process.env.NODE_ENV !== "production" || space.id === alpineCompanyKnownSpaceId;
+    const siteButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const menuItemRefs = [
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
@@ -125,6 +130,7 @@ export function CreateWidgetSecondaryMenuBar({
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
         useRef<HTMLElement & {press(): void}>(null),
+        ...(canRenderSiteButton ? [siteButtonRef] : []),
     ] as const;
 
     const firstMenuItemRef = menuItemRefs[0];
@@ -339,6 +345,24 @@ export function CreateWidgetSecondaryMenuBar({
                 await navigate(`/s/${space.id}/chat/room/new?focus=name`);
             },
         },
+        ...(canRenderSiteButton
+            ? [
+                  {
+                      ref: menuItemRefs[9]!,
+                      name: "site",
+                      icon: <SiteBrandIcon />,
+                      description:
+                          "Organize documents, channels, and tasks into a navigable site with a sidebar or top bar.",
+                      example: <CreateWidgetDocumentExample content={exampleContent} />,
+                      createVerb: "Create",
+                      pressErrorTitle: "Couldn\u2019t create site",
+                      onPress: async () => {
+                          const siteId = generateId();
+                          await rootNavigate(`/s/${space.id}/sites/${siteId}?create&focus=name`);
+                      },
+                  },
+              ]
+            : []),
     ];
 
     assert(menuItemRefs.length === items.length);

@@ -148,6 +148,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings.notifications": {
         errorTitle: "Couldn\u2019t open notifications settings",
     },
+    "routes/s.$spaceId.sites.$siteId._index": {
+        errorTitle: "Couldn\u2019t open site",
+    },
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn\u2019t open task",
     },

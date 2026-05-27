@@ -74,6 +74,8 @@ export async function loader({context: unauthenticatedContext, request, params}:
         request,
         entityId: `Chat:${chatId}`,
         fetchSite: siteId => getSite(context, {siteId}),
+        fetchIsFavorite: siteId =>
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
     });
 
     if (createSearchParam !== null) {

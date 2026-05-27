@@ -253,6 +253,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
         request,
         entityId: `Task:${taskId}`,
         fetchSite: siteId => getSite(context, {siteId}),
+        fetchIsFavorite: siteId =>
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
     });
 
     const [

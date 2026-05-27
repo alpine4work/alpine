@@ -9,6 +9,8 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
@@ -86,6 +88,7 @@ function TaskCollectionViewDesktopHeader(
 ) {
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
+    const siteContext = useSiteContextIfExists();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -195,7 +198,17 @@ function TaskCollectionViewDesktopHeader(
                             entityNoun="task collection"
                             entityId={`TaskCollection:${collectionId}`}
                             accessPolicy={accessPolicy}
-                            onAccessPolicyChange={(notification, accessPolicy) => {
+                            onAccessPolicyChange={async (notification, accessPolicy) => {
+                                if (accessPolicy.type === "Site") {
+                                    await applySiteAccessPolicyChange({
+                                        context,
+                                        accessPolicy,
+                                        handleEventForSite:
+                                            assertExists(siteContext).handleEventForSite,
+                                    });
+                                    return;
+                                }
+
                                 store.commitTaskActionTransaction(
                                     context,
                                     [

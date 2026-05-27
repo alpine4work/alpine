@@ -32,8 +32,9 @@ import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
@@ -57,6 +58,7 @@ import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {
     addAccountGrantsToChannelAccessPolicy,
@@ -89,6 +91,7 @@ export function ChannelView({
     const {space, currentAccount} = useSpaceContext();
     const searchEntityRegistry = useSearchEntityRegistry();
     const siteRegistry = useSiteRegistry();
+    const siteContext = useSiteContextIfExists();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -142,7 +145,6 @@ export function ChannelView({
         ),
     );
 
-    useRevalidateOnAccessPolicySiteChange(accessPolicy);
     const accessLevel = useMemo(
         () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
         [accessPolicy, currentAccount?.id],
@@ -354,6 +356,15 @@ export function ChannelView({
                   entityId: `Channel:${channelId}`,
                   accessPolicy,
                   onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
+
                       const event = await updateChannelAccessPolicy(context, {
                           channelId,
                           accessPolicy,
@@ -478,6 +489,12 @@ export function ChannelView({
             flexDirection="column"
             overflow="hidden"
             height="full"
+            // TODO(#sites): `width="full"` here makes the People/About right-rail section
+            // placement correct when the channel is rendered inside site chrome, but throws
+            // off the channel content layout when the channel is standalone. Pick a single
+            // layout pattern that works in both — likely moving the width constraint up to
+            // whichever wrapper owns the chrome.
+            width={accessPolicy.type === "Site" ? "full" : undefined}
         >
             <PostListView
                 header={channelHeader}

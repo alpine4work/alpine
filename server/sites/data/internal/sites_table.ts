@@ -23,10 +23,10 @@ import {
 } from "~/shared/search/site_item_search_entity_id.js";
 import {SiteRootContainerId} from "~/shared/sites/site_entry_id.js";
 import {
-    SiteEntityEntrySchema,
-    SiteSideBarEntrySchema,
-    SiteSideBarSectionEntrySchema,
-    SiteTopBarEntrySchema,
+    SiteEntryEntitySchema,
+    SiteEntrySideBarSchema,
+    SiteEntrySideBarSectionSchema,
+    SiteEntryTopBarSchema,
 } from "~/shared/sites/site_entry_schema.js";
 import {
     SiteEntityModel,
@@ -34,7 +34,7 @@ import {
     SiteSideBarModel,
     SiteSideBarSectionModel,
     SiteTopBarModel,
-    isSiteSearchEntityModelData,
+    isSiteEntrySearchEntityModelData,
 } from "~/shared/sites/site_model.js";
 import {SiteBroadcastRealtimeEventsSchema} from "~/shared/sites/site_realtime_protocol.js";
 
@@ -114,7 +114,7 @@ export const SitesTable = RynamoTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteTopBarId>(),
                     },
-                    attributes: SiteTopBarEntrySchema,
+                    attributes: SiteEntryTopBarSchema,
                 },
 
                 /**
@@ -127,7 +127,7 @@ export const SitesTable = RynamoTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteSideBarId>(),
                     },
-                    attributes: SiteSideBarEntrySchema,
+                    attributes: SiteEntrySideBarSchema,
                 },
 
                 /**
@@ -140,7 +140,7 @@ export const SitesTable = RynamoTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.id<SiteSideBarSectionId>(),
                     },
-                    attributes: SiteSideBarSectionEntrySchema,
+                    attributes: SiteEntrySideBarSectionSchema,
                 },
 
                 /**
@@ -153,7 +153,7 @@ export const SitesTable = RynamoTableSchema.new({
                     sortKeyAttributes: {
                         id: DynamoKeyAttributeSchema.labelString<SiteItemSearchEntityId>(),
                     },
-                    attributes: SiteEntityEntrySchema,
+                    attributes: SiteEntryEntitySchema,
                 },
             ],
         },
@@ -229,7 +229,7 @@ export const SitesTable = RynamoTableSchema.new({
                     }
 
                     const searchEntityData = result.entity.initialData;
-                    assert(isSiteSearchEntityModelData(searchEntityData));
+                    assert(isSiteEntrySearchEntityModelData(searchEntityData));
 
                     return new SiteEntityModel({
                         type: "Entity",

@@ -153,6 +153,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         request,
         entityId: `Channel:${channelId}`,
         fetchSite: siteId => getSite(context, {siteId}),
+        fetchIsFavorite: siteId =>
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
     });
 
     const [channelResult, postsResult, isSubscribed, isFavorite] = await runAllPromises([

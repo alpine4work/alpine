@@ -10,7 +10,7 @@ import {
     SiteTopBarContainerIdSchema,
 } from "~/shared/sites/site_entry_id.js";
 
-export const SiteTopBarEntrySchema = Schema.object({
+export const SiteEntryTopBarSchema = Schema.object({
     type: Schema.value("TopBar"),
     orderKey: OrderKeySchema,
     label: LabelStringSchema,
@@ -22,9 +22,9 @@ export const SiteTopBarEntrySchema = Schema.object({
     parentId: Schema.value(null),
 });
 
-type SiteTopBarEntry = SchemaType<typeof SiteTopBarEntrySchema>;
+type SiteEntryTopBar = SchemaType<typeof SiteEntryTopBarSchema>;
 
-export const SiteSideBarEntrySchema = Schema.object({
+export const SiteEntrySideBarSchema = Schema.object({
     type: Schema.value("SideBar"),
     label: LabelStringSchema,
     orderKey: OrderKeySchema,
@@ -36,9 +36,9 @@ export const SiteSideBarEntrySchema = Schema.object({
      */
     parentId: SiteTopBarContainerIdSchema.nullable(),
 });
-type SiteSideBarEntry = SchemaType<typeof SiteSideBarEntrySchema>;
+type SiteEntrySideBar = SchemaType<typeof SiteEntrySideBarSchema>;
 
-export const SiteSideBarSectionEntrySchema = Schema.object({
+export const SiteEntrySideBarSectionSchema = Schema.object({
     type: Schema.value("SideBarSection"),
     label: LabelStringSchema,
     orderKey: OrderKeySchema,
@@ -47,34 +47,34 @@ export const SiteSideBarSectionEntrySchema = Schema.object({
      */
     parentId: Schema.string as Schema<SiteSideBarContainerId | SiteSideBarSectionContainerId>,
 });
-type SiteSideBarSectionEntry = SchemaType<typeof SiteSideBarSectionEntrySchema>;
+type SiteEntrySideBarSection = SchemaType<typeof SiteEntrySideBarSectionSchema>;
 
-export const SiteEntityEntrySchema = Schema.object({
+export const SiteEntryEntitySchema = Schema.object({
     type: Schema.value("Entity"),
     orderKey: OrderKeySchema,
     /** An Entity can be nested under any container type. */
     parentId: SiteContainerIdSchema,
     spaceId: Schema.id<SpaceId>(),
 });
-export type SiteEntityEntry = SchemaType<typeof SiteEntityEntrySchema>;
+export type SiteEntryEntity = SchemaType<typeof SiteEntryEntitySchema>;
 
-export type SiteContainerEntry = SiteTopBarEntry | SiteSideBarEntry | SiteSideBarSectionEntry;
-export type SiteEntry = SiteContainerEntry | SiteEntityEntry;
+export type SiteEntryContainer = SiteEntryTopBar | SiteEntrySideBar | SiteEntrySideBarSection;
+export type SiteEntry = SiteEntryContainer | SiteEntryEntity;
 
-type SiteContainerType = SiteContainerEntry["type"];
+type SiteContainerType = SiteEntryContainer["type"];
 type SiteEntryType = SiteEntry["type"];
 
 /**
  * Helper to check if a site item is a container (can have children).
  */
-export function isSiteItemContainer(item: SiteEntry): item is SiteContainerEntry {
+export function isSiteEntryContainer(item: SiteEntry): item is SiteEntryContainer {
     return isSiteEntryContainerType(item.type);
 }
 
 /**
  * Helper to check if a site item is a leaf (cannot have children).
  */
-export function isSiteEntryLeaf(item: SiteEntry): item is SiteEntityEntry {
+export function isSiteEntryLeaf(item: SiteEntry): item is SiteEntryEntity {
     switch (item.type) {
         case "TopBar":
         case "SideBar":

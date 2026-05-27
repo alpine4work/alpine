@@ -9,6 +9,7 @@ import {PeekErrorBoundary} from "~/client/web/peek/peek_error_boundary.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {NavigationContextProvider} from "~/client/web/remix/use_navigate.js";
+import {SiteProvider} from "~/client/web/sites/context/site_context.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
@@ -142,7 +143,9 @@ export default function PeekLayout() {
                     <GlobalLoadingIndicatorContextProvider>
                         {globalLoadingIndicator => (
                             <>
-                                <Outlet />
+                                <SiteProvider>
+                                    <Outlet />
+                                </SiteProvider>
                                 {globalLoadingIndicator && (
                                     <Box
                                         pointerEvents="none"

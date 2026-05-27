@@ -10,6 +10,7 @@ ts_project(
         "//client/web/context",
         "//client/web/dynamo",
         "//client/web/search/core",
+        "//client/web/sites/helpers",
         "//client/web/spaces",
         "//shared/dynamo",
         "//shared/error",

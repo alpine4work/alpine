@@ -1,4 +1,5 @@
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
@@ -47,17 +48,20 @@ export type SiteLoaderDataPrefetcher = {
  * the rest of the route's loads. After everything settles the route calls
  * `await prefetcher.resolve()` to get the final `SiteLoaderData`.
  *
- * `fetchSite` is supplied by the caller so this helper can stay in `shared/`.
- * Callers typically pass `siteId => gitSite(context, {siteId})`.
+ * `fetchSite` and `fetchIsFavorite` are supplied by the caller so this helper can
+ * stay in `shared/`. Both fire in parallel from `onSiteId` so the actor's favorite
+ * status is ready alongside the site itself.
  */
 export function createSiteLoaderDataPrefetcher({
     request,
     entityId,
     fetchSite,
+    fetchIsFavorite,
 }: {
     request: Request;
     entityId: SiteItemSearchEntityId;
     fetchSite: (siteId: SiteId) => Promise<RynamoQueryResult<SiteOrSiteEntryModel>>;
+    fetchIsFavorite: (siteId: SiteId) => Promise<boolean>;
 }): SiteLoaderDataPrefetcher {
     // Ref-shaped on purpose. A plain `let value: ... | null = null` would get narrowed
     // to `null` by TS's flow analysis, and TS doesn't widen back through closures
@@ -66,12 +70,17 @@ export function createSiteLoaderDataPrefetcher({
     // always yields the declared union type.
     const ref: {
         current:
-            | {type: "UseActiveSite"; siteId: SiteId; activeEntityId: SiteItemSearchEntityId}
+            | {
+                  type: "UseActiveSite";
+                  siteId: SiteId;
+                  activeEntityId: SiteItemSearchEntityId;
+              }
             | {
                   type: "UseNewSite";
                   siteId: SiteId;
                   initialQueryResultPromise: Promise<RynamoQueryResult<SiteOrSiteEntryModel>>;
                   activeEntityId: SiteItemSearchEntityId;
+                  isFavoritePromise: Promise<boolean>;
               }
             | null;
     } = {current: null};
@@ -88,24 +97,41 @@ export function createSiteLoaderDataPrefetcher({
 
             ref.current =
                 activeSiteId === siteId
-                    ? {type: "UseActiveSite", siteId, activeEntityId: entityId}
+                    ? {
+                          type: "UseActiveSite",
+                          siteId,
+                          activeEntityId: entityId,
+                      }
                     : {
                           type: "UseNewSite",
                           siteId,
                           initialQueryResultPromise: fetchSite(siteId),
                           activeEntityId: entityId,
+                          isFavoritePromise: fetchIsFavorite(siteId),
                       };
         },
         get: async () => {
             const value = ref.current;
             if (!value) return undefined;
-            if (value.type === "UseActiveSite") return value;
+            if (value.type === "UseActiveSite") {
+                return {
+                    type: "UseActiveSite",
+                    siteId: value.siteId,
+                    activeEntityId: value.activeEntityId,
+                };
+            }
+
+            const [initialQueryResult, isFavorite] = await runAllPromises([
+                value.initialQueryResultPromise,
+                value.isFavoritePromise,
+            ]);
 
             return {
                 type: "UseNewSite",
                 siteId: value.siteId,
-                initialQueryResult: await value.initialQueryResultPromise,
+                initialQueryResult,
                 activeEntityId: value.activeEntityId,
+                isFavorite,
             };
         },
     };

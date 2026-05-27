@@ -80,6 +80,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/shimmer:shimmer",
     "//client/web/sites:sites",
     "//client/web/sites/context:context",
+    "//client/web/sites/helpers:helpers",
     "//client/web/spaces:spaces",
     "//client/web/spaces/layout:layout",
     "//client/web/styles:styles",

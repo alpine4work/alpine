@@ -82,6 +82,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
         request,
         entityId: `Document:${documentId}`,
         fetchSite: siteId => getSite(context, {siteId}),
+        fetchIsFavorite: siteId =>
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
     });
 
     const [document, commentThreadResultResult, isFavorite, spellCheckIgnoredLintsResult] =

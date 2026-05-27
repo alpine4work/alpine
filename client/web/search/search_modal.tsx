@@ -1186,6 +1186,7 @@ function SearchModalPeekContent({
 
     return (
         <Box
+            data-testid="SearchModalPeek"
             position="relative"
             zIndex="0"
             width="full"

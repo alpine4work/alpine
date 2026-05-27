@@ -21,10 +21,10 @@ import {
     SiteTopBarContainerId,
 } from "~/shared/sites/site_entry_id.js";
 import {
-    SiteEntityEntrySchema,
-    SiteSideBarEntrySchema,
-    SiteSideBarSectionEntrySchema,
-    SiteTopBarEntrySchema,
+    SiteEntryEntitySchema,
+    SiteEntrySideBarSchema,
+    SiteEntrySideBarSectionSchema,
+    SiteEntryTopBarSchema,
 } from "~/shared/sites/site_entry_schema.js";
 
 export const SitePreviewModelDataSchema = Schema.object({
@@ -96,7 +96,7 @@ export class SitePreviewModel {
  * ========================================================================== */
 
 export class SiteTopBarModel extends Model(
-    SiteTopBarEntrySchema.merge(
+    SiteEntryTopBarSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteTopBarContainerId>,
@@ -105,7 +105,7 @@ export class SiteTopBarModel extends Model(
 ) {}
 
 export class SiteSideBarModel extends Model(
-    SiteSideBarEntrySchema.merge(
+    SiteEntrySideBarSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteSideBarContainerId>,
@@ -114,7 +114,7 @@ export class SiteSideBarModel extends Model(
 ) {}
 
 export class SiteSideBarSectionModel extends Model(
-    SiteSideBarSectionEntrySchema.merge(
+    SiteEntrySideBarSectionSchema.merge(
         Schema.object({
             version: Schema.integer,
             id: Schema.string as Schema<SiteSideBarSectionContainerId>,
@@ -122,23 +122,26 @@ export class SiteSideBarSectionModel extends Model(
     ),
 ) {}
 
+export type SiteEntrySearchEntityModelData = SchemaType<typeof SiteEntrySearchEntityModelData>;
+const SiteEntrySearchEntityModelData = Schema.union({
+    Channel: SearchChannelEntityModelDataSchema,
+    Chat: SearchChatEntityModelDataSchema,
+    Document: SearchDocumentEntityModelDataSchema,
+    Task: SearchTaskEntityModelDataSchema,
+    TaskCollection: SearchTaskCollectionEntityModelDataSchema,
+});
+
 export class SiteEntityModel extends Model(
-    SiteEntityEntrySchema.merge(
+    SiteEntryEntitySchema.merge(
         Schema.object({
             version: Schema.integer,
             id: SiteItemSearchEntityIdSchema,
-            initialEntityData: Schema.union({
-                Channel: SearchChannelEntityModelDataSchema,
-                Chat: SearchChatEntityModelDataSchema,
-                Document: SearchDocumentEntityModelDataSchema,
-                Task: SearchTaskEntityModelDataSchema,
-                TaskCollection: SearchTaskCollectionEntityModelDataSchema,
-            }),
+            initialEntityData: SiteEntrySearchEntityModelData,
         }),
     ),
 ) {}
 
-export function isSiteSearchEntityModelData(
+export function isSiteEntrySearchEntityModelData(
     data: SearchEntityModelData,
 ): data is SiteEntityModel["initialEntityData"] {
     switch (data.type) {

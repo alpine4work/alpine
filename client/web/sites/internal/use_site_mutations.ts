@@ -13,6 +13,7 @@ import {
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -191,11 +192,15 @@ export function useSiteMutations() {
     // loads against server-consistent access policy state. The client should handle
     // the lag between user-action and site addition gracefully.
     const addEntity = useCallback(
-        async (
-            entity: SearchEntityModelData & {id: SiteItemSearchEntityId},
-            orderKey: OrderKey,
-            parentId: SiteContainerId,
-        ): Promise<{entityId: SiteItemSearchEntityId}> => {
+        async ({
+            entity,
+            orderKey,
+            parentId,
+        }: {
+            entity: SearchEntityModelData & {id: SiteItemSearchEntityId};
+            orderKey: OrderKey;
+            parentId: SiteContainerId;
+        }): Promise<{entityId: SiteItemSearchEntityId}> => {
             // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
             // events, the entity may appear in the site chrome before we navigate to it.
             return await withPausedRealtimeEvents(async () => {
@@ -234,6 +239,36 @@ export function useSiteMutations() {
             space.id,
             withPausedRealtimeEvents,
         ],
+    );
+
+    const addMultipleEntities = useCallback(
+        async (
+            entities: Array<{
+                entityId: SiteItemSearchEntityId;
+                orderKey: OrderKey;
+                parentId: SiteContainerId;
+            }>,
+        ) => {
+            // NOTE(ifitzsimmons, #pause-site-realtime-events): Without pausing the realtime
+            // events, the entity may appear in the site chrome before we navigate to it.
+            return await withPausedRealtimeEvents(async () => {
+                // TODO(#sites): How should we handle entities in other sites? For now, we add them
+                // to the new site if possible, otherwise we throw an access error. \
+                // TODO(#sites): Handle errors
+                const eventTransactions = await runAllPromises(
+                    entities.map(entity =>
+                        addEntityToSite(context, {
+                            siteId,
+                            spaceId: space.id,
+                            ...entity,
+                        }),
+                    ),
+                );
+
+                handleEventForSite(eventTransactions.flatMap(result => result.events));
+            });
+        },
+        [context, handleEventForSite, space.id, siteId, withPausedRealtimeEvents],
     );
 
     const deleteContainer = useCallback(
@@ -284,7 +319,7 @@ export function useSiteMutations() {
     );
 
     const renameSite = useCallback(
-        (name: string) => {
+        async (name: string): Promise<void> => {
             const rpcPromise = updateSiteName(context, {siteId, name});
 
             updateTreeOptimistically(
@@ -300,6 +335,11 @@ export function useSiteMutations() {
                     return oldTree.updateSite(site => ({...site, name}));
                 },
             );
+
+            // Surface RPC failures to the caller so editors can keep the user in edit mode and
+            // report the error. The optimistic update has already reverted by the time this
+            // promise rejects — we don't have to undo anything here.
+            await rpcPromise;
         },
         [context, handleEventForSite, siteId, updateTreeOptimistically],
     );
@@ -330,6 +370,14 @@ export function useSiteMutations() {
                         if (promiseValue !== undefined) {
                             return oldTree;
                         }
+
+                        // It's possible that the realtime service broadcasted the removal back to the
+                        // client before the promise resolves. In that case, the entry wil no longer exist
+                        // in the tree.
+                        if (oldTree.getEntryIfExists(entityId) === undefined) {
+                            return oldTree;
+                        }
+
                         return oldTree.deleteEntry(entityId);
                     },
                 );
@@ -612,6 +660,7 @@ export function useSiteMutations() {
     );
 
     return {
+        addMultipleEntities,
         createSidebarSection,
         deleteContainer,
         renameContainer,

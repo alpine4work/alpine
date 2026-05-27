@@ -36,7 +36,7 @@ import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_p
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
@@ -57,7 +57,9 @@ type IrrelevantAppSpaceRouteIdWithoutShimmer =
     | "routes/s.$spaceId.invite.reject-and-mark-as-spam"
     | "routes/s.$spaceId.notifications.unsubscribe"
     | "routes/s.$spaceId.settings"
-    | "routes/s.$spaceId.settings._index";
+    | "routes/s.$spaceId.settings._index"
+    // TODO(#sites): Add shimmers for these routes.
+    | "routes/s.$spaceId.sites.$siteId._index";
 
 type ShimmerScreenshotSetup = () => Promise<ShimmerScreenshotSetupResult>;
 
@@ -298,6 +300,10 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                 otherSession3,
             );
             const feedRoomChat = await TestChat.createRoom(session, {
+                // Pin the chat ID so the account-pile preview (seeded by `Chat:${chatId}`) is
+                // identical across runs. Without this the facepile members/order shuffle each run,
+                // making the screenshot flaky.
+                id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "feedRoomChat"),
                 name: "Lorem Ipsum",
                 access: "Public",
             });
@@ -1008,6 +1014,10 @@ maximus volutpat ullamcorper.
                 searchOtherSession3,
             );
             const searchRoomChat = await TestChat.createRoom(searchSession, {
+                // Pin the chat ID so the account-pile preview (seeded by `Chat:${chatId}`) is
+                // identical across runs. Without this the facepile members/order shuffle each run,
+                // making the screenshot flaky.
+                id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "searchRoomChat"),
                 name: "Lorem Ipsum",
                 access: "Public",
             });

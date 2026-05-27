@@ -22,6 +22,7 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app:__pkg__",
+        "//app/screenshot_tests:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

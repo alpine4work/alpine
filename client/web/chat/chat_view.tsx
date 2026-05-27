@@ -39,8 +39,9 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/use_revalidate_on_access_policy_site_change.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/web/styles/chat_shared_styles.js";
 import {postFauxInputCreateButtonInnerButtonHeight} from "~/client/web/styles/forum_shared_styles.js";
@@ -201,10 +202,6 @@ export function ChatView({
         }, [chat.definition, siteRegistry]),
     );
 
-    useRevalidateOnAccessPolicySiteChange(
-        chatAccessPolicy.type === "Room" ? chatAccessPolicy.accessPolicy : null,
-    );
-
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar
@@ -259,6 +256,7 @@ function ChatViewTopBar({
     const navigate = useNavigate();
     const inboxContext = useInboxContext();
     const navigationState = useNavigationState();
+    const siteContext = useSiteContextIfExists();
 
     const accessLevel = useMemo((): AccessLevel | null => {
         switch (chatAccessPolicy.type) {
@@ -665,6 +663,16 @@ function ChatViewTopBar({
                                       withoutEditAccessLevel: true,
                                       withHiddenCommentAccessLevel: true,
                                       onAccessPolicyChange: async (notification, accessPolicy) => {
+                                          if (accessPolicy.type === "Site") {
+                                              await applySiteAccessPolicyChange({
+                                                  context,
+                                                  accessPolicy,
+                                                  handleEventForSite:
+                                                      assertExists(siteContext).handleEventForSite,
+                                              });
+                                              return;
+                                          }
+
                                           const {chat} =
                                               await procedures.updateRoomChatAccessPolicy({
                                                   accessPolicy,

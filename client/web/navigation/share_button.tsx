@@ -18,7 +18,6 @@ import {pingAnimationClassName} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,
     EffectiveAccessPolicy,
-    LocalAccessPolicy,
     ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -58,9 +57,7 @@ export function ShareButton({
         // The `notification` argument comes first to make it harder for the implementation
         // of this function to ignore the `notification` argument.
         notification: ShareNotification | null,
-        // NOTE(ifitzsimons, 2026-03-07): Adding to, removing from, or changing sites will
-        // be exposed through a different component/button.
-        accessPolicy: LocalAccessPolicy,
+        accessPolicy: ResolvedAccessPolicyWithGenerations,
     ) => MaybePromise<void>;
     isReadOnly?: boolean;
     withoutEditAccessLevel?: boolean;

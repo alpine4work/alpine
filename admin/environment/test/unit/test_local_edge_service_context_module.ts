@@ -23,6 +23,8 @@ export class TestLocalEdgeServiceContextModule
         context: Context<{}>,
         request: {
             url: `/api/durable-objects/${string}`;
+            serviceName: TokenServiceName;
+            route: `/api/durable-objects/${string}`;
             body: SchemaSerializedValue | null | undefined;
         },
     ) => Promise<any>;
@@ -39,6 +41,8 @@ export class TestLocalEdgeServiceContextModule
             context: Context<{}>,
             request: {
                 url: `/api/durable-objects/${string}`;
+                serviceName: TokenServiceName;
+                route: `/api/durable-objects/${string}`;
                 body: SchemaSerializedValue | null | undefined;
             },
         ) => Promise<any>;
@@ -68,6 +72,8 @@ export class TestLocalEdgeServiceContextModule
     public async sendRequestToDurableObject(
         url: `/api/durable-objects/${string}`,
         {
+            serviceName,
+            route,
             body,
         }: {
             serviceName: TokenServiceName;
@@ -75,7 +81,12 @@ export class TestLocalEdgeServiceContextModule
             body?: SchemaSerializedValue | null;
         },
     ): Promise<any> {
-        return await this._sendRequestToDurableObject(this._context, {url, body});
+        return await this._sendRequestToDurableObject(this._context, {
+            url,
+            serviceName,
+            route,
+            body,
+        });
     }
 
     public fork() {

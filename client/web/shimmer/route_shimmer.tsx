@@ -294,6 +294,10 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.invite._index": false,
     "routes/s.$spaceId.invite.reject-and-mark-as-spam": false,
     "routes/s.$spaceId.invite.accept": {component: FeedRouteShimmer},
+
+    // TODO(#sites): Sites routes don't have a custom shimmer design yet, so show the
+    // generic fullscreen loading spinner.
+    "routes/s.$spaceId.sites.$siteId._index": false,
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);

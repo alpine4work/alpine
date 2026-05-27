@@ -847,6 +847,7 @@ export async function authorizeDocumentAccessIfPossible(
         context,
         documentItem,
         expectedAccessLevel,
+        options,
     );
     if (!result.ok) return result;
 

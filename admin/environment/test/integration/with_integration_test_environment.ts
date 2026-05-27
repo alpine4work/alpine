@@ -7,6 +7,7 @@ import {join as joinPath} from "path";
 import {BrowserContext} from "playwright";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable as ReadableStream} from "stream";
+import {forwardDurableObjectRequestToEdgeServiceForTest} from "~/admin/environment/test/integration/forward_durable_object_request_to_edge_service_for_test.js";
 import {
     TestActualContext,
     actuallyCreateUnitTestEnvironment,
@@ -331,17 +332,41 @@ export function actuallyCreateIntegrationTestEnvironment(
         spacesInjection,
         tasksInjection,
 
-        // Documents are added to a site by sending an access-policy update to the
-        // document's collaboration durable object. The DO runs in the spawned edge service
-        // but isn't reachable from this in-process setup context, so reimplement that one
-        // route directly against the test database — this lets `screenshotFileEntity()`
-        // exercise the in-site cycle for documents like every other entity type. \
+        // Documents are added to/removed from a site by sending an access-policy update to
+        // the document's collaboration durable object. The durable object runs in the
+        // spawned edge service and isn't reachable for an in-process write, so we apply
+        // the change directly to the test database. Integration tests can do this because
+        // they bypass the production restriction that only `DocumentCollaborationService`
+        // may call `updateDocumentContent()`.
         //
-        // NOTE(ifitzsimmons, 2026-05-26): This is a workaround to allow the integration
-        // test environment to add documents to sites. In the future, we may need to parse
-        // out all of the routes we may want to handle and call the relevant logic for each
-        // route.
-        sendRequestToDurableObject: handleUpdateContentWithoutOptimisticBroadcastForTest,
+        // That direct write leaves the document's resident collaboration durable object
+        // (woken by an earlier content-editor connection) at a stale in-memory version. So
+        // after writing, we evict the durable object via its test-only `/reset-for-test`
+        // route. The next websocket connection then reinitializes it fresh from the
+        // database instead of failing the "document version out of sync" check and closing
+        // the socket.
+        sendRequestToDurableObject: async (context, request) => {
+            const result = await handleUpdateContentWithoutOptimisticBroadcastForTest(
+                context,
+                request,
+            );
+
+            const documentIdMatch = request.url.match(
+                /^\/api\/durable-objects\/documents\/([^/]+)\//,
+            );
+            if (documentIdMatch && edgeServicePort !== null && appServiceTokenAgent !== null) {
+                await forwardDurableObjectRequestToEdgeServiceForTest(context, {
+                    edgeServiceUrl: `http://localhost:${edgeServicePort}`,
+                    tokenAgent: appServiceTokenAgent,
+                    serviceName: request.serviceName,
+                    url: `/api/durable-objects/documents/${documentIdMatch[1]}/reset-for-test`,
+                    route: "/api/durable-objects/documents/:documentId/reset-for-test",
+                    body: null,
+                });
+            }
+
+            return result;
+        },
 
         // In integration tests we run the full `TaskRealtimeService` server so when using
         // `context.tasks` you can directly access `TaskRealtimeService`.

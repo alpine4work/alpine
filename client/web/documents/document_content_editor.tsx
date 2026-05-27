@@ -110,6 +110,8 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     documentContentEditorSidebarMaxWidth,
@@ -297,6 +299,7 @@ export function DocumentContentEditor({
     const peekStackContext = usePeekStackContextIfExists();
     const navigate = useNavigate();
     const isMounted = useIsMounted();
+    const siteContext = useSiteContextIfExists();
 
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -1846,7 +1849,16 @@ export function DocumentContentEditor({
                   entityNoun: "document",
                   entityId: `Document:${documentId}`,
                   accessPolicy,
-                  onAccessPolicyChange: (notification, accessPolicy) => {
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
+
                       onEditorStateChange(editorState.setAccessPolicy(accessPolicy, notification));
                   },
                   isReadOnly: !hasManageAccessLevel,

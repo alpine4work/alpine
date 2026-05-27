@@ -226,6 +226,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
         request,
         entityId: `TaskCollection:${collectionId}`,
         fetchSite: siteId => getSite(context, {siteId}),
+        fetchIsFavorite: siteId =>
+            isSearchFavoriteEntity(context, {spaceId, entityId: `Site:${siteId}`}),
     });
 
     const [, filterReferences, loadQueryResult, isFavorite] = await runAllPromises([

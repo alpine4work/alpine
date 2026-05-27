@@ -5,7 +5,6 @@ import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherit
 import {
     AccessLevel,
     EffectiveAccessPolicy,
-    LocalAccessPolicy,
     ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -41,7 +40,7 @@ export type NavigationBarShareButtonProps = {
         // The `notification` argument comes first to make it harder for the implementation
         // of this function to ignore the `notification` argument.
         notification: ShareNotification | null,
-        accessPolicy: LocalAccessPolicy,
+        accessPolicy: ResolvedAccessPolicyWithGenerations,
     ) => MaybePromise<void>;
     readonly isReadOnly?: boolean;
     readonly withoutEditAccessLevel?: boolean;

@@ -2,12 +2,21 @@
 import {useMatches} from "@remix-run/react";
 import {Memo, ReactNode, createContext, useCallback, useContext, useMemo, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
+import {MenuAction} from "~/client/web/design/menu.js";
 import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
-import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
+import {
+    useStateWithDependencies,
+    useStateWithDependenciesWithoutDispatch,
+} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {
+    CollapsedSectionsState,
+    isSectionCollapsed,
+} from "~/client/web/sites/helpers/site_side_bar_collapsed_section_state.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
@@ -19,6 +28,7 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
 import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
@@ -26,13 +36,14 @@ import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_d
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
-import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteContainerId, SiteSideBarSectionContainerId} from "~/shared/sites/site_entry_id.js";
 import {
     SiteEntryModel,
     SiteOrSiteEntryModel,
     SitePreviewModel,
     SitePreviewModelData,
     SiteSideBarModel,
+    SiteSideBarSectionModel,
     SiteTopBarModel,
 } from "~/shared/sites/site_model.js";
 import {SiteRealtimeProtocol} from "~/shared/sites/site_realtime_protocol.js";
@@ -236,11 +247,11 @@ function computeNextActivation(
     switch (siteData.type) {
         case "UseNewSite":
             if (current?.site.siteId === siteData.siteId) {
-                if (current.activeEntityId === siteData.activeEntityId) return current;
+                if (current.activeEntityId === (siteData.activeEntityId ?? null)) return current;
 
                 return {
                     site: current.site,
-                    activeEntityId: siteData.activeEntityId,
+                    activeEntityId: siteData.activeEntityId ?? null,
                 };
             }
 
@@ -249,7 +260,7 @@ function computeNextActivation(
                     siteId: siteData.siteId,
                     initialQueryResult: siteData.initialQueryResult,
                 },
-                activeEntityId: siteData.activeEntityId,
+                activeEntityId: siteData.activeEntityId ?? null,
             };
         case "UseActiveSite":
             if (current?.site.siteId !== siteData.siteId) {
@@ -260,19 +271,46 @@ function computeNextActivation(
 
             return {
                 site: current.site,
-                activeEntityId: siteData.activeEntityId,
+                activeEntityId: siteData.activeEntityId ?? null,
             };
         default:
             throw exhaustive(siteData);
     }
 }
 
-type SiteTreeForClient = SiteTreeBase<SiteEntryModel>;
+export type SiteTreeForClient = SiteTreeBase<SiteEntryModel>;
+
+type SectionRow = {readonly depth: number; readonly entry: SiteSideBarSectionModel};
+
+/**
+ * Site-scoped sidebar UI state — what's collapsed, where to scroll on first paint.
+ * Lives on the site context so it survives cross-leaf navigation within a site;
+ * re-initializes when the active site changes via `useStateWithDependencies`.
+ */
+export type SiteSideBarState = {
+    readonly collapsedSections: CollapsedSectionsState;
+    readonly toggleSection: (row: SectionRow) => void;
+    readonly expandSection: (row: SectionRow) => void;
+    /**
+     * Entity to scroll the sidebar to on first paint after activation. `null` once the
+     * row has consumed it via `clearInitialScrollTarget`, or when there is no pending
+     * scroll.
+     */
+    readonly initialScrollTargetEntityId: SiteItemSearchEntityId | null;
+    readonly clearInitialScrollTarget: () => void;
+};
 
 type SiteDataContextValue = {
     readonly siteId: SiteId;
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;
+    readonly sideBarState: SiteSideBarState;
+    /**
+     * Menu action to favorite/unfavorite the site. Sourced from the site loader data
+     * (the prefetcher fires `fetchIsFavorite` in parallel with `fetchSite`) so this is
+     * available on the first paint of any entity route inside the site.
+     */
+    readonly favoriteSiteMenuAction: Memo<MenuAction> | null;
     readonly handleEventForSite: Memo<
         (events: ReadonlyArray<RynamoEvent<SiteOrSiteEntryModel>>) => void
     >;
@@ -329,6 +367,24 @@ export function SiteProvider({children}: {readonly children: ReactNode}) {
         [siteLoaderData],
     );
 
+    const isFavoriteOnInitialLoad = useStateWithDependenciesWithoutDispatch<
+        boolean,
+        [SiteLoaderData | null]
+    >(
+        (isFavoriteOnInitialLoadFromProps, previousIsFavoriteOnInitialLoad) => {
+            if (siteLoaderData === null) return false;
+
+            // Set the initial value when we load the site for the first time.
+            if (siteLoaderData.type === "UseNewSite") return siteLoaderData.isFavorite;
+
+            // After the initial load, the value should never be undefined. Assert that is true
+            // here.
+            assert(previousIsFavoriteOnInitialLoad !== undefined);
+            return previousIsFavoriteOnInitialLoad;
+        },
+        [siteLoaderData],
+    );
+
     const activationContextValue = useMemo(
         (): SiteActivationContextValue => ({
             activeSiteId: activation?.site.siteId ?? null,
@@ -343,6 +399,7 @@ export function SiteProvider({children}: {readonly children: ReactNode}) {
                     siteId={activation.site.siteId}
                     initialQueryResult={activation.site.initialQueryResult}
                     activeEntityId={activation.activeEntityId}
+                    isFavoriteOnInitialLoad={isFavoriteOnInitialLoad}
                 >
                     {children}
                 </ActiveSiteDataProvider>
@@ -360,11 +417,13 @@ function ActiveSiteDataProvider({
     siteId,
     initialQueryResult,
     activeEntityId,
+    isFavoriteOnInitialLoad,
     children,
 }: {
     readonly siteId: SiteId;
     readonly initialQueryResult: RynamoQueryResult<SiteOrSiteEntryModel>;
     readonly activeEntityId: SiteItemSearchEntityId | null;
+    readonly isFavoriteOnInitialLoad: boolean;
     readonly children: ReactNode;
 }) {
     const context = useAppContext();
@@ -377,6 +436,11 @@ function ActiveSiteDataProvider({
         "SiteRealtimeService",
         SiteRealtimeProtocol,
         shouldConnectToRealtime ? `/api/durable-objects/sites/${siteId}` : null,
+    );
+
+    const favoriteSiteMenuAction = useSearchFavoriteEntityMenuAction(
+        `Site:${siteId}`,
+        isFavoriteOnInitialLoad,
     );
 
     // Counter (not boolean) so concurrent pauses compose. The queue holds raw
@@ -508,6 +572,8 @@ function ActiveSiteDataProvider({
         return {activeEntityId, activeSideBarId};
     }, [activeEntityId, tree]);
 
+    const sideBarState = useSideBarState({siteId, tree, activeEntityId});
+
     const withPausedRealtimeEvents = useCallback(
         async function <Value>(action: () => Promise<Value>): Promise<Value> {
             pauseCountRef.current += 1;
@@ -536,6 +602,8 @@ function ActiveSiteDataProvider({
             siteId,
             tree,
             activeState,
+            sideBarState,
+            favoriteSiteMenuAction,
             updateTreeOptimistically,
             handleEventForSite,
             withPausedRealtimeEvents,
@@ -544,6 +612,8 @@ function ActiveSiteDataProvider({
             siteId,
             tree,
             activeState,
+            sideBarState,
+            favoriteSiteMenuAction,
             updateTreeOptimistically,
             handleEventForSite,
             withPausedRealtimeEvents,
@@ -571,7 +641,7 @@ export function useSiteContextIfExists(): SiteDataContextValue | null {
     return useContext(SiteDataContext);
 }
 
-export function useSite(): SitePreviewModelData | null {
+export function useSite(): SitePreviewModelData {
     const {tree} = useSiteContext();
 
     // The tree always contains the site value from the store, so we can return it
@@ -582,6 +652,16 @@ export function useSite(): SitePreviewModelData | null {
 export function useSiteActiveState(): SiteActiveState {
     const {activeState} = useSiteContext();
     return activeState;
+}
+
+export function useSiteSideBarState(): SiteSideBarState {
+    const {sideBarState} = useSiteContext();
+    return sideBarState;
+}
+
+export function useFavoriteSiteMenuAction(): Memo<MenuAction> | null {
+    const {favoriteSiteMenuAction} = useSiteContext();
+    return favoriteSiteMenuAction;
 }
 
 export function useSiteTree(): SiteTreeForClient {
@@ -671,4 +751,123 @@ function findSiteChrome(
     }
 
     return {sidebar: null, topbar: null};
+}
+
+/**
+ * Initializes and exposes the sidebar UI state for the active site. Both pieces of
+ * state — the collapsed-sections map and the one-shot scroll target — are keyed on
+ * `siteId` via `useStateWithDependencies`, so navigating between sites resets back
+ * to the "first paint" state (ancestors of the new active entity expanded, scroll
+ * target armed). Within a single site the state survives cross-leaf navigation
+ * because the surrounding `ActiveSiteDataProvider` doesn't re-mount.
+ */
+function useSideBarState({
+    siteId,
+    tree,
+    activeEntityId,
+}: {
+    readonly siteId: SiteId;
+    readonly tree: SiteTreeForClient;
+    readonly activeEntityId: SiteItemSearchEntityId | null;
+}): SiteSideBarState {
+    const [collapsedSections, setCollapsedSections] = useStateWithDependencies<
+        CollapsedSectionsState,
+        readonly [SiteId]
+    >(() => computeInitialCollapsedMap(tree, activeEntityId), [siteId]);
+
+    const [scrollTargetState, setScrollTargetState] = useStateWithDependencies<
+        {readonly entityId: SiteItemSearchEntityId | null},
+        readonly [SiteId]
+    >(() => ({entityId: activeEntityId}), [siteId]);
+
+    const toggleSection = useCallback(
+        (row: SectionRow) => {
+            setCollapsedSections(current => {
+                const next = new Map(current);
+                next.set(row.entry.id, !isSectionCollapsed(current, row));
+                return next;
+            });
+        },
+        [setCollapsedSections],
+    );
+
+    const expandSection = useCallback(
+        (row: SectionRow) => {
+            setCollapsedSections(current => {
+                if (!isSectionCollapsed(current, row)) return current;
+                const next = new Map(current);
+                next.set(row.entry.id, false);
+                return next;
+            });
+        },
+        [setCollapsedSections],
+    );
+
+    const clearInitialScrollTarget = useCallback(() => {
+        setScrollTargetState(current => (current.entityId === null ? current : {entityId: null}));
+    }, [setScrollTargetState]);
+
+    return useMemo<SiteSideBarState>(
+        () => ({
+            collapsedSections,
+            toggleSection,
+            expandSection,
+            initialScrollTargetEntityId: scrollTargetState.entityId,
+            clearInitialScrollTarget,
+        }),
+        [
+            collapsedSections,
+            toggleSection,
+            expandSection,
+            scrollTargetState.entityId,
+            clearInitialScrollTarget,
+        ],
+    );
+}
+
+/**
+ * Builds the initial collapsed-sections map for a freshly-activated site. Every
+ * section on the path from the sidebar root down to `activeEntityId` gets an
+ * explicit `false` so the active row is visible without overriding the depth-based
+ * defaults for other branches.
+ */
+function computeInitialCollapsedMap(
+    tree: SiteTreeForClient,
+    activeEntityId: SiteItemSearchEntityId | null,
+): CollapsedSectionsState {
+    if (activeEntityId === null) return emptyMap;
+
+    const ancestorIds = getAncestorSectionIds(tree, activeEntityId);
+    if (ancestorIds.length === 0) return emptyMap;
+
+    const map = new Map<SiteSideBarSectionContainerId, true | false | undefined>();
+
+    // We skip over the root section (depth 0) because it's always expanded by default.
+    for (const id of ancestorIds.slice(1)) {
+        map.set(id, false);
+    }
+    return map;
+}
+
+function getAncestorSectionIds(
+    tree: SiteTreeForClient,
+    entityId: SiteItemSearchEntityId,
+): ReadonlyArray<SiteSideBarSectionContainerId> {
+    const entry = tree.entryById.get(entityId);
+    if (!entry) return [];
+
+    const chain: Array<SiteSideBarSectionContainerId> = [];
+    let currentParentId = entry.parentId;
+    while (currentParentId !== null) {
+        const parent = tree.getEntry(currentParentId);
+        if (parent.type !== "SideBarSection") break;
+
+        chain.push(parent.id);
+        currentParentId = parent.parentId;
+    }
+
+    // We reverse the array here to communicate the depth of each parent in the chain.
+    // Sections at depth 0 are collapsed by default, so we don't need to explicitly
+    // expand them.
+    return chain.toReversed();
 }

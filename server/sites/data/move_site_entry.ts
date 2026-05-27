@@ -31,7 +31,7 @@ import {
     getSiteEntryKey,
     printSiteContainerId,
 } from "~/shared/sites/site_entry_id.js";
-import {isSiteItemContainer} from "~/shared/sites/site_entry_schema.js";
+import {isSiteEntryContainer} from "~/shared/sites/site_entry_schema.js";
 import {createParentItemNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {SiteTreeBase} from "~/shared/sites/site_tree_base.js";
@@ -204,7 +204,7 @@ function validateSiteEntryMoveDoesNotIntroduceCycle(
     newParentId: SiteContainerId,
     siteTree: SiteTreeBase<SiteTreeItem>,
 ) {
-    if (!isSiteItemContainer(entryToBeMoved)) return;
+    if (!isSiteEntryContainer(entryToBeMoved)) return;
 
     if (
         doesSiteEntryMoveIntroduceCycle(printSiteContainerId(entryToBeMoved), newParentId, siteTree)

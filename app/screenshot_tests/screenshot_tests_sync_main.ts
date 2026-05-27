@@ -197,7 +197,7 @@ async function syncScreenshotsFromBazelTestlogs(
 
     await runAllPromises(
         outputZipPaths.map(async outputZipPath => {
-            const match = assertExists(outputZipPath.match(/\/([a-z0-9]+)_screenshot_test\//));
+            const match = assertExists(outputZipPath.match(/\/([a-z0-9_]+)_screenshot_test\//));
             const testName = match[1]!;
 
             const unzipDirectoryPath = dirname(outputZipPath);
