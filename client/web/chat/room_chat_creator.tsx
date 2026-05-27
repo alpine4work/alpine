@@ -112,6 +112,7 @@ export function RoomChatCreator({
                 </Button>
             </Box>
         ),
+        defaultPreviousRoute: `/s/${space.id}/create`,
     });
 
     return (

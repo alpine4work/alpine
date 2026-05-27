@@ -54,7 +54,6 @@ import {
     isSpacing,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {OutOfRangeError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -198,18 +197,23 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const hasRightActions: boolean =
         !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
 
-    const handleBackButtonPress = () => {
+    const handleBackButtonPress = async () => {
         if (navigationState.hasPreviousLocation) {
-            navigate(-1);
-        } else if (defaultPreviousRoute) {
-            if (typeof defaultPreviousRoute === "function") {
-                void navigate(defaultPreviousRoute());
-            } else {
-                void navigate(defaultPreviousRoute);
-            }
-        } else {
-            throw new OutOfRangeError("No previous page in browser history");
+            await navigate(-1);
+            return;
         }
+
+        if (defaultPreviousRoute) {
+            await navigate(
+                typeof defaultPreviousRoute === "function"
+                    ? defaultPreviousRoute()
+                    : defaultPreviousRoute,
+            );
+            return;
+        }
+        // If we don't have a previous page in browser history and no default previous
+        // route, navigate to the space home page.
+        await navigate(spaceContext?.space.id ? `/s/${spaceContext.space.id}` : "/");
     };
 
     return (

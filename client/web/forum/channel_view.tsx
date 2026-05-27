@@ -426,6 +426,7 @@ export function ChannelView({
                   ]
                 : emptyArray),
         ],
+        defaultPreviousRoute: `/s/${space.id}`,
     });
 
     const channelHeader = useMemo(

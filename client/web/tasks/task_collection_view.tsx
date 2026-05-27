@@ -866,6 +866,7 @@ export function TaskCollectionView({
               }
             : undefined,
         menuActions,
+        defaultPreviousRoute: `/s/${space.id}/tasks`,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(

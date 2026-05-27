@@ -221,6 +221,9 @@ export function PostCreator({
                 {createButtonNode}
             </Box>
         ),
+        defaultPreviousRoute: channelId
+            ? `/s/${space.id}/channels/${channelId}`
+            : `/s/${space.id}/create`,
     });
 
     const onSelectGif = useCallback((url: URL) => {

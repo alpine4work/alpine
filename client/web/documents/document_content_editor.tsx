@@ -1566,6 +1566,7 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
+        defaultPreviousRoute: `/s/${spaceId}`,
         getTitleBoundaryElement: useCallback(() => {
             // Assume the title `<h1>` element is always the first element in the ProseMirror
             // DOM.

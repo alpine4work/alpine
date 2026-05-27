@@ -203,6 +203,7 @@ export function ChannelCreator({
                 </Button>
             </Box>
         ),
+        defaultPreviousRoute: `/s/${space.id}/create`,
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {

@@ -484,6 +484,7 @@ export function TaskPersonalView({
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         menuActions: navigationBarMenuActions,
+        defaultPreviousRoute: `/s/${space.id}`,
     });
 
     /* ========================================================================== *\
