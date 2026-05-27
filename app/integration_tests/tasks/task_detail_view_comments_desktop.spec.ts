@@ -4,9 +4,11 @@ import {join as joinPath} from "path";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {getTaskCommentsFromStart} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 
@@ -35,6 +37,11 @@ async function openGhostTaskFromCreateMenu(page: Page) {
     await peek.getByRole("button", {name: "Expand"}).click();
     await expect(peek).toBeHidden();
     await expect(page.getByTestId("TaskDetailViewMain")).toBeVisible();
+}
+
+function getTaskIdFromUrl(page: Page): TaskId {
+    const taskId = page.url().match(/\/tasks\/([^/?]+)/)?.[1];
+    return assertExists(taskId) as TaskId;
 }
 
 test("can create a comment on a ghost task", async ({page, context: browserContext}) => {
@@ -119,8 +126,25 @@ test("can create a comment with a file on a ghost task", async ({
         page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
 
-    await page.evaluate("dev.globalLoadingIndicator.waitForSavingIndicator()");
+    const taskId = getTaskIdFromUrl(page);
+
+    await expect
+        .poll(async () => {
+            const {comments} = await getTaskCommentsFromStart(context.action(session), {
+                taskId,
+                limit: 10,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            });
+
+            const firstComment = comments[0];
+            if (!firstComment || firstComment.payload.type !== "Content") return 0;
+            return firstComment.payload.files.length;
+        })
+        .toBe(1);
+
     await page.reload();
+    await page.evaluate("dev.files && dev.files.waitForImagePreviewContentsToLoad()");
 
     await expect(
         page.getByTestId(/^MessageView:/).getByTestId("ContentFilePreview:image/jpeg"),

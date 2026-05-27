@@ -28,6 +28,16 @@ async function tapSendComment(page: Page) {
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 }
 
+async function pressPlatformUndoShortcut(page: Page, textboxName: string) {
+    const usesMetaUndoShortcut = await page.evaluate(() =>
+        /Mac|iP(hone|[oa]d)/.test(navigator.platform),
+    );
+
+    await page
+        .getByRole("textbox", {name: textboxName})
+        .press(usesMetaUndoShortcut ? "Meta+z" : "Control+z");
+}
+
 test("can search for an account in mention menu", async ({
     page,
     context: browserContext,
@@ -168,7 +178,10 @@ test("can undo to get the full mention when a short mention was inferred", async
         await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
         await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-        await page.getByRole("textbox", {name: "New comment"}).press("ControlOrMeta+z");
+
+        await expect(page.getByRole("textbox", {name: "New comment"})).toBeFocused();
+        await pressPlatformUndoShortcut(page, "New comment");
+
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
         await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();

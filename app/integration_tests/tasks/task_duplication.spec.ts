@@ -38,7 +38,17 @@ test("can duplicate a task without variables", async ({context: browserContext, 
 
     // The instructional modal appears for tasks without variables - click "Duplicate"
     // to proceed
-    await page.getByRole("button", {name: "Duplicate"}).click();
+    const duplicationInstructionalModal = page.getByRole("alertdialog", {name: "Tip: Templates"});
+    await expect(duplicationInstructionalModal).toBeVisible();
+
+    const duplicateButton = duplicationInstructionalModal.getByRole("button", {name: "Duplicate"});
+
+    if (project.name === "webkit_mobile") {
+        await expect(duplicateButton).toBeFocused();
+        await page.keyboard.press("Enter");
+    } else {
+        await duplicateButton.click();
+    }
 
     // Wait for the duplicate to appear in the peek overlay
     if (project.name !== "webkit_mobile") {

@@ -514,6 +514,25 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowLeft": {
+                if (!isModifiedKeyboardEvent(event) && !view.state.selection.empty) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // When a title cell re-enters editing from grid navigation we may have a non-empty
+                    // selection (for example "select all" from the cell-level Enter behavior).
+                    // Explicitly collapse the selection before interpreting left/right as grid
+                    // navigation so the next typed character doesn't replace the whole title due to
+                    // browser-dependent selection behavior.
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(
+                                TextSelection.create(view.state.doc, view.state.selection.from),
+                            )
+                            .scrollIntoView(),
+                    );
+                    break;
+                }
+
                 if (
                     view.state.selection.from === view.state.selection.to &&
                     view.state.selection.from === 0
@@ -529,6 +548,23 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowRight": {
+                if (!isModifiedKeyboardEvent(event) && !view.state.selection.empty) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // See the matching `ArrowLeft` case above. We need deterministic selection
+                    // collapse here before this key can mean "leave the title cell" at the end of the
+                    // title.
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(
+                                TextSelection.create(view.state.doc, view.state.selection.to),
+                            )
+                            .scrollIntoView(),
+                    );
+                    break;
+                }
+
                 if (
                     view.state.selection.from === view.state.selection.to &&
                     view.state.selection.from === view.state.doc.nodeSize - 2
