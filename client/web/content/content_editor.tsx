@@ -197,6 +197,7 @@ import {DocumentContentCover} from "~/shared/documents/document_content_cover.js
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -1970,6 +1971,78 @@ function ContentEditor<Content extends ContentWithReferences>(
                 createTransaction: () => Transaction,
             ) => void;
         }) {
+            function isUrlUploadFileInfo(fileInfo: FileInfo | FileInfoWithEntity): boolean {
+                return fileInfo.type === "UploadFile" && fileInfo.input.type === "Url";
+            }
+
+            // When pasting from certain sources (like Google Photos), the clipboard contains
+            // both HTML with `<img>` tags pointing to authenticated URLs AND raw image data.
+            // The HTML URLs won't work because they require authentication cookies that the
+            // server doesn't have. In this case, prefer the raw image files from the
+            // clipboard.
+            //
+            // We detect this by checking if raw image files exist in `dataTransfer.items` and
+            // the parsed HTML only produced URL-backed file uploads. If so, we clear the
+            // parsed HTML result and let the code below process the raw files instead.
+            if (dataTransfer?.items) {
+                let hasRawImageFiles = false;
+                for (const item of dataTransfer.items) {
+                    if (item.kind === "file" && isFileImageContentType(item.type)) {
+                        hasRawImageFiles = true;
+                        break;
+                    }
+                }
+
+                if (hasRawImageFiles) {
+                    // For schemas with file nodes: if the slice only contains file/fileRow nodes and
+                    // every parsed file came from a URL, clear both the slice and the upload info map.
+                    // This allows the raw file processing code below to handle the paste using the
+                    // actual image data.
+                    if (schema.nodes.file && schema.nodes.fileRow) {
+                        let sliceOnlyContainsFiles = slice.content.childCount > 0;
+                        slice.content.forEach(node => {
+                            if (
+                                node.type !== schema.nodes.file &&
+                                node.type !== schema.nodes.fileRow
+                            ) {
+                                sliceOnlyContainsFiles = false;
+                            }
+                        });
+
+                        let onlyHasUrlUploads = temporaryPastedFileInfoById !== undefined;
+                        for (const temporaryPastedFileInfo of temporaryPastedFileInfoById?.values() ??
+                            emptyArray) {
+                            if (!isUrlUploadFileInfo(temporaryPastedFileInfo)) {
+                                onlyHasUrlUploads = false;
+                                break;
+                            }
+                        }
+
+                        if (sliceOnlyContainsFiles && onlyHasUrlUploads) {
+                            slice = Slice.empty;
+                            // Also clear the map so the `temporaryPastedFileInfoById.size === 0` check below
+                            // passes and raw files get processed.
+                            temporaryPastedFileInfoById?.clear();
+                        }
+                    }
+
+                    // For schemas without file nodes: files are tracked separately in
+                    // `temporaryPastedFileInfosForParent`. If all entries are URL-based uploads, clear
+                    // them so we use raw files instead.
+                    if (
+                        !schema.nodes.file &&
+                        temporaryPastedFileInfosForParent &&
+                        temporaryPastedFileInfosForParent.length > 0
+                    ) {
+                        const allUrlUploads =
+                            temporaryPastedFileInfosForParent.every(isUrlUploadFileInfo);
+                        if (allUrlUploads) {
+                            temporaryPastedFileInfosForParent.length = 0;
+                        }
+                    }
+                }
+            }
+
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's use
             // `FileProcessorService` to attach the file to our content.
