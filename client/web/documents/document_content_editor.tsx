@@ -1890,6 +1890,10 @@ export function DocumentContentEditor({
         [documentId],
     );
 
+    const onSelectGifInDocument = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     return (
         <Box
             ref={containerResizeRef}
@@ -2072,6 +2076,7 @@ export function DocumentContentEditor({
                                         [documentId],
                                     )}
                                     onEnsureFileAttachmentTarget={ensureCreateDocument}
+                                    onSelectGif={onSelectGifInDocument}
                                     openCommentThread={openCommentThread}
                                     onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                         setPressedCommentThreadId(pressedCommentThreadId => {

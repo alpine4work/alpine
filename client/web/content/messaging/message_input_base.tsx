@@ -1,5 +1,5 @@
 import {animate} from "motion";
-import {ArrowRight, ArrowUp, At, File, Image, PencilSimple, Plus, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, At, File, Gif, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -30,6 +30,7 @@ import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/web/content/internal/content_editor_mobile_link_modal.js";
+import {isGiphyEnabled} from "~/client/web/content/internal/giphy_fetch.js";
 import {
     FileInfoWithEntity,
     iterateFileInfosInElement,
@@ -53,13 +54,14 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
-import {MenuButton} from "~/client/web/design/menu_button.js";
+import {Menu, MenuActions} from "~/client/web/design/menu.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/web/design/mobile_bottom_bar.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {
@@ -147,6 +149,7 @@ import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.
 import {Id} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 export type MessageInputRef = {
@@ -305,6 +308,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
     const isMounted = useIsMounted();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const isGifPickerEnabled = hasGifPickerFeature(space.id) && isGiphyEnabled();
 
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
@@ -1172,210 +1176,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             <Plus />
                                         </IconButton>
                                     ) : (
-                                        <MenuButton
-                                            withoutButtonElementRequirement={true}
-                                            // Generally since the message input is at the bottom of the screen the add menu
-                                            // opens above the input. Let's make that pattern consistent.
-                                            placement="top-start"
-                                            actions={[
-                                                [
-                                                    {
-                                                        label: "Image",
-                                                        icon: <Image />,
-                                                        onPress: () => {
-                                                            selectFiles(
-                                                                assertExists(
-                                                                    inputContainerRef.current,
-                                                                ),
-                                                                {
-                                                                    multiple: true,
-                                                                    acceptContentTypes:
-                                                                        getFileImageContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element so
-                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
-                                                                    onReturnFocus: () =>
-                                                                        editorRef.current?.focus(),
-                                                                },
-                                                            )
-                                                                .then(files => {
-                                                                    if (files.length === 0) return;
-
-                                                                    // Make sure we didn't unmount while selecting files.
-                                                                    if (!isMounted()) return;
-
-                                                                    events.addFiles(
-                                                                        "<MessageInput> insert files",
-                                                                        files.map(file => ({
-                                                                            type: "UploadFile",
-                                                                            input: {
-                                                                                type: "File",
-                                                                                file,
-                                                                            },
-                                                                        })),
-                                                                    );
-                                                                })
-                                                                .catch(scheduleUncaughtError);
-                                                        },
-                                                    },
-                                                    {
-                                                        label: "Video",
-                                                        icon: <VideoIcon />,
-                                                        onPress: () => {
-                                                            selectFiles(
-                                                                assertExists(
-                                                                    inputContainerRef.current,
-                                                                ),
-                                                                {
-                                                                    multiple: true,
-                                                                    acceptContentTypes:
-                                                                        getFileVideoContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element so
-                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
-                                                                    onReturnFocus: () =>
-                                                                        editorRef.current?.focus(),
-                                                                },
-                                                            )
-                                                                .then(files => {
-                                                                    if (files.length === 0) return;
-
-                                                                    // Make sure we didn't unmount while selecting files.
-                                                                    if (!isMounted()) return;
-
-                                                                    events.addFiles(
-                                                                        "<MessageInput> insert files",
-                                                                        files.map(file => ({
-                                                                            type: "UploadFile",
-                                                                            input: {
-                                                                                type: "File",
-                                                                                file,
-                                                                            },
-                                                                        })),
-                                                                    );
-                                                                })
-                                                                .catch(scheduleUncaughtError);
-                                                        },
-                                                    },
-                                                    {
-                                                        label: "Audio",
-                                                        icon: <WaveformIcon />,
-                                                        onPress: () => {
-                                                            selectFiles(
-                                                                assertExists(
-                                                                    inputContainerRef.current,
-                                                                ),
-                                                                {
-                                                                    multiple: true,
-                                                                    acceptContentTypes:
-                                                                        getFileAudioContentTypes(),
-                                                                    // It's important to return focus before removing the temporary input element so
-                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
-                                                                    onReturnFocus: () =>
-                                                                        editorRef.current?.focus(),
-                                                                },
-                                                            )
-                                                                .then(files => {
-                                                                    if (files.length === 0) return;
-
-                                                                    // Make sure we didn't unmount while selecting files.
-                                                                    if (!isMounted()) return;
-
-                                                                    events.addFiles(
-                                                                        "<MessageInput> insert files",
-                                                                        files.map(file => ({
-                                                                            type: "UploadFile",
-                                                                            input: {
-                                                                                type: "File",
-                                                                                file,
-                                                                            },
-                                                                        })),
-                                                                    );
-                                                                })
-                                                                .catch(scheduleUncaughtError);
-                                                        },
-                                                    },
-                                                    {
-                                                        label: "File",
-                                                        icon: <File />,
-                                                        onPress: () => {
-                                                            selectFiles(
-                                                                assertExists(
-                                                                    inputContainerRef.current,
-                                                                ),
-                                                                {
-                                                                    multiple: true,
-                                                                    // It's important to return focus before removing the temporary input element so
-                                                                    // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
-                                                                    onReturnFocus: () =>
-                                                                        editorRef.current?.focus(),
-                                                                },
-                                                            )
-                                                                .then(files => {
-                                                                    if (files.length === 0) return;
-
-                                                                    // Make sure we didn't unmount while selecting files.
-                                                                    if (!isMounted()) return;
-
-                                                                    events.addFiles(
-                                                                        "<MessageInput> insert files",
-                                                                        files.map(file => ({
-                                                                            type: "UploadFile",
-                                                                            input: {
-                                                                                type: "File",
-                                                                                file,
-                                                                            },
-                                                                        })),
-                                                                    );
-                                                                })
-                                                                .catch(scheduleUncaughtError);
-                                                        },
-                                                    },
-                                                ],
-                                                [
-                                                    {
-                                                        label: "Insert",
-                                                        icon: <At />,
-                                                        onPress: () => {
-                                                            const editor = assertExists(
-                                                                editorRef.current,
-                                                            );
-                                                            const view = editor._getInternalView();
-
-                                                            const {state} = view;
-                                                            const schema = state.doc.type.schema;
-
-                                                            editor.focus();
-
-                                                            view.dispatch(
-                                                                state.tr
-                                                                    .replaceSelectionWith(
-                                                                        schema.text("@"),
-                                                                    )
-                                                                    .setMeta(
-                                                                        openContentEditorMentionFloaterMetaKey,
-                                                                        "@",
-                                                                    ),
-                                                            );
-                                                        },
-                                                    },
-                                                ],
-                                            ]}
-                                        >
-                                            <IconButton
-                                                size={messageInputEditorIconButtonSize}
-                                                description="Add"
-                                                withoutTooltip={true}
-                                                // The add icon button is not focusable. That's because we don't want to remove
-                                                // focus from the message input when the add button is pressed. That way on mobile
-                                                // you can keep typing and sending messages because the software keyboard doesn't
-                                                // disappear.
-                                                //
-                                                // On desktop, hitting enter in the message input is sufficient for keyboard
-                                                // control of the message input.
-                                                isFocusable={false}
-                                            >
-                                                <Plus />
-                                            </IconButton>
-                                        </MenuButton>
+                                        <MessageInputAddButton
+                                            inputContainerRef={inputContainerRef}
+                                            editorRef={editorRef}
+                                            isMounted={isMounted}
+                                            events={events}
+                                            isGifPickerEnabled={isGifPickerEnabled}
+                                        />
                                     )}
                                 </Box>
                                 <FocusRing
@@ -1484,6 +1291,22 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         "<MessageInput> paste files",
                                                         fileInfos,
                                                     )
+                                                }
+                                                onSelectGif={
+                                                    isGifPickerEnabled
+                                                        ? url => {
+                                                              if (!isMounted()) return;
+                                                              events.addFiles(
+                                                                  "<MessageInput> insert gif",
+                                                                  [
+                                                                      {
+                                                                          type: "UploadFile",
+                                                                          input: {type: "Url", url},
+                                                                      },
+                                                                  ],
+                                                              );
+                                                          }
+                                                        : undefined
                                                 }
                                                 // Don't render the default content editor mobile keyboard toolbar. We render our
                                                 // own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
@@ -2015,5 +1838,191 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                 </Box>
             </Box>
         </Box>
+    );
+}
+
+/**
+ * The + button in the message input that opens a menu with file upload options and
+ * a GIF picker.
+ */
+function MessageInputAddButton({
+    inputContainerRef,
+    editorRef,
+    isMounted,
+    events,
+    isGifPickerEnabled,
+}: {
+    inputContainerRef: RefObject<HTMLDivElement | null>;
+    editorRef: RefObject<ContentEditorRef<MessageContentWithReferences> | null>;
+    isMounted: () => boolean;
+    events: {
+        addFiles: (spanName: string, fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
+    };
+    isGifPickerEnabled: boolean;
+}) {
+    const addMenuActions: MenuActions = [
+        [
+            {
+                label: "Image",
+                icon: <Image />,
+                onPress: () => {
+                    selectFiles(assertExists(inputContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileImageContentTypes(),
+                        onReturnFocus: () => editorRef.current?.focus(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!isMounted()) return;
+
+                            events.addFiles(
+                                "<MessageInput> insert files",
+                                files.map(file => ({
+                                    type: "UploadFile",
+                                    input: {type: "File" as const, file},
+                                })),
+                            );
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "Video",
+                icon: <VideoIcon />,
+                onPress: () => {
+                    selectFiles(assertExists(inputContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileVideoContentTypes(),
+                        onReturnFocus: () => editorRef.current?.focus(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!isMounted()) return;
+
+                            events.addFiles(
+                                "<MessageInput> insert files",
+                                files.map(file => ({
+                                    type: "UploadFile",
+                                    input: {type: "File" as const, file},
+                                })),
+                            );
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "Audio",
+                icon: <WaveformIcon />,
+                onPress: () => {
+                    selectFiles(assertExists(inputContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileAudioContentTypes(),
+                        onReturnFocus: () => editorRef.current?.focus(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!isMounted()) return;
+
+                            events.addFiles(
+                                "<MessageInput> insert files",
+                                files.map(file => ({
+                                    type: "UploadFile",
+                                    input: {type: "File" as const, file},
+                                })),
+                            );
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "File",
+                icon: <File />,
+                onPress: () => {
+                    selectFiles(assertExists(inputContainerRef.current), {
+                        multiple: true,
+                        onReturnFocus: () => editorRef.current?.focus(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!isMounted()) return;
+
+                            events.addFiles(
+                                "<MessageInput> insert files",
+                                files.map(file => ({
+                                    type: "UploadFile",
+                                    input: {type: "File" as const, file},
+                                })),
+                            );
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            ...(isGifPickerEnabled
+                ? [
+                      {
+                          label: "GIF",
+                          icon: <Gif />,
+                          onPress: () => {
+                              editorRef.current?.openGifPicker();
+                          },
+                      },
+                  ]
+                : []),
+        ],
+        [
+            {
+                label: "Insert",
+                icon: <At />,
+                onPress: () => {
+                    const editor = assertExists(editorRef.current);
+                    const view = editor._getInternalView();
+
+                    const {state} = view;
+                    const schema = state.doc.type.schema;
+
+                    editor.focus();
+
+                    view.dispatch(
+                        state.tr
+                            .replaceSelectionWith(schema.text("@"))
+                            .setMeta(openContentEditorMentionFloaterMetaKey, "@"),
+                    );
+                },
+            },
+        ],
+    ];
+
+    return (
+        <OverlayTriggerButton
+            withoutButtonElementRequirement={true}
+            aria-haspopup="menu"
+            // Generally since the message input is at the bottom of the screen the add menu
+            // opens above the input.
+            placement="top-start"
+            overlay={({onCloseWithAnimation, onCloseWithoutAnimation}) => (
+                <Menu
+                    actions={addMenuActions}
+                    placement="top-start"
+                    onCloseWithAnimation={onCloseWithAnimation}
+                    onCloseWithoutAnimation={onCloseWithoutAnimation}
+                />
+            )}
+        >
+            <IconButton
+                size={messageInputEditorIconButtonSize}
+                description="Add"
+                withoutTooltip={true}
+                // The add icon button is not focusable. That's because we don't want to remove
+                // focus from the message input when the add button is pressed. That way on mobile
+                // you can keep typing and sending messages because the software keyboard doesn't
+                // disappear.
+                //
+                // On desktop, hitting enter in the message input is sufficient for keyboard
+                // control of the message input.
+                isFocusable={false}
+            >
+                <Plus />
+            </IconButton>
+        </OverlayTriggerButton>
     );
 }

@@ -37,6 +37,8 @@
         "@dnd-kit/sortable": "^7.0.2",
         "@dnd-kit/utilities": "3.2.1",
         "@fig/lezer-bash": "^1.2.5",
+        "@giphy/js-fetch-api": "^5.7.0",
+        "@giphy/js-types": "^5.1.0",
         "@img/sharp-libvips-darwin-arm64": "file:admin/vendor/libvips/libvips-darwin-arm64",
         "@img/sharp-libvips-darwin-x64": "file:admin/vendor/libvips/libvips-darwin-x86_64",
         "@img/sharp-libvips-linux-arm64": "file:admin/vendor/libvips/libvips-linux-arm64",

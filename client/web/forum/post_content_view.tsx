@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {ChatCircleDots, Check, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
-import {Memo, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
@@ -933,6 +933,10 @@ function PostContentViewEditor({
         if (isPostView) onScrollToIfNotVisible();
     }, [isPostView, onScrollToIfNotVisible]);
 
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     const hasContentChanged =
         postEditingForThisPost.state.contentEditorState.getDoc() !==
         postEditingForThisPost.state.initialContent;
@@ -1021,6 +1025,7 @@ function PostContentViewEditor({
                             if (postEditingForThisPost.state.isSaving) return;
                             postEditingForThisPost.dispatch({type: "CancelEditing"});
                         }}
+                        onSelectGif={onSelectGif}
                     />
                     <InlineEditorToolbar
                         isSaving={postEditingForThisPost.state.isSaving}

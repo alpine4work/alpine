@@ -685,8 +685,10 @@ function contentEditorFloaterStatePlugin() {
                     }
                 }
 
-                // `PointerToolbar` is the only state which does not record its position.
-                if (floaterState.type === "PointerToolbar") return floaterState;
+                // `PointerToolbar` and `GifPicker` do not record a position in the document.
+                if (floaterState.type === "PointerToolbar" || floaterState.type === "GifPicker") {
+                    return floaterState;
+                }
 
                 const newRangeFrom = transaction.mapping.map(floaterState.range.from);
                 const newRangeTo = transaction.mapping.map(floaterState.range.to);

@@ -139,6 +139,7 @@ export function ContentEditorMentionFloater({
     onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
     onCloseWithAnimation: onCloseWithAnimationFromProps,
     onPasteOrDropFiles,
+    onOpenGifPicker,
 }: {
     state: EditorState;
     viewRef: RefObject<
@@ -162,6 +163,7 @@ export function ContentEditorMentionFloater({
     onPasteOrDropFiles?: (
         fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ) => SafeFloatingPromise<void>;
+    onOpenGifPicker?: () => void;
 }) {
     const platform = usePlatform();
     const context = useAppContext();
@@ -531,12 +533,16 @@ export function ContentEditorMentionFloater({
                 viewRef,
                 getSelection: getInsertMenuSelection,
                 alwaysDeleteSelection: true,
+                onOpenGifPicker,
             }).flat(),
-        [getInsertMenuSelection, state.schema, viewRef],
+        [getInsertMenuSelection, onOpenGifPicker, state.schema, viewRef],
     );
 
     const insertMenuActionsFuse = useMemo(() => {
-        return new Fuse(insertMenuActions, {keys: ["label"], includeScore: true});
+        return new Fuse(insertMenuActions, {
+            keys: ["label", "searchKeywords"],
+            includeScore: true,
+        });
     }, [insertMenuActions]);
 
     // We use `searchMentionOutput.queryText` for searching menu actions not the prop

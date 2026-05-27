@@ -88,6 +88,7 @@ import {
     getContentEditorFileDropTargets,
 } from "~/client/web/content/internal/get_content_editor_file_drop_targets.js";
 import {getContentEditorInsertMenuActions} from "~/client/web/content/internal/get_content_editor_insert_menu_actions.js";
+import {isGiphyEnabled, preloadGiphyTrending} from "~/client/web/content/internal/giphy_fetch.js";
 import {
     FileInfo,
     FileInfoWithEntity,
@@ -236,6 +237,7 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {hasGifPickerFeature} from "~/shared/spaces/has_gif_picker_feature.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
@@ -377,6 +379,12 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     insertFiles(files: ReadonlyArray<File>): void;
 
     /**
+     * Insert a file from a URL. The server downloads the file from the URL instead of
+     * requiring a client-side upload.
+     */
+    insertFileFromUrl(url: URL): void;
+
+    /**
      * Insert a table node.
      */
     insertTable(): void;
@@ -397,6 +405,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * the selection is empty nothing happens.
      */
     openMobileKeyboardToolbarCommentInputIfPossible(): void;
+
+    /**
+     * Open the GIF picker floater. Only works when `onSelectGif` is provided.
+     */
+    openGifPicker(): void;
 
     /**
      * Get the internal ProseMirror editor view object. Prefer the public methods on
@@ -665,6 +678,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     ) => SafeFloatingPromise<void>;
 
     /**
+     * Called when the user selects a GIF from the picker. When provided, the GIF
+     * insert action appears in menus.
+     */
+    onSelectGif?: (url: URL) => void;
+
+    /**
      * Custom `isBodyEmpty` prop. We'll consider the body empty if
      * `isContentBodyEmpty()` is true or this function is true.
      */
@@ -848,12 +867,18 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             insertQuoteBlock: unimplementedDispatchCommand,
             insertCodeBlock: unimplementedDispatchCommand,
             insertFiles: unimplementedDispatchCommand,
+            insertFileFromUrl: unimplementedDispatchCommand,
             insertTable: unimplementedDispatchCommand,
             setHasPresentShortcut: unimplementedDispatchCommand,
             setCover: unimplementedDispatchCommand,
             openMobileKeyboardToolbarCommentInputIfPossible: () => {
                 throw new UnimplementedError(
                     "Opening the content editor\u2019s mobile keyboard toolbar comment input on initial render is not implemented",
+                );
+            },
+            openGifPicker: () => {
+                throw new UnimplementedError(
+                    "Opening the GIF picker on initial render is not implemented",
                 );
             },
             _getInternalView: () => {
@@ -928,6 +953,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         fileAttachmentTarget,
         commentFileAttachmentTarget,
         onPasteOrDropFiles,
+        onSelectGif,
         isBodyEmpty: isBodyEmptyFromProps,
         onSpellCheckIgnoreLint,
         spellCheckIgnoredLints,
@@ -960,6 +986,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const blockWidth = useContentBlockWidth();
+    const isGifPickerEnabled =
+        !!onSelectGif &&
+        !!spaceContext &&
+        hasGifPickerFeature(spaceContext.space.id) &&
+        isGiphyEnabled();
 
     // We choose our interaction mode based on whether the device's primary input can
     // hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g. iOS).
@@ -1057,6 +1088,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const viewRef = useRef<
         | (EditorView & {
               insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+              insertFileFromUrl: (url: URL) => void;
           })
         | null
     >(null);
@@ -1068,6 +1100,12 @@ function ContentEditor<Content extends ContentWithReferences>(
     /* ========================================================================== *\
      *                               Component ref                                *
     \* ========================================================================== */
+
+    const openGifPicker = useCallback(() => {
+        if (!isGifPickerEnabled) return;
+        const view = assertExists(viewRef.current);
+        view.dispatch(setContentEditorFloaterState(view.state.tr, {type: "GifPicker"}));
+    }, [isGifPickerEnabled]);
 
     useImperativeHandle(
         editorRef,
@@ -1141,6 +1179,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }
             },
+            openGifPicker,
             insertUnorderedListItem: () =>
                 insertContentUnorderedListItem(assertExists(viewRef.current)),
             insertOrderedListItem: () =>
@@ -1151,6 +1190,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             insertQuoteBlock: () => insertContentQuoteBlock(assertExists(viewRef.current)),
             insertCodeBlock: () => insertContentCodeBlock(assertExists(viewRef.current)),
             insertFiles: files => insertContentFiles(assertExists(viewRef.current), files),
+            insertFileFromUrl: url => assertExists(viewRef.current).insertFileFromUrl(url),
             insertTable: () => insertContentTable(assertExists(viewRef.current)),
             setHasPresentShortcut: hasPresentShortcut => {
                 const view = assertExists(viewRef.current);
@@ -1166,8 +1206,18 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return assertExists(viewRef.current);
             },
         }),
-        [],
+        [openGifPicker],
     );
+
+    // Preload trending GIFs on mount so the picker opens instantly.
+    const hasPreloadedGiphyRef = useRef(false);
+    useEffect(() => {
+        if (hasPreloadedGiphyRef.current) return;
+        hasPreloadedGiphyRef.current = true;
+        if (isGifPickerEnabled && context) {
+            preloadGiphyTrending(context);
+        }
+    }, [context, isGifPickerEnabled]);
 
     /* ========================================================================== *\
      *                         ProseMirror initialization                         *
@@ -3060,6 +3110,77 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
         };
 
+        const insertFileFromUrl = (url: URL) => {
+            const fileId = generateFileIdWithSynchronizedClock();
+
+            if (temporaryPastedFileInfoById === undefined) {
+                temporaryPastedFileInfoById = new Map();
+                scheduleMicrotask(() => {
+                    temporaryPastedFileInfoById = undefined;
+                });
+            }
+
+            temporaryPastedFileInfoById.set(fileId, {
+                type: "UploadFile",
+                input: {type: "Url", url},
+            });
+
+            const posOrSelection = view.state.selection;
+
+            const slice = new Slice(
+                Fragment.from(
+                    schema.node(
+                        isPosInContentTable(posOrSelection.$head) ? "fileRowTable" : "fileRow",
+                        {},
+                        [schema.node("file", {fileId})],
+                    ),
+                ),
+                0,
+                0,
+            );
+
+            handleInsertSlice({
+                asyncSpanName: "<ContentEditor> insert file from URL",
+                remember: [posOrSelection],
+                slice,
+                dataTransfer: null,
+                action: ([posOrSelection], slice, createTransaction) => {
+                    const transaction = createTransaction();
+
+                    if (
+                        posOrSelection instanceof NodeSelection &&
+                        posOrSelection.node.type.name === "file"
+                    ) {
+                        posOrSelection.replaceWith(transaction, schema.node("file", {fileId}));
+                    } else {
+                        const singleNode = slice.content.firstChild;
+                        if (singleNode) {
+                            posOrSelection.replaceWith(transaction, singleNode);
+                        } else {
+                            posOrSelection.replace(transaction, slice);
+                        }
+                    }
+
+                    if (slice.content.firstChild) {
+                        const $newPos = findInsertedNodeAfterReplaceRangeWith(
+                            posOrSelection.$from,
+                            transaction.doc,
+                            slice.content.firstChild,
+                        );
+
+                        if ($newPos) {
+                            transaction.setSelection(
+                                new NodeSelection(transaction.doc.resolve($newPos.pos + 1)),
+                            );
+                        }
+                    }
+
+                    view.focus();
+                    view.dispatch(transaction.scrollIntoView());
+                },
+            });
+        };
+
         /* ========================================================================== *\
          *                                Misc events                                 *
         \* ========================================================================== */
@@ -3642,6 +3763,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         viewRef.current = Object.assign(view, {
             insertFiles,
+            insertFileFromUrl,
             getBlockWidth: () => blockWidthRef.current,
             getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
         });
@@ -4959,13 +5081,25 @@ function ContentEditor<Content extends ContentWithReferences>(
                             hasChildren: true,
                             key: "insert",
                             label: "Insert",
-                            actions: getContentEditorInsertMenuActions({schema, viewRef}),
+                            actions: getContentEditorInsertMenuActions({
+                                schema,
+                                viewRef,
+                                onOpenGifPicker: isGifPickerEnabled ? openGifPicker : undefined,
+                            }),
                         },
                     ],
                 ],
             };
         },
-        [canRedo, canUndo, clientInfo, hasEditAccessLevel, schema],
+        [
+            canRedo,
+            canUndo,
+            clientInfo,
+            hasEditAccessLevel,
+            isGifPickerEnabled,
+            openGifPicker,
+            schema,
+        ],
     );
 
     // Manually add context menu actions on `contextmenu` event since we can't render a
@@ -5019,6 +5153,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
                 mentionFloaterSectionOrder={mentionFloaterSectionOrder}
                 onPasteOrDropFiles={onPasteOrDropFiles}
+                onSelectGif={isGifPickerEnabled ? onSelectGif : undefined}
             />
             <ContentEditorFileToolbarController
                 state={unwrappedState}
@@ -5081,6 +5216,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                         setIsMobileCommentInputOpen(true);
                     }}
+                    onOpenGifPicker={isGifPickerEnabled ? openGifPicker : undefined}
                 />
             )}
             {mobileLinkModalState && (

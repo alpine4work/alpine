@@ -59,6 +59,7 @@ export function ContentEditorMobileKeyboardToolbar({
     openCommentThread,
     onLinkModalOpen,
     onCommentInputOpen,
+    onOpenGifPicker,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<
@@ -71,6 +72,7 @@ export function ContentEditorMobileKeyboardToolbar({
     openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
     onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     onCommentInputOpen: (setSelection?: TextSelection | null) => void;
+    onOpenGifPicker?: () => void;
 }) {
     const {schema} = state;
 
@@ -432,6 +434,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
                     }}
                     onLinkModalOpen={onLinkModalOpen}
+                    onOpenGifPicker={onOpenGifPicker}
                 />
             )}
         </>

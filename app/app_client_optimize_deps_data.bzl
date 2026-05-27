@@ -18,6 +18,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "@dnd-kit/core",
     "@dnd-kit/sortable",
     "@fig/lezer-bash",
+    "@giphy/js-fetch-api",
     "@internationalized/date",
     "@lezer/common",
     "@lezer/cpp",

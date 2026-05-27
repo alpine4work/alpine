@@ -223,6 +223,10 @@ export function PostCreator({
         ),
     });
 
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
         // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
         //   render.
@@ -413,6 +417,7 @@ export function PostCreator({
                             // paragraph and move selection there if the last item is not already a paragraph
                             // (e.g. a divider or table or something).
                             withMouseDownAtEndCreatesParagraph={true}
+                            onSelectGif={onSelectGif}
                         />
                     </Box>
                 </OverlayScopeContextProvider>

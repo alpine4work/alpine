@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
-import {getGlobalContext, useGlobalContext} from "~/client/web/helpers/global_context.js";
+import {useGlobalContext} from "~/client/web/helpers/global_context.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {
     SwrCacheContext,
@@ -13,7 +12,6 @@ import {
 } from "~/client/web/rpc/internal/swr_cache.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
 /**
@@ -41,6 +39,8 @@ import {undefinedStore} from "~/shared/store/const_store.js";
  * If `isLoading` is true that means we have no cached `data` and we're loading
  * more in the background. If we have `data` but `isValidating` is true then that
  * means we're presenting stale data to the user while fetching new data.
+ *
+ * TODO: Move into a dedicated `swr` package.
  *
  * [1]: https://swr.vercel.app
  * [2]: https://datatracker.ietf.org/doc/html/rfc5861
@@ -189,107 +189,4 @@ export function useSwr(
 
         return entryResult;
     }, [entryResult, initialData]);
-}
-
-let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
-
-/**
- * Preload data into our SWR cache with idle priority. Useful if you have some UI
- * that uses `useSwr()` to render data and you want the data to be immediately
- * available when the user navigates to that UI.
- */
-export function useIdlyPreloadSwr(
-    key: string | null,
-    fetcher: (key: string) => PromiseLike<object>,
-    {
-        dedupingInterval = swrDefaultDedupingIntervalMs,
-    }: {
-        /**
-         * When we make a request for a given `key`, how long should we consider the
-         * request "fresh". Any other component that wants data for the key will reuse the
-         * existing pending request instead of sending a new one.
-         */
-        dedupingInterval?: number;
-    } = {},
-) {
-    const cache = useGlobalContext(SwrCacheContext);
-
-    const retainedKeyRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (key === null) return;
-
-        retainedKeyRef.current = key;
-        cache.retainEntry(key);
-        return () => {
-            retainedKeyRef.current = null;
-            cache.releaseEntry(key);
-        };
-    }, [cache, key]);
-
-    // When `key` changes, preload it once.
-    const hasPreloadedKeyRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (hasPreloadedKeyRef.current === key) return;
-        hasPreloadedKeyRef.current = key;
-
-        if (key === null) return;
-
-        if (scheduledIdlePreloadRpcCallbacks === null) {
-            scheduledIdlePreloadRpcCallbacks = [];
-
-            // Use the React scheduler to schedule an idle callback. `requestIdleCallback()` is
-            // not implemented in Safari. Generally we recommend using the React scheduler
-            // since it has centralized knowledge of all our tasks (including UI rendering).
-            unstable_scheduleCallback(unstable_IdlePriority, () => {
-                assert(scheduledIdlePreloadRpcCallbacks !== null);
-
-                const callbacks = scheduledIdlePreloadRpcCallbacks;
-                scheduledIdlePreloadRpcCallbacks = null;
-
-                for (const callback of callbacks) {
-                    callback();
-                }
-            });
-        }
-
-        assert(retainedKeyRef.current === key);
-
-        scheduledIdlePreloadRpcCallbacks.push(() => {
-            // Make sure `key` is still retained. If `key` changes or the component unmounts
-            // after we scheduled the idle callback then we need to not run our idle callback.
-            if (retainedKeyRef.current === key) {
-                cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
-            }
-        });
-    }, [cache, dedupingInterval, fetcher, key]);
-}
-
-/**
- * Preload the provided key in the SWR cache.
- *
- * The preloaded entry will be retained for ~20 seconds before being deleted if a
- * `useIdlyPreloadSwr()` or `useSwr()` hook for the same key isn't mounted.
- */
-export function preloadSwr(
-    key: string,
-    fetcher: (key: string) => PromiseLike<object>,
-    {
-        dedupingInterval = swrDefaultDedupingIntervalMs,
-    }: {
-        /**
-         * When we make a request for a given `key`, how long should we consider the
-         * request "fresh". Any other component that wants data for the key will reuse the
-         * existing pending request instead of sending a new one.
-         */
-        dedupingInterval?: number;
-    } = {},
-) {
-    const cache = getGlobalContext(SwrCacheContext);
-
-    cache.retainEntry(key);
-
-    cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
-
-    // The entry will be deleted in ~20 seconds if not used.
-    cache.releaseEntry(key);
 }
