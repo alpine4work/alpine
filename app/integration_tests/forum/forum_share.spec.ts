@@ -373,6 +373,9 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
     async function tapSendComment(page: Page) {
         await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
 
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page.getByLabel("New comment").blur();
+
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page
             .getByRole("button", {name: "Send comment"})

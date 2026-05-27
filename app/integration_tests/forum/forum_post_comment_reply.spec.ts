@@ -17,6 +17,9 @@ const session2 = createTestSession(context, space);
 async function tapSendComment(page: Page) {
     await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
 
+    // Blur the comment input so the on-screen keyboard dismisses before we tap.
+    await page.getByRole("textbox", {name: "New comment"}).blur();
+
     // Make sure the keyboard toolbar isn't animating when we tap.
     await (await page
         .getByRole("button", {name: "Send comment"})

@@ -22,6 +22,9 @@ const {context, services} = createTestServices();
 async function tapNewMessage(page: Page) {
     await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
 
+    // Blur the message input so the on-screen keyboard dismisses before we tap.
+    await page.getByLabel("New message").blur();
+
     // Make sure the keyboard toolbar isn't animating when we tap.
     await (await page
         .getByRole("button", {name: "Send message"})

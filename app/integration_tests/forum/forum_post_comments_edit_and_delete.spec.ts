@@ -93,6 +93,9 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     } else {
         await expect(page.getByRole("button", {name: "Save"})).toBeEnabled();
 
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page.getByRole("textbox", {name: "Comment", exact: true}).blur();
+
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page.getByRole("button", {name: "Save"}).elementHandle())!.waitForElementState(
             "stable",
@@ -241,6 +244,9 @@ test("can see a post comment edited in realtime", async ({
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
         await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).blur();
 
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page2
@@ -480,6 +486,9 @@ test("will backfill an edit in realtime when comments are reopened", async ({
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
         await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Blur the comment input so the on-screen keyboard dismisses before we tap.
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).blur();
 
         // Make sure the keyboard toolbar isn't animating when we tap.
         await (await page2

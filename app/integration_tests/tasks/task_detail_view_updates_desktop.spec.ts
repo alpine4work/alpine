@@ -59,7 +59,7 @@ test("can update title", async ({page, context: browserContext}) => {
 
     await page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}).blur();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -69,7 +69,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -79,7 +79,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -89,7 +89,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -99,7 +99,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -121,7 +121,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -255,7 +255,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Test1"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Test2"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -265,7 +265,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -275,7 +275,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -285,7 +285,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -295,7 +295,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -305,7 +305,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -315,7 +315,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -409,7 +409,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Low"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Medium"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -419,7 +419,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Medium");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -429,7 +429,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Low");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -439,7 +439,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -449,7 +449,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -459,7 +459,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Low");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -469,7 +469,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Medium");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -540,7 +540,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("mm/dd/yyyy");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -550,7 +550,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/2000");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -560,7 +560,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1999");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -570,7 +570,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1998");
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -580,7 +580,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1999");
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -590,7 +590,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/2000");
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -694,7 +694,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByRole("img", {name: "Closed", exact: true})).toBeVisible();
     await expect(
@@ -705,7 +705,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByRole("img", {name: "Open", exact: true})).toBeVisible();
     await expect(
@@ -716,7 +716,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByRole("img", {name: "Open (active)", exact: true})).toBeVisible();
     await expect(
@@ -727,7 +727,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByRole("img", {name: "Open", exact: true})).toBeVisible();
     await expect(
@@ -738,7 +738,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(page.getByRole("img", {name: "Open (active)", exact: true})).toBeVisible();
     await expect(
@@ -760,7 +760,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(page.getByRole("img", {name: "Closed", exact: true})).toBeVisible();
     await expect(
@@ -864,39 +864,39 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test3Add");
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("Control+Shift+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test3Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test2test3Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test2Add");
 
-    await page.keyboard.press("ControlOrMeta+z");
+    await page.keyboard.press("Control+z");
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 });

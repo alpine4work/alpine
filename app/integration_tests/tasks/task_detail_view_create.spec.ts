@@ -57,12 +57,12 @@ test("can create task by clicking the status button", async ({
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(statusLocator.getByRole("img", {name: "Open"})).toBeVisible();
     await expect(statusLocator.getByRole("img", {name: "Closed"})).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(statusLocator.getByRole("img", {name: "Closed"})).toBeVisible();
     await expect(statusLocator.getByRole("img", {name: "Open"})).toBeHidden();
@@ -126,11 +126,11 @@ test("can create task by typing in the task title", async ({
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(titleLocator).not.toHaveText("foobar");
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(titleLocator).toHaveText("foobar");
 
@@ -191,11 +191,11 @@ test("can create task by changing assignee", async ({page, context: browserConte
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(assigneeLocator).toContainText("foo");
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(assigneeLocator).toContainText("bar");
 
@@ -257,11 +257,11 @@ test("can create task by adding collection", async ({page, context: browserConte
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(collectionLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(collectionLocator).toBeVisible();
 
@@ -341,11 +341,11 @@ test("can create task by adding priority", async ({page, context: browserContext
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(priorityLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(priorityLocator).toBeVisible();
 
@@ -413,12 +413,12 @@ test("can create task by adding due date", async ({page, context: browserContext
 
     await expect(dueDateLocator).toBeVisible();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
     await page.keyboard.press("Escape");
 
     await expect(dueDateLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
     await page.keyboard.press("Escape");
 
     await expect(dueDateLocator).toBeVisible();
@@ -482,11 +482,11 @@ test("can create task by updating notes", async ({isMobile, page, context: brows
 
     await expect(notesLocator).toBeVisible();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expect(notesLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expect(notesLocator).toBeVisible();
 
@@ -560,11 +560,11 @@ test("can create task by typing subtask title", async ({
 
     await expectTaskGridView(page, [[true, "foobar"]], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expectTaskGridView(page, [], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expectTaskGridView(page, [[true, "foobar"]], {withoutColumns: true});
 
@@ -632,11 +632,11 @@ test("can create task by hitting enter in ghost subtask", async ({
 
     await expectTaskGridView(page, [[true, ""]], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+z`);
 
     await expectTaskGridView(page, [], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(`${isMobile ? "Meta" : "Control"}+Shift+z`);
 
     await expectTaskGridView(page, [[true, ""]], {withoutColumns: true});
 
