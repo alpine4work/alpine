@@ -272,7 +272,7 @@ export async function putFileMultipartUploadPart(
 
         // Throws an error if the file doesn't exist or the session actor doesn't have
         // access to the file.
-        const {file} = await getFileWithoutSignedUrlAsUploader(context, {spaceId, fileId});
+        const {file} = await getFileWithoutSignedUrlAsUploader(context, {fileId});
         if (!file.initialData.isUploading)
             throw new FailedPreconditionError("File has finished uploading");
 
@@ -400,7 +400,6 @@ export async function completeFileMultipartUpload(
         // Throws an error if the file doesn't exist or the session actor doesn't have
         // access to the file.
         const {file: uploadingFile} = await getFileWithoutSignedUrlAsUploader(context, {
-            spaceId,
             fileId,
         });
         if (!uploadingFile.initialData.isUploading)

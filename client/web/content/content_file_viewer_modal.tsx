@@ -65,11 +65,9 @@ export function ContentFileViewerModal({
 
         (attachmentTarget === "Uploader"
             ? getFileAsUploader(context, {
-                  spaceId: space.id,
                   fileId,
               })
             : getFileFromAttachment(context, {
-                  spaceId: space.id,
                   fileId,
                   target: attachmentTarget,
               })

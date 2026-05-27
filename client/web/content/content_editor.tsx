@@ -2243,7 +2243,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // load the file (since it's not in our references).
                             else if (isDeepEqual(fromTarget, toTarget)) {
                                 return await getFileFromAttachment(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
                                 });
@@ -2251,13 +2250,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // Otherwise, let's attach the file to its new attachment target.
                             else if (fromTarget === "Uploader") {
                                 return await attachFileAsUploader(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     target: toTarget,
                                 });
                             } else {
                                 return await attachFileFromAttachment(context, {
-                                    spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,
                                     fromTarget,
                                     toTarget,

@@ -150,7 +150,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount, space} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
     const fileRegistry = useFileRegistry();
 
@@ -377,7 +377,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
                                     if (inputFile.attachmentTarget === "Uploader") {
                                         await attachFileAsUploader(context, {
-                                            spaceId: space.id,
                                             fileId: inputFile.file.id,
                                             target: actualFileAttachmentTarget,
                                         });
@@ -388,7 +387,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                         )
                                     ) {
                                         await attachFileFromAttachment(context, {
-                                            spaceId: space.id,
                                             fileId: inputFile.file.id,
                                             fromTarget: inputFile.attachmentTarget,
                                             toTarget: actualFileAttachmentTarget,

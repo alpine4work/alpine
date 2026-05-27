@@ -43,8 +43,6 @@ export const getFileAsUploader = defineRpc({
     name: "getFileAsUploader",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -57,8 +55,6 @@ export const getFileFromAttachment = defineRpc({
     name: "getFileFromAttachment",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -72,8 +68,6 @@ export const getFileWithoutSignedUrlAsUploader = defineRpc({
     name: "getFileWithoutSignedUrlAsUploader",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -85,8 +79,6 @@ export const getFileWithoutSignedUrlFromAttachment = defineRpc({
     name: "getFileWithoutSignedUrlFromAttachment",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -99,8 +91,6 @@ export const getFileSignedUrlAsUploader = defineRpc({
     name: "getFileSignedUrlAsUploader",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -112,8 +102,6 @@ export const getFileSignedUrlFromAttachment = defineRpc({
     name: "getFileSignedUrlFromAttachment",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -126,8 +114,6 @@ export const attachFileAsUploader = defineRpc({
     name: "attachFileAsUploader",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -141,8 +127,6 @@ export const attachFileFromAttachment = defineRpc({
     name: "attachFileFromAttachment",
     isIdempotent: true,
     input: {
-        // TODO: Delete `spaceId` once old clients have updated.
-        spaceId: Schema.id<SpaceId>().optional(),
         fileId: Schema.id<FileId>(),
         fromTarget: FileAttachmentTargetSchema,
         toTarget: FileAttachmentTargetSchema,

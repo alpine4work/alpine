@@ -427,11 +427,9 @@ export class FileRegistry {
 
                     (attachmentTarget === "Uploader"
                         ? getFileSignedUrlAsUploader(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                           })
                         : getFileSignedUrlFromAttachment(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                               target: attachmentTarget,
                           })
@@ -514,11 +512,9 @@ export class FileRegistry {
 
                     (attachmentTarget === "Uploader"
                         ? getFileWithoutSignedUrlAsUploader(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                           })
                         : getFileWithoutSignedUrlFromAttachment(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                               target: attachmentTarget,
                           })
