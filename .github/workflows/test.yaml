@@ -7,13 +7,18 @@ on:
 
 jobs:
     unit-tests:
-        name: Unit tests
+        name: Unit tests (${{ matrix.bucket }}/2)
         runs-on: [self-hosted, aws-test]
+        strategy:
+            matrix:
+                bucket:
+                    - 1
+                    - 2
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Check for “[SKIP CI]”
+            - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
 
@@ -24,9 +29,23 @@ jobs:
             # easily cacheable. Running these tests first gives the developer fast feedback
             # and leads to a lower total cost for CI since we can stop executing tests early
             # on failures.
+            #
+            # We split unit tests into deterministic buckets to run in parallel across
+            # multiple runners. Each target label is hashed and assigned to a bucket.
             - name: Unit tests
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-integration_test,-screenshot_test,-macos --nofetch
+                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} 2 \
+                      'tests(//...) except attr(tags, "integration_test|screenshot_test|macos", tests(//...))')
+                  if [ -z "$targets" ]; then
+                      echo "Error: no test targets in bucket ${{ matrix.bucket }}" >&2
+                      exit 1
+                  fi
+                  target_count=$(echo "$targets" | wc -l | tr -d ' ')
+                  echo "Running $target_count test targets in bucket ${{ matrix.bucket }}."
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                      --config=github-runner \
+                      --nofetch \
+                      $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -39,7 +58,7 @@ jobs:
               name: Upload Bazel test logs
               uses: actions/upload-artifact@v4
               with:
-                  name: bazel_unit_testlogs
+                  name: bazel_unit_${{ matrix.bucket }}_testlogs
                   path: bazel-testlogs
                   retention-days: 7
 
@@ -56,7 +75,7 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Check for “[SKIP CI]”
+            - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
 
@@ -72,13 +91,20 @@ jobs:
             # developers.
             - name: Integration tests
               run: |
+                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} 3 \
+                      'attr(tags, "integration_test", tests(//...)) except attr(tags, "macos", tests(//...))')
+                  if [ -z "$targets" ]; then
+                      echo "Error: no integration test targets in bucket ${{ matrix.bucket }}" >&2
+                      exit 1
+                  fi
+                  target_count=$(echo "$targets" | wc -l | tr -d ' ')
+                  echo "Running $target_count integration test targets in bucket ${{ matrix.bucket }}."
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
-                      //... \
                       --config=github-runner \
-                      --test_tag_filters=integration_test_bucket_${{ matrix.bucket }},-macos \
                       --nofetch \
                       --nokeep_going \
-                      --notest_keep_going
+                      --notest_keep_going \
+                      $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -102,7 +128,7 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Check for “[SKIP CI]”
+            - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
 

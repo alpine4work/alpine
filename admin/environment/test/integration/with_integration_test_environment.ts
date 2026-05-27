@@ -36,7 +36,7 @@ import {
 } from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -160,6 +160,7 @@ export async function withIntegrationTestEnvironment<Value>(
             afterEach: callback => afterEachCallbacks.push(callback),
             beforeAll: callback => beforeAllCallbacks.push(callback),
             afterAll: callback => afterAllCallbacks.push(callback),
+            setTimeout: () => {},
         },
         options,
     );
@@ -221,6 +222,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         afterEach: (action: () => MaybePromise<void>) => void;
         beforeAll: (action: () => MaybePromise<void>) => void;
         afterAll: (action: () => MaybePromise<void>) => void;
+        setTimeout: (timeout: number) => void;
     },
     {
         undeclaredOutputsDirectoryPath,
@@ -400,7 +402,24 @@ export function actuallyCreateIntegrationTestEnvironment(
         inviteUrls = [];
     });
 
+    function waitForServiceHttpServer(
+        port: number,
+        serviceName: string,
+        subprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream>,
+    ) {
+        return Promise.race([
+            waitForHttpServer(port),
+            waitForProcessExit(subprocess).then(() => {
+                throw new UnknownError(`${serviceName} exited before its HTTP server was ready`);
+            }),
+        ]);
+    }
+
     testHooks.beforeAll(async () => {
+        // Give services more time to start since they compete for CPU and memory while
+        // booting in parallel.
+        testHooks.setTimeout(60 * 1000);
+
         debug("Starting services");
 
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
@@ -884,29 +903,45 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
 
         await runAllPromises([
-            waitForHttpServer(appServicePort).then(() => {
-                debug("`AppService` is ready");
-            }),
-            waitForHttpServer(taskRealtimeServicePort).then(() => {
+            waitForServiceHttpServer(appServicePort, "AppService", appServiceSubprocess).then(
+                () => {
+                    debug("`AppService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(
+                taskRealtimeServicePort,
+                "TaskRealtimeService",
+                taskRealtimeServiceSubprocess,
+            ).then(() => {
                 debug("`TaskRealtimeService` is ready");
             }),
-            waitForHttpServer(fileProcessorServicePort).then(() => {
+            waitForServiceHttpServer(
+                fileProcessorServicePort,
+                "FileProcessorService",
+                fileProcessorServiceSubprocess,
+            ).then(() => {
                 debug("`FileProcessorService` is ready");
             }),
-            waitForHttpServer(apiServicePort).then(() => {
-                debug("`ApiService` is ready");
-            }),
-            waitForHttpServer(agentServicePort).then(() => {
-                debug("`AgentService` is ready");
-            }),
+            waitForServiceHttpServer(apiServicePort, "ApiService", apiServiceSubprocess).then(
+                () => {
+                    debug("`ApiService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(agentServicePort, "AgentService", agentServiceSubprocess).then(
+                () => {
+                    debug("`AgentService` is ready");
+                },
+            ),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service proxies
         // our app service.
-        await waitForHttpServer(edgeServicePort).then(() => {
-            debug("`EdgeService` is ready");
-        });
+        await waitForServiceHttpServer(edgeServicePort, "EdgeService", edgeServiceSubprocess).then(
+            () => {
+                debug("`EdgeService` is ready");
+            },
+        );
     });
 
     const signIn = async (

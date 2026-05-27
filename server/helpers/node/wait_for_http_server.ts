@@ -31,7 +31,7 @@ export function waitForHttpServer(port: number, path: string = "/") {
     // [1]: https://github.com/nodejs/node/issues/50479
     return new Promise<void>((resolve, reject) => {
         const startTime = Date.now();
-        const timeout = 30 * 1000;
+        const timeout = 60 * 1000;
 
         // 1. Wait until the socket becomes available.
         const loop1 = (lastResult: Result<void>) => {
