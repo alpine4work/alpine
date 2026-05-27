@@ -20,6 +20,7 @@ export type AgentWebDocumentPage = {
 };
 
 export type AgentWebDocumentPageMetadata = {
+    readonly type: "Document";
     readonly id: DocumentId;
     readonly version: number;
 };
@@ -31,19 +32,28 @@ export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
 export async function readAgentWebDocumentPage(
     context: AgentWebContextWithoutStorage,
     id: DocumentId,
-): Promise<AgentWebDocumentPageWithMetadata> {
+    {printPage}: {printPage: (page: AgentWebDocumentPageWithMetadata) => Promise<string>},
+): Promise<{response: string; metadata: AgentWebDocumentPageMetadata}> {
     const {
         data: {document},
     } = await context.api.get(context.span, "/documents/{id}", {params: {path: {id}}});
 
-    return {
+    const page: AgentWebDocumentPageWithMetadata = {
         type: "Document",
         title: document.title,
         content: document.content,
         metadata: {
+            type: "Document",
             id,
             version: document.version,
         },
+    };
+
+    const response = await printPage(page);
+
+    return {
+        response,
+        metadata: page.metadata,
     };
 }
 
@@ -51,7 +61,7 @@ export async function createAgentWebDocumentPage(
     context: AgentWebContextWithoutStorage,
     spaceId: SpaceId,
     newPage: AgentWebDocumentPage,
-): Promise<AgentWebDocumentPageMetadata & {type: "Document"}> {
+): Promise<AgentWebDocumentPageMetadata> {
     const {
         data: {document},
     } = await context.api.post(context.span, "/documents", {
@@ -75,7 +85,7 @@ export async function updateAgentWebDocumentPage(
     context: AgentWebContextWithoutStorage,
     {id, version: oldVersion}: AgentWebDocumentPageMetadata,
     newPage: AgentWebDocumentPage,
-): Promise<AgentWebDocumentPageMetadata & {type: "Document"}> {
+): Promise<AgentWebDocumentPageMetadata> {
     const {
         data: {document},
     } = await context.api.patch(context.span, "/documents/{id}", {

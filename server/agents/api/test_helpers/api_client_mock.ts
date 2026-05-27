@@ -1,3 +1,4 @@
+import jsonStableStringify from "json-stable-stringify";
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
@@ -13,6 +14,7 @@ import {
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -102,6 +104,7 @@ export class ApiClientMock implements ApiClient {
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["get"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
         params?: any,
     ) {
         this.addMock("GET", path, response, params);
@@ -113,6 +116,7 @@ export class ApiClientMock implements ApiClient {
     mockPut<Path extends PathsWithMethod<ApiSpecification.paths, "put">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["put"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
         params?: any,
     ) {
         this.addMock("PUT", path, response, params);
@@ -124,6 +128,7 @@ export class ApiClientMock implements ApiClient {
     mockPost<Path extends PathsWithMethod<ApiSpecification.paths, "post">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["post"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
         params?: any,
     ) {
         this.addMock("POST", path, response, params);
@@ -135,6 +140,7 @@ export class ApiClientMock implements ApiClient {
     mockDelete<Path extends PathsWithMethod<ApiSpecification.paths, "delete">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["delete"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
         params?: any,
     ) {
         this.addMock("DELETE", path, response, params);
@@ -146,6 +152,7 @@ export class ApiClientMock implements ApiClient {
     mockPatch<Path extends PathsWithMethod<ApiSpecification.paths, "patch">>(
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["patch"]>>,
+        // NOCOMMIT: Can we do better than `any` here?
         params?: any,
     ) {
         this.addMock("PATCH", path, response, params);
@@ -160,7 +167,13 @@ export class ApiClientMock implements ApiClient {
         this.spyConfigs.push({method, path});
     }
 
-    private addMock(method: HttpMethod, path: string, response: MockResponseConfig, params?: any) {
+    private addMock(
+        method: HttpMethod,
+        path: string,
+        response: MockResponseConfig,
+        // NOCOMMIT: Can we do better than `any` here?
+        params?: any,
+    ) {
         const mockConfig = this.findMatchingMock(method, path, params);
         if (mockConfig) {
             mockConfig.responses.push(response);
@@ -273,8 +286,14 @@ export class ApiClientMock implements ApiClient {
             }
 
             // If matcher has params, they must match exactly
-            if (config.matcher.params !== undefined) {
-                return isDeepEqual(config.matcher.params, params);
+            //
+            // We use `jsonStableStringify()` instead of `isDeepEqual()` to use JSON deep
+            // equality semantics. For example ignoring `undefined` properties on objects.
+            if (
+                config.matcher.params !== undefined &&
+                jsonStableStringify(config.matcher.params) !== jsonStableStringify(params)
+            ) {
+                return false;
             }
 
             // No params specified in matcher, so any params are acceptable
@@ -349,18 +368,19 @@ export class ApiClientMock implements ApiClient {
         }).length;
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetChatMessagesList(
         spaceId: SpaceId,
         chatId: ChatId,
         responseData: {
             totalMessageCount?: number;
             nextCursor?: number | null;
-            messages?: Array<ApiMessageResponse>;
+            messages?: ReadonlyArray<ApiMessageResponse>;
         },
         // If you don't provide this, it'll match any page info in the order that you call
         // the mock.
         pageInfo?: {
-            from?: "start" | "end";
+            from?: "Start" | "End";
             // undefined means the query is starting at the begining of the list of comments
             cursor: number | undefined;
             limit: number;
@@ -392,6 +412,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -427,6 +448,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetDocumentThread(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -454,6 +476,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetDocumentCommentsList(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -496,6 +519,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
@@ -527,6 +551,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetPostCommentsList(
         spaceId: SpaceId,
         postId: PostId,
@@ -570,6 +595,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetTask(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -603,6 +629,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetTaskCommentsList(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -644,6 +671,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetTaskCollection(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
@@ -664,6 +692,7 @@ export class ApiClientMock implements ApiClient {
         );
     }
 
+    // NOCOMMIT: This is low quality, can we inline?
     mockGetTaskCollectionTasks(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,

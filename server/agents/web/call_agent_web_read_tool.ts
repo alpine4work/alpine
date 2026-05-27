@@ -8,8 +8,8 @@ import {
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {
+    AgentWebPageMetadata,
     AgentWebPageWithMetadata,
-    intoAgentWebPageMetadata,
 } from "~/server/agents/web/agent_web_page.js";
 import {
     AgentWebPageLinkKeyObject,
@@ -67,65 +67,45 @@ export async function callAgentWebReadTool(
 
         const pageLinkKey = printAgentWebPageLinkKey(pageLink);
 
-        let cachedPrintedPagePromise: Promise<{
-            page: AgentWebPageWithMetadata;
-            response: string;
-        }> | null = null;
+        const latestPageLinkPathnameForKeyPromise = (async () => {
+            const latestPageLinkPathnameForKey =
+                await context.storage.latestPageLinkPathnameByKey.get(pageLinkKey);
 
-        // Allow an agent web page reader to get the UTF-16 code unit length of a `page` it
-        // generates. This is intended to be used for pagination so the reader can make
-        // sure its page comes in under the requested limit.
-        //
-        // We cache the printed string so if the reader returns the exact page then we
-        // don't have to print it again.
-        const computeLength = (page: AgentWebPageWithMetadata) => {
-            const previousCachedPrintedPagePromise = cachedPrintedPagePromise;
+            // Allow the agent to observe when a path change occurs. We frame this as a
+            // "redirect", like an HTTP redirect. Otherwise it may mistakingly think different
+            // links that point to the same content are actually different links. This error
+            // allows the agent to correct its view of the world.
+            //
+            // `latestPageLinkPathnameForKey` may be undefined in certain race conditions
+            // because it's written after we write to `pageLinkByPathname`.
+            if (
+                latestPageLinkPathnameForKey !== undefined &&
+                latestPageLinkPathnameForKey !== pathname
+            ) {
+                throw new FailedPreconditionError("Link was redirected", {
+                    displayMessage: errorDisplayMessage`This path was redirected to \`${latestPageLinkPathnameForKey}\`. Try calling the \`read\` tool again with the new path.`,
+                });
+            }
+        })();
 
-            cachedPrintedPagePromise = (async () => {
-                const previousCachedPrintedPage = await previousCachedPrintedPagePromise;
-                if (previousCachedPrintedPage?.page === page) return previousCachedPrintedPage;
+        const [, {response, metadata: pageMetadata}] = await runAllPromises([
+            latestPageLinkPathnameForKeyPromise,
+            readAgentWebPageLink(context, pageLink, {
+                searchParams,
+                limitLength,
+                printPage: async page => {
+                    // Before we print and mutate storage, wait to see if this path was redirected
+                    // (this promise throws if the path was redirected).
+                    await latestPageLinkPathnameForKeyPromise;
 
-                const response = await printAgentWebPageToMarkdownForReadTool(
-                    context.storage,
-                    page,
-                );
-                return {page, response};
-            })();
-
-            return cachedPrintedPagePromise.then(({response}) => response.length);
-        };
-
-        const [latestPageLinkPathnameForKey, page] = await runAllPromises([
-            context.storage.latestPageLinkPathnameByKey.get(pageLinkKey),
-            readAgentWebPageLink(context, pageLink, {searchParams, limitLength, computeLength}),
+                    const response = await printAgentWebPageToMarkdownForReadTool(
+                        context.storage,
+                        page,
+                    );
+                    return response;
+                },
+            }),
         ]);
-
-        // Allow the agent to observe when a path change occurs. We frame this as a
-        // "redirect", like an HTTP redirect. Otherwise it may mistakingly think different
-        // links that point to the same content are actually different links. This error
-        // allows the agent to correct its view of the world.
-        //
-        // `latestPageLinkPathnameForKey` may be undefined in certain race conditions
-        // because it's written after we write to `pageLinkByPathname`.
-        if (
-            latestPageLinkPathnameForKey !== undefined &&
-            latestPageLinkPathnameForKey !== pathname
-        ) {
-            throw new FailedPreconditionError("Link was redirected", {
-                displayMessage: errorDisplayMessage`This path was redirected to \`${latestPageLinkPathnameForKey}\`. Try calling the \`read\` tool again with the new path.`,
-            });
-        }
-
-        // TypeScript is so so dumb in this case. `countBytes()` assigns this variable
-        // which is called by `readAgentWebPageLink()`.
-        cachedPrintedPagePromise = cachedPrintedPagePromise as any;
-
-        const cachedPrintedPage = await cachedPrintedPagePromise;
-
-        const response =
-            cachedPrintedPage?.page === page
-                ? cachedPrintedPage.response
-                : await printAgentWebPageToMarkdownForReadTool(context.storage, page);
 
         // Find all the newline indexes in our response. So the `scroll` tool can easily
         // return a slice of the response.
@@ -143,7 +123,7 @@ export async function callAgentWebReadTool(
 
         await context.storage.readResponseByPath.put(path, {
             expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
-            pageMetadata: intoAgentWebPageMetadata(page),
+            pageMetadata,
             response,
             newlineIndexes,
         });
@@ -229,12 +209,12 @@ function readAgentWebPageLink(
     options: {
         searchParams: URLSearchParams;
         limitLength: number;
-        computeLength: (page: AgentWebPageWithMetadata) => Promise<number>;
+        printPage: (page: AgentWebPageWithMetadata) => Promise<string>;
     },
-): Promise<AgentWebPageWithMetadata> {
+): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
         case "Document": {
-            return readAgentWebDocumentPage(context, pageLink.id);
+            return readAgentWebDocumentPage(context, pageLink.id, options);
         }
         case "Chat": {
             return readAgentWebChatPage(context, pageLink.id, options);

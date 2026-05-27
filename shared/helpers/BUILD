@@ -44,6 +44,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         ":helpers_core",
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@types/escape-html",
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@types/jest",

@@ -1,15 +1,15 @@
 import fc, {Arbitrary} from "fast-check";
 import {
-    AgentWebMessagingPageBase,
-    AgentWebMessagingPageBasePreamblePagination,
+    AgentWebMessagingPage,
+    AgentWebMessagingPagePreamblePagination,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPageTimeBlock,
     agentWebMessagingPageMessageNouns,
-    normalizeAgentWebMessagingPageBase,
-    parseAgentWebMessagingPageBase,
-    printAgentWebMessagingPageBase,
-} from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
+import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
+import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountTargetArbitrary,
@@ -68,7 +68,7 @@ const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagi
     Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
 });
 
-const AgentWebMessagingPageBasePreamblePaginationArbitrary: Arbitrary<AgentWebMessagingPageBasePreamblePagination> =
+const AgentWebMessagingPagePreamblePaginationArbitrary: Arbitrary<AgentWebMessagingPagePreamblePagination> =
     fc.oneof(
         fc.record({
             target: ApiMentionTargetArbitrary,
@@ -87,12 +87,12 @@ const AgentWebMessagingPageBasePreamblePaginationArbitrary: Arbitrary<AgentWebMe
         }),
     );
 
-const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> = fc.record({
+const AgentWebMessagingPageArbitrary: Arbitrary<AgentWebMessagingPage> = fc.record({
     preamble: fc.record({
         elements: fc.array(ApiContentInlineElementWithoutCommentMarkArbitrary, {maxLength: 4}),
         pagination: fc.oneof(
             {weight: 10, arbitrary: fc.constant(null)},
-            {weight: 1, arbitrary: AgentWebMessagingPageBasePreamblePaginationArbitrary},
+            {weight: 1, arbitrary: AgentWebMessagingPagePreamblePaginationArbitrary},
         ),
     }),
     isEndOfMessages: fc.boolean(),
@@ -100,9 +100,9 @@ const AgentWebMessagingPageBaseArbitrary: Arbitrary<AgentWebMessagingPageBase> =
 });
 
 runAgentWebPageGenerativeTests({
-    print: printAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
-    parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
-    normalize: normalizeAgentWebMessagingPageBase,
+    print: printAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
+    parse: parseAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
+    normalize: normalizeAgentWebMessagingPage,
     pageLink: fc.constant(true),
-    page: AgentWebMessagingPageBaseArbitrary,
+    page: AgentWebMessagingPageArbitrary,
 });

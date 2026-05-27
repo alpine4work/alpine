@@ -2,23 +2,32 @@ import {Root} from "mdast";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
-    AgentWebMessagingPageBase,
+    AgentWebMessagingPage,
     agentWebMessagingPageMessageNouns,
-    normalizeAgentWebMessagingPageBase,
-    parseAgentWebMessagingPageBase,
-    printAgentWebMessagingPageBase,
-    readAgentWebMessagingPageBase,
-    readAgentWebMessagingPageBaseAroundMessage,
-    updateAgentWebMessagingPageBase,
-} from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
+    AgentWebMessagingPageMetadata,
+    AgentWebMessagingPageWithMetadata,
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
+import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
+import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
+import {
+    readAgentWebMessagingPage,
+    readAgentWebMessagingPageAroundMessage,
+} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
+import {truncateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
+import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import {
     ApiContentInlineElementResponse,
     ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
-export type AgentWebChatPage = AgentWebMessagingPageBase & {
+export type AgentWebChatPage = AgentWebMessagingPage & {
     readonly type: "Chat";
 };
 
@@ -26,9 +35,28 @@ export type AgentWebChatPageWithMetadata = AgentWebChatPage & {
     readonly metadata: AgentWebChatPageMetadata;
 };
 
-export type AgentWebChatPageMetadata = {
+export type AgentWebChatPageMetadata = AgentWebMessagingPageMetadata & {
+    readonly type: "Chat";
     readonly id: ChatId;
 };
+
+function buildAgentWebChatPage(
+    page: AgentWebMessagingPageWithMetadata,
+    id: ChatId,
+): AgentWebChatPageWithMetadata {
+    return {
+        ...page,
+        type: "Chat",
+        metadata: buildAgentWebChatPageMetadata(page.metadata, id),
+    };
+}
+
+function buildAgentWebChatPageMetadata(
+    metadata: AgentWebMessagingPageMetadata,
+    id: ChatId,
+): AgentWebChatPageMetadata {
+    return {...metadata, type: "Chat", id};
+}
 
 export async function readAgentWebChatPage(
     context: AgentWebContextWithoutStorage,
@@ -36,28 +64,23 @@ export async function readAgentWebChatPage(
     {
         searchParams,
         limitLength,
-        computeLength,
+        printPage,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
-        computeLength: (page: AgentWebChatPageWithMetadata) => Promise<number>;
+        printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
     },
-): Promise<AgentWebChatPageWithMetadata> {
-    const page = await readAgentWebMessagingPageBase<AgentWebChatPageWithMetadata>(
-        agentWebMessagingPageMessageNouns,
-        context,
-        {
-            room: {type: "Chat", id},
-            roomMetadataPromise: getChatRoomMetadata(context, id),
-            defaultDirection: "End",
-            searchParams,
-            limitLength,
-            computeLength,
-            buildPage: page => ({...page, type: "Chat", metadata: {id}}),
-        },
-    );
+): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
+    const page = await readAgentWebMessagingPage(agentWebMessagingPageMessageNouns, context, {
+        room: {type: "Chat", id},
+        roomMetadataPromise: getChatRoomMetadata(context, id),
+        defaultDirection: "End",
+        searchParams,
+        limitLength,
+        printPage: page => printPage(buildAgentWebChatPage(page, id)),
+    });
 
-    return page;
+    return {response: page.response, metadata: buildAgentWebChatPageMetadata(page.metadata, id)};
 }
 
 export async function readAgentWebChatMessagePage(
@@ -72,7 +95,7 @@ export async function readAgentWebChatMessagePage(
         computeLength: (page: AgentWebChatPageWithMetadata) => Promise<number>;
     },
 ): Promise<AgentWebChatPageWithMetadata> {
-    const page = await readAgentWebMessagingPageBaseAroundMessage<AgentWebChatPageWithMetadata>(
+    const page = await readAgentWebMessagingPageAroundMessage<AgentWebChatPageWithMetadata>(
         agentWebMessagingPageMessageNouns,
         context,
         {
@@ -81,7 +104,7 @@ export async function readAgentWebChatMessagePage(
             around: {startMessageIndex: index, endMessageIndex: index + 1},
             limitLength,
             computeLength,
-            buildPage: page => ({...page, type: "Chat", metadata: {id}}),
+            buildPage: page => buildAgentWebChatPage(page, id),
         },
     );
 
@@ -95,7 +118,7 @@ export async function updateAgentWebChatPage(
     oldPage: AgentWebChatPage,
     newPage: AgentWebChatPage,
 ): Promise<AgentWebChatPageMetadata & {type: "Chat"}> {
-    await updateAgentWebMessagingPageBase(agentWebMessagingPageMessageNouns, context, {
+    await updateAgentWebMessagingPage(agentWebMessagingPageMessageNouns, context, {
         pathname,
         room: {type: "Chat", id: oldPageMetadata.id},
         oldPage,
@@ -120,6 +143,33 @@ async function getChatRoomMetadata(
 
     switch (chat.type) {
         case "Direct": {
+            const mentions = chat.members.map((member): ApiContentInlineElementResponse => {
+                return {type: "Mention", target: intoApiAccountTarget(member.account)};
+            });
+
+            let mentionsPrettyConjunctionList: Array<ApiContentInlineElementResponse>;
+
+            assert(mentions.length > 0);
+
+            if (mentions.length === 1) {
+                mentionsPrettyConjunctionList = mentions;
+            } else if (mentions.length === 2) {
+                mentionsPrettyConjunctionList = [
+                    mentions[0]!,
+                    {type: "Text", text: " and "},
+                    mentions[1]!,
+                ];
+            } else {
+                mentionsPrettyConjunctionList = [
+                    ...interleaveArray(
+                        mentions.slice(0, -1),
+                        cast<ApiContentInlineElementResponse>({type: "Text", text: ", "}),
+                    ),
+                    {type: "Text", text: ", and "},
+                    mentions[mentions.length - 1]!,
+                ];
+            }
+
             return {
                 target: {type: "Chat", id, title: chat.title},
                 description: [{type: "Text", text: `in a chat with ${chat.title}`}],
@@ -137,7 +187,7 @@ async function getChatRoomMetadata(
 }
 
 export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: Page): Page {
-    return normalizeAgentWebMessagingPageBase(page);
+    return normalizeAgentWebMessagingPage(page);
 }
 
 export async function printAgentWebChatPage(
@@ -145,12 +195,7 @@ export async function printAgentWebChatPage(
     id: ChatId,
     page: AgentWebChatPage,
 ): Promise<Root> {
-    return await printAgentWebMessagingPageBase(
-        agentWebMessagingPageMessageNouns,
-        storage,
-        id,
-        page,
-    );
+    return await printAgentWebMessagingPage(agentWebMessagingPageMessageNouns, storage, id, page);
 }
 
 export async function parseAgentWebChatPage(
@@ -158,7 +203,7 @@ export async function parseAgentWebChatPage(
     id: ChatId | null,
     root: Root,
 ): Promise<AgentWebChatPage> {
-    const page = await parseAgentWebMessagingPageBase(
+    const page = await parseAgentWebMessagingPage(
         agentWebMessagingPageMessageNouns,
         storage,
         id,

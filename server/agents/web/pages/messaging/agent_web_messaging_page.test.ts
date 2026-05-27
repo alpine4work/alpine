@@ -1,10 +1,10 @@
 import {
-    AgentWebMessagingPageBase,
+    AgentWebMessagingPage,
     agentWebMessagingPageMessageNouns,
-    normalizeAgentWebMessagingPageBase,
-    parseAgentWebMessagingPageBase,
-    printAgentWebMessagingPageBase,
-} from "~/server/agents/web/pages/agent_web_messaging_page_base.js";
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
+import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
+import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {
     ApiAccountTargetResponse,
@@ -60,10 +60,10 @@ function text(
     return {type: "Text", text, marks};
 }
 
-runAgentWebPageTests<true, AgentWebMessagingPageBase>({
-    print: printAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
-    parse: parseAgentWebMessagingPageBase.bind(null, agentWebMessagingPageMessageNouns),
-    normalize: normalizeAgentWebMessagingPageBase,
+runAgentWebPageTests<true, AgentWebMessagingPage>({
+    print: printAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
+    parse: parseAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
+    normalize: normalizeAgentWebMessagingPage,
     tests: [
         {
             name: "simple message log",
