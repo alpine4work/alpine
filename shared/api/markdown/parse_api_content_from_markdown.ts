@@ -72,12 +72,6 @@ import {
 
 export type ApiContentMarkdownParserOptions = {
     readonly spaceId: SpaceId | null;
-    /**
-     * When true, image markdown (`![alt](url)`) is converted to text with a Link mark,
-     * allowing file processing to detect and handle them. When false (default), images
-     * are ignored.
-     */
-    readonly dangerouslyAllowImageContentType?: boolean;
 };
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
@@ -2770,16 +2764,11 @@ function* parseApiContentInlineElementFromMarkdown(
             break;
         }
         case "image": {
-            if (options.dangerouslyAllowImageContentType) {
-                // Convert images to links so they can be detected by file processing.
-                // `![alt](url)` becomes a text element with a Link mark. TODO(#public-api): This
-                // is not supported by the public api yet, just for imports.
-                const altText = content.alt || content.url;
-                const existingMarks = markStack.getMarks() ?? [];
-                const marks = [...existingMarks, {type: "Link" as const, url: content.url}];
-                yield {type: "Text", text: altText, marks};
-            }
-            // TODO(calebmer): Once we support images in `ApiContent` then we'll update this.
+            // Our content model doesn't support inline images, videos, or file embeds
+            // directly. Files are represented as block-level `File` elements identified by
+            // URL. When an image's URL matches our expected alpine.inc format, the
+            // paragraph-level handler in `parseApiContentBlockElementFromMarkdown` converts it
+            // to a `File` block element. All other images are dropped.
             break;
         }
         case "imageReference":

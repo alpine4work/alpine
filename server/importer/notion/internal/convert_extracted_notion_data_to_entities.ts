@@ -246,9 +246,14 @@ export async function convertExtractedNotionDataToEntities(
                     // ============================================================ \
                     // Parse markdown to API content \
                     // ============================================================ \
-                    const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {
+                    // Our markdown parser doesn't support inline images/videos/files directly. It only
+                    // recognizes files via URLs matching our alpine.inc format. Notion exports use
+                    // local relative paths (`![name](path.png)`) which the parser drops. Convert image
+                    // syntax to link syntax so the URLs are preserved as Text elements with Link
+                    // marks, allowing `convertParagraphToFileRowsIfNeeded` to resolve them as files.
+                    const markdownWithImagesAsLinks = preprocessedContent.replaceAll("![", "[");
+                    const rawApiContent = parseApiContentFromMarkdown(markdownWithImagesAsLinks, {
                         spaceId,
-                        dangerouslyAllowImageContentType: true,
                     });
 
                     // ============================================================ \
@@ -588,13 +593,13 @@ function preprocessNotionDatabaseProperties(
             if (propertyMatch) {
                 const propertyName = propertyMatch[1]!;
                 const valueStr = propertyMatch[2]!;
-                const imageLines = convertFilePathsToMarkdownImageLines(
+                const linkLines = convertFilePathsToMarkdownLinkLines(
                     valueStr,
                     currentDir,
                     filesToUpload,
                 );
-                if (imageLines.length > 0) {
-                    line = `${propertyName}:\n\n${imageLines.join("\n\n")}`;
+                if (linkLines.length > 0) {
+                    line = `${propertyName}:\n\n${linkLines.join("\n\n")}`;
                 }
             }
         }
@@ -616,17 +621,20 @@ function preprocessNotionDatabaseProperties(
 }
 
 /**
- * Convert file paths in a property value to markdown image lines.
+ * Convert file paths in a property value to markdown link lines. Uses link syntax
+ * (not image syntax) because our markdown parser doesn't support inline
+ * images/videos/files directly, it only recognizes files via URLs matching our
+ * alpine.inc format.
  *
  * Input: `../IMG_7190%201.jpg, ../video.mp4` Output:
- * [`![IMG_7190 1.jpg](../IMG_7190%201.jpg)`, `![video.mp4](../video.mp4)`]
+ * [`[IMG_7190 1.jpg](../IMG_7190%201.jpg)`, `[video.mp4](../video.mp4)`]
  *
- * Each file path is converted to its own markdown image line, so they become
+ * Each file path is converted to its own markdown link line, so they become
  * separate paragraphs that can be converted to FileRow elements. Only paths that
  * resolve to actual files in `filesToUpload` are converted. Returns an empty array
  * if no parts resolve to files.
  */
-function convertFilePathsToMarkdownImageLines(
+function convertFilePathsToMarkdownLinkLines(
     pathsStr: string,
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
@@ -644,8 +652,8 @@ function convertFilePathsToMarkdownImageLines(
             // Extract filename from path
             const fileName = decodeNotionImportRelativePathUrl(part.split("/").pop() ?? part);
 
-            // Convert to markdown image syntax: ![filename](path)
-            return `![${fileName}](${part})`;
+            // Convert to markdown link syntax: [filename](path)
+            return `[${fileName}](${part})`;
         })
         .filter((line): line is string => line !== null);
 }
@@ -1092,7 +1100,7 @@ function convertParagraphToFileRowsIfNeeded(
         if (inline.type === "Break" || inline.text.trim() === "") continue;
 
         // Paragraphs with plain text do not support fileRows (e.g. "Attachment:
-        // ![alt](path) will not get parse into a fileRow). Return early
+        // [alt](path)" will not get parsed into a fileRow). Return early
         if (!inline.marks || inline.marks.length === 0) return null;
 
         const linkMark = inline.marks.find(mark => mark.type === "Link");

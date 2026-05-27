@@ -70,7 +70,10 @@ TODO: add multi-part support to our in-memory Notion export framework and test i
   file is referenced in a document's body content (see
   [Inline vs Full-Page Databases](#inline-vs-full-page-databases)).
 - **Attached files**: Images, videos, audio, and other files referenced in markdown content via
-  `![name](path)` or `[name](path)` links.
+  `[name](path)` links. Notion exports use image syntax (`![name](path)`) but we convert these to
+  link syntax because our markdown parser doesn't support inline images/videos/files directly -- it
+  only recognizes files via URLs matching our alpine.inc format. Link syntax preserves the URL as a
+  Text element with a Link mark, which the conversion phase uses for file resolution.
 
 ### Document Markdown Structure
 
@@ -683,8 +686,10 @@ For each external image URL:
 4. The body is downloaded and if it exceeds 1 GB, it's discarded
 5. The image is saved to disk with a deterministic filename based on a hash of the URL (e.g.
    `_downloaded_a1b2c3d4e5f6g7h8.png`)
-6. The markdown on disk is rewritten to replace the URL with a local path using `![Image](path)`
-   syntax so the conversion phase treats it as a file attachment
+6. The markdown on disk is rewritten to replace the URL with a local path using `[Image](path)` link
+   syntax (not image syntax) because our markdown parser doesn't support inline images/videos/files
+   directly -- it only recognizes files via URLs matching our alpine.inc format. Link syntax
+   preserves the URL so the conversion phase can resolve it as a file attachment
 7. The downloaded file is added to `filesToUpload` with a deterministic file ID
 
 This allows external images to flow through the existing upload and conversion pipeline—they get
@@ -761,7 +766,8 @@ const doc = new ExportedNotionDocument("Project", `Here are the tasks:\n\n${db.t
 
 Represents an attached file (image, video, or audio). Reads real binary data from test fixtures to
 produce realistic exports. Use `file.toReference()` in document content to create a placeholder that
-resolves to the correct markdown link.
+resolves to a `[name](path)` link. We use link syntax (not image syntax) because our markdown parser
+doesn't support inline images/videos/files directly.
 
 ```typescript
 const img = new ExportedNotionFile("photo.png", "image");

@@ -95,9 +95,11 @@ export async function computeNotionImportExpectedStatistics({
         const markdown = strFromU8(content);
         const currentDir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 
-        const apiContent = parseApiContentFromMarkdown(markdown, {
+        // Our markdown parser doesn't support inline images/videos/files directly. It only
+        // recognizes files via URLs matching our alpine.inc format. Convert image syntax
+        // to link syntax so the URLs are preserved as Link marks for file path resolution.
+        const apiContent = parseApiContentFromMarkdown(markdown.replaceAll("![", "["), {
             spaceId: null,
-            dangerouslyAllowImageContentType: true,
         });
 
         visitApiContent(apiContent, {

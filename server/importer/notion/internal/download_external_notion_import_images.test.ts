@@ -96,7 +96,7 @@ test("downloads external image with [Image](url) pattern and rewrites markdown",
         joinPath(diskPathToUnzippedFiles, "doc abc123.md"),
         "utf-8",
     );
-    expect(rewrittenContent).toContain("![Image](");
+    expect(rewrittenContent).toContain("[Image](");
     expect(rewrittenContent).not.toContain("https://example.com/photo.png");
 });
 
@@ -344,6 +344,6 @@ test("same URL referenced from different directories writes to each directory", 
 
     // Both use the same filename (no directory prefix in the markdown reference)
     const fileName = rootPath;
-    expect(rootMd).toContain(`![Image](${encodeURIComponent(fileName)})`);
-    expect(subMd).toContain(`![Image](${encodeURIComponent(fileName)})`);
+    expect(rootMd).toContain(`[Image](${encodeURIComponent(fileName)})`);
+    expect(subMd).toContain(`[Image](${encodeURIComponent(fileName)})`);
 });

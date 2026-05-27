@@ -241,7 +241,7 @@ class ExportedNotionFile {
 
     /**
      * Returns a placeholder string that will be replaced with the actual file
-     * reference when the zip is generated. For images this becomes `![name](path)`.
+     * reference when the zip is generated. For files this becomes `[name](path)`.
      */
     toReference(): string {
         return `[${referencePlaceholderPrefix}${this._refId}]`;
@@ -384,7 +384,7 @@ function addItemToFiles(
         // content.
         for (const file of item.files) {
             const fileFilePath = childPath ? `${childPath}/${file.name}` : file.name;
-            referenceMap.set(file.toReference(), `![${file.name}](${encodePath(fileFilePath)})`);
+            referenceMap.set(file.toReference(), `[${file.name}](${encodePath(fileFilePath)})`);
             files[`${rootDir}/${fileFilePath}`] = file.data;
         }
 
