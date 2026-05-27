@@ -36,6 +36,9 @@ ts_playwright_tests(
         "//server/files/processor:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         "//server/files/processor:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         "//server/files/processor:test_fixtures/wikimedia_png_transparency_demonstration.png",
+        "//server/importer/notion:test_fixtures/audio.mp3",
+        "//server/importer/notion:test_fixtures/image.png",
+        "//server/importer/notion:test_fixtures/video.mp4",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",
@@ -57,6 +60,7 @@ ts_playwright_tests(
         "//server/feed",
         "//server/forum/test_helpers",
         "//server/helpers/node",
+        "//server/importer/notion/test_helpers",
         "//server/remix",
         "//server/sites/test_helpers",
         "//server/spaces/test_helpers",

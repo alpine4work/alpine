@@ -223,6 +223,11 @@ export function NotionImportItemCard({
             flexDirection="column"
             gap="5"
             userSelect="text"
+            data-testid={
+                process.env.NODE_ENV === "production"
+                    ? undefined
+                    : `NotionImportItemCard:${item.status.type}`
+            }
         >
             {/* Header row - always visible */}
             <Box
@@ -319,7 +324,16 @@ export function NotionImportItemCard({
             {importedTeamspaces.length > 0 && (
                 <Box display="flex" flexDirection="column" gap="2.5">
                     {importedTeamspaces.map(ts => (
-                        <Box key={ts.teamspaceId} fontSize="75" color="grey-80">
+                        <Box
+                            key={ts.teamspaceId}
+                            fontSize="75"
+                            color="grey-80"
+                            data-testid={
+                                process.env.NODE_ENV === "production"
+                                    ? undefined
+                                    : "NotionImportTeamspaceSummary"
+                            }
+                        >
                             <NotionImportTeamspaceSummary
                                 name={hideTeamspaceNames ? undefined : ts.teamspaceName}
                                 isPrivate={ts.option.type === "Private"}

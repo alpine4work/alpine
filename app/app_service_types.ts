@@ -47,6 +47,7 @@ export type AppServiceConstants = {
             readonly importerServiceSubnets?: string;
             readonly importerServiceSecurityGroups?: string;
             readonly importerServiceEbsVolumeRoleArn?: string;
+            readonly importerLocalUploadPathForTest?: string;
         };
 };
 

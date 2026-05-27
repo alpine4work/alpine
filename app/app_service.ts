@@ -478,8 +478,11 @@ async function createAppService({
         // process.waitUntil. The getter captures `processContext` by reference so it works
         // even though processContext isn't assigned yet at this point.
         importerContextModule = new ImporterDevelopmentContextModule({
+            localUploadPath: options.importerLocalUploadPathForTest,
             getProcessContext: () => processContext,
-            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
+            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext({
+                localUploadPath: options.importerLocalUploadPathForTest,
+            }),
         });
     }
 

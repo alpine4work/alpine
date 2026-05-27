@@ -68,6 +68,7 @@ export const options = {
     importerServiceSubnets: {type: "string"},
     importerServiceSecurityGroups: {type: "string"},
     importerServiceEbsVolumeRoleArn: {type: "string"},
+    importerLocalUploadPathForTest: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,

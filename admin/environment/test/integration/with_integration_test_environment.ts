@@ -406,6 +406,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
         const cloudflareR2LocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "r2");
+        const importerLocalUploadPath = joinPath(context.getTemporaryDirectoryPath(), "importer");
         const fileProcessorServiceTemporaryDirectoryPath = joinPath(
             context.getTemporaryDirectoryPath(),
             "files",
@@ -604,6 +605,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--importerLocalUploadPathForTest=${importerLocalUploadPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--agentServiceUrl=http://localhost:${agentServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
