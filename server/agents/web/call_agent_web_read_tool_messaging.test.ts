@@ -3271,21 +3271,18 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
     },
 );
 
-test.each([
-    // NOCOMMIT: This is awkward!!!
+test.only.each([
     {
         path: "/chat/incident-response?message=4",
         limit: "500b",
         requests: [{limit: 30, cursor: -11}],
         response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=4)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=5)
 
-<time>May 14th at 11:00am EDT</time>\n
-<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
-<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
-<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
-<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>`,
+<time>May 14th at 11:20am EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
     },
     {
         path: "/chat/incident-response?message=4",
