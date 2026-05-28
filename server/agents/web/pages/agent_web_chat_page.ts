@@ -1,5 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     AgentWebMessagingPage,
@@ -65,10 +66,12 @@ export async function readAgentWebChatPage(
         searchParams,
         limitLength,
         printPage,
+        createPageLinkPathname,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const page = await readAgentWebMessagingPage(agentWebMessagingPageMessageNouns, context, {
@@ -78,6 +81,7 @@ export async function readAgentWebChatPage(
         searchParams,
         limitLength,
         printPage: page => printPage(buildAgentWebChatPage(page, id)),
+        createPageLinkPathname,
     });
 
     return {response: page.response, metadata: buildAgentWebChatPageMetadata(page.metadata, id)};

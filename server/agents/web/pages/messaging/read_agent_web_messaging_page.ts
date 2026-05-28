@@ -2,6 +2,7 @@ import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {differenceInMinutes} from "date-fns";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -47,6 +48,7 @@ export async function readAgentWebMessagingPage(
         searchParams,
         limitLength,
         printPage,
+        createPageLinkPathname,
     }: {
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
@@ -57,6 +59,7 @@ export async function readAgentWebMessagingPage(
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebMessagingPageWithMetadata) => Promise<string>;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -222,8 +225,9 @@ export async function readAgentWebMessagingPage(
         // Truncate the response to fit within the limit length. This function is carefully
         // written such that we return a string that can be parsed back into a valid
         // messaging page.
-        const result = truncateAgentWebMessagingPage(messageNouns, {
+        const result = await truncateAgentWebMessagingPage(messageNouns, {
             limitLength,
+            roomMetadataTarget: roomMetadata.target,
             direction,
             messages,
             contextTimeZone: context.timeZone,
@@ -231,6 +235,7 @@ export async function readAgentWebMessagingPage(
             contextFormattedTimeZone,
             page,
             response,
+            createPageLinkPathname,
         });
 
         if (result === null) return {response, metadata: page.metadata};

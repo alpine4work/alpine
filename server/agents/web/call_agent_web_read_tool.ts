@@ -11,12 +11,14 @@ import {
     AgentWebPageMetadata,
     AgentWebPageWithMetadata,
 } from "~/server/agents/web/agent_web_page.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     AgentWebPageLinkKeyObject,
     printAgentWebPageLinkKey,
 } from "~/server/agents/web/agent_web_page_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     normalizeAgentWebChatPage,
@@ -103,6 +105,13 @@ export async function callAgentWebReadTool(
                         page,
                     );
                     return response;
+                },
+                createPageLinkPathname: async pageLink => {
+                    // Before we create a link and mutate storage, wait to see if this path was
+                    // redirected (this promise throws if the path was redirected).
+                    await latestPageLinkPathnameForKeyPromise;
+
+                    return await createAgentWebPageLinkPathname(context.storage, pageLink);
                 },
             }),
         ]);
@@ -196,11 +205,14 @@ async function printAgentWebPageToMarkdownForReadTool(
 
 function readAgentWebPageLink(
     // We intentionally use the "without storage" type since this function shouldn't be
-    // mutating storage! It should only be reading data from the API. We'll print the
-    // page to Markdown later (which requires writing to storage).
+    // mutating storage! All storage mutating functions are provided through `options`.
+    // For example `printPage` and `createPageLinkPathname`. So you're only allowed to
+    // read from the API and then when you need storage you can use the functions
+    // available in `options`.
     //
     // We don't want to write to storage here because we execute this in parallel with
-    // a read that may cause us to throw a redirect error.
+    // a read that may cause us to throw a redirect error. We don't want to write to
+    // storage if we're not going to return the results of those writes.
     context: AgentWebContextWithoutStorage,
     // We intentionally use the "key object" type so the code within this function
     // doesn't rely on `title` or any extra data we include in the full link object to
@@ -210,6 +222,7 @@ function readAgentWebPageLink(
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebPageWithMetadata) => Promise<string>;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {

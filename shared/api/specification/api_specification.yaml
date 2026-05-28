@@ -499,13 +499,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, commentThread]
+                                required: [spaceId, thread]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    commentThread:
-                                        $ref: "#/components/schemas/DocumentCommentThread"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread"
 
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
@@ -2547,7 +2547,7 @@ components:
                 title:
                     type: string
 
-        DocumentCommentThread:
+        DocumentThread:
             type: object
             required:
                 [
@@ -3103,19 +3103,19 @@ components:
 
         MessageRoomTarget:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoom"
-                - $ref: "#/components/schemas/DocumentCommentRoom"
-                - $ref: "#/components/schemas/PostCommentRoom"
-                - $ref: "#/components/schemas/TaskCommentRoom"
+                - $ref: "#/components/schemas/ChatMessageRoomTarget"
+                - $ref: "#/components/schemas/DocumentThreadMessageRoomTarget"
+                - $ref: "#/components/schemas/PostMessageRoomTarget"
+                - $ref: "#/components/schemas/TaskMessageRoomTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoom"
-                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
-                    Post: "#/components/schemas/PostCommentRoom"
-                    Task: "#/components/schemas/TaskCommentRoom"
+                    Chat: "#/components/schemas/ChatMessageRoomTarget"
+                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomTarget"
+                    Post: "#/components/schemas/PostMessageRoomTarget"
+                    Task: "#/components/schemas/TaskMessageRoomTarget"
 
-        ChatMessageRoom:
+        ChatMessageRoomTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -3125,19 +3125,19 @@ components:
                 id:
                     $ref: "#/components/schemas/ChatId"
 
-        DocumentCommentRoom:
+        DocumentThreadMessageRoomTarget:
             type: object
             required: [type, id, threadId]
             additionalProperties: false
             properties:
                 type:
-                    const: DocumentCommentThread
+                    const: DocumentThread
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
 
-        PostCommentRoom:
+        PostMessageRoomTarget:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -3147,7 +3147,7 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
-        TaskCommentRoom:
+        TaskMessageRoomTarget:
             type: object
             required: [type, id]
             additionalProperties: false
