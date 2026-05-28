@@ -24,6 +24,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
@@ -33,6 +34,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {createIterableWithLength} from "~/shared/helpers/iterable/create_iterable_with_length.js";
+import {exhaustIterable} from "~/shared/helpers/iterable/exhaust_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -619,7 +621,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
               (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOffset))
             : 0);
 
-    function* traverseFromEnd(node: Parent): IterableIterator<boolean, boolean> {
+    function* traverseFromEnd(node: Parent): IterableIterator<void, boolean> {
         // Very important: for the `End` direction we need to traverse from the bottom of
         // the tree to the top!
         for (const childNode of reverseIterable(node.children)) {
@@ -633,18 +635,8 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                 truncateMessageBlockEndOffset = endOffset;
                 truncateMessageBlockCountFromEnd++;
 
-                console.log("traverseFromEnd", {
-                    currentTruncateLength: getCurrentTruncateLength(),
-                    truncateLength,
-                });
-
                 // Have we truncated enough?
                 if (getCurrentTruncateLength() >= truncateLength) {
-                    // Once our consuming loop sees `yield true` it stops iterating. `return true`
-                    // merely stops the current traverse function, `yield true` stops the whole
-                    // alternating iteration.
-                    yield true;
-
                     return true;
                 }
 
@@ -683,7 +675,13 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
                 // Yield after every message block we find to the other iterator in our
                 // `alternateIterables()` call.
-                yield false;
+                yield;
+
+                // When we yielded to the alternate iterable, did it finish truncating? If so
+                // `return true` so we don't truncate any more messages.
+                if (getCurrentTruncateLength() >= truncateLength) {
+                    return true;
+                }
             }
 
             if ("children" in childNode) {
@@ -695,7 +693,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
         return false;
     }
 
-    function* traverseFromStart(node: Parent): IterableIterator<boolean, boolean> {
+    function* traverseFromStart(node: Parent): IterableIterator<void, boolean> {
         for (const childNode of node.children) {
             if (childNode.type === "html") {
                 if (
@@ -712,17 +710,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                     truncateMessageBlockStartOffset = startOffset;
                     truncateMessageBlockCountFromStart++;
 
-                    console.log("traverseFromStart", {
-                        currentTruncateLength: getCurrentTruncateLength(),
-                        truncateLength,
-                    });
-
                     if (getCurrentTruncateLength() >= truncateLength) {
-                        // Once our consuming loop sees `yield true` it stops iterating. `return true`
-                        // merely stops the current traverse function, `yield true` stops the whole
-                        // alternating iteration.
-                        yield true;
-
                         return true;
                     }
 
@@ -761,7 +749,13 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
                     // Yield after every message block we find to the other iterator in our
                     // `alternateIterables()` call.
-                    yield false;
+                    yield;
+
+                    // When we yielded to the alternate iterable, did it finish truncating? If so
+                    // `return true` so we don't truncate any more messages.
+                    if (getCurrentTruncateLength() >= truncateLength) {
+                        return true;
+                    }
                 }
             }
 
@@ -777,32 +771,26 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // Alternate between start and end traversal. So we remove a message block from the
     // start, then the end, then the start, then the end. Until we hit our target
     // truncation length.
-    for (const done of alternateIterables(
-        concatIterables(
-            // Fix imbalance in messages before/after `around` range. If there are more
-            // messages before our around range than after we will `yield` the difference so we
-            // don't truncate messages close to the `around` range.
-            createIterableWithLength(
-                messageCountAfterAround - messageCountBeforeAround,
-                () => false,
+    exhaustIterable(
+        alternateIterables(
+            concatIterables(
+                // Fix imbalance in messages before/after `around` range. If there are more
+                // messages before our around range than after we will `yield` the difference so we
+                // don't truncate messages close to the `around` range.
+                createIterableWithLength(messageCountAfterAround - messageCountBeforeAround, noop),
+                traverseFromStart(responseTree),
             ),
-            traverseFromStart(responseTree),
-        ),
-        concatIterables(
-            // Fix imbalance in messages before/after `around` range. If there are more
-            // messages after our around range than before we will `yield` the difference so we
-            // don't truncate messages close to the `around` range.
-            createIterableWithLength(
-                messageCountBeforeAround - messageCountAfterAround,
-                () => false,
+            concatIterables(
+                // Fix imbalance in messages before/after `around` range. If there are more
+                // messages after our around range than before we will `yield` the difference so we
+                // don't truncate messages close to the `around` range.
+                createIterableWithLength(messageCountBeforeAround - messageCountAfterAround, noop),
+                traverseFromEnd(responseTree),
             ),
-            traverseFromEnd(responseTree),
         ),
-    )) {
-        // Once someone `yield`s true then we know we reached the truncation target so we
-        // can stop iterating now.
-        if (done) break;
-    }
+    );
+
+    console.log("HELLOOO???");
 
     // We don't truncate the last block traverse sees.
     truncateMessageBlockCountFromStart--;
@@ -825,6 +813,8 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
         return null;
 
+    console.log("helloooo 2");
+
     // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
     // set.
     assert(lastMessageBlockEndOffset !== null);
@@ -837,6 +827,8 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     ) {
         return null;
     }
+
+    console.log("helloooo 3");
 
     let truncateMessageCountFromStart = 0;
     let truncateMessageCountFromEnd = 0;
@@ -993,8 +985,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     //
     // If there is no "Previous page" link and truncation occurred then we need to add
     // a "Previous page" link.
-    //
-    // NOCOMMIT: Do previous link + next link work together like this? I'm not sure.
     if (truncateMessageBlockStartOffset !== firstMessageBlockStartOffset) {
         if (page.preamble.pagination?.previousLink) {
             const beforeMessageIndex = truncatedMessages[0]!.index;
