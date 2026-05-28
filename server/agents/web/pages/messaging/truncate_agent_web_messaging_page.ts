@@ -790,8 +790,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
         ),
     );
 
-    console.log("HELLOOO???");
-
     // We don't truncate the last block traverse sees.
     truncateMessageBlockCountFromStart--;
 
@@ -813,8 +811,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
         return null;
 
-    console.log("helloooo 2");
-
     // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
     // set.
     assert(lastMessageBlockEndOffset !== null);
@@ -827,8 +823,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     ) {
         return null;
     }
-
-    console.log("helloooo 3");
 
     let truncateMessageCountFromStart = 0;
     let truncateMessageCountFromEnd = 0;
@@ -1039,11 +1033,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
             }
         }
     }
-
-    console.log({
-        truncatedResponseLength: truncatedResponse.length,
-        limitLength,
-    });
 
     return {
         truncatedResponse,
