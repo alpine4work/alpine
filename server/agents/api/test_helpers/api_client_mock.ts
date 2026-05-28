@@ -105,6 +105,9 @@ export class ApiClientMock implements ApiClient {
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["get"]>>,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("GET", path, response, params);
@@ -117,6 +120,9 @@ export class ApiClientMock implements ApiClient {
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["put"]>>,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PUT", path, response, params);
@@ -129,6 +135,9 @@ export class ApiClientMock implements ApiClient {
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["post"]>>,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("POST", path, response, params);
@@ -141,6 +150,9 @@ export class ApiClientMock implements ApiClient {
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["delete"]>>,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("DELETE", path, response, params);
@@ -153,6 +165,9 @@ export class ApiClientMock implements ApiClient {
         path: Path,
         response: MockResponseConfig<SuccessResponseData<ApiSpecification.paths[Path]["patch"]>>,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         this.addMock("PATCH", path, response, params);
@@ -172,6 +187,9 @@ export class ApiClientMock implements ApiClient {
         path: string,
         response: MockResponseConfig,
         // NOCOMMIT: Can we do better than `any` here?
+        //
+        // NOCOMMIT: Could we move this into `response`? Make it required and use a string
+        // like `"Any"` if you want to ignore param matching?
         params?: any,
     ) {
         const mockConfig = this.findMatchingMock(method, path, params);
@@ -369,6 +387,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetChatMessagesList(
         spaceId: SpaceId,
         chatId: ChatId,
@@ -413,6 +432,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -449,6 +469,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentThread(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -477,6 +498,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetDocumentCommentsList(
         spaceId: SpaceId,
         documentId: DocumentId,
@@ -520,6 +542,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
@@ -552,6 +575,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetPostCommentsList(
         spaceId: SpaceId,
         postId: PostId,
@@ -596,6 +620,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTask(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -630,6 +655,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCommentsList(
         spaceId: SpaceId,
         taskId: TaskId,
@@ -672,6 +698,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollection(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
@@ -693,6 +720,7 @@ export class ApiClientMock implements ApiClient {
     }
 
     // NOCOMMIT: This is low quality, can we inline?
+    /* @deprecated */
     mockGetTaskCollectionTasks(
         spaceId: SpaceId,
         collectionId: TaskCollectionId,

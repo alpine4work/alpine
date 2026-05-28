@@ -8,7 +8,10 @@ import {
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
-import {agentWebMessagingPreviousPageLinkTextWithEndArrow} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
+import {
+    agentWebMessagingNextPageLinkText,
+    agentWebMessagingPreviousPageLinkTextWithEndArrow,
+} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiMentionTargetResponse,
@@ -67,6 +70,26 @@ export async function truncateAgentWebMessagingPage(
             let truncateMessageBlockEndOffset: number | null = null;
             let truncateMessageBlockCount = 0;
 
+            let truncateLength = limitLengthDifference;
+
+            let roomTargetPathname: string | null = null;
+
+            // Edge case: if we need to add a pagination link then expect more to be truncated
+            // so we can add the pagination link while still fitting into `limitLength`.
+            if (!page.preamble.pagination?.nextLink) {
+                roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
+
+                truncateLength +=
+                    " [".length +
+                    agentWebMessagingNextPageLinkText.length +
+                    "](".length +
+                    roomTargetPathname.length +
+                    "?after=".length +
+                    // Max length of an index we'd include after `?after`.
+                    messages[messages.length - 1]!.index.toString().length +
+                    ")".length;
+            }
+
             const traverse = (node: Parent): boolean => {
                 // Very important: for the `End` direction we need to traverse from the bottom of
                 // the tree to the top!
@@ -83,7 +106,7 @@ export async function truncateAgentWebMessagingPage(
 
                         if (
                             lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
-                            limitLengthDifference
+                            truncateLength
                         ) {
                             return true;
                         }
@@ -113,10 +136,6 @@ export async function truncateAgentWebMessagingPage(
             // No truncation occurred!
             if (truncateMessageBlockEndOffset === lastMessageBlockEndOffset) return null;
 
-            let truncatedResponse =
-                response.slice(0, truncateMessageBlockEndOffset) +
-                response.slice(lastMessageBlockEndOffset);
-
             let truncateMessageCount = 0;
             const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
 
@@ -144,7 +163,10 @@ export async function truncateAgentWebMessagingPage(
             // There should always be at least one message block left after we truncate.
             assert(truncatedMessages.length > 0);
 
-            // NOCOMMIT: Remove `isEndOfMessages` from `truncatedPrintedPage`
+            // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
+            // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
+            // `direction` then we're implicitly not at the end of messages anymore.
+            let truncatedResponse = response.slice(0, truncateMessageBlockEndOffset);
 
             // Update the "Next page" link to reflect the new last message index after
             // truncation.
@@ -165,6 +187,20 @@ export async function truncateAgentWebMessagingPage(
                         .slice(linkStartOffset, linkEndOffset)
                         .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
                     truncatedResponse.slice(linkEndOffset);
+            } else {
+                assert(roomTargetPathname !== null);
+
+                const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+
+                const paragraph = responseTree.children[0];
+                assert(paragraph?.type === "paragraph");
+
+                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, paragraphEndOffset) +
+                    ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+                    truncatedResponse.slice(paragraphEndOffset);
             }
 
             return {
@@ -286,10 +322,6 @@ export async function truncateAgentWebMessagingPage(
             // No truncation occurred!
             if (truncateMessageBlockStartOffset === firstMessageBlockStartOffset) return null;
 
-            let truncatedResponse =
-                response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
-                response.slice(truncateMessageBlockStartOffset);
-
             let truncateMessageCount = 0;
             const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
 
@@ -314,6 +346,10 @@ export async function truncateAgentWebMessagingPage(
 
             // There should always be at least one message block left after we truncate.
             assert(truncatedMessages.length > 0);
+
+            let truncatedResponse =
+                response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+                response.slice(truncateMessageBlockStartOffset);
 
             // `truncatedResponse` currently doesn't include an initial `<time>` element. So
             // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a

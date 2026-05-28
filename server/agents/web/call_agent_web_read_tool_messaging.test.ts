@@ -118,19 +118,20 @@ function mockGetChatMessages({
     createMessage: actuallyCreateMessage = (index, startIndex) =>
         createMessage(startIndex + index, `Test message ${startIndex + index}`),
 }: {
-    from: "Start" | "End";
+    from?: "Start" | "End";
     totalMessageCount: number;
     limit: number;
     cursor?: number;
     createMessage?: (index: number, startIndex: number) => ApiMessageResponse;
 }) {
     switch (from) {
+        case undefined:
         case "Start": {
             let startIndex = cursor ?? 0;
             let endIndex = startIndex + limit - 1;
 
             startIndex = Math.max(startIndex, 0);
-            endIndex = Math.max(endIndex, totalMessageCount - 1);
+            endIndex = Math.min(endIndex, totalMessageCount - 1);
 
             api.mockGet(
                 "/chats/{id}/messages",
@@ -157,7 +158,7 @@ function mockGetChatMessages({
             let startIndex = endIndex - limit + 1;
 
             startIndex = Math.max(startIndex, 0);
-            endIndex = Math.max(endIndex, totalMessageCount - 1);
+            endIndex = Math.min(endIndex, totalMessageCount - 1);
 
             api.mockGet(
                 "/chats/{id}/messages",
@@ -341,6 +342,143 @@ test.each([
     {
         limit: "500b",
         response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>`,
+    },
+    {
+        limit: "750b",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
+    },
+    {
+        limit: "3kb",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
+<message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>`,
+    },
+    {
+        limit: "3.018kb",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
+<message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>\n
+<message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>`,
+    },
+])("reads messages from start with one request (limit: $limit)", async ({limit, response}) => {
+    mockGetChat();
+
+    mockGetChatMessages({
+        totalMessageCount: 90,
+        limit: 30,
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response?start",
+            limit,
+        }),
+    ).toEqual(response);
+});
+
+test.each([
+    {
+        limit: "500b",
+        response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=17)
 
 <time>May 14th at 12:25pm EDT</time>
@@ -425,6 +563,101 @@ End of messages.`,
         expect(
             await callAgentWebReadTool(context, {
                 path: "/chat/incident-response",
+                limit,
+            }),
+        ).toEqual(response);
+    },
+);
+
+test.each([
+    {
+        limit: "500b",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>`,
+    },
+    {
+        limit: "750b",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
+    },
+    {
+        limit: "3.06kb",
+        response: `\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>
+
+End of messages.`,
+    },
+])(
+    "reads messages in small room from start with one request (limit: $limit)",
+    async ({limit, response}) => {
+        mockGetChat();
+
+        mockGetChatMessages({
+            totalMessageCount: 20,
+            limit: 30,
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path: "/chat/incident-response?start",
                 limit,
             }),
         ).toEqual(response);
@@ -523,6 +756,101 @@ End of messages.`,
         expect(
             await callAgentWebReadTool(context, {
                 path: "/chat/incident-response",
+                limit,
+            }),
+        ).toEqual(response);
+    },
+);
+
+test.each([
+    {
+        limit: "2.89kb",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>`,
+    },
+    {
+        limit: "2.90kb",
+        response: `\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
+<message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>
+
+End of messages.`,
+    },
+])(
+    "page ends right near the limit boundary when reading from start (limit: $limit)",
+    async ({limit, response}) => {
+        mockGetChat();
+
+        mockGetChatMessages({
+            totalMessageCount: 29,
+            limit: 30,
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path: "/chat/incident-response?start",
                 limit,
             }),
         ).toEqual(response);
@@ -733,6 +1061,209 @@ End of messages.`,
         expect(
             await callAgentWebReadTool(context, {
                 path: "/chat/incident-response",
+                limit,
+            }),
+        ).toEqual(response);
+    },
+);
+
+test.each([
+    {
+        limit: "500b",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<time>May 14th at 12:00pm EDT</time>
+
+<message id="1" from="[Bob](/human/bob)">
+
+Test message 1
+
+</message>
+
+<time>May 14th at 1:00pm EDT</time>
+
+<message id="2" from="[Alice](/human/alice)">
+
+Test message 2
+
+</message>`,
+    },
+    {
+        limit: "750b",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+
+<time>May 14th at 11:00am EDT</time>\n
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<time>May 14th at 12:00pm EDT</time>\n
+<message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
+<time>May 14th at 1:00pm EDT</time>\n
+<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
+<time>May 14th at 2:00pm EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<time>May 14th at 3:00pm EDT</time>\n
+<message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
+<time>May 14th at 4:00pm EDT</time>\n
+<message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>`,
+    },
+    {
+        limit: "3.42kb",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+
+<time>May 14th at 11:00am EDT</time>\n
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<time>May 14th at 12:00pm EDT</time>\n
+<message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
+<time>May 14th at 1:00pm EDT</time>\n
+<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
+<time>May 14th at 2:00pm EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<time>May 14th at 3:00pm EDT</time>\n
+<message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
+<time>May 14th at 4:00pm EDT</time>\n
+<message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>\n
+<time>May 14th at 5:00pm EDT</time>\n
+<message id="6" from="[Alice](/human/alice)">\n\nTest message 6\n\n</message>\n
+<time>May 14th at 6:00pm EDT</time>\n
+<message id="7" from="[Bob](/human/bob)">\n\nTest message 7\n\n</message>\n
+<time>May 14th at 7:00pm EDT</time>\n
+<message id="8" from="[Alice](/human/alice)">\n\nTest message 8\n\n</message>\n
+<time>May 14th at 8:00pm EDT</time>\n
+<message id="9" from="[Bob](/human/bob)">\n\nTest message 9\n\n</message>\n
+<time>May 14th at 9:00pm EDT</time>\n
+<message id="10" from="[Alice](/human/alice)">\n\nTest message 10\n\n</message>\n
+<time>May 14th at 10:00pm EDT</time>\n
+<message id="11" from="[Bob](/human/bob)">\n\nTest message 11\n\n</message>\n
+<time>May 14th at 11:00pm EDT</time>\n
+<message id="12" from="[Alice](/human/alice)">\n\nTest message 12\n\n</message>\n
+<time>May 15th at 12:00am EDT</time>\n
+<message id="13" from="[Bob](/human/bob)">\n\nTest message 13\n\n</message>\n
+<time>May 15th at 1:00am EDT</time>\n
+<message id="14" from="[Alice](/human/alice)">\n\nTest message 14\n\n</message>\n
+<time>May 15th at 2:00am EDT</time>\n
+<message id="15" from="[Bob](/human/bob)">\n\nTest message 15\n\n</message>\n
+<time>May 15th at 3:00am EDT</time>\n
+<message id="16" from="[Alice](/human/alice)">\n\nTest message 16\n\n</message>\n
+<time>May 15th at 4:00am EDT</time>\n
+<message id="17" from="[Bob](/human/bob)">\n\nTest message 17\n\n</message>\n
+<time>May 15th at 5:00am EDT</time>\n
+<message id="18" from="[Alice](/human/alice)">\n\nTest message 18\n\n</message>\n
+<time>May 15th at 6:00am EDT</time>\n
+<message id="19" from="[Bob](/human/bob)">\n\nTest message 19\n\n</message>\n
+<time>May 15th at 7:00am EDT</time>\n
+<message id="20" from="[Alice](/human/alice)">\n\nTest message 20\n\n</message>\n
+<time>May 15th at 8:00am EDT</time>\n
+<message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
+<time>May 15th at 9:00am EDT</time>\n
+<message id="22" from="[Alice](/human/alice)">\n\nTest message 22\n\n</message>\n
+<time>May 15th at 10:00am EDT</time>\n
+<message id="23" from="[Bob](/human/bob)">\n\nTest message 23\n\n</message>\n
+<time>May 15th at 11:00am EDT</time>\n
+<message id="24" from="[Alice](/human/alice)">\n\nTest message 24\n\n</message>\n
+<time>May 15th at 12:00pm EDT</time>\n
+<message id="25" from="[Bob](/human/bob)">\n\nTest message 25\n\n</message>\n
+<time>May 15th at 1:00pm EDT</time>\n
+<message id="26" from="[Alice](/human/alice)">\n\nTest message 26\n\n</message>\n
+<time>May 15th at 2:00pm EDT</time>\n
+<message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
+<time>May 15th at 3:00pm EDT</time>\n
+<message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
+    },
+    {
+        limit: "3.431kb",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
+
+<time>May 14th at 11:00am EDT</time>\n
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<time>May 14th at 12:00pm EDT</time>\n
+<message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
+<time>May 14th at 1:00pm EDT</time>\n
+<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
+<time>May 14th at 2:00pm EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<time>May 14th at 3:00pm EDT</time>\n
+<message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
+<time>May 14th at 4:00pm EDT</time>\n
+<message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>\n
+<time>May 14th at 5:00pm EDT</time>\n
+<message id="6" from="[Alice](/human/alice)">\n\nTest message 6\n\n</message>\n
+<time>May 14th at 6:00pm EDT</time>\n
+<message id="7" from="[Bob](/human/bob)">\n\nTest message 7\n\n</message>\n
+<time>May 14th at 7:00pm EDT</time>\n
+<message id="8" from="[Alice](/human/alice)">\n\nTest message 8\n\n</message>\n
+<time>May 14th at 8:00pm EDT</time>\n
+<message id="9" from="[Bob](/human/bob)">\n\nTest message 9\n\n</message>\n
+<time>May 14th at 9:00pm EDT</time>\n
+<message id="10" from="[Alice](/human/alice)">\n\nTest message 10\n\n</message>\n
+<time>May 14th at 10:00pm EDT</time>\n
+<message id="11" from="[Bob](/human/bob)">\n\nTest message 11\n\n</message>\n
+<time>May 14th at 11:00pm EDT</time>\n
+<message id="12" from="[Alice](/human/alice)">\n\nTest message 12\n\n</message>\n
+<time>May 15th at 12:00am EDT</time>\n
+<message id="13" from="[Bob](/human/bob)">\n\nTest message 13\n\n</message>\n
+<time>May 15th at 1:00am EDT</time>\n
+<message id="14" from="[Alice](/human/alice)">\n\nTest message 14\n\n</message>\n
+<time>May 15th at 2:00am EDT</time>\n
+<message id="15" from="[Bob](/human/bob)">\n\nTest message 15\n\n</message>\n
+<time>May 15th at 3:00am EDT</time>\n
+<message id="16" from="[Alice](/human/alice)">\n\nTest message 16\n\n</message>\n
+<time>May 15th at 4:00am EDT</time>\n
+<message id="17" from="[Bob](/human/bob)">\n\nTest message 17\n\n</message>\n
+<time>May 15th at 5:00am EDT</time>\n
+<message id="18" from="[Alice](/human/alice)">\n\nTest message 18\n\n</message>\n
+<time>May 15th at 6:00am EDT</time>\n
+<message id="19" from="[Bob](/human/bob)">\n\nTest message 19\n\n</message>\n
+<time>May 15th at 7:00am EDT</time>\n
+<message id="20" from="[Alice](/human/alice)">\n\nTest message 20\n\n</message>\n
+<time>May 15th at 8:00am EDT</time>\n
+<message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
+<time>May 15th at 9:00am EDT</time>\n
+<message id="22" from="[Alice](/human/alice)">\n\nTest message 22\n\n</message>\n
+<time>May 15th at 10:00am EDT</time>\n
+<message id="23" from="[Bob](/human/bob)">\n\nTest message 23\n\n</message>\n
+<time>May 15th at 11:00am EDT</time>\n
+<message id="24" from="[Alice](/human/alice)">\n\nTest message 24\n\n</message>\n
+<time>May 15th at 12:00pm EDT</time>\n
+<message id="25" from="[Bob](/human/bob)">\n\nTest message 25\n\n</message>\n
+<time>May 15th at 1:00pm EDT</time>\n
+<message id="26" from="[Alice](/human/alice)">\n\nTest message 26\n\n</message>\n
+<time>May 15th at 2:00pm EDT</time>\n
+<message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
+<time>May 15th at 3:00pm EDT</time>\n
+<message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>\n
+<time>May 15th at 4:00pm EDT</time>\n
+<message id="29" from="[Bob](/human/bob)">\n\nTest message 29\n\n</message>`,
+    },
+])(
+    "reads messages from start with one request when messages are more than an hour apart (limit: $limit)",
+    async ({limit, response}) => {
+        mockGetChat();
+
+        mockGetChatMessages({
+            totalMessageCount: 90,
+            limit: 30,
+            createMessage: (index, startIndex) =>
+                createMessage(startIndex + index, `Test message ${startIndex + index}`, {
+                    createdTime: new Date(
+                        Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
+                    ).toISOString(),
+                }),
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path: "/chat/incident-response?start",
                 limit,
             }),
         ).toEqual(response);
