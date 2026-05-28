@@ -74,7 +74,7 @@ export async function readAgentWebChatPage(
         createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
-    const page = await readAgentWebMessagingPage(agentWebMessagingPageMessageNouns, context, {
+    const result = await readAgentWebMessagingPage(agentWebMessagingPageMessageNouns, context, {
         room: {type: "Chat", id},
         roomMetadataPromise: getChatRoomMetadata(context, id),
         defaultDirection: "End",
@@ -84,7 +84,10 @@ export async function readAgentWebChatPage(
         createPageLinkPathname,
     });
 
-    return {response: page.response, metadata: buildAgentWebChatPageMetadata(page.metadata, id)};
+    return {
+        response: result.response,
+        metadata: buildAgentWebChatPageMetadata(result.metadata, id),
+    };
 }
 
 export async function readAgentWebChatMessagePage(
@@ -93,13 +96,15 @@ export async function readAgentWebChatMessagePage(
     index: number,
     {
         limitLength,
-        computeLength,
+        printPage,
+        createPageLinkPathname,
     }: {
         limitLength: number;
-        computeLength: (page: AgentWebChatPageWithMetadata) => Promise<number>;
+        printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
-): Promise<AgentWebChatPageWithMetadata> {
-    const page = await readAgentWebMessagingPageAroundMessage<AgentWebChatPageWithMetadata>(
+): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
+    const result = await readAgentWebMessagingPageAroundMessage(
         agentWebMessagingPageMessageNouns,
         context,
         {
@@ -107,12 +112,15 @@ export async function readAgentWebChatMessagePage(
             roomMetadataPromise: getChatRoomMetadata(context, id),
             around: {startMessageIndex: index, endMessageIndex: index + 1},
             limitLength,
-            computeLength,
-            buildPage: page => buildAgentWebChatPage(page, id),
+            printPage: page => printPage(buildAgentWebChatPage(page, id)),
+            createPageLinkPathname,
         },
     );
 
-    return page;
+    return {
+        response: result.response,
+        metadata: buildAgentWebChatPageMetadata(result.metadata, id),
+    };
 }
 
 export async function updateAgentWebChatPage(

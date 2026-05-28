@@ -5,6 +5,7 @@ import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -23,6 +24,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
@@ -102,7 +105,6 @@ export async function truncateAgentWebMessagingPage(
 
                         lastMessageBlockEndOffset ??= endOffset;
                         truncateMessageBlockEndOffset = endOffset;
-                        truncateMessageBlockCount++;
 
                         if (
                             lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
@@ -110,6 +112,8 @@ export async function truncateAgentWebMessagingPage(
                         ) {
                             return true;
                         }
+
+                        truncateMessageBlockCount++;
                     }
 
                     if ("children" in childNode) {
@@ -123,9 +127,6 @@ export async function truncateAgentWebMessagingPage(
             };
 
             traverse(responseTree);
-
-            // The last message `traverse()` sees will not be truncated.
-            truncateMessageBlockCount--;
 
             // There are no messages in this page so we don't truncate.
             if (truncateMessageBlockEndOffset === null) return null;
@@ -286,7 +287,6 @@ export async function truncateAgentWebMessagingPage(
 
                             firstMessageBlockStartOffset ??= startOffset;
                             truncateMessageBlockStartOffset = startOffset;
-                            truncateMessageBlockCount++;
 
                             if (
                                 truncateMessageBlockStartOffset -
@@ -295,6 +295,8 @@ export async function truncateAgentWebMessagingPage(
                             ) {
                                 return true;
                             }
+
+                            truncateMessageBlockCount++;
                         }
                     }
 
@@ -309,9 +311,6 @@ export async function truncateAgentWebMessagingPage(
             };
 
             traverse(responseTree);
-
-            // The last message `traverse()` sees will not be truncated.
-            truncateMessageBlockCount--;
 
             // There are no messages in this page so we don't truncate.
             if (truncateMessageBlockStartOffset === null) return null;
@@ -468,4 +467,500 @@ export async function truncateAgentWebMessagingPage(
         default:
             throw exhaustive(direction);
     }
+}
+
+export async function truncateAgentWebMessagingPageAroundMessage(
+    messageNouns: AgentWebMessagingPageNouns,
+    {
+        limitLength,
+        roomMetadataTarget,
+        around,
+        messages,
+        contextTimeZone,
+        contextDate,
+        contextFormattedTimeZone,
+        page,
+        response,
+        createPageLinkPathname,
+    }: {
+        limitLength: number;
+        roomMetadataTarget: ApiMentionTargetResponse;
+        around: AgentWebMessagingPageMessageRange;
+        messages: ReadonlyArray<ApiMessageResponse>;
+        contextTimeZone: TimeZone;
+        contextDate: CalendarDate;
+        contextFormattedTimeZone: string;
+        page: AgentWebMessagingPage;
+        response: string;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+    },
+): Promise<{
+    truncatedResponse: string;
+    truncatedMetadata: AgentWebMessagingPageMetadata;
+} | null> {
+    const limitLengthDifference = response.length - limitLength;
+    assert(limitLengthDifference > 0);
+
+    const responseTree = parseMarkdownTree(response);
+
+    let lastMessageBlockEndOffset: number | null = null;
+    let truncateMessageBlockEndOffset: number | null = null;
+    let truncateMessageBlockCountFromEnd = 0;
+    let blockIndexFromEnd: number | null = null;
+
+    let firstTimeBlockStartOffset: number | null = null;
+    let firstMessageBlockStartOffset: number | null = null;
+    let truncateMessageBlockStartOffset: number | null = null;
+    let truncateMessageBlockCountFromStart = 0;
+    let blockIndexFromStart: number | null = null;
+
+    let truncateLength = limitLengthDifference;
+
+    // Edge case: when truncating from the start of the list we may need to update
+    // `?before` to a later index. For example 12 instead of 4. In that case "12" is
+    // one character longer than "4". Prepare for this by requiring more characters to
+    // be truncated based on how much bigger the last index is compared to the first.
+    if (messages.length > 0) {
+        truncateLength +=
+            messages[messages.length - 1]!.index.toString().length -
+            messages[0]!.index.toString().length;
+    }
+
+    let roomTargetPathname: string | null = null;
+
+    // Edge case: if we need to add a pagination link then expect more to be truncated
+    // so we can add the pagination link while still fitting into `limitLength`.
+    if (!page.preamble.pagination?.previousLink) {
+        roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
+
+        truncateLength +=
+            " [".length +
+            agentWebMessagingPreviousPageLinkTextWithEndArrow.length +
+            "](".length +
+            roomTargetPathname.length +
+            "?before=".length +
+            // Max length of an index we'd include after `?before`.
+            messages[messages.length - 1]!.index.toString().length +
+            ")".length;
+    }
+
+    // Edge case: if we need to add a pagination link then expect more to be truncated
+    // so we can add the pagination link while still fitting into `limitLength`.
+    if (!page.preamble.pagination?.nextLink) {
+        roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
+
+        truncateLength +=
+            " [".length +
+            agentWebMessagingNextPageLinkText.length +
+            "](".length +
+            roomTargetPathname.length +
+            "?after=".length +
+            // Max length of an index we'd include after `?after`.
+            messages[messages.length - 1]!.index.toString().length +
+            ")".length;
+    }
+
+    const maxTimeContentLength =
+        // The longest month in characters for `defaultLocale` (which we use to print
+        // times).
+        "September ".length +
+        2 +
+        "th at ".length +
+        2 +
+        ":".length +
+        2 +
+        "pm ".length +
+        contextFormattedTimeZone.length;
+
+    // Edge case: When we truncate we'll always be updating the `<time>` tag at the
+    // start of the page. Since we don't know what the new time will be, use the max
+    // possible length for the new `<time>` tag. We should be within ~7-8 characters of
+    // the max width.
+    truncateLength += "<time>".length + maxTimeContentLength + "</time>\n\n".length;
+
+    const truncateEndLength = Math.floor(truncateLength / 2);
+
+    const traverseFromEnd = (node: Parent): boolean => {
+        // Very important: for the `End` direction we need to traverse from the bottom of
+        // the tree to the top!
+        for (const childNode of reverseIterable(node.children)) {
+            if (
+                childNode.type === "html" &&
+                hasHtmlCloseTag(childNode.value, tagName => tagName === messageNouns.noun)
+            ) {
+                // Test if this block intersects with `around`.
+                {
+                    blockIndexFromEnd ??= page.blocks.length;
+
+                    let found = false;
+                    while (blockIndexFromEnd - 1 >= 0) {
+                        blockIndexFromEnd--;
+
+                        const block = page.blocks[blockIndexFromEnd]!;
+                        if (block.type !== "Message") continue;
+
+                        found = true;
+
+                        // We don't want to truncate any messages in the `around` range. So if this block
+                        // intersects with the `around` range then `return true` so we don't truncate this
+                        // block.
+                        if (
+                            block.idAttribute &&
+                            areRangesOverlapping(
+                                block.idAttribute.startMessageIndex,
+                                block.idAttribute.endMessageIndex - 1,
+                                around.startMessageIndex,
+                                around.endMessageIndex - 1,
+                            )
+                        ) {
+                            return true;
+                        }
+                        break;
+                    }
+
+                    assert(found);
+                }
+
+                const endOffset = assertExists(childNode.position?.end.offset);
+
+                lastMessageBlockEndOffset ??= endOffset;
+                truncateMessageBlockEndOffset = endOffset;
+
+                // Have we truncated enough?
+                if (
+                    lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
+                    truncateEndLength
+                ) {
+                    return true;
+                }
+
+                truncateMessageBlockCountFromEnd++;
+            }
+
+            if ("children" in childNode) {
+                if (traverseFromEnd(childNode)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    };
+
+    traverseFromEnd(responseTree);
+
+    // TypeScript is dumb and doesn't realize these variables are assigned when we call
+    // `traverseFromStart()`.
+    truncateMessageBlockEndOffset = truncateMessageBlockEndOffset as any;
+    lastMessageBlockEndOffset = lastMessageBlockEndOffset as any;
+
+    // Any remaining length we weren't able to truncate from the end, let's truncate
+    // from the start. This will lead to us truncating more from the start than the
+    // end. Which is what we want.
+    const truncateStartLength =
+        truncateLength -
+        (truncateMessageBlockEndOffset !== null
+            ? assertExists(lastMessageBlockEndOffset) - truncateMessageBlockEndOffset
+            : 0);
+
+    const traverseFromStart = (node: Parent): boolean => {
+        for (const childNode of node.children) {
+            if (childNode.type === "html") {
+                if (
+                    firstTimeBlockStartOffset === null &&
+                    hasHtmlOpenTag(childNode.value, tagName => tagName === "time")
+                ) {
+                    firstTimeBlockStartOffset = assertExists(childNode.position?.start.offset);
+                }
+
+                if (hasHtmlOpenTag(childNode.value, tagName => tagName === messageNouns.noun)) {
+                    // Test if this block intersects with `around`.
+                    {
+                        blockIndexFromStart ??= 0;
+
+                        let found = false;
+                        while (blockIndexFromStart + 1 < page.blocks.length) {
+                            blockIndexFromStart++;
+
+                            const block = page.blocks[blockIndexFromStart]!;
+                            if (block.type !== "Message") continue;
+
+                            found = true;
+
+                            // We don't want to truncate any messages in the `around` range. So if this block
+                            // intersects with the `around` range then `return true` so we don't truncate this
+                            // block.
+                            if (
+                                block.idAttribute &&
+                                areRangesOverlapping(
+                                    block.idAttribute.startMessageIndex,
+                                    block.idAttribute.endMessageIndex - 1,
+                                    around.startMessageIndex,
+                                    around.endMessageIndex - 1,
+                                )
+                            ) {
+                                return true;
+                            }
+                            break;
+                        }
+
+                        assert(found);
+                    }
+
+                    const startOffset = assertExists(childNode.position?.start.offset);
+
+                    firstMessageBlockStartOffset ??= startOffset;
+                    truncateMessageBlockStartOffset = startOffset;
+
+                    if (
+                        truncateMessageBlockStartOffset -
+                            (firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) >=
+                        truncateStartLength
+                    ) {
+                        return true;
+                    }
+
+                    truncateMessageBlockCountFromStart++;
+                }
+            }
+
+            if ("children" in childNode) {
+                if (traverseFromStart(childNode)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    };
+
+    traverseFromStart(responseTree);
+
+    // TypeScript is dumb and doesn't realize these variables are assigned when we call
+    // `traverseFromStart()`.
+    truncateMessageBlockStartOffset = truncateMessageBlockStartOffset as any;
+    firstTimeBlockStartOffset = firstTimeBlockStartOffset as any;
+    firstMessageBlockStartOffset = firstMessageBlockStartOffset as any;
+
+    // There are no messages in this page so we don't truncate.
+    if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
+        return null;
+
+    // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
+    // set.
+    assert(lastMessageBlockEndOffset !== null);
+    assert(firstMessageBlockStartOffset !== null);
+
+    // No truncation occurred!
+    if (
+        truncateMessageBlockEndOffset === lastMessageBlockEndOffset &&
+        truncateMessageBlockStartOffset === firstMessageBlockStartOffset
+    ) {
+        return null;
+    }
+
+    // No truncation occurred from end.
+    if (truncateMessageBlockEndOffset === lastMessageBlockEndOffset) {
+        truncateMessageBlockCountFromEnd = 0;
+    }
+
+    // No truncation occurred from start.
+    if (truncateMessageBlockStartOffset === firstMessageBlockStartOffset) {
+        truncateMessageBlockCountFromStart = 0;
+    }
+
+    let truncateMessageCountFromStart = 0;
+    let truncateMessageCountFromEnd = 0;
+    const intermediateTruncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
+    const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
+
+    for (const block of page.blocks) {
+        if (truncateMessageBlockCountFromStart > 0) {
+            if (block.type === "Message") {
+                truncateMessageBlockCountFromStart--;
+
+                // Count the number of messages (not blocks) we truncate by dropping this block.
+                truncateMessageCountFromStart += block.idAttribute
+                    ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
+                    : 1;
+            }
+            continue;
+        }
+
+        intermediateTruncatedBlocks.push(block);
+    }
+
+    for (const block of reverseIterable(intermediateTruncatedBlocks)) {
+        if (truncateMessageBlockCountFromEnd > 0) {
+            if (block.type === "Message") {
+                truncateMessageBlockCountFromEnd--;
+
+                // Count the number of messages (not blocks) we truncate by dropping this block.
+                truncateMessageCountFromEnd += block.idAttribute
+                    ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
+                    : 1;
+            }
+            continue;
+        }
+
+        truncatedBlocks.push(block);
+    }
+
+    truncatedBlocks.reverse();
+
+    const truncatedMessages = messages.slice(
+        truncateMessageCountFromStart,
+        messages.length - truncateMessageCountFromEnd,
+    );
+
+    // There should always be at least one message block left after we truncate.
+    assert(truncatedMessages.length > 0);
+
+    let truncatedResponse =
+        response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+        response.slice(
+            truncateMessageBlockStartOffset,
+            // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
+            // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
+            // `direction` then we're implicitly not at the end of messages anymore.
+            truncateMessageBlockEndOffset,
+        );
+
+    // `truncatedResponse` currently doesn't include an initial `<time>` element. So
+    // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
+    // new `Time` block to `truncatedBlocks` and using that.
+    if (truncatedBlocks[0]!.type === "Time") {
+        truncatedResponse =
+            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            `<time>${escapeHtml(truncatedBlocks[0]!.timeContent)}</time>\n\n` +
+            truncatedResponse.slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset);
+    } else {
+        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+            defaultLocale,
+            contextTimeZone,
+            contextDate,
+            deserializeDateString(truncatedMessages[0]!.createdTime),
+            {withLongMonth: true},
+        );
+
+        const timeContent = `${formattedTime} ${contextFormattedTimeZone}`;
+        const timeContentHtml = escapeHtml(timeContent);
+
+        // Normally we have a rule: no user data in error messages since it leaks user data
+        // into our logs. However, we don't expect this error to _ever_ be thrown so given
+        // we don't expect this to ever throw and having the data which caused us to throw
+        // would be _very_ useful we include the time content string.
+        //
+        // Also, a message created time isn't sensitive data to begin with. You can
+        // trivially find the time at which users send messages by scanning our logs.
+        if (timeContentHtml.length > maxTimeContentLength) {
+            throw new InternalError(
+                quote`Time content was greater than our max length of ${maxTimeContentLength} (time content: ${timeContentHtml})`,
+            );
+        }
+
+        truncatedBlocks.unshift({
+            type: "Time",
+            timeContent,
+        });
+
+        truncatedResponse =
+            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            `<time>${timeContentHtml}</time>\n\n` +
+            truncatedResponse.slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset);
+    }
+
+    // Remove the `time` attribute from the first message block. We add a `<time>`
+    // block above to communicate the time.
+    if (truncatedBlocks[1]!.type !== "Time" && truncatedBlocks[1]!.timeAttribute !== null) {
+        truncatedBlocks[1] = {...truncatedBlocks[1]!, timeAttribute: null};
+
+        truncatedResponse =
+            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            truncatedResponse
+                .slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset)
+                .replace(/ time="[^"]*"/, "");
+    }
+
+    // Update the "Next page" link to reflect the new last message index after
+    // truncation.
+    if (page.preamble.pagination?.nextLink) {
+        const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+
+        const paragraph = responseTree.children[0];
+        assert(paragraph?.type === "paragraph");
+        const link = paragraph.children[paragraph.children.length - 1];
+        assert(link?.type === "link");
+
+        const linkStartOffset = assertExists(link.position?.start.offset);
+        const linkEndOffset = assertExists(link.position?.end.offset);
+
+        truncatedResponse =
+            truncatedResponse.slice(0, linkStartOffset) +
+            response
+                .slice(linkStartOffset, linkEndOffset)
+                .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
+            truncatedResponse.slice(linkEndOffset);
+    } else {
+        assert(roomTargetPathname !== null);
+
+        const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+
+        const paragraph = responseTree.children[0];
+        assert(paragraph?.type === "paragraph");
+
+        const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+
+        truncatedResponse =
+            truncatedResponse.slice(0, paragraphEndOffset) +
+            ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+            truncatedResponse.slice(paragraphEndOffset);
+    }
+
+    // Update the "Previous page" link to reflect the new last message index after
+    // truncation.
+    //
+    // If there is no "Previous page" link and truncation occurred then we need to add
+    // a "Previous page" link.
+    //
+    // NOCOMMIT: Do previous link + next link work together like this? I'm not sure.
+    if (page.preamble.pagination?.previousLink) {
+        const beforeMessageIndex = truncatedMessages[0]!.index;
+
+        const paragraph = responseTree.children[0];
+        assert(paragraph?.type === "paragraph");
+        const link = paragraph.children[paragraph.children.length - 1];
+        assert(link?.type === "link");
+
+        const linkStartOffset = assertExists(link.position?.start.offset);
+        const linkEndOffset = assertExists(link.position?.end.offset);
+
+        truncatedResponse =
+            truncatedResponse.slice(0, linkStartOffset) +
+            response
+                .slice(linkStartOffset, linkEndOffset)
+                .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
+            truncatedResponse.slice(linkEndOffset);
+    } else {
+        assert(roomTargetPathname !== null);
+
+        const beforeMessageIndex = truncatedMessages[0]!.index;
+
+        const paragraph = responseTree.children[0];
+        assert(paragraph?.type === "paragraph");
+
+        const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+
+        truncatedResponse =
+            truncatedResponse.slice(0, paragraphEndOffset) +
+            ` [${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})` +
+            truncatedResponse.slice(paragraphEndOffset);
+    }
+
+    return {
+        truncatedResponse,
+        truncatedMetadata: {
+            messages: truncatedMessages.map(message => ({index: message.index})),
+        },
+    };
 }

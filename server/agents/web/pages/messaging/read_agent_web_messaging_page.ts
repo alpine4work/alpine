@@ -4,7 +4,6 @@ import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/ap
 import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
-    AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
@@ -13,7 +12,10 @@ import {
     AgentWebMessagingPageWithMetadata,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
-import {truncateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
+import {
+    truncateAgentWebMessagingPage,
+    truncateAgentWebMessagingPageAroundMessage,
+} from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
 import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import {
     ApiContentBlockElementResponse,
@@ -161,6 +163,7 @@ export async function readAgentWebMessagingPage(
             around,
             limitLength,
             printPage,
+            createPageLinkPathname,
         });
     }
 
@@ -243,7 +246,7 @@ export async function readAgentWebMessagingPage(
     }
 }
 
-export async function readAgentWebMessagingPageAroundMessage<Page>(
+export async function readAgentWebMessagingPageAroundMessage(
     messageNouns: AgentWebMessagingPageNouns,
     context: AgentWebContextWithoutStorage,
     {
@@ -252,6 +255,7 @@ export async function readAgentWebMessagingPageAroundMessage<Page>(
         around,
         limitLength,
         printPage,
+        createPageLinkPathname,
     }: {
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
@@ -260,9 +264,13 @@ export async function readAgentWebMessagingPageAroundMessage<Page>(
         }>;
         around: AgentWebMessagingPageMessageRange;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPage) => Promise<string>;
+        printPage: (page: AgentWebMessagingPageWithMetadata) => Promise<string>;
+        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
-): Promise<Page> {
+): Promise<{
+    response: string;
+    metadata: AgentWebMessagingPageMetadata;
+}> {
     // Ignore any errors thrown by this promise. Don't crash the process.
     roomMetadataPromise.catch(() => {});
 
@@ -300,24 +308,42 @@ export async function readAgentWebMessagingPageAroundMessage<Page>(
         // been loading the room metadata in parallel.
         const roomMetadata = await roomMetadataPromise;
 
-        const messagingPage = buildAgentWebMessagingPageFromApiMessages(context, {
-            messageNouns,
-            direction: "Around",
-            roomMetadata,
-            messages,
-            isStartOfMessages: beforeCursor === null,
-            isEndOfMessages: afterCursor === null,
-        });
+        const {contextDate, contextFormattedTimeZone, page} =
+            buildAgentWebMessagingPageFromApiMessages(context, {
+                messageNouns,
+                direction: "Around",
+                roomMetadata,
+                messages,
+                isStartOfMessages: beforeCursor === null,
+                isEndOfMessages: afterCursor === null,
+            });
 
-        const page = buildPage(messagingPage);
+        const response = await printPage(page);
 
         // If there's no more messages or we've exceeded the limit then stop loading
         // messages and return the page we have.
-        if (
-            (beforeCursor === null && afterCursor === null) ||
-            (await computeLength(page)) >= limitLength
-        ) {
-            return page;
+        if ((beforeCursor === null && afterCursor === null) || response.length >= limitLength) {
+            // If the response is within the limit, return it! No truncation needed.
+            if (response.length <= limitLength) return {response, metadata: page.metadata};
+
+            // Truncate the response to fit within the limit length. This function is carefully
+            // written such that we return a string that can be parsed back into a valid
+            // messaging page.
+            const result = await truncateAgentWebMessagingPageAroundMessage(messageNouns, {
+                limitLength,
+                roomMetadataTarget: roomMetadata.target,
+                around,
+                messages,
+                contextTimeZone: context.timeZone,
+                contextDate,
+                contextFormattedTimeZone,
+                page,
+                response,
+                createPageLinkPathname,
+            });
+
+            if (result === null) return {response, metadata: page.metadata};
+            return {response: result.truncatedResponse, metadata: result.truncatedMetadata};
         }
 
         const [
