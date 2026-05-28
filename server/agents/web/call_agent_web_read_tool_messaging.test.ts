@@ -2799,3 +2799,284 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         ).toEqual(response);
     },
 );
+
+test.each([
+    {
+        path: "/chat/incident-response?start",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+
+<time>May 14th at 11:00am EDT</time>\n
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
+<message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>`,
+    },
+    {
+        path: "/chat/incident-response?after=28",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=57)
+
+<time>May 14th at 1:25pm EDT</time>\n
+<message id="29" from="[Bob](/human/bob)">\n\nTest message 29\n\n</message>\n
+<message id="30" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 30\n\n</message>\n
+<message id="31" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 31\n\n</message>\n
+<message id="32" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 32\n\n</message>\n
+<message id="33" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 33\n\n</message>\n
+<message id="34" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 34\n\n</message>\n
+<message id="35" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 35\n\n</message>\n
+<message id="36" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 36\n\n</message>\n
+<message id="37" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 37\n\n</message>\n
+<message id="38" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 38\n\n</message>\n
+<message id="39" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 39\n\n</message>\n
+<message id="40" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 40\n\n</message>\n
+<message id="41" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 41\n\n</message>\n
+<message id="42" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 42\n\n</message>\n
+<message id="43" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 43\n\n</message>\n
+<message id="44" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 44\n\n</message>\n
+<message id="45" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 45\n\n</message>\n
+<message id="46" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 46\n\n</message>\n
+<message id="47" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 47\n\n</message>\n
+<message id="48" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 48\n\n</message>\n
+<message id="49" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 49\n\n</message>\n
+<message id="50" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 50\n\n</message>\n
+<message id="51" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 51\n\n</message>\n
+<message id="52" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 52\n\n</message>\n
+<message id="53" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 53\n\n</message>\n
+<message id="54" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 54\n\n</message>\n
+<message id="55" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 55\n\n</message>\n
+<message id="56" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 56\n\n</message>\n
+<message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>`,
+    },
+    {
+        path: "/chat/incident-response?after=57",
+        response: `\
+Some messages in Incident Response. [Next page »](/chat/incident-response?after=86)
+
+<time>May 14th at 3:50pm EDT</time>\n
+<message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
+<message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>\n
+<message id="60" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 60\n\n</message>\n
+<message id="61" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 61\n\n</message>\n
+<message id="62" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 62\n\n</message>\n
+<message id="63" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 63\n\n</message>\n
+<message id="64" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 64\n\n</message>\n
+<message id="65" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 65\n\n</message>\n
+<message id="66" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 66\n\n</message>\n
+<message id="67" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 67\n\n</message>\n
+<message id="68" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 68\n\n</message>\n
+<message id="69" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 69\n\n</message>\n
+<message id="70" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 70\n\n</message>\n
+<message id="71" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 71\n\n</message>\n
+<message id="72" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 72\n\n</message>\n
+<message id="73" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 73\n\n</message>\n
+<message id="74" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 74\n\n</message>\n
+<message id="75" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 75\n\n</message>\n
+<message id="76" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 76\n\n</message>\n
+<message id="77" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 77\n\n</message>\n
+<message id="78" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 78\n\n</message>\n
+<message id="79" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 79\n\n</message>\n
+<message id="80" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 80\n\n</message>\n
+<message id="81" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 81\n\n</message>\n
+<message id="82" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 82\n\n</message>\n
+<message id="83" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 83\n\n</message>\n
+<message id="84" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 84\n\n</message>\n
+<message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
+<message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>`,
+    },
+    {
+        path: "/chat/incident-response?after=86",
+        response: `\
+Some messages in Incident Response.
+
+<time>May 14th at 6:15pm EDT</time>\n
+<message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
+<message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
+    },
+])("paginates from start to end with 3kb pages ($path)", async ({path, response}) => {
+    mockGetChat();
+
+    const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("after");
+
+    mockGetChatMessages({
+        totalMessageCount: 90,
+        limit: 30,
+        ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path,
+            limit: "3kb",
+        }),
+    ).toEqual(response);
+});
+
+test.each([
+    {
+        path: "/chat/incident-response?end",
+        response: `\
+Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
+
+<time>May 14th at 4:05pm EDT</time>\n
+<message id="61" from="[Bob](/human/bob)">\n\nTest message 61\n\n</message>\n
+<message id="62" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 62\n\n</message>\n
+<message id="63" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 63\n\n</message>\n
+<message id="64" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 64\n\n</message>\n
+<message id="65" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 65\n\n</message>\n
+<message id="66" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 66\n\n</message>\n
+<message id="67" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 67\n\n</message>\n
+<message id="68" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 68\n\n</message>\n
+<message id="69" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 69\n\n</message>\n
+<message id="70" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 70\n\n</message>\n
+<message id="71" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 71\n\n</message>\n
+<message id="72" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 72\n\n</message>\n
+<message id="73" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 73\n\n</message>\n
+<message id="74" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 74\n\n</message>\n
+<message id="75" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 75\n\n</message>\n
+<message id="76" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 76\n\n</message>\n
+<message id="77" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 77\n\n</message>\n
+<message id="78" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 78\n\n</message>\n
+<message id="79" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 79\n\n</message>\n
+<message id="80" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 80\n\n</message>\n
+<message id="81" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 81\n\n</message>\n
+<message id="82" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 82\n\n</message>\n
+<message id="83" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 83\n\n</message>\n
+<message id="84" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 84\n\n</message>\n
+<message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
+<message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
+<message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
+<message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
+    },
+    {
+        path: "/chat/incident-response?before=61",
+        response: `\
+Some messages in Incident Response. [Previous page »](/chat/incident-response?before=32)
+
+<time>May 14th at 1:40pm EDT</time>\n
+<message id="32" from="[Alice](/human/alice)">\n\nTest message 32\n\n</message>\n
+<message id="33" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 33\n\n</message>\n
+<message id="34" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 34\n\n</message>\n
+<message id="35" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 35\n\n</message>\n
+<message id="36" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 36\n\n</message>\n
+<message id="37" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 37\n\n</message>\n
+<message id="38" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 38\n\n</message>\n
+<message id="39" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 39\n\n</message>\n
+<message id="40" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 40\n\n</message>\n
+<message id="41" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 41\n\n</message>\n
+<message id="42" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 42\n\n</message>\n
+<message id="43" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 43\n\n</message>\n
+<message id="44" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 44\n\n</message>\n
+<message id="45" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 45\n\n</message>\n
+<message id="46" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 46\n\n</message>\n
+<message id="47" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 47\n\n</message>\n
+<message id="48" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 48\n\n</message>\n
+<message id="49" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 49\n\n</message>\n
+<message id="50" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 50\n\n</message>\n
+<message id="51" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 51\n\n</message>\n
+<message id="52" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 52\n\n</message>\n
+<message id="53" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 53\n\n</message>\n
+<message id="54" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 54\n\n</message>\n
+<message id="55" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 55\n\n</message>\n
+<message id="56" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 56\n\n</message>\n
+<message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
+<message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
+<message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>\n
+<message id="60" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 60\n\n</message>`,
+    },
+    {
+        path: "/chat/incident-response?before=32",
+        response: `\
+Some messages in Incident Response. [Previous page »](/chat/incident-response?before=3)
+
+<time>May 14th at 11:15am EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
+<message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
+<message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>\n
+<message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
+<message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
+<message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>\n
+<message id="14" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 14\n\n</message>\n
+<message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
+<message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
+<message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>\n
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 18\n\n</message>\n
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>\n
+<message id="20" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 20\n\n</message>\n
+<message id="21" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 21\n\n</message>\n
+<message id="22" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 22\n\n</message>\n
+<message id="23" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 23\n\n</message>\n
+<message id="24" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 24\n\n</message>\n
+<message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
+<message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
+<message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
+<message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>\n
+<message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>\n
+<message id="30" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 30\n\n</message>\n
+<message id="31" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 31\n\n</message>`,
+    },
+    {
+        path: "/chat/incident-response?before=3",
+        response: `\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>\n
+<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
+    },
+])("paginates from end to start with 3kb pages ($path)", async ({path, response}) => {
+    mockGetChat();
+
+    const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("before");
+
+    mockGetChatMessages({
+        from: "End",
+        totalMessageCount: 90,
+        limit: 30,
+        ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path,
+            limit: "3kb",
+        }),
+    ).toEqual(response);
+});
