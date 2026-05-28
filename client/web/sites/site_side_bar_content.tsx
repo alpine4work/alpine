@@ -1078,7 +1078,9 @@ function SiteNavLink({
                         return;
                     }
                     event.preventDefault();
+                    if (isActive) return;
                     if (isPendingNavigation) return;
+
                     setIsPendingNavigation(true);
                     void rootNavigate(url, {
                         unstable_headers: {
