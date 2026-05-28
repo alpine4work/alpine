@@ -1,6 +1,7 @@
 import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
+import {getSiteAttributeUpdateTransaction} from "~/server/sites/data/internal/get_site_attribute_update_transaction.js";
 import {
     getSiteTreeForUpdate,
     intoSiteTreeItem,
@@ -84,13 +85,6 @@ export async function dangerouslyGetAddToSiteTransactionEntries(
     // `unknown` here.
     return [
         createOrUndeleteEntityTransactionEntry,
-        SitesTable.transactionDirectlyUpdateItemWithEvent(
-            siteAttributesItem.update({
-                updatedTime: new Date(),
-                ...(newFirstEntityId !== siteTree.site.firstEntityId
-                    ? {firstEntityId: newFirstEntityId}
-                    : {}),
-            }),
-        ),
+        getSiteAttributeUpdateTransaction(context, siteAttributesItem, newFirstEntityId),
     ];
 }

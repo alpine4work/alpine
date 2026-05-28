@@ -2,9 +2,11 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {getSiteAttributeUpdateTransaction} from "~/server/sites/data/internal/get_site_attribute_update_transaction.js";
 import {
     SiteTreeItem,
     getSiteTreeForUpdate,
@@ -107,11 +109,10 @@ export async function moveSiteEntry(
         validateSiteEntryMoveDoesNotIntroduceCycle(oldSiteEntry.item, newParentId, siteTree);
 
         const updateSiteAttributesEntry = createSiteAttributesItemUpdateTransactionEntry(
+            context,
             siteAttributesItem,
             item,
-            {
-                siteTree,
-            },
+            {siteTree},
         );
         const updateSiteItemEntry = createSiteEntryUpdateTransactionEntry(
             oldSiteEntry.item,
@@ -147,6 +148,7 @@ export async function moveSiteEntry(
  * tree and updates the site's `lastUpdatedTime`.
  */
 function createSiteAttributesItemUpdateTransactionEntry(
+    context: ServerMinimalAccountActionContext,
     siteAttributesItem: DynamoItem<SiteAttributesItem>,
     item:
         | (SiteSideBarSectionContainerIdObject & {
@@ -173,14 +175,7 @@ function createSiteAttributesItemUpdateTransactionEntry(
     );
     const newFirstEntityId = newTree.site.firstEntityId;
 
-    return SitesTable.transactionDirectlyUpdateItemWithEvent(
-        siteAttributesItem.update({
-            updatedTime: new Date(),
-            ...(newFirstEntityId !== siteAttributesItem.firstEntityId
-                ? {firstEntityId: newFirstEntityId}
-                : {}),
-        }),
-    );
+    return getSiteAttributeUpdateTransaction(context, siteAttributesItem, newFirstEntityId);
 }
 
 function createSiteEntryUpdateTransactionEntry(
