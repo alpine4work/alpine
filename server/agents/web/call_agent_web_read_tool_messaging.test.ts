@@ -128,9 +128,9 @@ function mockGetChatMessages({
         case undefined:
         case "Start": {
             let startIndex = (cursor ?? -1) + 1;
-            let endIndex = startIndex + limit - 1;
-
             startIndex = Math.max(startIndex, 0);
+
+            let endIndex = startIndex + limit - 1;
             endIndex = Math.min(endIndex, totalMessageCount - 1);
 
             api.mockGet(
@@ -155,10 +155,10 @@ function mockGetChatMessages({
         }
         case "End": {
             let endIndex = (cursor ?? totalMessageCount) - 1;
-            let startIndex = endIndex - limit + 1;
-
-            startIndex = Math.max(startIndex, 0);
             endIndex = Math.min(endIndex, totalMessageCount - 1);
+
+            let startIndex = endIndex - limit + 1;
+            startIndex = Math.max(startIndex, 0);
 
             api.mockGet(
                 "/chats/{id}/messages",
@@ -3274,12 +3274,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 test.only.each([
     {
         path: "/chat/incident-response?message=4",
-        limit: "500b",
+        limit: "600b",
         requests: [{limit: 30, cursor: -11}],
         response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=5)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
-<time>May 14th at 11:20am EDT</time>\n
+<time>May 14th at 11:15am EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
@@ -3289,18 +3289,17 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         limit: "1kb",
         requests: [{limit: 30, cursor: -11}],
         response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=8)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=10)
 
-<time>May 14th at 11:00am EDT</time>\n
-<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
-<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
-<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<time>May 14th at 11:20am EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
-<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>`,
+<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>\n
+<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 9\n\n</message>\n
+<message id="10" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 10\n\n</message>`,
     },
     {
         path: "/chat/incident-response?message=4",
@@ -3367,14 +3366,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             {limit: 15, cursor: 34},
         ],
         response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=39)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=42)
 
-<time>May 14th at 11:00am EDT</time>\n
-<message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
-<message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
-<message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>\n
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
-<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<time>May 14th at 11:20am EDT</time>\n
+<message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
@@ -3409,7 +3404,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="36" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 36\n\n</message>\n
 <message id="37" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 37\n\n</message>\n
 <message id="38" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 38\n\n</message>\n
-<message id="39" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 39\n\n</message>`,
+<message id="39" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 39\n\n</message>\n
+<message id="40" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 40\n\n</message>\n
+<message id="41" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 41\n\n</message>\n
+<message id="42" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 42\n\n</message>`,
     },
 ])(
     "reads single message near the top of a long message list (limit: $limit)",
@@ -4711,3 +4709,5 @@ End of messages.`,
 );
 
 // NOCOMMIT: We need `?message` tests with `<time>`s as well.
+//
+// NOCOMMIT: Also test merged message blocks

@@ -24,6 +24,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -31,6 +32,10 @@ import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {alternateIterables} from "~/shared/helpers/iterable/alternate_iterables.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {createIterableWithLength} from "~/shared/helpers/iterable/create_iterable_with_length.js";
+import {exhaustIterable} from "~/shared/helpers/iterable/exhaust_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -106,6 +111,7 @@ export async function truncateAgentWebMessagingPage(
 
                         lastMessageBlockEndOffset ??= endOffset;
                         truncateMessageBlockEndOffset = endOffset;
+                        truncateMessageBlockCount++;
 
                         if (
                             lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
@@ -113,8 +119,6 @@ export async function truncateAgentWebMessagingPage(
                         ) {
                             return true;
                         }
-
-                        truncateMessageBlockCount++;
                     }
 
                     if ("children" in childNode) {
@@ -128,6 +132,9 @@ export async function truncateAgentWebMessagingPage(
             };
 
             traverse(responseTree);
+
+            // We don't truncate the last block traverse sees.
+            truncateMessageBlockCount--;
 
             // There are no messages in this page so we don't truncate.
             if (truncateMessageBlockEndOffset === null) return null;
@@ -288,6 +295,7 @@ export async function truncateAgentWebMessagingPage(
 
                             firstMessageBlockStartOffset ??= startOffset;
                             truncateMessageBlockStartOffset = startOffset;
+                            truncateMessageBlockCount++;
 
                             if (
                                 truncateMessageBlockStartOffset -
@@ -296,8 +304,6 @@ export async function truncateAgentWebMessagingPage(
                             ) {
                                 return true;
                             }
-
-                            truncateMessageBlockCount++;
                         }
                     }
 
@@ -312,6 +318,9 @@ export async function truncateAgentWebMessagingPage(
             };
 
             traverse(responseTree);
+
+            // We don't truncate the last block traverse sees.
+            truncateMessageBlockCount--;
 
             // There are no messages in this page so we don't truncate.
             if (truncateMessageBlockStartOffset === null) return null;
@@ -499,6 +508,25 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     truncatedResponse: string;
     truncatedMetadata: AgentWebMessagingPageMetadata;
 } | null> {
+    let messageCountBeforeAround = 0;
+    let messageCountAfterAround = 0;
+
+    for (const message of messages) {
+        if (message.index < around.startMessageIndex) {
+            messageCountBeforeAround++;
+        } else {
+            break;
+        }
+    }
+
+    for (const message of reverseIterable(messages)) {
+        if (message.index > around.endMessageIndex - 1) {
+            messageCountAfterAround++;
+        } else {
+            break;
+        }
+    }
+
     const limitLengthDifference = response.length - limitLength;
     assert(limitLengthDifference > 0);
 
@@ -585,9 +613,16 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // the max width.
     truncateLength += "<time>".length + maxTimeContentLength + "</time>\n\n".length;
 
-    let truncateEndLength = Math.floor(truncateLength / 2);
+    const getCurrentTruncateLength = () =>
+        (truncateMessageBlockEndOffset !== null
+            ? assertExists(lastMessageBlockEndOffset) - truncateMessageBlockEndOffset
+            : 0) +
+        (truncateMessageBlockStartOffset !== null
+            ? truncateMessageBlockStartOffset -
+              (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOffset))
+            : 0);
 
-    const traverseFromEnd = (node: Parent): boolean => {
+    function* traverseFromEnd(node: Parent): IterableIterator<void, boolean> {
         // Very important: for the `End` direction we need to traverse from the bottom of
         // the tree to the top!
         for (const childNode of reverseIterable(node.children)) {
@@ -595,6 +630,17 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                 childNode.type === "html" &&
                 hasHtmlCloseTag(childNode.value, tagName => tagName === messageNouns.noun)
             ) {
+                const endOffset = assertExists(childNode.position?.end.offset);
+
+                lastMessageBlockEndOffset ??= endOffset;
+                truncateMessageBlockEndOffset = endOffset;
+                truncateMessageBlockCountFromEnd++;
+
+                // Have we truncated enough?
+                if (getCurrentTruncateLength() >= truncateLength) {
+                    return true;
+                }
+
                 // Test if this block intersects with `around`.
                 {
                     blockIndexFromEnd ??= page.blocks.length;
@@ -628,51 +674,21 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                     assert(found);
                 }
 
-                const endOffset = assertExists(childNode.position?.end.offset);
-
-                lastMessageBlockEndOffset ??= endOffset;
-                truncateMessageBlockEndOffset = endOffset;
-
-                // Have we truncated enough?
-                if (
-                    lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
-                    truncateEndLength
-                ) {
-                    return true;
-                }
-
-                truncateMessageBlockCountFromEnd++;
+                // Yield after every message block we find to the other iterator in our
+                // `alternateIterables()` call.
+                yield;
             }
 
             if ("children" in childNode) {
-                if (traverseFromEnd(childNode)) {
-                    return true;
-                }
+                const done: boolean = yield* traverseFromEnd(childNode);
+                if (done) return true;
             }
         }
 
         return false;
-    };
+    }
 
-    traverseFromEnd(responseTree);
-
-    // TypeScript is dumb and doesn't realize these variables are assigned when we call
-    // `traverseFromStart()`.
-    truncateMessageBlockEndOffset = truncateMessageBlockEndOffset as any;
-    lastMessageBlockEndOffset = lastMessageBlockEndOffset as any;
-
-    // Any remaining length we weren't able to truncate from the end, let's truncate
-    // from the start. This will lead to us truncating more from the start than the
-    // end. Which is what we want.
-    const truncateStartLength =
-        truncateLength -
-        (truncateMessageBlockEndOffset !== null
-            ? assertExists(lastMessageBlockEndOffset) - truncateMessageBlockEndOffset
-            : 0);
-
-    let hasStoppedTraverseFromStartPrematurely = false;
-
-    const traverseFromStart = (node: Parent): boolean => {
+    function* traverseFromStart(node: Parent): IterableIterator<void, boolean> {
         for (const childNode of node.children) {
             if (childNode.type === "html") {
                 if (
@@ -683,6 +699,16 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                 }
 
                 if (hasHtmlOpenTag(childNode.value, tagName => tagName === messageNouns.noun)) {
+                    const startOffset = assertExists(childNode.position?.start.offset);
+
+                    firstMessageBlockStartOffset ??= startOffset;
+                    truncateMessageBlockStartOffset = startOffset;
+                    truncateMessageBlockCountFromStart++;
+
+                    if (getCurrentTruncateLength() >= truncateLength) {
+                        return true;
+                    }
+
                     // Test if this block intersects with `around`.
                     {
                         blockIndexFromStart ??= 0;
@@ -708,7 +734,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                                     around.endMessageIndex - 1,
                                 )
                             ) {
-                                hasStoppedTraverseFromStartPrematurely = true;
                                 return true;
                             }
                             break;
@@ -717,34 +742,48 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                         assert(found);
                     }
 
-                    const startOffset = assertExists(childNode.position?.start.offset);
-
-                    firstMessageBlockStartOffset ??= startOffset;
-                    truncateMessageBlockStartOffset = startOffset;
-
-                    if (
-                        truncateMessageBlockStartOffset -
-                            (firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) >=
-                        truncateStartLength
-                    ) {
-                        return true;
-                    }
-
-                    truncateMessageBlockCountFromStart++;
+                    // Yield after every message block we find to the other iterator in our
+                    // `alternateIterables()` call.
+                    yield;
                 }
             }
 
             if ("children" in childNode) {
-                if (traverseFromStart(childNode)) {
-                    return true;
-                }
+                const done: boolean = yield* traverseFromStart(childNode);
+                if (done) return true;
             }
         }
 
         return false;
-    };
+    }
 
-    traverseFromStart(responseTree);
+    // Alternate between start and end traversal. So we remove a message block from the
+    // start, then the end, then the start, then the end. Until we hit our target
+    // truncation length.
+    exhaustIterable(
+        alternateIterables(
+            concatIterables(
+                // Fix imbalance in messages before/after `around` range. If there are more
+                // messages before our around range than after we will `yield` the difference so we
+                // don't truncate messages close to the `around` range.
+                createIterableWithLength(messageCountAfterAround - messageCountBeforeAround, noop),
+                traverseFromStart(responseTree),
+            ),
+            concatIterables(
+                // Fix imbalance in messages before/after `around` range. If there are more
+                // messages after our around range than before we will `yield` the difference so we
+                // don't truncate messages close to the `around` range.
+                createIterableWithLength(messageCountBeforeAround - messageCountAfterAround, noop),
+                traverseFromEnd(responseTree),
+            ),
+        ),
+    );
+
+    // We don't truncate the last block traverse sees.
+    truncateMessageBlockCountFromStart--;
+
+    // We don't truncate the last block traverse sees.
+    truncateMessageBlockCountFromEnd--;
 
     // TypeScript is dumb and doesn't realize these variables are assigned when we call
     // `traverseFromStart()`.
@@ -752,24 +791,10 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     firstTimeBlockStartOffset = firstTimeBlockStartOffset as any;
     firstMessageBlockStartOffset = firstMessageBlockStartOffset as any;
 
-    if (hasStoppedTraverseFromStartPrematurely) {
-        // If `traverseFromStart()` was stopped because it reached a message we're not
-        // allowed to truncate then reset `traverseFromEnd()` state and try again. So we
-        // can truncate more message blocks from the end to compensate.
-        truncateEndLength =
-            truncateLength -
-            (truncateMessageBlockStartOffset !== null
-                ? truncateMessageBlockStartOffset -
-                  (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOffset))
-                : 0);
-
-        lastMessageBlockEndOffset = null;
-        truncateMessageBlockEndOffset = null;
-        truncateMessageBlockCountFromEnd = 0;
-        blockIndexFromEnd = null;
-
-        traverseFromEnd(responseTree);
-    }
+    // TypeScript is dumb and doesn't realize these variables are assigned when we call
+    // `traverseFromStart()`.
+    truncateMessageBlockEndOffset = truncateMessageBlockEndOffset as any;
+    lastMessageBlockEndOffset = lastMessageBlockEndOffset as any;
 
     // There are no messages in this page so we don't truncate.
     if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
@@ -786,16 +811,6 @@ export async function truncateAgentWebMessagingPageAroundMessage(
         truncateMessageBlockStartOffset === firstMessageBlockStartOffset
     ) {
         return null;
-    }
-
-    // No truncation occurred from end.
-    if (truncateMessageBlockEndOffset === lastMessageBlockEndOffset) {
-        truncateMessageBlockCountFromEnd = 0;
-    }
-
-    // No truncation occurred from start.
-    if (truncateMessageBlockStartOffset === firstMessageBlockStartOffset) {
-        truncateMessageBlockCountFromStart = 0;
     }
 
     let truncateMessageCountFromStart = 0;
