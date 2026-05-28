@@ -1774,6 +1774,7 @@ function PostListView(
                                     {!shouldRenderWithRelativePositioning && !isPostView && (
                                         <div
                                             style={{
+                                                pointerEvents: "none",
                                                 position: "absolute",
                                                 top: postContentPositionOffset,
                                                 height: offset + height - postContentPositionOffset,
