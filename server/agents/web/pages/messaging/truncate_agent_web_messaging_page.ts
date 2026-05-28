@@ -1,6 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import escapeHtml from "escape-html";
-import {Parent} from "mdast";
+import {Parent, PhrasingContent} from "mdast";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     AgentWebMessagingPage,
@@ -12,6 +12,7 @@ import {
 import {
     agentWebMessagingNextPageLinkText,
     agentWebMessagingPreviousPageLinkTextWithEndArrow,
+    agentWebMessagingPreviousPageLinkTextWithStartArrow,
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
@@ -558,6 +559,12 @@ export async function truncateAgentWebMessagingPageAroundMessage(
             // Max length of an index we'd include after `?after`.
             messages[messages.length - 1]!.index.toString().length +
             ")".length;
+
+        // If we have both a next page and a previous page link then we'll also be adding a
+        // separator.
+        if (!page.preamble.pagination?.previousLink) {
+            truncateLength += " | ".length;
+        }
     }
 
     const maxTimeContentLength =
@@ -578,7 +585,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // the max width.
     truncateLength += "<time>".length + maxTimeContentLength + "</time>\n\n".length;
 
-    const truncateEndLength = Math.floor(truncateLength / 2);
+    let truncateEndLength = Math.floor(truncateLength / 2);
 
     const traverseFromEnd = (node: Parent): boolean => {
         // Very important: for the `End` direction we need to traverse from the bottom of
@@ -663,6 +670,8 @@ export async function truncateAgentWebMessagingPageAroundMessage(
             ? assertExists(lastMessageBlockEndOffset) - truncateMessageBlockEndOffset
             : 0);
 
+    let hasStoppedTraverseFromStartPrematurely = false;
+
     const traverseFromStart = (node: Parent): boolean => {
         for (const childNode of node.children) {
             if (childNode.type === "html") {
@@ -699,6 +708,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
                                     around.endMessageIndex - 1,
                                 )
                             ) {
+                                hasStoppedTraverseFromStartPrematurely = true;
                                 return true;
                             }
                             break;
@@ -741,6 +751,25 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     truncateMessageBlockStartOffset = truncateMessageBlockStartOffset as any;
     firstTimeBlockStartOffset = firstTimeBlockStartOffset as any;
     firstMessageBlockStartOffset = firstMessageBlockStartOffset as any;
+
+    if (hasStoppedTraverseFromStartPrematurely) {
+        // If `traverseFromStart()` was stopped because it reached a message we're not
+        // allowed to truncate then reset `traverseFromEnd()` state and try again. So we
+        // can truncate more message blocks from the end to compensate.
+        truncateEndLength =
+            truncateLength -
+            (truncateMessageBlockStartOffset !== null
+                ? truncateMessageBlockStartOffset -
+                  (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOffset))
+                : 0);
+
+        lastMessageBlockEndOffset = null;
+        truncateMessageBlockEndOffset = null;
+        truncateMessageBlockCountFromEnd = 0;
+        blockIndexFromEnd = null;
+
+        traverseFromEnd(responseTree);
+    }
 
     // There are no messages in this page so we don't truncate.
     if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
@@ -884,37 +913,39 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
     // Update the "Next page" link to reflect the new last message index after
     // truncation.
-    if (page.preamble.pagination?.nextLink) {
-        const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+    if (truncateMessageBlockEndOffset !== lastMessageBlockEndOffset) {
+        if (page.preamble.pagination?.nextLink) {
+            const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-        const paragraph = responseTree.children[0];
-        assert(paragraph?.type === "paragraph");
-        const link = paragraph.children[paragraph.children.length - 1];
-        assert(link?.type === "link");
+            const paragraph = responseTree.children[0];
+            assert(paragraph?.type === "paragraph");
+            const link = paragraph.children[paragraph.children.length - 1];
+            assert(link?.type === "link");
 
-        const linkStartOffset = assertExists(link.position?.start.offset);
-        const linkEndOffset = assertExists(link.position?.end.offset);
+            const linkStartOffset = assertExists(link.position?.start.offset);
+            const linkEndOffset = assertExists(link.position?.end.offset);
 
-        truncatedResponse =
-            truncatedResponse.slice(0, linkStartOffset) +
-            response
-                .slice(linkStartOffset, linkEndOffset)
-                .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
-            truncatedResponse.slice(linkEndOffset);
-    } else {
-        assert(roomTargetPathname !== null);
+            truncatedResponse =
+                truncatedResponse.slice(0, linkStartOffset) +
+                response
+                    .slice(linkStartOffset, linkEndOffset)
+                    .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
+                truncatedResponse.slice(linkEndOffset);
+        } else {
+            assert(roomTargetPathname !== null);
 
-        const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+            const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-        const paragraph = responseTree.children[0];
-        assert(paragraph?.type === "paragraph");
+            const paragraph = responseTree.children[0];
+            assert(paragraph?.type === "paragraph");
 
-        const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+            const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
 
-        truncatedResponse =
-            truncatedResponse.slice(0, paragraphEndOffset) +
-            ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
-            truncatedResponse.slice(paragraphEndOffset);
+            truncatedResponse =
+                truncatedResponse.slice(0, paragraphEndOffset) +
+                ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+                truncatedResponse.slice(paragraphEndOffset);
+        }
     }
 
     // Update the "Previous page" link to reflect the new last message index after
@@ -924,37 +955,59 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // a "Previous page" link.
     //
     // NOCOMMIT: Do previous link + next link work together like this? I'm not sure.
-    if (page.preamble.pagination?.previousLink) {
-        const beforeMessageIndex = truncatedMessages[0]!.index;
+    if (truncateMessageBlockStartOffset !== firstMessageBlockStartOffset) {
+        if (page.preamble.pagination?.previousLink) {
+            const beforeMessageIndex = truncatedMessages[0]!.index;
 
-        const paragraph = responseTree.children[0];
-        assert(paragraph?.type === "paragraph");
-        const link = paragraph.children[paragraph.children.length - 1];
-        assert(link?.type === "link");
+            const paragraph = responseTree.children[0];
+            assert(paragraph?.type === "paragraph");
 
-        const linkStartOffset = assertExists(link.position?.start.offset);
-        const linkEndOffset = assertExists(link.position?.end.offset);
+            let link: PhrasingContent | undefined;
 
-        truncatedResponse =
-            truncatedResponse.slice(0, linkStartOffset) +
-            response
-                .slice(linkStartOffset, linkEndOffset)
-                .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
-            truncatedResponse.slice(linkEndOffset);
-    } else {
-        assert(roomTargetPathname !== null);
+            if (!page.preamble.pagination?.nextLink) {
+                link = paragraph.children[paragraph.children.length - 1];
+            } else {
+                link = paragraph.children[paragraph.children.length - 3];
+            }
 
-        const beforeMessageIndex = truncatedMessages[0]!.index;
+            assert(link?.type === "link");
 
-        const paragraph = responseTree.children[0];
-        assert(paragraph?.type === "paragraph");
+            const linkStartOffset = assertExists(link.position?.start.offset);
+            const linkEndOffset = assertExists(link.position?.end.offset);
 
-        const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+            truncatedResponse =
+                truncatedResponse.slice(0, linkStartOffset) +
+                response
+                    .slice(linkStartOffset, linkEndOffset)
+                    .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
+                truncatedResponse.slice(linkEndOffset);
+        } else {
+            assert(roomTargetPathname !== null);
 
-        truncatedResponse =
-            truncatedResponse.slice(0, paragraphEndOffset) +
-            ` [${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})` +
-            truncatedResponse.slice(paragraphEndOffset);
+            const beforeMessageIndex = truncatedMessages[0]!.index;
+
+            const paragraph = responseTree.children[0];
+            assert(paragraph?.type === "paragraph");
+
+            if (!page.preamble.pagination?.nextLink) {
+                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, paragraphEndOffset) +
+                    ` [${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})` +
+                    truncatedResponse.slice(paragraphEndOffset);
+            } else {
+                const link = paragraph.children[paragraph.children.length - 1];
+                assert(link?.type === "link");
+
+                const linkStartOffset = assertExists(link.position?.start.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, linkStartOffset) +
+                    `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomTargetPathname}?before=${beforeMessageIndex}) | ` +
+                    truncatedResponse.slice(linkStartOffset);
+            }
+        }
     }
 
     return {
