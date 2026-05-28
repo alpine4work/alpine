@@ -2,6 +2,7 @@ import {LinkDescriptor, json, redirect} from "@remix-run/server-runtime";
 import {Params} from "react-router";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {AuthenticationView} from "~/client/web/auth/authentication_view.js";
+import {GoogleAdsConversionTrackingScript} from "~/client/web/auth/google_ads_conversion_tracking_script.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
@@ -39,4 +40,11 @@ export async function loader({request, context}: LoaderArgs) {
     return json({});
 }
 
-export default AuthenticationView;
+export default function AuthVariantRoute() {
+    return (
+        <>
+            <GoogleAdsConversionTrackingScript />
+            <AuthenticationView />
+        </>
+    );
+}

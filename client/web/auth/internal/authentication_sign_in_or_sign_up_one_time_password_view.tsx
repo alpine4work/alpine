@@ -16,6 +16,7 @@ import {
     OneTimePasswordInput,
     OneTimePasswordInputRef,
 } from "~/client/web/auth/internal/one_time_password_input.js";
+import {trackGoogleAdsSignUpConversion} from "~/client/web/auth/internal/tracking/track_google_ads_sign_up_conversion.js";
 import {removeAuthenticationSignUpInviteEmailAddresses} from "~/client/web/auth/internal/use_authentication_sign_up_invite_email_addresses.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -154,6 +155,13 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                     // We technically only need this when `state.type === "SignUpOneTimePassword"` but
                     // it doesn't hurt to call after sign in too.
                     removeAuthenticationSignUpInviteEmailAddresses(state.emailAddress);
+
+                    // Record the Google Ads sign-up conversion only when the account was actually
+                    // created (i.e. not on sign in). No-op outside of production or when no conversion
+                    // label is configured.
+                    if (state.type === "SignUpOneTimePassword") {
+                        trackGoogleAdsSignUpConversion();
+                    }
                 } catch (error) {
                     // Clear the one time password input
                     setOneTimePassword("");
