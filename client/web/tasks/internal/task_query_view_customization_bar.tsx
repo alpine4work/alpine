@@ -289,7 +289,11 @@ function TaskQueryViewCustomizationBarSortsOverlay({
             [sorts, sortsWithId],
         )
     ) {
-        setSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
+        // This runs during render so we call `actuallySetSortsWithId()` directly instead
+        // of `setSortsWithId()`. The latter would call `onSortsChange()` (a `useEvent()`
+        // callback that throws when called while rendering), and notifying the parent here
+        // would be circular anyway since the change originated from the `sorts` prop.
+        actuallySetSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
     }
 
     const addSort = (sort: TaskQuerySort) => {

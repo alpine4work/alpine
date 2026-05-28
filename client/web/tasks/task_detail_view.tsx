@@ -685,7 +685,7 @@ export function TaskDetailView({
     // param). We've decided this is acceptable for now since it's rare. If users
     // observe this state frequently we'll change it.
     useEffect(() => {
-        if (!isWideProjectLayout) return;
+        if (isWideProjectLayout) return;
 
         if (filters.length === 0 && sorts.length === 0) return;
 
