@@ -225,6 +225,11 @@ export const SearchEntityModelDataSchema = Schema.union({
     Post: SearchPostEntityModelDataSchema,
 });
 
+// A shared characteristic of all search entity model data is that it has a `title`
+// property. We ensure that is always true by asserting that
+// `SearchEntityModelData` is assignable to `{title: string | null}`.
+assertAssignableTypes<SearchEntityModelData, {title: string | null}>();
+
 assertAssignableTypes<SearchAffinityEntityModelData, SearchEntityModelData>();
 
 export type SearchEntityModelDataWithAccount =
