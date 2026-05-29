@@ -5813,7 +5813,8 @@ Some messages in Incident Response.
 <time>May 16th at 1:00am EDT</time>\n
 <message id="38" from="[Alice](/human/alice)">\n\nTest message 38\n\n</message>\n
 <time>May 16th at 2:00am EDT</time>\n
-<message id="39" from="[Bob](/human/bob)">\n\nTest message 39\n\n</message>\n
+<message id="39" from="[Bob](/human/bob)">\n\nTest message 39\n\n</message>
+
 End of messages.`,
     },
 ])(
