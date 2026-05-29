@@ -18,6 +18,9 @@ export function convertToUrlPathnameSlug(
     // "Rose Compás" becomes "Rose Compas".
     string = removeAccents(string);
 
+    // Remove apostrophe "'s" so "it's" and "Rose's" become "its" and "Roses".
+    string = string.replaceAll(/(?<=[^\s])[\u2019\u0027]s/g, "s");
+
     // Convert the string to lowercase.
     string = string.toLowerCase();
 
