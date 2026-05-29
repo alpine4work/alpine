@@ -878,7 +878,9 @@ export async function truncateAgentWebMessagingPageAroundMessage(
             // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
             // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
             // `direction` then we're implicitly not at the end of messages anymore.
-            truncateMessageBlockEndOffset,
+            truncateMessageBlockEndOffset !== lastMessageBlockEndOffset
+                ? truncateMessageBlockEndOffset
+                : undefined,
         );
 
     // `truncatedResponse` currently doesn't include an initial `<time>` element. So

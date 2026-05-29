@@ -3602,7 +3602,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=85",
@@ -3629,7 +3631,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=85",
@@ -3699,7 +3703,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads single message near the end of a long message list (limit: $limit)",
@@ -3733,7 +3739,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 14th at 6:15pm EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -3750,7 +3758,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -3773,7 +3783,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -3839,7 +3851,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads single message at the end of a long message list (limit: $limit)",
@@ -4398,7 +4412,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=84-85",
@@ -4480,7 +4496,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads message range near the end of a long message list (limit: $limit)",
@@ -4514,7 +4532,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 14th at 6:15pm EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=88-89",
@@ -4531,7 +4551,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=88-89",
@@ -4555,7 +4577,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=88-89",
@@ -4622,7 +4646,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>\n
-<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads message range at the end of a long message list (limit: $limit)",
@@ -5308,7 +5334,6 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>`,
     },
-    // NOCOMMIT: Missing "End of messages."
     {
         path: "/chat/incident-response?message=85",
         limit: "2.237kb",
@@ -5351,7 +5376,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=85",
@@ -5412,7 +5439,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads single message near the end of a long message list when messages are more than an hour apart (limit: $limit)",
@@ -5442,7 +5471,6 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 );
 
 test.each([
-    // NOCOMMIT: Missing "End of messages."
     {
         path: "/chat/incident-response?message=89",
         limit: "500b",
@@ -5455,7 +5483,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -5477,7 +5507,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -5513,7 +5545,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
     {
         path: "/chat/incident-response?message=89",
@@ -5556,7 +5590,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>\n
 <time>May 18th at 4:00am EDT</time>\n
-<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>`,
+<message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
+
+End of messages.`,
     },
 ])(
     "reads single message at the end of a long message list when messages are more than an hour apart (limit: $limit)",
