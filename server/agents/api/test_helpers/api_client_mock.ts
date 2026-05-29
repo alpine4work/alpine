@@ -14,7 +14,6 @@ import {
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";

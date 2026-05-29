@@ -1,20 +1,14 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
+import {mockApiGetChat} from "~/server/agents/api/test_helpers/mock_api_get_chat.js";
+import {mockApiGetChatMessages} from "~/server/agents/api/test_helpers/mock_api_get_chat_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {
-    ApiAccount,
-    ApiContentResponse,
-    ApiMessageContentPayloadParentContentSnippet,
-    ApiMessageResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {assertDateString} from "~/shared/helpers/date/date_string.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -24,6 +18,7 @@ const chatId = generateId<ChatId>();
 
 const aliceAccount = createApiAccountMock({name: "Alice"});
 const bobAccount = createApiAccountMock({name: "Bob"});
+const author = [aliceAccount, bobAccount];
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool_messaging.test.ts");
 const api = new ApiClientMock();
@@ -59,144 +54,6 @@ beforeEach(async () => {
     });
     assert(chatPathname === "/chat/incident-response");
 });
-
-function createMessage(
-    index: number,
-    content: ApiContentResponse | string,
-    {
-        author = index % 2 === 0 ? aliceAccount : bobAccount,
-        createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)).toISOString(),
-        createdTimeZone = defaultTimeZone,
-        parent,
-    }: {
-        author?: ApiAccount;
-        createdTime?: string;
-        createdTimeZone?: TimeZone;
-        parent?: {
-            author: ApiAccount;
-            index: number;
-            endIndex?: number;
-            contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
-        };
-    } = {},
-): ApiMessageResponse {
-    return {
-        index,
-        author,
-        createdTime: assertDateString(createdTime),
-        createdTimeZone,
-        payload: {
-            type: "Content",
-            content:
-                typeof content === "string"
-                    ? {elements: [{type: "Paragraph", elements: [{type: "Text", text: content}]}]}
-                    : content,
-            parent: parent
-                ? {
-                      type: "Message" as const,
-                      index: parent.index,
-                      ...(parent.endIndex !== undefined ? {endIndex: parent.endIndex} : {}),
-                      author: parent.author,
-                      contentSnippet:
-                          typeof parent.contentSnippet === "string"
-                              ? {
-                                    elements: [{type: "Text", text: parent.contentSnippet}],
-                                    isTruncated: false,
-                                }
-                              : parent.contentSnippet,
-                  }
-                : undefined,
-        },
-    };
-}
-
-function mockGetChatMessages({
-    from,
-    totalMessageCount,
-    limit,
-    cursor,
-    createMessage: actuallyCreateMessage = (index, startIndex) =>
-        createMessage(startIndex + index, `Test message ${startIndex + index}`),
-}: {
-    from?: "Start" | "End";
-    totalMessageCount: number;
-    limit: number;
-    cursor?: number;
-    createMessage?: (index: number, startIndex: number) => ApiMessageResponse;
-}) {
-    switch (from) {
-        case undefined:
-        case "Start": {
-            let startIndex = (cursor ?? -1) + 1;
-            startIndex = Math.max(startIndex, 0);
-
-            let endIndex = startIndex + limit - 1;
-            endIndex = Math.min(endIndex, totalMessageCount - 1);
-
-            api.mockGet(
-                "/chats/{id}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: endIndex !== totalMessageCount - 1 ? endIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => actuallyCreateMessage(index, startIndex),
-                        ),
-                    },
-                },
-                {
-                    path: {id: chatId},
-                    query: {from, limit, cursor},
-                },
-            );
-            break;
-        }
-        case "End": {
-            let endIndex = (cursor ?? totalMessageCount) - 1;
-            endIndex = Math.min(endIndex, totalMessageCount - 1);
-
-            let startIndex = endIndex - limit + 1;
-            startIndex = Math.max(startIndex, 0);
-
-            api.mockGet(
-                "/chats/{id}/messages",
-                {
-                    data: {
-                        spaceId,
-                        totalMessageCount,
-                        nextCursor: startIndex !== 0 ? startIndex : null,
-                        messages: createArrayWithLength(
-                            Math.max(endIndex - startIndex + 1, 0),
-                            index => actuallyCreateMessage(index, startIndex),
-                        ),
-                    },
-                },
-                {
-                    path: {id: chatId},
-                    query: {from, limit, cursor},
-                },
-            );
-            break;
-        }
-        default:
-            throw exhaustive(from);
-    }
-}
-
-function mockGetChat() {
-    api.mockGet("/chats/{id}", {
-        data: {
-            spaceId,
-            chat: {
-                type: "Room",
-                id: chatId,
-                name: "Incident Response",
-            },
-        },
-    });
-}
 
 // Simple stable pseudo random number generator that will always return 0 or 1.
 function stableRandomBit(index: number): number {
@@ -329,12 +186,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 End of messages.`,
     },
 ])("reads messages from end with one request (limit: $limit)", async ({limit, response}) => {
-    mockGetChat();
+    mockApiGetChat(api, {spaceId, chatId});
 
-    mockGetChatMessages({
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
         from: "End",
         totalMessageCount: 90,
         limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
     });
 
     expect(
@@ -467,11 +327,14 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>`,
     },
 ])("reads messages from start with one request (limit: $limit)", async ({limit, response}) => {
-    mockGetChat();
+    mockApiGetChat(api, {spaceId, chatId});
 
-    mockGetChatMessages({
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
         totalMessageCount: 90,
         limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
     });
 
     expect(
@@ -559,12 +422,15 @@ End of messages.`,
 ])(
     "reads messages in small room from end with one request (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             from: "End",
             totalMessageCount: 20,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         expect(
@@ -655,11 +521,14 @@ End of messages.`,
 ])(
     "reads messages in small room from start with one request (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             totalMessageCount: 20,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         expect(
@@ -752,12 +621,15 @@ End of messages.`,
 ])(
     "page ends right near the limit boundary when reading from end (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             from: "End",
             totalMessageCount: 29,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         expect(
@@ -848,11 +720,14 @@ End of messages.`,
 ])(
     "page ends right near the limit boundary when reading from start (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             totalMessageCount: 29,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         expect(
@@ -1180,29 +1055,38 @@ End of messages.`,
 ])(
     "reads messages from end with multiple requests (requests: $requestCount)",
     async ({requestCount, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             from: "End",
             totalMessageCount: 90,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         if (requestCount >= 2) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 from: "End",
                 totalMessageCount: 90,
                 limit: 30,
                 cursor: 60,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
         if (requestCount >= 3) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 from: "End",
                 totalMessageCount: 90,
                 limit: 30,
                 cursor: 30,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -1532,26 +1416,35 @@ End of messages.`,
 ])(
     "reads messages from start with multiple requests (requests: $requestCount)",
     async ({requestCount, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             totalMessageCount: 90,
             limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
         });
 
         if (requestCount >= 2) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 limit: 30,
                 cursor: 29,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
         if (requestCount >= 3) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 limit: 30,
                 cursor: 59,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -1733,14 +1626,17 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 ])(
     "reads messages before a cursor with pagination (requests: $requestCount, limit: $limit)",
     async ({before, cursors, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const cursor of cursors) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 from: "End",
                 totalMessageCount: 90,
                 limit: 30,
                 cursor,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -1938,13 +1834,16 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads messages after a cursor with pagination (requests: $requestCount, limit: $limit)",
     async ({after, cursors, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const cursor of cursors) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 limit: 30,
                 cursor,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -2144,17 +2043,19 @@ End of messages.`,
 ])(
     "reads messages from end with one request when messages are more than an hour apart (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             from: "End",
             totalMessageCount: 90,
             limit: 30,
-            createMessage: (index, startIndex) =>
-                createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                    createdTime: new Date(
-                        Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                    ).toISOString(),
+            createMessage: index =>
+                createApiMessageMock({
+                    index,
+                    author,
+                    createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                 }),
         });
 
@@ -2348,16 +2249,18 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads messages from start with one request when messages are more than an hour apart (limit: $limit)",
     async ({limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
-        mockGetChatMessages({
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
             totalMessageCount: 90,
             limit: 30,
-            createMessage: (index, startIndex) =>
-                createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                    createdTime: new Date(
-                        Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                    ).toISOString(),
+            createMessage: index =>
+                createApiMessageMock({
+                    index,
+                    author,
+                    createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                 }),
         });
 
@@ -2554,19 +2457,21 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 ])(
     "reads messages before a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
     async ({before, cursors, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const cursor of cursors) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 from: "End",
                 totalMessageCount: 90,
                 limit: 30,
                 cursor,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -2782,18 +2687,20 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads messages after a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
     async ({after, cursors, limit, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const cursor of cursors) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 limit: 30,
                 cursor,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -2929,14 +2836,17 @@ Some messages in Incident Response.
 End of messages.`,
     },
 ])("paginates from start to end with 3kb pages ($path)", async ({path, response}) => {
-    mockGetChat();
+    mockApiGetChat(api, {spaceId, chatId});
 
     const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("after");
 
-    mockGetChatMessages({
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
         totalMessageCount: 90,
         limit: 30,
         ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+        createMessage: index => createApiMessageMock({index, author}),
     });
 
     expect(
@@ -3069,15 +2979,18 @@ Some messages in Incident Response.
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
     },
 ])("paginates from end to start with 3kb pages ($path)", async ({path, response}) => {
-    mockGetChat();
+    mockApiGetChat(api, {spaceId, chatId});
 
     const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("before");
 
-    mockGetChatMessages({
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
         from: "End",
         totalMessageCount: 90,
         limit: 30,
         ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+        createMessage: index => createApiMessageMock({index, author}),
     });
 
     expect(
@@ -3260,12 +3173,15 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 ])(
     "reads single message in the middle of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -3429,12 +3345,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message near the top of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -3563,12 +3482,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message at the top of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -3717,12 +3639,15 @@ End of messages.`,
 ])(
     "reads single message near the end of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -3865,12 +3790,15 @@ End of messages.`,
 ])(
     "reads single message at the end of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4055,12 +3983,15 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 ])(
     "reads message range in the middle of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4211,12 +4142,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads message range near the top of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4345,12 +4279,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads message range at the top of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4510,12 +4447,15 @@ End of messages.`,
 ])(
     "reads message range near the end of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4660,12 +4600,15 @@ End of messages.`,
 ])(
     "reads message range at the end of a long message list (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
+                createMessage: index => createApiMessageMock({index, author}),
             });
         }
 
@@ -4864,17 +4807,19 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 ])(
     "reads single message in the middle of a long message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5073,17 +5018,19 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message near the start of a long message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5280,17 +5227,19 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message at the start of a long message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5453,17 +5402,19 @@ End of messages.`,
 ])(
     "reads single message near the end of a long message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5604,17 +5555,19 @@ End of messages.`,
 ])(
     "reads single message at the end of a long message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5827,17 +5780,19 @@ End of messages.`,
 ])(
     "reads single message in a small message list when messages are more than an hour apart (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 40,
                 ...request,
-                createMessage: (index, startIndex) =>
-                    createMessage(startIndex + index, `Test message ${startIndex + index}`, {
-                        createdTime: new Date(
-                            Date.UTC(2026, 4, 14, 15, (startIndex + index) * 60),
-                        ).toISOString(),
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
                     }),
             });
         }
@@ -5938,21 +5893,22 @@ End of messages.`,
 ])(
     "reads messages from end when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6049,21 +6005,22 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads messages from start when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6172,21 +6129,22 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 ])(
     "reads messages before a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6270,21 +6228,22 @@ End of messages.`,
 ])(
     "reads messages after a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6390,21 +6349,22 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 ])(
     "reads single message in the middle of a long message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6564,21 +6524,22 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message near the start of a long message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6687,21 +6648,22 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 ])(
     "reads single message at the start of a long message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6788,21 +6750,22 @@ End of messages.`,
 ])(
     "reads single message near the end of a long message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -6887,21 +6850,22 @@ End of messages.`,
 ])(
     "reads single message at the end of a long message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 90,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
@@ -7003,21 +6967,22 @@ End of messages.`,
 ])(
     "reads single message in a small message list when adjacent messages may merge (limit: $limit)",
     async ({path, limit, requests, response}) => {
-        mockGetChat();
+        mockApiGetChat(api, {spaceId, chatId});
 
         for (const request of requests) {
-            mockGetChatMessages({
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
                 totalMessageCount: 40,
                 ...request,
-                createMessage: (index, startIndex) => {
-                    const actualIndex = startIndex + index;
-
+                createMessage: index => {
                     // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(actualIndex / 7) * 127 + 2 ** (actualIndex % 7);
+                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(actualIndex) === 0 ? aliceAccount : bobAccount;
+                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createMessage(actualIndex, `Test message ${actualIndex}`, {
+                    return createApiMessageMock({
+                        index,
                         author,
                         createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
                     });
