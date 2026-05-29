@@ -198,6 +198,13 @@ function mockGetChat() {
     });
 }
 
+// Simple stable pseudo random number generator that will always return 0 or 1.
+function stableRandomBit(index: number): number {
+    index = Math.imul(index ^ (index >>> 16), 0x45d9f3b);
+    index = Math.imul(index ^ (index >>> 16), 0x45d9f3b);
+    return (index ^ (index >>> 16)) >>> 31;
+}
+
 test.each([
     {
         limit: "500b",
