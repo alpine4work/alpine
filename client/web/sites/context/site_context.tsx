@@ -11,6 +11,7 @@ import {
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {
@@ -35,6 +36,7 @@ import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, SiteSideBarSectionContainerId} from "~/shared/sites/site_entry_id.js";
 import {
@@ -429,6 +431,7 @@ function ActiveSiteDataProvider({
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const shouldConnectToRealtime = currentAccount !== null;
 
@@ -596,6 +599,23 @@ function ActiveSiteDataProvider({
         },
         [handleEventForSite],
     );
+
+    // Update `SearchEntityRegistry` with the latest data. Now as the name or first
+    // entity change in realtime, any `SearchEntityModel`s rendered elsewhere in the
+    // product will also update.
+    useMemo(() => {
+        return searchEntityRegistry.getEntityStore(
+            new SearchEntityModel({
+                type: "Site",
+                site: {
+                    id: site.id,
+                    firstEntityId: site.firstEntityId,
+                    version: site.version,
+                },
+                title: site.name,
+            }),
+        );
+    }, [site.id, site.firstEntityId, site.version, site.name, searchEntityRegistry]);
 
     const contextValue = useMemo(
         (): SiteDataContextValue => ({
