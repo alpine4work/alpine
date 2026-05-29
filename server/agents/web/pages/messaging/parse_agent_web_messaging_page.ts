@@ -7,12 +7,12 @@ import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agen
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     AgentWebMessagingPage,
-    AgentWebMessagingPagePreamblePagination,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPageMessageBlockParent,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageNouns,
+    AgentWebMessagingPagePreamblePagination,
     AgentWebMessagingPageTimeBlock,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -871,8 +871,9 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     if (
         text !== agentWebMessagingPreviousPageLinkTextWithEndArrow &&
         text !== agentWebMessagingNextPageLinkText
-    )
+    ) {
         return null;
+    }
 
     // Pagination links always point to a route inside the Markdown web.
     if (/^[a-zA-Z0-9]+:/.test(lastChild.url)) return null;

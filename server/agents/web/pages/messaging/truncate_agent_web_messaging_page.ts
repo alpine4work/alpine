@@ -967,10 +967,28 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
             const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
 
-            truncatedResponse =
-                truncatedResponse.slice(0, paragraphEndOffset) +
-                ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
-                truncatedResponse.slice(paragraphEndOffset);
+            if (!page.preamble.pagination?.previousLink) {
+                truncatedResponse =
+                    truncatedResponse.slice(0, paragraphEndOffset) +
+                    ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+                    truncatedResponse.slice(paragraphEndOffset);
+            } else {
+                const link = paragraph.children[paragraph.children.length - 1];
+                assert(link?.type === "link");
+
+                const linkStartOffset = assertExists(link.position?.start.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, linkStartOffset) +
+                    truncatedResponse
+                        .slice(linkStartOffset, paragraphEndOffset)
+                        .replace(
+                            agentWebMessagingPreviousPageLinkTextWithEndArrow,
+                            agentWebMessagingPreviousPageLinkTextWithStartArrow,
+                        ) +
+                    ` | [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+                    truncatedResponse.slice(paragraphEndOffset);
+            }
         }
     }
 
@@ -1001,7 +1019,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
             truncatedResponse =
                 truncatedResponse.slice(0, linkStartOffset) +
-                response
+                truncatedResponse
                     .slice(linkStartOffset, linkEndOffset)
                     .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
                 truncatedResponse.slice(linkEndOffset);

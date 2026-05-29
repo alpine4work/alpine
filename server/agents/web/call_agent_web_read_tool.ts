@@ -8,6 +8,7 @@ import {
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {
+    AgentWebPage,
     AgentWebPageMetadata,
     AgentWebPageWithMetadata,
 } from "~/server/agents/web/agent_web_page.js";
@@ -22,20 +23,24 @@ import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/creat
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     normalizeAgentWebChatPage,
+    parseAgentWebChatPage,
     printAgentWebChatPage,
     readAgentWebChatMessagePage,
     readAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {
     normalizeAgentWebDocumentPage,
+    parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
@@ -115,6 +120,22 @@ export async function callAgentWebReadTool(
                 },
             }),
         ]);
+
+        // In non-production environments, parse the response back into the underlying page
+        // object just to make sure there are no parse errors. We don't do this in
+        // production for performance.
+        if (process.env.NODE_ENV !== "production") {
+            const responseTree = parseMarkdownTree(response);
+
+            try {
+                await parseAgentWebPageForTest(context.storage, pageMetadata, responseTree);
+            } catch (error) {
+                throw InternalError.from(
+                    error,
+                    "Couldn\u2019t parse agent web page returned by `readAgentWebPageLink()`",
+                );
+            }
+        }
 
         // Find all the newline indexes in our response. So the `scroll` tool can easily
         // return a slice of the response.
@@ -266,5 +287,24 @@ function printAgentWebPage(
         }
         default:
             throw exhaustive(page);
+    }
+}
+
+async function parseAgentWebPageForTest(
+    storage: AgentWebSessionStorage,
+    pageMetadata: AgentWebPageMetadata,
+    response: Root,
+): Promise<AgentWebPage> {
+    assert(process.env.NODE_ENV !== "production");
+
+    switch (pageMetadata.type) {
+        case "Document": {
+            return await parseAgentWebDocumentPage(storage, pageMetadata.id, response);
+        }
+        case "Chat": {
+            return await parseAgentWebChatPage(storage, pageMetadata.id, response);
+        }
+        default:
+            throw exhaustive(pageMetadata);
     }
 }

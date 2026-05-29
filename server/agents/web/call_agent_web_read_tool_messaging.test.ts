@@ -3575,13 +3575,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 );
 
 test.each([
-    // NOCOMMIT: Incorrect pagination links!
     {
         path: "/chat/incident-response?message=85",
         limit: "500b",
         requests: [{limit: 30, cursor: 70}],
         response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84) [Next page »](/chat/incident-response?after=86)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
@@ -4349,7 +4348,7 @@ test.each([
         limit: "500b",
         requests: [{limit: 30, cursor: 69}],
         response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84) [Next page »](/chat/incident-response?after=86)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
@@ -4361,7 +4360,7 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
         limit: "1kb",
         requests: [{limit: 30, cursor: 69}],
         response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=81) [Next page »](/chat/incident-response?after=88)
+Some messages in Incident Response. [« Previous page](/chat/incident-response?before=81) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 14th at 5:45pm EDT</time>\n
 <message id="81" from="[Bob](/human/bob)">\n\nTest message 81\n\n</message>\n
