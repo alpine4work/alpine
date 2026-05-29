@@ -36,6 +36,7 @@ import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
@@ -870,6 +871,7 @@ function SiteNavigationEntryItem({
     const canManage = useCanManageSite();
     const site = useSite();
     const entityData = useSearchEntityModel(new SearchEntityModel(item.initialEntityData));
+    const peekStackContext = usePeekStackContext();
     assert(entityData.type !== "Static");
 
     const getNextOrderKeyAbove = useCallback(
@@ -941,6 +943,14 @@ function SiteNavigationEntryItem({
                         await writeTextToClipboard(url.toString());
                     },
                 },
+                {
+                    label: "Open in peek",
+                    pressErrorTitle: "Couldn\u2019t open in peek",
+                    onPress: async () => {
+                        const path = getSearchDynamicEntityPath(spaceId, entityData, "wide");
+                        await peekStackContext.push(path);
+                    },
+                },
             ] satisfies ReadonlyArray<MenuAction>,
             [
                 {
@@ -961,6 +971,7 @@ function SiteNavigationEntryItem({
         insertAboveMenuActions,
         insertBelowMenuActions,
         spaceId,
+        peekStackContext,
     ]);
 
     return (
