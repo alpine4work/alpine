@@ -62,10 +62,11 @@ function stableRandomBit(index: number): number {
     return (index ^ (index >>> 16)) >>> 31;
 }
 
-test.each([
-    {
-        limit: "500b",
-        response: `\
+describe("pagination and truncation", () => {
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>
@@ -89,10 +90,10 @@ Test message 89
 </message>
 
 End of messages.`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84)
 
 <time>May 14th at 6:00pm EDT</time>
@@ -105,10 +106,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "3.05kb",
-        response: `\
+        },
+        {
+            limit: "3.05kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
 
 <time>May 14th at 4:05pm EDT</time>
@@ -144,10 +145,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "3.06kb",
-        response: `\
+        },
+        {
+            limit: "3.06kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=60)
 
 <time>May 14th at 4:00pm EDT</time>
@@ -184,31 +185,31 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])("reads messages from end with one request (limit: $limit)", async ({limit, response}) => {
-    mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])("reads messages from end with one request (limit: $limit)", async ({limit, response}) => {
+        mockApiGetChat(api, {spaceId, chatId});
 
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId,
-        from: "End",
-        totalMessageCount: 90,
-        limit: 30,
-        createMessage: index => createApiMessageMock({index, author}),
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
+            from: "End",
+            totalMessageCount: 90,
+            limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path: "/chat/incident-response",
+                limit,
+            }),
+        ).toEqual(response);
     });
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path: "/chat/incident-response",
-            limit,
-        }),
-    ).toEqual(response);
-});
-
-test.each([
-    {
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
 
 <time>May 14th at 11:00am EDT</time>
@@ -236,10 +237,10 @@ Test message 2
 Test message 3
 
 </message>`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>
@@ -250,10 +251,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        limit: "3kb",
-        response: `\
+        },
+        {
+            limit: "3kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>
@@ -287,10 +288,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        limit: "3.018kb",
-        response: `\
+        },
+        {
+            limit: "3.018kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
 
 <time>May 14th at 11:00am EDT</time>
@@ -325,30 +326,30 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>\n
 <message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>`,
-    },
-])("reads messages from start with one request (limit: $limit)", async ({limit, response}) => {
-    mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])("reads messages from start with one request (limit: $limit)", async ({limit, response}) => {
+        mockApiGetChat(api, {spaceId, chatId});
 
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId,
-        totalMessageCount: 90,
-        limit: 30,
-        createMessage: index => createApiMessageMock({index, author}),
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
+            totalMessageCount: 90,
+            limit: 30,
+            createMessage: index => createApiMessageMock({index, author}),
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path: "/chat/incident-response?start",
+                limit,
+            }),
+        ).toEqual(response);
     });
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path: "/chat/incident-response?start",
-            limit,
-        }),
-    ).toEqual(response);
-});
-
-test.each([
-    {
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=17)
 
 <time>May 14th at 12:25pm EDT</time>
@@ -372,10 +373,10 @@ Test message 19
 </message>
 
 End of messages.`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=14)
 
 <time>May 14th at 12:10pm EDT</time>
@@ -388,10 +389,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "3.06kb",
-        response: `\
+        },
+        {
+            limit: "3.06kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -418,34 +419,34 @@ Some messages in Incident Response.
 <message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages in small room from end with one request (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages in small room from end with one request (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            from: "End",
-            totalMessageCount: 20,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                from: "End",
+                totalMessageCount: 20,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
 
 <time>May 14th at 11:00am EDT</time>
@@ -473,10 +474,10 @@ Test message 2
 Test message 3
 
 </message>`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>
@@ -487,10 +488,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        limit: "3.06kb",
-        response: `\
+        },
+        {
+            limit: "3.06kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -517,33 +518,33 @@ Some messages in Incident Response.
 <message id="19" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 19\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages in small room from start with one request (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages in small room from start with one request (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            totalMessageCount: 20,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 20,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?start",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?start",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        limit: "2.89kb",
-        response: `\
+    test.each([
+        {
+            limit: "2.89kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=1)
 
 <time>May 14th at 11:05am EDT</time>
@@ -578,10 +579,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "2.90kb",
-        response: `\
+        },
+        {
+            limit: "2.90kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -617,34 +618,34 @@ Some messages in Incident Response.
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "page ends right near the limit boundary when reading from end (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "page ends right near the limit boundary when reading from end (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            from: "End",
-            totalMessageCount: 29,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                from: "End",
+                totalMessageCount: 29,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        limit: "2.89kb",
-        response: `\
+    test.each([
+        {
+            limit: "2.89kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>
@@ -677,10 +678,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
 <message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>`,
-    },
-    {
-        limit: "2.90kb",
-        response: `\
+        },
+        {
+            limit: "2.90kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -716,34 +717,34 @@ Some messages in Incident Response.
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "page ends right near the limit boundary when reading from start (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "page ends right near the limit boundary when reading from start (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            totalMessageCount: 29,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 29,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?start",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?start",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        requestCount: 2,
-        limit: "5kb",
-        response: `\
+    test.each([
+        {
+            requestCount: 2,
+            limit: "5kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=41)
 
 <time>May 14th at 2:25pm EDT</time>
@@ -799,11 +800,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        requestCount: 2,
-        limit: "6kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            limit: "6kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -870,11 +871,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        requestCount: 3,
-        limit: "7kb",
-        response: `\
+        },
+        {
+            requestCount: 3,
+            limit: "7kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=21)
 
 <time>May 14th at 12:45pm EDT</time>
@@ -950,11 +951,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        requestCount: 3,
-        limit: "10kb",
-        response: `\
+        },
+        {
+            requestCount: 3,
+            limit: "10kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -1051,59 +1052,59 @@ Some messages in Incident Response.
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages from end with multiple requests (requests: $requestCount)",
-    async ({requestCount, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from end with multiple requests (requests: $requestCount)",
+        async ({requestCount, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            from: "End",
-            totalMessageCount: 90,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
-
-        if (requestCount >= 2) {
             mockApiGetChatMessages(api, {
                 spaceId,
                 chatId,
                 from: "End",
                 totalMessageCount: 90,
                 limit: 30,
-                cursor: 60,
                 createMessage: index => createApiMessageMock({index, author}),
             });
-        }
 
-        if (requestCount >= 3) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                from: "End",
-                totalMessageCount: 90,
-                limit: 30,
-                cursor: 30,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            if (requestCount >= 2) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    from: "End",
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor: 60,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            if (requestCount >= 3) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    from: "End",
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor: 30,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-test.each([
-    {
-        requestCount: 2,
-        limit: "5kb",
-        response: `\
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            requestCount: 2,
+            limit: "5kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=49)
 
 <time>May 14th at 11:00am EDT</time>
@@ -1158,11 +1159,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="47" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 47\n\n</message>\n
 <message id="48" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 48\n\n</message>\n
 <message id="49" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 49\n\n</message>`,
-    },
-    {
-        requestCount: 2,
-        limit: "5.958kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            limit: "5.958kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 11:00am EDT</time>
@@ -1227,11 +1228,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 3,
-        limit: "7.5kb",
-        response: `\
+        },
+        {
+            requestCount: 3,
+            limit: "7.5kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=74)
 
 <time>May 14th at 11:00am EDT</time>
@@ -1311,11 +1312,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="72" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 72\n\n</message>\n
 <message id="73" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 73\n\n</message>\n
 <message id="74" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 74\n\n</message>`,
-    },
-    {
-        requestCount: 3,
-        limit: "10kb",
-        response: `\
+        },
+        {
+            requestCount: 3,
+            limit: "10kb",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>
@@ -1412,58 +1413,58 @@ Some messages in Incident Response.
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages from start with multiple requests (requests: $requestCount)",
-    async ({requestCount, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from start with multiple requests (requests: $requestCount)",
+        async ({requestCount, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            totalMessageCount: 90,
-            limit: 30,
-            createMessage: index => createApiMessageMock({index, author}),
-        });
-
-        if (requestCount >= 2) {
             mockApiGetChatMessages(api, {
                 spaceId,
                 chatId,
                 totalMessageCount: 90,
                 limit: 30,
-                cursor: 29,
                 createMessage: index => createApiMessageMock({index, author}),
             });
-        }
 
-        if (requestCount >= 3) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                limit: 30,
-                cursor: 59,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            if (requestCount >= 2) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor: 29,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?start",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            if (requestCount >= 3) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor: 59,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-test.each([
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "500b",
-        response: `\
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?start",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=57)
 
 <time>May 14th at 3:45pm EDT</time>
@@ -1485,13 +1486,13 @@ Test message 58
 Test message 59
 
 </message>`,
-    },
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "750b",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=54)
 
 <time>May 14th at 3:30pm EDT</time>
@@ -1531,13 +1532,13 @@ Test message 58
 Test message 59
 
 </message>`,
-    },
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "3.042kb",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "3.042kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -1572,13 +1573,13 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 2,
-        before: 60,
-        cursors: [60, 30],
-        limit: "4kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            before: 60,
+            cursors: [60, 30],
+            limit: "4kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=21)
 
 <time>May 14th at 12:45pm EDT</time>
@@ -1622,40 +1623,40 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-])(
-    "reads messages before a cursor with pagination (requests: $requestCount, limit: $limit)",
-    async ({before, cursors, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages before a cursor with pagination (requests: $requestCount, limit: $limit)",
+        async ({before, cursors, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const cursor of cursors) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                from: "End",
-                totalMessageCount: 90,
-                limit: 30,
-                cursor,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const cursor of cursors) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    from: "End",
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?before=" + before,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?before=" + before,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -1683,13 +1684,13 @@ Test message 32
 Test message 33
 
 </message>`,
-    },
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "750b",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=35)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -1729,13 +1730,13 @@ Test message 34
 Test message 35
 
 </message>`,
-    },
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "3.037kb",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "3.037kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -1770,13 +1771,13 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 2,
-        after: 29,
-        cursors: [29, 59],
-        limit: "5kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            after: 29,
+            cursors: [29, 59],
+            limit: "5kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=78)
 
 <time>May 14th at 1:30pm EDT</time>
@@ -1830,36 +1831,36 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="76" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 76\n\n</message>\n
 <message id="77" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 77\n\n</message>\n
 <message id="78" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 78\n\n</message>`,
-    },
-])(
-    "reads messages after a cursor with pagination (requests: $requestCount, limit: $limit)",
-    async ({after, cursors, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages after a cursor with pagination (requests: $requestCount, limit: $limit)",
+        async ({after, cursors, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const cursor of cursors) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                limit: 30,
-                cursor,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const cursor of cursors) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?after=" + after,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?after=" + after,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
 
 <time>May 18th at 2:00am EDT</time>
@@ -1887,10 +1888,10 @@ Test message 89
 </message>
 
 End of messages.`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=85)
 
 <time>May 18th at 12:00am EDT</time>\n
@@ -1905,10 +1906,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "3.47kb",
-        response: `\
+        },
+        {
+            limit: "3.47kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
 
 <time>May 17th at 12:00am EDT</time>\n
@@ -1971,10 +1972,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        limit: "3.474kb",
-        response: `\
+        },
+        {
+            limit: "3.474kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=60)
 
 <time>May 16th at 11:00pm EDT</time>\n
@@ -2039,39 +2040,39 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages from end with one request when messages are more than an hour apart (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from end with one request when messages are more than an hour apart (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            from: "End",
-            totalMessageCount: 90,
-            limit: 30,
-            createMessage: index =>
-                createApiMessageMock({
-                    index,
-                    author,
-                    createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                from: "End",
+                totalMessageCount: 90,
+                limit: 30,
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
+                    }),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response",
+                    limit,
                 }),
-        });
+            ).toEqual(response);
+        },
+    );
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
-
-test.each([
-    {
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>
@@ -2097,10 +2098,10 @@ Test message 1
 Test message 2
 
 </message>`,
-    },
-    {
-        limit: "750b",
-        response: `\
+        },
+        {
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -2115,10 +2116,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
 <time>May 14th at 4:00pm EDT</time>\n
 <message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        limit: "3.42kb",
-        response: `\
+        },
+        {
+            limit: "3.42kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -2179,10 +2180,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
 <time>May 15th at 3:00pm EDT</time>\n
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        limit: "3.431kb",
-        response: `\
+        },
+        {
+            limit: "3.431kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -2245,41 +2246,41 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>\n
 <time>May 15th at 4:00pm EDT</time>\n
 <message id="29" from="[Bob](/human/bob)">\n\nTest message 29\n\n</message>`,
-    },
-])(
-    "reads messages from start with one request when messages are more than an hour apart (limit: $limit)",
-    async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from start with one request when messages are more than an hour apart (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        mockApiGetChatMessages(api, {
-            spaceId,
-            chatId,
-            totalMessageCount: 90,
-            limit: 30,
-            createMessage: index =>
-                createApiMessageMock({
-                    index,
-                    author,
-                    createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 90,
+                limit: 30,
+                createMessage: index =>
+                    createApiMessageMock({
+                        index,
+                        author,
+                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
+                    }),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?start",
+                    limit,
                 }),
-        });
+            ).toEqual(response);
+        },
+    );
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?start",
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
-
-test.each([
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=57)
 
 <time>May 16th at 8:00pm EDT</time>\n
@@ -2288,13 +2289,13 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "750b",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=55)
 
 <time>May 16th at 6:00pm EDT</time>\n
@@ -2307,13 +2308,13 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 1,
-        before: 60,
-        cursors: [60],
-        limit: "3.455kb",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            before: 60,
+            cursors: [60],
+            limit: "3.455kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
 
 <time>May 15th at 5:00pm EDT</time>\n
@@ -2376,13 +2377,13 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 2,
-        before: 60,
-        cursors: [60, 30],
-        limit: "4kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            before: 60,
+            cursors: [60, 30],
+            limit: "4kb",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=26)
 
 <time>May 15th at 1:00pm EDT</time>\n
@@ -2453,45 +2454,47 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-])(
-    "reads messages before a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
-    async ({before, cursors, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages before a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
+        async ({before, cursors, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const cursor of cursors) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                from: "End",
-                totalMessageCount: 90,
-                limit: 30,
-                cursor,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const cursor of cursors) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    from: "End",
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?before=" + before,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?before=" + before,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "500b",
-        response: `\
+    test.each([
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "500b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=32)
 
 <time>May 15th at 5:00pm EDT</time>\n
@@ -2500,13 +2503,13 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="31" from="[Bob](/human/bob)">\n\nTest message 31\n\n</message>\n
 <time>May 15th at 7:00pm EDT</time>\n
 <message id="32" from="[Alice](/human/alice)">\n\nTest message 32\n\n</message>`,
-    },
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "750b",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "750b",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=34)
 
 <time>May 15th at 5:00pm EDT</time>\n
@@ -2519,13 +2522,13 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="33" from="[Bob](/human/bob)">\n\nTest message 33\n\n</message>\n
 <time>May 15th at 9:00pm EDT</time>\n
 <message id="34" from="[Alice](/human/alice)">\n\nTest message 34\n\n</message>`,
-    },
-    {
-        requestCount: 1,
-        after: 29,
-        cursors: [29],
-        limit: "3.45kb",
-        response: `\
+        },
+        {
+            requestCount: 1,
+            after: 29,
+            cursors: [29],
+            limit: "3.45kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
 
 <time>May 15th at 5:00pm EDT</time>\n
@@ -2588,13 +2591,13 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        requestCount: 2,
-        after: 29,
-        cursors: [29, 59],
-        limit: "5kb",
-        response: `\
+        },
+        {
+            requestCount: 2,
+            after: 29,
+            cursors: [29, 59],
+            limit: "5kb",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=72)
 
 <time>May 15th at 5:00pm EDT</time>\n
@@ -2683,41 +2686,43 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="71" from="[Bob](/human/bob)">\n\nTest message 71\n\n</message>\n
 <time>May 17th at 11:00am EDT</time>\n
 <message id="72" from="[Alice](/human/alice)">\n\nTest message 72\n\n</message>`,
-    },
-])(
-    "reads messages after a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
-    async ({after, cursors, limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages after a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
+        async ({after, cursors, limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const cursor of cursors) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                limit: 30,
-                cursor,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const cursor of cursors) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    limit: 30,
+                    cursor,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path: "/chat/incident-response?after=" + after,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?after=" + after,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?start",
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?start",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -2750,10 +2755,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>\n
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?after=28",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?after=28",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=57)
 
 <time>May 14th at 1:25pm EDT</time>\n
@@ -2786,10 +2791,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="55" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 55\n\n</message>\n
 <message id="56" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 56\n\n</message>\n
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?after=57",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?after=57",
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 3:50pm EDT</time>\n
@@ -2822,10 +2827,10 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="84" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 84\n\n</message>\n
 <message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?after=86",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?after=86",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 6:15pm EDT</time>\n
@@ -2834,33 +2839,33 @@ Some messages in Incident Response.
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])("paginates from start to end with 3kb pages ($path)", async ({path, response}) => {
-    mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])("paginates from start to end with 3kb pages ($path)", async ({path, response}) => {
+        mockApiGetChat(api, {spaceId, chatId});
 
-    const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("after");
+        const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("after");
 
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId,
-        totalMessageCount: 90,
-        limit: 30,
-        ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
-        createMessage: index => createApiMessageMock({index, author}),
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
+            totalMessageCount: 90,
+            limit: 30,
+            ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+            createMessage: index => createApiMessageMock({index, author}),
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path,
+                limit: "3kb",
+            }),
+        ).toEqual(response);
     });
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path,
-            limit: "3kb",
-        }),
-    ).toEqual(response);
-});
-
-test.each([
-    {
-        path: "/chat/incident-response?end",
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?end",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
 
 <time>May 14th at 4:05pm EDT</time>\n
@@ -2895,10 +2900,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?before=61",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?before=61",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=32)
 
 <time>May 14th at 1:40pm EDT</time>\n
@@ -2931,10 +2936,10 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>\n
 <message id="60" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 60\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?before=32",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?before=32",
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=3)
 
 <time>May 14th at 11:15am EDT</time>\n
@@ -2967,58 +2972,58 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>\n
 <message id="30" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 30\n\n</message>\n
 <message id="31" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 31\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?before=3",
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?before=3",
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
 <message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
-    },
-])("paginates from end to start with 3kb pages ($path)", async ({path, response}) => {
-    mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])("paginates from end to start with 3kb pages ($path)", async ({path, response}) => {
+        mockApiGetChat(api, {spaceId, chatId});
 
-    const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("before");
+        const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("before");
 
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId,
-        from: "End",
-        totalMessageCount: 90,
-        limit: 30,
-        ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
-        createMessage: index => createApiMessageMock({index, author}),
+        mockApiGetChatMessages(api, {
+            spaceId,
+            chatId,
+            from: "End",
+            totalMessageCount: 90,
+            limit: 30,
+            ...(cursorParam !== null ? {cursor: parseInt(cursorParam, 10)} : {}),
+            createMessage: index => createApiMessageMock({index, author}),
+        });
+
+        expect(
+            await callAgentWebReadTool(context, {
+                path,
+                limit: "3kb",
+            }),
+        ).toEqual(response);
     });
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path,
-            limit: "3kb",
-        }),
-    ).toEqual(response);
-});
-
-test.each([
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 14th at 2:40pm EDT</time>\n
 <message id="44" from="[Alice](/human/alice)">\n\nTest message 44\n\n</message>\n
 <message id="45" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 45\n\n</message>\n
 <message id="46" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 46\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=49)
 
 <time>May 14th at 2:30pm EDT</time>\n
@@ -3030,12 +3035,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="47" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 47\n\n</message>\n
 <message id="48" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 48\n\n</message>\n
 <message id="49" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 49\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "3.091kb",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "3.091kb",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:35pm EDT</time>\n
@@ -3068,12 +3073,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "3.092kb",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "3.092kb",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=60)
 
 <time>May 14th at 1:35pm EDT</time>\n
@@ -3107,16 +3112,16 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>\n
 <message id="60" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 60\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "5kb",
-        requests: [
-            {limit: 30, cursor: 30},
-            {from: "End" as const, limit: 15, cursor: 31},
-            {limit: 15, cursor: 60},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "5kb",
+            requests: [
+                {limit: 30, cursor: 30},
+                {from: "End" as const, limit: 15, cursor: 31},
+                {limit: 15, cursor: 60},
+            ],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 14th at 12:45pm EDT</time>\n
@@ -3169,49 +3174,49 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="67" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 67\n\n</message>\n
 <message id="68" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 68\n\n</message>\n
 <message id="69" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 69\n\n</message>`,
-    },
-])(
-    "reads single message in the middle of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message in the middle of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:15am EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "600b",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "600b",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:15am EDT</time>\n
@@ -3219,12 +3224,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
 
 <time>May 14th at 11:05am EDT</time>\n
@@ -3236,12 +3241,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
 <message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "2.02kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "2.02kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3263,12 +3268,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
 <message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
 <message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "2.038kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "2.038kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3290,15 +3295,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
 <message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
 <message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -11},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -11},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=38)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3341,49 +3346,49 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="36" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 36\n\n</message>\n
 <message id="37" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 37\n\n</message>\n
 <message id="38" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 38\n\n</message>`,
-    },
-])(
-    "reads single message near the top of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the top of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
 <message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3395,12 +3400,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "1.645kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "1.645kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3418,12 +3423,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
 <message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
 <message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "1.646kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "1.646kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3441,12 +3446,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
 <message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
 <message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "3kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "3kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -3478,49 +3483,49 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
 <message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>`,
-    },
-])(
-    "reads single message at the top of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the top of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
 <message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
@@ -3534,12 +3539,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "1.979kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "1.979kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=72)
 
 <time>May 14th at 5:00pm EDT</time>\n
@@ -3563,12 +3568,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "1.98kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "1.98kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=71)
 
 <time>May 14th at 4:55pm EDT</time>\n
@@ -3593,15 +3598,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "3kb",
-        requests: [
-            {limit: 30, cursor: 70},
-            {from: "End" as const, limit: 15, cursor: 71},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "3kb",
+            requests: [
+                {limit: 30, cursor: 70},
+                {from: "End" as const, limit: 15, cursor: 71},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
@@ -3635,37 +3640,37 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message near the end of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the end of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>\n
@@ -3674,12 +3679,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
@@ -3693,12 +3698,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "1.587kb",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "1.587kb",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=76)
 
 <time>May 14th at 5:20pm EDT</time>\n
@@ -3718,12 +3723,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "1.588kb",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "1.588kb",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=75)
 
 <time>May 14th at 5:15pm EDT</time>\n
@@ -3744,15 +3749,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "3kb",
-        requests: [
-            {limit: 30, cursor: 74},
-            {from: "End" as const, limit: 15, cursor: 75},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "3kb",
+            requests: [
+                {limit: 30, cursor: 74},
+                {from: "End" as const, limit: 15, cursor: 75},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
@@ -3786,49 +3791,49 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message at the end of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the end of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=44-45",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 29}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=44-45",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 29}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 14th at 2:40pm EDT</time>\n
 <message id="44" from="[Alice](/human/alice)">\n\nTest message 44\n\n</message>\n
 <message id="45" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 45\n\n</message>\n
 <message id="46" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 46\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=44-45",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 29}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=44-45",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 29}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=48)
 
 <time>May 14th at 2:25pm EDT</time>\n
@@ -3840,12 +3845,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="46" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 46\n\n</message>\n
 <message id="47" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 47\n\n</message>\n
 <message id="48" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 48\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=44-45",
-        limit: "3.091kb",
-        requests: [{limit: 30, cursor: 29}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=44-45",
+            limit: "3.091kb",
+            requests: [{limit: 30, cursor: 29}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:35pm EDT</time>\n
@@ -3878,12 +3883,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=44-45",
-        limit: "3.092kb",
-        requests: [{limit: 30, cursor: 29}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=44-45",
+            limit: "3.092kb",
+            requests: [{limit: 30, cursor: 29}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=30) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:30pm EDT</time>\n
@@ -3917,16 +3922,16 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="57" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 57\n\n</message>\n
 <message id="58" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 58\n\n</message>\n
 <message id="59" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=44-45",
-        limit: "5kb",
-        requests: [
-            {limit: 30, cursor: 29},
-            {from: "End" as const, limit: 15, cursor: 30},
-            {limit: 15, cursor: 59},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=44-45",
+            limit: "5kb",
+            requests: [
+                {limit: 30, cursor: 29},
+                {from: "End" as const, limit: 15, cursor: 30},
+                {limit: 15, cursor: 59},
+            ],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 14th at 12:45pm EDT</time>\n
@@ -3979,49 +3984,49 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="67" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 67\n\n</message>\n
 <message id="68" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 68\n\n</message>\n
 <message id="69" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 69\n\n</message>`,
-    },
-])(
-    "reads message range in the middle of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads message range in the middle of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=4-5",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=4-5",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:20am EDT</time>\n
 <message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4-5",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4-5",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
 
 <time>May 14th at 11:05am EDT</time>\n
@@ -4033,12 +4038,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>\n
 <message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 8\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4-5",
-        limit: "2.037kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4-5",
+            limit: "2.037kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4060,12 +4065,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
 <message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
 <message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4-5",
-        limit: "2.038kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4-5",
+            limit: "2.038kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4087,15 +4092,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="15" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 15\n\n</message>\n
 <message id="16" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 16\n\n</message>\n
 <message id="17" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 17\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4-5",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -11},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4-5",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -11},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=38)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4138,49 +4143,49 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="36" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 36\n\n</message>\n
 <message id="37" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 37\n\n</message>\n
 <message id="38" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 38\n\n</message>`,
-    },
-])(
-    "reads message range near the top of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads message range near the top of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=0-1",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=0-1",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
 <message id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 1\n\n</message>\n
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0-1",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0-1",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4192,12 +4197,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>\n
 <message id="6" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 6\n\n</message>\n
 <message id="7" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 7\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0-1",
-        limit: "1.645kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0-1",
+            limit: "1.645kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4215,12 +4220,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
 <message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
 <message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0-1",
-        limit: "1.646kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0-1",
+            limit: "1.646kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4238,12 +4243,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="11" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 11\n\n</message>\n
 <message id="12" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 12\n\n</message>\n
 <message id="13" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 13\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0-1",
-        limit: "3kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0-1",
+            limit: "3kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4275,49 +4280,49 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="25" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 25\n\n</message>\n
 <message id="26" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 27\n\n</message>`,
-    },
-])(
-    "reads message range at the top of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads message range at the top of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=84-85",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 69}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=84-85",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 69}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
 <message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=84-85",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 69}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=84-85",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 69}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=81) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 14th at 5:45pm EDT</time>\n
@@ -4329,12 +4334,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>\n
 <message id="87" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 88\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=84-85",
-        limit: "2.079kb",
-        requests: [{limit: 30, cursor: 69}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=84-85",
+            limit: "2.079kb",
+            requests: [{limit: 30, cursor: 69}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=71)
 
 <time>May 14th at 4:55pm EDT</time>\n
@@ -4359,12 +4364,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=84-85",
-        limit: "2.08kb",
-        requests: [{limit: 30, cursor: 69}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=84-85",
+            limit: "2.08kb",
+            requests: [{limit: 30, cursor: 69}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=70)
 
 <time>May 14th at 4:50pm EDT</time>\n
@@ -4390,16 +4395,16 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=84-85",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: 69},
-            {from: "End" as const, limit: 15, cursor: 70},
-            {from: "End" as const, limit: 15, cursor: 55},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=84-85",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: 69},
+                {from: "End" as const, limit: 15, cursor: 70},
+                {from: "End" as const, limit: 15, cursor: 55},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=52)
 
 <time>May 14th at 3:20pm EDT</time>\n
@@ -4443,37 +4448,37 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads message range near the end of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads message range near the end of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=88-89",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 73}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=88-89",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 73}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>\n
@@ -4482,12 +4487,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=88-89",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 73}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=88-89",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 73}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
@@ -4501,12 +4506,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=88-89",
-        limit: "1.687kb",
-        requests: [{limit: 30, cursor: 73}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=88-89",
+            limit: "1.687kb",
+            requests: [{limit: 30, cursor: 73}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=75)
 
 <time>May 14th at 5:15pm EDT</time>\n
@@ -4527,12 +4532,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=88-89",
-        limit: "1.688kb",
-        requests: [{limit: 30, cursor: 73}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=88-89",
+            limit: "1.688kb",
+            requests: [{limit: 30, cursor: 73}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=74)
 
 <time>May 14th at 5:10pm EDT</time>\n
@@ -4554,15 +4559,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=88-89",
-        limit: "3kb",
-        requests: [
-            {limit: 30, cursor: 73},
-            {from: "End" as const, limit: 15, cursor: 74},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=88-89",
+            limit: "3kb",
+            requests: [
+                {limit: 30, cursor: 73},
+                {from: "End" as const, limit: 15, cursor: 74},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
@@ -4596,37 +4601,37 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads message range at the end of a long message list (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads message range at the end of a long message list (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => createApiMessageMock({index, author}),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 16th at 7:00am EDT</time>\n
@@ -4635,12 +4640,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="45" from="[Bob](/human/bob)">\n\nTest message 45\n\n</message>\n
 <time>May 16th at 9:00am EDT</time>\n
 <message id="46" from="[Alice](/human/alice)">\n\nTest message 46\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=48)
 
 <time>May 16th at 5:00am EDT</time>\n
@@ -4657,12 +4662,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="47" from="[Bob](/human/bob)">\n\nTest message 47\n\n</message>\n
 <time>May 16th at 11:00am EDT</time>\n
 <message id="48" from="[Alice](/human/alice)">\n\nTest message 48\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "3.505kb",
-        requests: [{limit: 30, cursor: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "3.505kb",
+            requests: [{limit: 30, cursor: 30}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 15th at 6:00pm EDT</time>\n
@@ -4723,16 +4728,16 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
 <time>May 16th at 10:00pm EDT</time>\n
 <message id="59" from="[Bob](/human/bob)">\n\nTest message 59\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=45",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: 30},
-            {from: "End" as const, limit: 15, cursor: 31},
-            {limit: 15, cursor: 60},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=45",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: 30},
+                {from: "End" as const, limit: 15, cursor: 31},
+                {limit: 15, cursor: 60},
+            ],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=29) | [Next page »](/chat/incident-response?after=62)
 
 <time>May 15th at 4:00pm EDT</time>\n
@@ -4803,42 +4808,44 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="61" from="[Bob](/human/bob)">\n\nTest message 61\n\n</message>\n
 <time>May 17th at 1:00am EDT</time>\n
 <message id="62" from="[Alice](/human/alice)">\n\nTest message 62\n\n</message>`,
-    },
-])(
-    "reads single message in the middle of a long message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message in the middle of a long message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 2:00pm EDT</time>\n
@@ -4847,12 +4854,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
 <time>May 14th at 4:00pm EDT</time>\n
 <message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 12:00pm EDT</time>\n
@@ -4869,12 +4876,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="6" from="[Alice](/human/alice)">\n\nTest message 6\n\n</message>\n
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="7" from="[Bob](/human/bob)">\n\nTest message 7\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "3.43kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "3.43kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -4935,15 +4942,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
 <time>May 15th at 3:00pm EDT</time>\n
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -11},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -11},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5014,54 +5021,56 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="32" from="[Alice](/human/alice)">\n\nTest message 32\n\n</message>\n
 <time>May 15th at 8:00pm EDT</time>\n
 <message id="33" from="[Bob](/human/bob)">\n\nTest message 33\n\n</message>`,
-    },
-])(
-    "reads single message near the start of a long message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the start of a long message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=1)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
 <time>May 14th at 12:00pm EDT</time>\n
 <message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5078,12 +5087,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>\n
 <time>May 14th at 5:00pm EDT</time>\n
 <message id="6" from="[Alice](/human/alice)">\n\nTest message 6\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "3.43kb",
-        requests: [{limit: 30, cursor: -15}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "3.43kb",
+            requests: [{limit: 30, cursor: -15}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5144,15 +5153,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
 <time>May 15th at 3:00pm EDT</time>\n
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=0",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -15},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=0",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -15},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5223,42 +5232,44 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="32" from="[Alice](/human/alice)">\n\nTest message 32\n\n</message>\n
 <time>May 15th at 8:00pm EDT</time>\n
 <message id="33" from="[Bob](/human/bob)">\n\nTest message 33\n\n</message>`,
-    },
-])(
-    "reads single message at the start of a long message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the start of a long message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 17th at 11:00pm EDT</time>\n
@@ -5267,12 +5278,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="85" from="[Bob](/human/bob)">\n\nTest message 85\n\n</message>\n
 <time>May 18th at 1:00am EDT</time>\n
 <message id="86" from="[Alice](/human/alice)">\n\nTest message 86\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=82) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 17th at 9:00pm EDT</time>\n
@@ -5289,12 +5300,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
 <time>May 18th at 3:00am EDT</time>\n
 <message id="88" from="[Alice](/human/alice)">\n\nTest message 88\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "2.237kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "2.237kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=72)
 
 <time>May 17th at 11:00am EDT</time>\n
@@ -5335,15 +5346,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "3kb",
-        requests: [
-            {limit: 30, cursor: 70},
-            {from: "End" as const, limit: 15, cursor: 71},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "3kb",
+            requests: [
+                {limit: 30, cursor: 70},
+                {from: "End" as const, limit: 15, cursor: 71},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=65)
 
 <time>May 17th at 4:00am EDT</time>\n
@@ -5398,42 +5409,44 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message near the end of a long message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the end of a long message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
 
 <time>May 18th at 2:00am EDT</time>\n
@@ -5444,12 +5457,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=83)
 
 <time>May 17th at 10:00pm EDT</time>\n
@@ -5468,12 +5481,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "1.786kb",
-        requests: [{limit: 30, cursor: 74}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "1.786kb",
+            requests: [{limit: 30, cursor: 74}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=76)
 
 <time>May 17th at 3:00pm EDT</time>\n
@@ -5506,15 +5519,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=89",
-        limit: "2kb",
-        requests: [
-            {limit: 30, cursor: 74},
-            {from: "End" as const, limit: 15, cursor: 75},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=89",
+            limit: "2kb",
+            requests: [
+                {limit: 30, cursor: 74},
+                {from: "End" as const, limit: 15, cursor: 75},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=74)
 
 <time>May 17th at 1:00pm EDT</time>\n
@@ -5551,42 +5564,44 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Bob](/human/bob)">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message at the end of a long message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the end of a long message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 2:00pm EDT</time>\n
@@ -5595,12 +5610,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
 <time>May 14th at 4:00pm EDT</time>\n
 <message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 12:00pm EDT</time>\n
@@ -5617,12 +5632,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="6" from="[Alice](/human/alice)">\n\nTest message 6\n\n</message>\n
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="7" from="[Bob](/human/bob)">\n\nTest message 7\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "3.43kb",
-        requests: [{limit: 30, cursor: -11}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "3.43kb",
+            requests: [{limit: 30, cursor: -11}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5683,15 +5698,15 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="27" from="[Bob](/human/bob)">\n\nTest message 27\n\n</message>\n
 <time>May 15th at 3:00pm EDT</time>\n
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=4",
-        limit: "5kb",
-        requests: [
-            {limit: 30, cursor: -11},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=4",
+            limit: "5kb",
+            requests: [
+                {limit: 30, cursor: -11},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:00am EDT</time>\n
@@ -5776,42 +5791,44 @@ Some messages in Incident Response.
 <message id="39" from="[Bob](/human/bob)">\n\nTest message 39\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message in a small message list when messages are more than an hour apart (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message in a small message list when messages are more than an hour apart (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 40,
-                ...request,
-                createMessage: index =>
-                    createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, index * 60)).toISOString(),
-                    }),
-            });
-        }
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 40,
+                    ...request,
+                    createMessage: index =>
+                        createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(
+                                Date.UTC(2026, 4, 14, 15, index * 60),
+                            ).toISOString(),
+                        }),
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response",
-        limit: "500b",
-        requests: [{from: "End" as const, limit: 30}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response",
+            limit: "500b",
+            requests: [{from: "End" as const, limit: 30}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84)
 
 <time>May 15th at 12:25pm EDT</time>\n
@@ -5820,12 +5837,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response",
-        limit: "750b",
-        requests: [{from: "End" as const, limit: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response",
+            limit: "750b",
+            requests: [{from: "End" as const, limit: 30}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
 
 <time>May 15th at 10:49am EDT</time>\n
@@ -5837,15 +5854,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response",
-        limit: "3.47kb",
-        requests: [
-            {from: "End" as const, limit: 30},
-            {from: "End" as const, limit: 30, cursor: 60},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response",
+            limit: "3.47kb",
+            requests: [
+                {from: "End" as const, limit: 30},
+                {from: "End" as const, limit: 30, cursor: 60},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=48)
 
 <time>May 15th at 12:46am EDT</time>\n
@@ -5889,48 +5906,48 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages from end when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from end when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?start",
-        limit: "500b",
-        requests: [{limit: 30}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?start",
+            limit: "500b",
+            requests: [{limit: 30}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -5938,12 +5955,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 4\n\n</message>\n
 <message id="5" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 5\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?start",
-        limit: "750b",
-        requests: [{limit: 30}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?start",
+            limit: "750b",
+            requests: [{limit: 30}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -5954,12 +5971,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="6" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 6\n\n</message>\n
 <time>May 14th at 1:08pm EDT</time>\n
 <message id="7" from="[Alice](/human/alice)">\n\nTest message 7\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?start",
-        limit: "3.42kb",
-        requests: [{limit: 30}, {limit: 30, cursor: 29}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?start",
+            limit: "3.42kb",
+            requests: [{limit: 30}, {limit: 30, cursor: 29}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=40)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6001,49 +6018,49 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="38" from="[Bob](/human/bob)">\n\nTest message 38\n\n</message>\n
 <message id="39" from="[Alice](/human/alice)" time="8 minutes later">\n\nTest message 39\n\n</message>\n
 <message id="40" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 40\n\n</message>`,
-    },
-])(
-    "reads messages from start when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages from start when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?before=67",
-        requestCount: 1,
-        limit: "500b",
-        requests: [{from: "End" as const, limit: 30, cursor: 67}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?before=67",
+            requestCount: 1,
+            limit: "500b",
+            requests: [{from: "End" as const, limit: 30, cursor: 67}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
 
 <time>May 15th at 4:28am EDT</time>\n
@@ -6051,13 +6068,13 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="62" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 62\n\n</message>\n
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?before=67",
-        requestCount: 1,
-        limit: "750b",
-        requests: [{from: "End" as const, limit: 30, cursor: 67}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?before=67",
+            requestCount: 1,
+            limit: "750b",
+            requests: [{from: "End" as const, limit: 30, cursor: 67}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=59)
 
 <time>May 15th at 4:04am EDT</time>\n
@@ -6067,16 +6084,16 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="62" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 62\n\n</message>\n
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?before=67",
-        requestCount: 2,
-        limit: "4kb",
-        requests: [
-            {from: "End" as const, limit: 30, cursor: 67},
-            {from: "End" as const, limit: 30, cursor: 37},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?before=67",
+            requestCount: 2,
+            limit: "4kb",
+            requests: [
+                {from: "End" as const, limit: 30, cursor: 67},
+                {from: "End" as const, limit: 30, cursor: 37},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=19)
 
 <time>May 14th at 3:46pm EDT</time>\n
@@ -6125,62 +6142,62 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="62" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 62\n\n</message>\n
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>`,
-    },
-])(
-    "reads messages before a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages before a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?after=62",
-        requestCount: 1,
-        limit: "500b",
-        requests: [{limit: 30, cursor: 62}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?after=62",
+            requestCount: 1,
+            limit: "500b",
+            requests: [{limit: 30, cursor: 62}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=68)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
 <message id="67" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 67\n\n</message>\n
 <message id="68" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 68\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?after=62",
-        requestCount: 1,
-        limit: "750b",
-        requests: [{limit: 30, cursor: 62}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?after=62",
+            requestCount: 1,
+            limit: "750b",
+            requests: [{limit: 30, cursor: 62}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=70)
 
 <time>May 15th at 6:04am EDT</time>\n
@@ -6190,13 +6207,13 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="69" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 69\n\n</message>\n
 <time>May 15th at 8:11am EDT</time>\n
 <message id="70" from="[Alice](/human/alice)">\n\nTest message 70\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?after=62",
-        requestCount: 1,
-        limit: "3.45kb",
-        requests: [{limit: 30, cursor: 62}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?after=62",
+            requestCount: 1,
+            limit: "3.45kb",
+            requests: [{limit: 30, cursor: 62}],
+            response: `\
 Some messages in Incident Response.
 
 <time>May 15th at 6:04am EDT</time>\n
@@ -6224,59 +6241,59 @@ Some messages in Incident Response.
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads messages after a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads messages after a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=64",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 49}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=64",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 49}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=63) | [Next page »](/chat/incident-response?after=67)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
 <message id="67" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 67\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=64",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 49}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=64",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 49}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=60) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 15th at 4:12am EDT</time>\n
@@ -6288,16 +6305,16 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="67" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 67\n\n</message>\n
 <message id="68" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 68\n\n</message>\n
 <message id="69" from="[Bob](/human/bob)" time="32 minutes later">\n\nTest message 69\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=64",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: 49},
-            {from: "End" as const, limit: 15, cursor: 50},
-            {limit: 15, cursor: 79},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=64",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: 49},
+                {from: "End" as const, limit: 15, cursor: 50},
+                {limit: 15, cursor: 79},
+            ],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 14th at 10:39pm EDT</time>\n
@@ -6345,60 +6362,60 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 88\n\n</message>`,
-    },
-])(
-    "reads single message in the middle of a long message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message in the middle of a long message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=10",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -5}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=10",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -5}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=8) | [Next page »](/chat/incident-response?after=11)
 
 <time>May 14th at 1:09pm EDT</time>\n
 <message id="8" from="[Bob](/human/bob)">\n\nTest message 8\n\n</message>\n
 <message id="9-10" from="[Alice](/human/alice)">\n\nTest message 9\n\nTest message 10\n\n</message>\n
 <message id="11" from="[Alice](/human/alice)" time="8 minutes later">\n\nTest message 11\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=10",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -5}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=10",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -5}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=6) | [Next page »](/chat/incident-response?after=14)
 
 <time>May 14th at 12:04pm EDT</time>\n
@@ -6412,15 +6429,15 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="13" from="[Alice](/human/alice)" time="32 minutes later">\n\nTest message 13\n\n</message>\n
 <time>May 14th at 3:15pm EDT</time>\n
 <message id="14" from="[Alice](/human/alice)">\n\nTest message 14\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=10",
-        limit: "3.43kb",
-        requests: [
-            {limit: 30, cursor: -5},
-            {limit: 15, cursor: 29},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=10",
+            limit: "3.43kb",
+            requests: [
+                {limit: 30, cursor: -5},
+                {limit: 15, cursor: 29},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=40)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6462,16 +6479,16 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="38" from="[Bob](/human/bob)">\n\nTest message 38\n\n</message>\n
 <message id="39" from="[Alice](/human/alice)" time="8 minutes later">\n\nTest message 39\n\n</message>\n
 <message id="40" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 40\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=10",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -5},
-            {limit: 15, cursor: 29},
-            {limit: 15, cursor: 44},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=10",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -5},
+                {limit: 15, cursor: 29},
+                {limit: 15, cursor: 44},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=47)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6520,60 +6537,60 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="45" from="[Bob](/human/bob)">\n\nTest message 45\n\n</message>\n
 <message id="46" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 46\n\n</message>\n
 <message id="47" from="[Bob](/human/bob)" time="16 minutes later">\n\nTest message 47\n\n</message>`,
-    },
-])(
-    "reads single message near the start of a long message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the start of a long message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=1",
-        limit: "500b",
-        requests: [{limit: 30, cursor: -14}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=1",
+            limit: "500b",
+            requests: [{limit: 30, cursor: -14}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=4)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
 <message id="4" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 4\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=1",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: -14}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=1",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: -14}],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=10)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6586,16 +6603,16 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="7" from="[Alice](/human/alice)">\n\nTest message 7\n\n</message>\n
 <message id="8" from="[Bob](/human/bob)">\n\nTest message 8\n\n</message>\n
 <message id="9-10" from="[Alice](/human/alice)">\n\nTest message 9\n\nTest message 10\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=1",
-        limit: "4kb",
-        requests: [
-            {limit: 30, cursor: -14},
-            {limit: 15, cursor: 29},
-            {limit: 15, cursor: 44},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=1",
+            limit: "4kb",
+            requests: [
+                {limit: 30, cursor: -14},
+                {limit: 15, cursor: 29},
+                {limit: 15, cursor: 44},
+            ],
+            response: `\
 Some messages in Incident Response. [Next page »](/chat/incident-response?after=47)
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6644,59 +6661,59 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="45" from="[Bob](/human/bob)">\n\nTest message 45\n\n</message>\n
 <message id="46" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 46\n\n</message>\n
 <message id="47" from="[Bob](/human/bob)" time="16 minutes later">\n\nTest message 47\n\n</message>`,
-    },
-])(
-    "reads single message at the start of a long message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the start of a long message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 88\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 70}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 70}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=79)
 
 <time>May 15th at 10:21am EDT</time>\n
@@ -6710,15 +6727,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=85",
-        limit: "2.237kb",
-        requests: [
-            {limit: 30, cursor: 70},
-            {from: "End" as const, limit: 15, cursor: 71},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=85",
+            limit: "2.237kb",
+            requests: [
+                {limit: 30, cursor: 70},
+                {from: "End" as const, limit: 15, cursor: 71},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=63)
 
 <time>May 15th at 6:04am EDT</time>\n
@@ -6746,59 +6763,59 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message near the end of a long message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message near the end of a long message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=86",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 71}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=86",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 71}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
 <message id="88" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 88\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=86",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 71}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=86",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 71}],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=79)
 
 <time>May 15th at 10:21am EDT</time>\n
@@ -6812,15 +6829,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-    {
-        path: "/chat/incident-response?message=86",
-        limit: "2kb",
-        requests: [
-            {limit: 30, cursor: 71},
-            {from: "End" as const, limit: 15, cursor: 72},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=86",
+            limit: "2kb",
+            requests: [
+                {limit: 30, cursor: 71},
+                {from: "End" as const, limit: 15, cursor: 72},
+            ],
+            response: `\
 Some messages in Incident Response. [Previous page »](/chat/incident-response?before=68)
 
 <time>May 15th at 6:35am EDT</time>\n
@@ -6846,60 +6863,60 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 <message id="89" from="[Alice](/human/alice)" time="16 minutes later">\n\nTest message 89\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message at the end of a long message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message at the end of a long message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 90,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 90,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
 
-test.each([
-    {
-        path: "/chat/incident-response?message=23",
-        limit: "500b",
-        requests: [{limit: 30, cursor: 8}],
-        response: `\
+    test.each([
+        {
+            path: "/chat/incident-response?message=23",
+            limit: "500b",
+            requests: [{limit: 30, cursor: 8}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=25)
 
 <time>May 14th at 5:22pm EDT</time>\n
 <message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
 <message id="22-24" from="[Alice](/human/alice)">\n\nTest message 22\n\nTest message 23\n\nTest message 24\n\n</message>\n
 <message id="25" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 25\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=23",
-        limit: "1kb",
-        requests: [{limit: 30, cursor: 8}],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=23",
+            limit: "1kb",
+            requests: [{limit: 30, cursor: 8}],
+            response: `\
 Some messages in Incident Response. [« Previous page](/chat/incident-response?before=19) | [Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 3:46pm EDT</time>\n
@@ -6911,16 +6928,16 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
 <message id="25" from="[Bob](/human/bob)" time="8 minutes later">\n\nTest message 25\n\n</message>\n
 <message id="26" from="[Bob](/human/bob)" time="16 minutes later">\n\nTest message 26\n\n</message>\n
 <message id="27" from="[Alice](/human/alice)" time="32 minutes later">\n\nTest message 27\n\n</message>`,
-    },
-    {
-        path: "/chat/incident-response?message=23",
-        limit: "5kb",
-        requests: [
-            {limit: 30, cursor: 8},
-            {from: "End" as const, limit: 15, cursor: 9},
-            {limit: 15, cursor: 38},
-        ],
-        response: `\
+        },
+        {
+            path: "/chat/incident-response?message=23",
+            limit: "5kb",
+            requests: [
+                {limit: 30, cursor: 8},
+                {from: "End" as const, limit: 15, cursor: 9},
+                {limit: 15, cursor: 38},
+            ],
+            response: `\
 Some messages in Incident Response.
 
 <time>May 14th at 11:01am EDT</time>\n
@@ -6963,38 +6980,39 @@ Some messages in Incident Response.
 <message id="39" from="[Alice](/human/alice)" time="8 minutes later">\n\nTest message 39\n\n</message>
 
 End of messages.`,
-    },
-])(
-    "reads single message in a small message list when adjacent messages may merge (limit: $limit)",
-    async ({path, limit, requests, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        },
+    ])(
+        "reads single message in a small message list when adjacent messages may merge (limit: $limit)",
+        async ({path, limit, requests, response}) => {
+            mockApiGetChat(api, {spaceId, chatId});
 
-        for (const request of requests) {
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 40,
-                ...request,
-                createMessage: index => {
-                    // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
-                    const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
+            for (const request of requests) {
+                mockApiGetChatMessages(api, {
+                    spaceId,
+                    chatId,
+                    totalMessageCount: 40,
+                    ...request,
+                    createMessage: index => {
+                        // Add minutes in increments of 1, 2, 4, 8, 16, 32, 64 and then loop back to 1.
+                        const minutes = Math.floor(index / 7) * 127 + 2 ** (index % 7);
 
-                    const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
+                        const author = stableRandomBit(index) === 0 ? aliceAccount : bobAccount;
 
-                    return createApiMessageMock({
-                        index,
-                        author,
-                        createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
-                    });
-                },
-            });
-        }
+                        return createApiMessageMock({
+                            index,
+                            author,
+                            createdTime: new Date(Date.UTC(2026, 4, 14, 15, minutes)).toISOString(),
+                        });
+                    },
+                });
+            }
 
-        expect(
-            await callAgentWebReadTool(context, {
-                path,
-                limit,
-            }),
-        ).toEqual(response);
-    },
-);
+            expect(
+                await callAgentWebReadTool(context, {
+                    path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+});
