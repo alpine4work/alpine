@@ -5,12 +5,14 @@ import {mockApiGetChat} from "~/server/agents/api/test_helpers/mock_api_get_chat
 import {mockApiGetChatMessages} from "~/server/agents/api/test_helpers/mock_api_get_chat_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const spaceId = generateId<SpaceId>();
@@ -61,6 +63,507 @@ function stableRandomBit(index: number): number {
     index = Math.imul(index ^ (index >>> 16), 0x45d9f3b);
     return (index ^ (index >>> 16)) >>> 31;
 }
+
+test("reads a direct chat with one human message", async () => {
+    const directChatId = generateId<ChatId>();
+    const path = await createAgentWebPageLinkPathname(storage, {
+        type: "Chat",
+        id: directChatId,
+        title: "Alice",
+    });
+
+    api.mockGet(
+        "/chats/{id}",
+        {
+            data: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    id: directChatId,
+                    title: "Alice",
+                    members: [{account: aliceAccount}, {account: bobAccount}],
+                },
+            },
+        },
+        {path: {id: directChatId}},
+    );
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author: aliceAccount, content: "Hello world!"}),
+    });
+
+    expect(await callAgentWebReadTool(context, {path, limit: "10kb"})).toEqual(`\
+Some messages in a chat with Alice.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Hello world!
+
+</message>
+
+End of messages.`);
+});
+
+test("prints bot messages with bot `from` path", async () => {
+    const assistantAccount = createApiAccountMock({
+        name: "Assistant",
+        botId: generateId<BotId>(),
+    });
+
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author: assistantAccount, content: "Hello human!"}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Assistant](/bot/assistant)">
+
+Hello human!
+
+</message>
+
+End of messages.`);
+});
+
+test("escapes author names in message tags", async () => {
+    const apostrophe = String.fromCharCode(39);
+    const doubleQuote = String.fromCharCode(34);
+    const escapingAccount = createApiAccountMock({
+        name: `Alice & Bob${apostrophe}s ${doubleQuote}Bot${doubleQuote}`,
+        botId: generateId<BotId>(),
+    });
+
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author: escapingAccount, content: "Hello"}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/bot/alice-and-bobs-bot)">
+
+Hello
+
+</message>
+
+End of messages.`);
+});
+
+test("prints rich message content using agent web markdown links", async () => {
+    const documentId = generateId<DocumentId>();
+    const content: ApiContentResponse = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "Review "},
+                    {type: "Text", text: "carefully", marks: [{type: "Bold"}]},
+                    {type: "Text", text: " in "},
+                    {
+                        type: "Mention",
+                        target: {type: "Document", id: documentId, title: "Release Plan"},
+                    },
+                    {type: "Text", text: " before running "},
+                    {type: "Text", text: "deploy", marks: [{type: "Code"}]},
+                    {type: "Text", text: "."},
+                ],
+            },
+        ],
+    };
+
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author: aliceAccount, content}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Review **carefully** in [Release Plan](/document/release-plan) before running \`deploy\`.
+
+</message>
+
+End of messages.`);
+});
+
+test("prints timezone attributes when human message timezones differ from context", async () => {
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: aliceAccount,
+                createdTimeZone: assertTimeZone("America/Los_Angeles"),
+                content: "Hello from the west coast.",
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)" timezone="PDT">
+
+Hello from the west coast.
+
+</message>
+
+End of messages.`);
+});
+
+test("omits timezone attributes for bot messages", async () => {
+    const assistantAccount = createApiAccountMock({
+        name: "Assistant",
+        botId: generateId<BotId>(),
+    });
+
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: assistantAccount,
+                createdTimeZone: assertTimeZone("America/Los_Angeles"),
+                content: "I keep bot messages timezone-free.",
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Assistant](/bot/assistant)">
+
+I keep bot messages timezone-free.
+
+</message>
+
+End of messages.`);
+});
+
+test("prints reply previews in blockquotes", async () => {
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: bobAccount,
+                createdTime: "2026-05-14T15:05:00.000Z",
+                parent: {
+                    author: aliceAccount,
+                    index: 4,
+                    endIndex: 7,
+                    contentSnippet: "Can you review the rollout?",
+                },
+                content: "Taking a look now.",
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:05am EDT</time>
+
+<message id="0" from="[Bob](/human/bob)">
+
+<blockquote cite="?message=4-7">
+
+[Alice](/human/alice): Can you review the rollout?
+
+</blockquote>
+
+Taking a look now.
+
+</message>
+
+End of messages.`);
+});
+
+test("marks truncated reply previews with an ellipsis", async () => {
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: bobAccount,
+                createdTime: "2026-05-14T15:05:00.000Z",
+                parent: {
+                    author: aliceAccount,
+                    index: 0,
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Can you review"}],
+                        isTruncated: true,
+                    },
+                },
+                content: "Taking a look now.",
+            }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:05am EDT</time>
+
+<message id="0" from="[Bob](/human/bob)">
+
+<blockquote cite="?message=0">
+
+[Alice](/human/alice): Can you review \\[…]
+
+</blockquote>
+
+Taking a look now.
+
+</message>
+
+End of messages.`);
+});
+
+test("prints deleted messages", async () => {
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index => ({
+            ...createApiMessageMock({index, author: aliceAccount}),
+            payload: {type: "Deleted" as const},
+        }),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Deleted message
+
+</message>
+
+End of messages.`);
+});
+
+test("throws on invalid pagination search parameters", async () => {
+    const cases = [
+        {
+            query: "before=abc",
+            error: "Expected `before` search param to be a positive integer",
+        },
+        {
+            query: "before",
+            error: "Expected `before` search param to be a positive integer",
+        },
+        {
+            query: "after=-1",
+            error: "Expected `after` search param to be a positive integer",
+        },
+        {
+            query: "after=01",
+            error: "Expected `after` search param to be a positive integer",
+        },
+        {
+            query: "message=abc",
+            error: "Expected `message` search param to be a positive integer or range",
+        },
+        {
+            query: "message=7-4",
+            error: "Expected `message` search param to be a positive integer or range",
+        },
+        {
+            query: "start=0",
+            error: "Expected `start` search param to be empty",
+        },
+        {
+            query: "end=0",
+            error: "Expected `end` search param to be empty",
+        },
+        {
+            query: "before=3&after=4",
+            error: "Expected only one pagination search param",
+        },
+        {
+            query: "start&end",
+            error: "Expected only one pagination search param",
+        },
+    ] as const;
+
+    for (const {query, error} of cases) {
+        mockApiGetChat(api, {spaceId, chatId});
+        await expect(
+            callAgentWebReadTool(context, {
+                path: `/chat/incident-response?${query}`,
+                limit: "10kb",
+            }),
+        ).rejects.toThrow(error);
+    }
+});
+
+test("caches the full chat read response for scroll", async () => {
+    const content: ApiContentResponse = {
+        elements: Array.from({length: 10}, (_, index) => ({
+            type: "Paragraph",
+            elements: [{type: "Text", text: `Paragraph ${index + 1}.`}],
+        })),
+    };
+
+    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId,
+        from: "End",
+        totalMessageCount: 1,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author: aliceAccount, content}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: "/chat/incident-response",
+            limit: "170b",
+        }),
+    ).toEqual(`\
+Some messages in Incident Response.
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Paragraph 1.
+
+Paragraph 2.
+
+Paragraph 3.
+
+(Page truncated, 127b remaining. Showing lines 1-12 of 29. Call the \`scroll\` tool with an \`offset\` of 12 to continue.)`);
+
+    expect(
+        await callAgentWebScrollTool(context, {
+            path: "/chat/incident-response",
+            offset: 12,
+            limit: "10kb",
+        }),
+    ).toEqual(`\
+Paragraph 4.
+
+Paragraph 5.
+
+Paragraph 6.
+
+Paragraph 7.
+
+Paragraph 8.
+
+Paragraph 9.
+
+Paragraph 10.
+
+</message>
+
+End of messages.
+
+(End of file. Showing lines 13-29 of 29.)`);
+});
 
 describe("pagination and truncation", () => {
     test.each([
