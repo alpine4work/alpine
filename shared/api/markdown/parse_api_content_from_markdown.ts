@@ -2786,8 +2786,10 @@ function* parseApiContentInlineElementFromMarkdown(
         case "image": {
             if (options.dangerouslyAllowImageContentType) {
                 // Convert images to links so they can be detected by file processing.
-                // `![alt](url)` becomes a text element with a Link mark. TODO(#public-api): This
-                // is not supported by the public api yet, just for imports.
+                // `![alt](url)` becomes a text element with a Link mark.
+                //
+                // TODO(#public-api): This is not supported by the public api yet, just for
+                // imports.
                 const altText = content.alt || content.url;
                 const existingMarks = markStack.getMarks() ?? [];
                 const marks = [...existingMarks, {type: "Link" as const, url: content.url}];

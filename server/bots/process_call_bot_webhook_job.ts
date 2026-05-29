@@ -237,8 +237,8 @@ async function actuallyCallBotWebhook(
         spaceId: job.spaceId,
         botId: job.botId,
         botAccountId: job.botAccountId,
-        // TODO(calebmer, #public-api): Remove `accountId` after this commit deploys. It's
-        // only here for backwards compatibility purposes.
+        // TODO(calebmer, #public-api-blocking): Remove `accountId` after this commit
+        // deploys. It's only here for backwards compatibility purposes.
         accountId: job.botAccountId,
         accessToken,
         attempt: attemptNumber,

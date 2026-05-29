@@ -547,16 +547,10 @@ paths:
                       minimum: 1
                       maximum: 100
                       default: 10
-                # TODO(calebmer, #public-api): Bikeshed this naming. I like it because we can
-                # consistently communicate the same pagination concept across all paginated API
-                # endpoints. But `index` here could be clearer for messages.
                 - name: cursor
                   in: query
                   schema:
                       type: integer
-                # TODO(calebmer, #public-api): Bikeshed this name when we ship the public API.
-                # Ian's proposal is `order=ascending`/`order=descending`. Which matches SQL
-                # language, could feel more natural.
                 - name: from
                   in: query
                   schema:
@@ -731,9 +725,9 @@ paths:
                             # a backwards compatible change when the time comes.
                             required: [channelId, content]
                             additionalProperties: false
-                            # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-                            # bodies for objects of the same type. So `GetPost` should be
-                            # assignable to this request body.
+                            # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
+                            # assignable to request bodies for objects of the same type. So `GetPost`
+                            # should be assignable to this request body.
                             properties:
                                 channelId:
                                     $ref: "#/components/schemas/ChannelId"
@@ -1243,8 +1237,8 @@ webhooks:
                                     $ref: "#/components/schemas/BotId"
                                 botAccountId:
                                     $ref: "#/components/schemas/AccountId"
-                                # TODO(calebmer, #public-api): Remove `accountId` after this commit deploys.
-                                # It's only here for backwards compatibility purposes.
+                                # TODO(calebmer, #public-api-blocking): Remove `accountId` after this
+                                # commit deploys. It's only here for backwards compatibility purposes.
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
                                 attempt:
@@ -1330,9 +1324,6 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             totalMessageCount:
                                 type: integer
-                            # TODO(calebmer, #public-api): My dream is for the API browser to return this
-                            # as a link. So you can conveniently paginate through the API in your browser
-                            # by clicking `nextCursor`.
                             nextCursor:
                                 type: [integer, "null"]
                                 minimum: 0
@@ -1413,9 +1404,9 @@ components:
                                 $ref: "#/components/schemas/Post"
 
     requestBodies:
-        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-        # bodies for objects of the same type. So `GetMessage` should be
-        # assignable to `CreateMessage`.
+        # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
+        # assignable to request bodies for objects of the same type. So `GetMessage`
+        # should be assignable to `CreateMessage`.
         #
         # This means we need to nest these properties in a `message` object right?
         CreateMessage:
@@ -1436,9 +1427,9 @@ components:
                             content:
                                 $ref: "#/components/schemas/Content"
 
-        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
-        # bodies for objects of the same type. So `GetMessageStreamPart` should be
-        # assignable to `PutMessageStreamPart`.
+        # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
+        # assignable to request bodies for objects of the same type. So
+        # `GetMessageStreamPart` should be assignable to `PutMessageStreamPart`.
         PutMessageStreamPart:
             required: true
             content:
@@ -2451,8 +2442,8 @@ components:
                             enum: [Owner, Admin, Member]
                         addedTime:
                             $ref: "#/components/schemas/DateTime"
-                        # TODO(calebmer, #public-api): Bikeshed what the right way to expose account
-                        # state over the public API is.
+                        # TODO(calebmer, #public-api-blocking): Switch this to `state` and add an
+                        # `Active` variant.
                         inactive:
                             oneOf:
                                 - type: object
