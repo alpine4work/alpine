@@ -27,8 +27,8 @@ import {
 } from "~/shared/api/markdown/internal/parse_api_content_file_or_preview_block_element_from_url.js";
 import {
     normalizeApiContentBlockElement,
-    normalizeApiTarget,
     normalizeApiContentInlineElementMarks,
+    normalizeApiTarget,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
