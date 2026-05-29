@@ -2629,10 +2629,11 @@ async function prepareSearchEntityDataForResult(
     const idObject = parseSearchDynamicEntityIdWithoutAccount(entityId);
     switch (idObject.type) {
         case "Document": {
-            // TODO(ifitzsimmons, 2026-05-19): We saw an error in production where document
-            // entities do not have the expected `Integer` title version, which is crashing the
-            // app. This is a short term fix that will allow us to investigate the issue
-            // without end-user impact.
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type. We saw an error in production where document entities do not have
+            // the expected `Integer` title version, which is crashing the app. This is a short
+            // term fix that will allow us to investigate the issue without end-user impact.
             const version = titleVersion?.type === "Integer" ? titleVersion.version : -1;
 
             return {
@@ -2645,14 +2646,17 @@ async function prepareSearchEntityDataForResult(
             };
         }
         case "Channel": {
-            assert(titleVersion?.type === "Integer");
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type.
+            const version = titleVersion?.type === "Integer" ? titleVersion.version : -1;
 
             return {
                 type: "Channel",
                 title,
                 channel: {
                     id: idObject.channelId,
-                    version: titleVersion.version,
+                    version,
                 },
             };
         }
@@ -2666,8 +2670,10 @@ async function prepareSearchEntityDataForResult(
 
             function getChatVersion(): number | null {
                 if (titleVersion === null) return null;
-                assert(titleVersion.type === "Integer");
-                return titleVersion.version;
+                // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+                // fix this properly. After that, we should assert that the title version is the
+                // expected type.
+                return titleVersion.type === "Integer" ? titleVersion.version : -1;
             }
 
             return {
@@ -2728,8 +2734,23 @@ async function prepareSearchEntityDataForResult(
         }
         case "Post": {
             assert(hitMedia?.type === "Account");
-            assert(titleVersion?.type === "Integers");
-            assert(titleVersion.versions.length === 2);
+
+            let postVersion: {
+                version: number;
+                channelVersion: number;
+            };
+            // TODO(ifitzsimmons, 2026-05-19): We need to reindex the semantic search index to
+            // fix this properly. After that, we should assert that the title version is the
+            // expected type.
+            if (titleVersion?.type !== "Integers") {
+                postVersion = {version: -1, channelVersion: -1};
+            } else {
+                assert(titleVersion.versions.length === 2);
+                postVersion = {
+                    version: titleVersion.versions[0]!,
+                    channelVersion: titleVersion.versions[1]!,
+                };
+            }
             const author = await getAccount(context, spaceId, hitMedia.accountId);
 
             return {
@@ -2737,8 +2758,7 @@ async function prepareSearchEntityDataForResult(
                 title,
                 post: {
                     id: idObject.postId,
-                    version: titleVersion.versions[0]!,
-                    channelVersion: titleVersion.versions[1]!,
+                    ...postVersion,
                     author,
                 },
             };
