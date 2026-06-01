@@ -57,6 +57,12 @@ const invalidPreambleError =
     "chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat " +
     "rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a " +
     "proper start to chat markdown on line 1.";
+const previousPageCreateParseError =
+    "Can\u2019t add \u201cPrevious page »\u201d link when creating messages markdown. " +
+    "Try again without the \u201cPrevious page »\u201d link.";
+const nextPageCreateParseError =
+    "Can\u2019t add \u201cNext page »\u201d link when creating messages markdown. " +
+    "Try again without the \u201cNext page »\u201d link.";
 
 runAgentWebPageTests<ChatId, AgentWebChatPage>({
     print: printAgentWebChatPage,
@@ -249,6 +255,52 @@ Hello Bob.
             },
         },
         {
+            name: "direct chat with previous page pagination link",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice). [Previous page »](/chat/alice?before=3)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceTarget]},
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Alice",
+                    },
+                    previousLink: {beforeMessageIndex: 3},
+                    nextLink: null,
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: previousPageCreateParseError,
+        },
+        {
+            name: "direct chat with next page pagination link",
+            pageLink: chatId,
+            markdown: `\
+Chat with [Alice](/human/alice). [Next page »](/chat/alice?after=9)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Direct", members: [aliceTarget]},
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Alice",
+                    },
+                    previousLink: null,
+                    nextLink: {afterMessageIndex: 9},
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: nextPageCreateParseError,
+        },
+        {
             name: "room chat",
             pageLink: chatId,
             markdown: `\
@@ -316,7 +368,32 @@ Room update.
             },
         },
         {
-            name: "room chat with pagination paragraph",
+            name: "room chat with previous page pagination link",
+            pageLink: chatId,
+            markdown: `\
+# Engineering Room
+
+[Previous page »](/chat/engineering-room?before=3)
+`,
+            page: {
+                type: "Chat",
+                preamble: {type: "Room", name: "Engineering Room"},
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
+                    },
+                    previousLink: {beforeMessageIndex: 3},
+                    nextLink: null,
+                },
+                isEndOfMessages: false,
+                blocks: [],
+            },
+            createParseError: previousPageCreateParseError,
+        },
+        {
+            name: "room chat with next page pagination link",
             pageLink: chatId,
             markdown: `\
 # Engineering Room
@@ -338,9 +415,7 @@ Room update.
                 isEndOfMessages: false,
                 blocks: [],
             },
-            createParseError:
-                "Can\u2019t add \u201cNext page »\u201d link when creating messages markdown. " +
-                "Try again without the \u201cNext page »\u201d link.",
+            createParseError: nextPageCreateParseError,
         },
         {
             name: "direct chat with no members",
