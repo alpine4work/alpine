@@ -468,11 +468,11 @@ const done = true;
             markdown: `\
 <time>May & \u0022Later\u0022 \\<soon></time>
 
-<message from="[Alice &amp; Bob&#39;s &quot;Team&quot;](/human/alice-and-bob-s-team)" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
+<message from="[Alice &amp; Bob&#39;s &quot;Team&quot;](/human/alice-and-bobs-team)" time="5 &lt; 10 &amp; &quot;later&quot;" timezone="GMT+0 &amp; east">
 
 <blockquote cite="?message=4-7">
 
-[Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}](/human/carol-and-dan-s-team): Quoted reply.
+[Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}](/human/carol-and-dans-team): Quoted reply.
 
 </blockquote>
 
