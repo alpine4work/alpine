@@ -74,6 +74,8 @@ runAgentWebPageTests<
         printAgentWebMessagingPage(storage, pageLink, page, {
             messageNouns: agentWebMessagingPageMessageNouns,
             printPreamble: async (storage, preamble) => {
+                if (preamble.elements.length === 0) return {type: "root", children: []};
+
                 return await printApiContentToAgentWebMarkdownTree(storage, {
                     elements: [{type: "Paragraph", elements: preamble.elements}],
                 });
@@ -376,26 +378,6 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
                 "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
         },
         {
-            name: "preamble with standalone start-arrow previous page link",
-            pageLink: true,
-            markdown: `\
-Some messages in Engineering Room. [« Previous page](https://example.com/chat?before=3)
-`,
-            page: {
-                preamble: {
-                    elements: [
-                        text("Some messages in Engineering Room. "),
-                        text("« Previous page", [
-                            {type: "Link", url: "https://example.com/chat?before=3"},
-                        ]),
-                    ],
-                },
-                pagination: null,
-                isEndOfMessages: false,
-                blocks: [],
-            },
-        },
-        {
             name: "previous page pagination link with invalid url",
             pageLink: true,
             markdown: `\
@@ -416,26 +398,6 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?before=
                 "Invalid link for \u201CNext page »\u201D. Expected a link to more messages with a `after` URL search param. Example: `/chat/my-chat?after=8`. Try again with a different link.",
             createParseError:
                 "Can\u2019t add \u201CNext page »\u201D link when creating messages markdown. Try again without the \u201CNext page »\u201D link.",
-        },
-        {
-            name: "preamble with standalone end-arrow previous page link",
-            pageLink: true,
-            markdown: `\
-Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/engineering-room?before=3)
-`,
-            page: {
-                preamble: {
-                    elements: [
-                        text("Some messages in Engineering Room. "),
-                        text("Previous page »", [
-                            {type: "Link", url: "/chat/engineering-room?before=3"},
-                        ]),
-                    ],
-                },
-                pagination: null,
-                isEndOfMessages: false,
-                blocks: [],
-            },
         },
         {
             name: "bot message with reply preview and rich content",

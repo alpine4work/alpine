@@ -29,6 +29,8 @@ runAgentWebPageGenerativeTests({
         printAgentWebMessagingPage(storage, pageLink, page, {
             messageNouns: agentWebMessagingPageMessageNouns,
             printPreamble: async (storage, preamble) => {
+                if (preamble.elements.length === 0) return {type: "root", children: []};
+
                 return await printApiContentToAgentWebMarkdownTree(storage, {
                     elements: [{type: "Paragraph", elements: preamble.elements}],
                 });
