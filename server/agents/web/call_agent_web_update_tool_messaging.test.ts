@@ -11,7 +11,6 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -19,6 +18,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ErrorBase,
+    FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     UnimplementedError,
@@ -142,6 +142,27 @@ async function expectInvalidUpdateDisplayMessage({
     expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
 }
 
+async function expectFailedPreconditionDisplayMessage({
+    path = chatPath,
+    updates,
+    expected,
+}: {
+    path?: string;
+    updates: ReadonlyArray<UpdateToolUpdate>;
+    expected: string;
+}) {
+    const result = await captureResultPromise(
+        async () => await callAgentWebUpdateTool(context, {path, updates}),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(result.error).toBeInstanceOf(FailedPreconditionError);
+    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
+}
+
 function createTextContent(text: string): ApiContentResponse {
     return {
         elements: [{type: "Paragraph", elements: [{type: "Text", text}]}],
@@ -222,7 +243,7 @@ async function readChat({
     return await callAgentWebReadTool(readContext, {path, limit});
 }
 
-function mockCreateMessages(count: number) {
+function mockCreateMessages({count, startIndex = 0}: {count: number; startIndex?: number}) {
     for (let index = 0; index < count; index++) {
         api.mockPost(
             "/chats/{id}/messages",
@@ -230,7 +251,7 @@ function mockCreateMessages(count: number) {
                 data: {
                     spaceId,
                     message: createMessage({
-                        index,
+                        index: startIndex + index,
                         author: botApiAccount,
                         content: "Created message response",
                     }),
@@ -249,7 +270,7 @@ function getCreateMessageRequests() {
 
 test("creates the first message in an empty chat", async () => {
     await readChat({totalMessageCount: 0});
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -281,7 +302,7 @@ test("creates a message with the next valid id after existing messages", async (
                 content: `Alice message ${index}`,
             }),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 2});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -308,7 +329,7 @@ test("creates multiple messages in one update in order", async () => {
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
-    mockCreateMessages(2);
+    mockCreateMessages({count: 2, startIndex: 1});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -333,6 +354,120 @@ test("creates multiple messages in one update in order", async () => {
     ]);
 });
 
+test("reports unseen messages after creating one message in an empty chat", async () => {
+    await readChat({totalMessageCount: 0});
+    mockCreateMessages({count: 1, startIndex: 1});
+
+    await expectFailedPreconditionDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen message.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Update was successful, the message you added was created. But between the last message you read and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("New message after unseen message."),
+        },
+    ]);
+});
+
+test("reports unseen messages after creating multiple messages in an empty chat", async () => {
+    await readChat({totalMessageCount: 0});
+    mockCreateMessages({count: 2, startIndex: 1});
+
+    await expectFailedPreconditionDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="0" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen message.\n\n</message>\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen message.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Update was successful, the messages you added were created. But between the last message you read and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?start`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)",
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("First new message after unseen message."),
+        },
+        {
+            content: createTextContent("Second new message after unseen message."),
+        },
+    ]);
+});
+
+test("reports unseen messages after creating one message with existing messages", async () => {
+    await readChat({
+        totalMessageCount: 2,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                content: `Alice message ${index}`,
+            }),
+    });
+    mockCreateMessages({count: 1, startIndex: 3});
+
+    await expectFailedPreconditionDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after unseen existing message.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'Update was successful, the message you added was created. But between the last message you read (`<message id="1">`) and the message you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("New message after unseen existing message."),
+        },
+    ]);
+});
+
+test("reports unseen messages after creating multiple messages with existing messages", async () => {
+    await readChat({
+        totalMessageCount: 2,
+        createMessage: index =>
+            createMessage({
+                index,
+                author: aliceAccount,
+                content: `Alice message ${index}`,
+            }),
+    });
+    mockCreateMessages({count: 2, startIndex: 3});
+
+    await expectFailedPreconditionDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nFirst new message after unseen existing messages.\n\n</message>\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nSecond new message after unseen existing messages.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'Update was successful, the messages you added were created. But between the last message you read (`<message id="1">`) and the messages you created there are some new messages from others you haven\u2019t seen. These new messages may not be relevant to you, but if you want to see them anyway you can call the `read` tool with `/chat/incident-response?after=2`. (This update was a partial success. You must call the `read` tool again for `/chat/incident-response` to find out which parts of the update were successful.)',
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("First new message after unseen existing messages."),
+        },
+        {
+            content: createTextContent("Second new message after unseen existing messages."),
+        },
+    ]);
+});
+
 test("creates a message on the final page when earlier messages are paginated", async () => {
     const response = await readChat({
         limit: "3kb",
@@ -341,7 +476,7 @@ test("creates a message on the final page when earlier messages are paginated", 
     });
     expect(response).toContain("[Previous page »](/chat/incident-response?before=");
 
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 31});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -368,7 +503,7 @@ test("counts newly-created messages without ids when validating the next id", as
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 1});
 
     await callAgentWebUpdateTool(context, {
         path: chatPath,
@@ -381,7 +516,7 @@ test("counts newly-created messages without ids when validating the next id", as
         ],
     });
 
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 2});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -411,7 +546,7 @@ test("counts newly-created messages without ids when validating the next id (err
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 1});
 
     await callAgentWebUpdateTool(context, {
         path: chatPath,
@@ -448,7 +583,7 @@ test("counts newly-created messages without ids when validating the next id (err
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 1});
 
     await callAgentWebUpdateTool(context, {
         path: chatPath,
@@ -832,7 +967,7 @@ test("throws UnimplementedError when updating and creating messages together", a
         createMessage: index =>
             createMessage({index, author: botApiAccount, content: "Bot original"}),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 1});
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -860,7 +995,7 @@ test("throws InternalError when updating a cached new message without an id", as
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
-    mockCreateMessages(1);
+    mockCreateMessages({count: 1, startIndex: 1});
 
     await callAgentWebUpdateTool(context, {
         path: chatPath,

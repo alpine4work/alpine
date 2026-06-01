@@ -5,6 +5,7 @@ import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_conte
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePreamble,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -16,7 +17,12 @@ import {
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiMessageRoomTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -30,17 +36,19 @@ export async function updateAgentWebMessagingPage(
     {
         pathname,
         room,
+        oldPageMetadata,
         oldPage,
         newPage,
     }: {
         pathname: string;
         room: ApiMessageRoomTarget;
+        oldPageMetadata: AgentWebMessagingPageMetadata;
         oldPage: AgentWebMessagingPage;
         newPage: AgentWebMessagingPage;
     },
-): Promise<void> {
+): Promise<AgentWebMessagingPageMetadata> {
     const updateThunks: Array<() => Promise<void>> = [];
-    const createThunks: Array<() => Promise<void>> = [];
+    const createThunks: Array<() => Promise<{index: number}>> = [];
 
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `target.title`s aren't equal. The `title` might have changed
@@ -65,8 +73,7 @@ export async function updateAgentWebMessagingPage(
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
-    let fallbackMessageIndex: number | null =
-        newPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0;
+    let fallbackMessageIndex = newPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0;
 
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
@@ -197,7 +204,10 @@ export async function updateAgentWebMessagingPage(
         break;
     }
 
-    lastMessageIndex ??= nullIdAttributeCount;
+    lastMessageIndex ??=
+        (oldPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0) + nullIdAttributeCount;
+
+    const expectedNewMessageIndexes: Array<number> = [];
 
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
@@ -235,6 +245,11 @@ export async function updateAgentWebMessagingPage(
             );
         }
 
+        expectedNewMessageIndexes.push(
+            newBlock.idAttribute?.startMessageIndex ??
+                lastMessageIndex + (index - commonBlocksLength),
+        );
+
         if (newBlock.timeAttribute) {
             throw new InvalidArgumentError("Can\u2019t set the created time of a new message", {
                 displayMessage: errorDisplayMessage`You can\u2019t add a \`<${messageNouns.noun}>\` with a \`time\` attribute. The creation time of the ${messageNouns.noun} will be decided by the server. Try again without the \`time\` attribute.`,
@@ -259,9 +274,13 @@ export async function updateAgentWebMessagingPage(
                 );
             }
 
-            await createApiMessage(context.span, context.api, room, {
+            const {
+                data: {message},
+            } = await createApiMessage(context.span, context.api, room, {
                 content: newBlock.content,
             });
+
+            return {index: message.index};
         });
     }
 
@@ -284,16 +303,38 @@ export async function updateAgentWebMessagingPage(
     }
 
     // Finally now that we're done validating the update, actually make all changes!
-    await runAllPromises([
+    const [, newMessages] = await runAllPromises([
         // Run all update thunks in parallel.
         runAllPromises(updateThunks.map(updateThunk => updateThunk())),
 
         // Update all create thunks in sequence to make sure they're added in the right
         // order.
         (async () => {
+            const newMessages: Array<{index: number}> = [];
+
             for (const createThunk of createThunks) {
-                await createThunk();
+                newMessages.push(await createThunk());
             }
+
+            return newMessages;
         })(),
     ]);
+
+    if (
+        !isDeepEqual(
+            newMessages.map(({index}) => index),
+            expectedNewMessageIndexes,
+        )
+    ) {
+        throw new FailedPreconditionError(
+            "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed",
+            {
+                displayMessage: errorDisplayMessage`Update was successful, ${newMessages.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessages.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${pathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
+            },
+        );
+    }
+
+    return {
+        messages: [...oldPageMetadata.messages, ...newMessages],
+    };
 }
