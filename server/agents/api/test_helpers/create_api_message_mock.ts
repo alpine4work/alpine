@@ -8,6 +8,13 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
+export type ApiMessageMockParent = {
+    author: ApiAccount;
+    index: number;
+    endIndex?: number;
+    contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
+};
+
 export function createApiMessageMock({
     index,
     author,
@@ -21,12 +28,7 @@ export function createApiMessageMock({
     content?: ApiContentResponse | string;
     createdTime?: string;
     createdTimeZone?: TimeZone;
-    parent?: {
-        author: ApiAccount;
-        index: number;
-        endIndex?: number;
-        contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
-    };
+    parent?: ApiMessageMockParent;
 }): ApiMessageResponse {
     return {
         index,
