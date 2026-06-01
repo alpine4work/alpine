@@ -8,6 +8,7 @@ ts_project(
         "//shared/api/markdown:__subpackages__",
     ],
     deps = [
+        "//:node_modules/fast-check",
         "//server/agents/web",
         "//server/cloudflare",
         "//shared/error",

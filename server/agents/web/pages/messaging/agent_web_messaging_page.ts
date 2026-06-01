@@ -1,24 +1,17 @@
 import {
     ApiAccountTargetResponse,
-    ApiContentInlineElementResponse,
     ApiContentResponse,
     ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {DateString} from "~/shared/helpers/date/date_string.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
-export type AgentWebMessagingPage = {
-    readonly preamble: AgentWebMessagingPagePreamble;
+export type AgentWebMessagingPage<Preamble> = {
+    readonly preamble: Preamble;
+    readonly pagination: AgentWebMessagingPagePagination | null;
     readonly isEndOfMessages: boolean;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
 };
 
-export type AgentWebMessagingPagePreamble = {
-    readonly elements: ReadonlyArray<ApiContentInlineElementResponse>;
-    readonly pagination: AgentWebMessagingPagePreamblePagination | null;
-};
-
-export type AgentWebMessagingPagePreamblePagination = {
+export type AgentWebMessagingPagePagination = {
     readonly target: ApiMentionTargetResponse;
 } & (
     | {
@@ -63,7 +56,7 @@ export type AgentWebMessagingPageMessageBlockParent = {
     readonly previewContent: ApiContentResponse;
 };
 
-export type AgentWebMessagingPageWithMetadata = AgentWebMessagingPage & {
+export type AgentWebMessagingPageWithMetadata<Preamble> = AgentWebMessagingPage<Preamble> & {
     readonly metadata: AgentWebMessagingPageMetadata;
 };
 

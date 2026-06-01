@@ -9,23 +9,33 @@ import {
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {isAgentWebMessagingPageEndOfMessagesParagraph} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiAccountTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 
 export const agentWebMessagingPreviousPageLinkTextWithEndArrow = "Previous page »";
 export const agentWebMessagingPreviousPageLinkTextWithStartArrow = "« Previous page";
 export const agentWebMessagingNextPageLinkText = "Next page »";
 
-export async function printAgentWebMessagingPage<PageLink>(
-    messageNouns: AgentWebMessagingPageNouns,
+export async function printAgentWebMessagingPage<PageLink, Preamble>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink,
-    page: AgentWebMessagingPage,
+    page: AgentWebMessagingPage<Preamble>,
+    {
+        messageNouns,
+        printPreamble,
+    }: {
+        messageNouns: AgentWebMessagingPageNouns;
+        printPreamble: (storage: AgentWebSessionStorage, preamble: Preamble) => Promise<Root>;
+    },
 ): Promise<Root> {
     const children: Array<RootContent> = [];
 
@@ -33,18 +43,70 @@ export async function printAgentWebMessagingPage<PageLink>(
         (async () => {
             const [, paginationLinks] = await runAllPromises([
                 (async () => {
-                    if (page.preamble.elements.length === 0) return;
+                    const preambleTree = await printPreamble(storage, page.preamble);
 
-                    const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
-                        elements: [{type: "Paragraph", elements: page.preamble.elements}],
-                    });
+                    // Safety check: if the printed preamble contains a `<message>` HTML tag then that
+                    // will confuse `parseAgentWebMessagingPage()` which will interpret it as the start
+                    // of message markdown and not a part of the preamble.
+                    const traverse = (node: RootContent) => {
+                        if (
+                            node.type === "html" &&
+                            hasHtmlOpenTag(
+                                node.value,
+                                tagName => tagName === messageNouns.noun || tagName === "time",
+                            )
+                        ) {
+                            throw new InternalError(
+                                `Printed preamble must not include \`<${messageNouns.noun}>\` tags or else parsing will fail`,
+                            );
+                        }
+
+                        if ("children" in node) {
+                            for (const childNode of node.children) {
+                                traverse(childNode);
+                            }
+                        }
+                    };
 
                     for (const node of preambleTree.children) {
                         children.push(node);
+
+                        traverse(node);
+
+                        // Safety check: if the printed preamble contains the paragraph `End of messages`
+                        // then that will confuse `parseAgentWebMessagingPage()` which will interpret it as
+                        // the start/end of messages markdown.
+                        if (isAgentWebMessagingPageEndOfMessagesParagraph(messageNouns, node)) {
+                            throw new InternalError(
+                                "Printed preamble must not include \u201CEnd of messages\u201D marker",
+                            );
+                        }
+                    }
+
+                    // Safety check: if the printed preamble ends with a "Next page" link then that
+                    // will confuse `parseAgentWebMessagingPage()` which will interpret that "Next
+                    // page" link as a part of the pagination link and not a part of the preamble.
+                    const lastNode = children[children.length - 1];
+                    if (lastNode?.type === "paragraph") {
+                        const lastChildIndex = lastNode.children.length - 1;
+                        const lastChild = lastNode.children[lastChildIndex];
+                        if (lastChild?.type === "link") {
+                            const text = printMarkdownPhrasingContentText(lastChild.children);
+
+                            if (
+                                text === agentWebMessagingPreviousPageLinkTextWithStartArrow ||
+                                text === agentWebMessagingPreviousPageLinkTextWithEndArrow ||
+                                text === agentWebMessagingNextPageLinkText
+                            ) {
+                                throw new InternalError(
+                                    "Printed preamble must not end with a pagination link or else parsing will fail",
+                                );
+                            }
+                        }
                     }
                 })(),
                 (async () => {
-                    const pagination = page.preamble.pagination;
+                    const pagination = page.pagination;
                     if (!pagination) return [];
 
                     const pageLink = createApiTargetAgentWebPageLink(pagination.target);

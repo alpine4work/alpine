@@ -8,7 +8,7 @@ import {
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
-    AgentWebMessagingPagePreamblePagination,
+    AgentWebMessagingPagePagination,
     AgentWebMessagingPageWithMetadata,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -40,10 +40,10 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 
 const agentWebMessagingPageApiMessagesBatchCount = 30;
 
-export async function readAgentWebMessagingPage(
-    messageNouns: AgentWebMessagingPageNouns,
+export async function readAgentWebMessagingPage<Preamble>(
     context: AgentWebContextWithoutStorage,
     {
+        messageNouns,
         room,
         roomMetadataPromise,
         defaultDirection,
@@ -52,15 +52,16 @@ export async function readAgentWebMessagingPage(
         printPage,
         createPageLinkPathname,
     }: {
+        messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
             target: ApiMentionTargetResponse;
-            description: ReadonlyArray<ApiContentInlineElementResponse>;
+            preamble: Preamble;
         }>;
         defaultDirection: "Start" | "End";
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
         createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{
@@ -157,7 +158,8 @@ export async function readAgentWebMessagingPage(
     // If the agent passes in a specific message/comment link then we have a different
     // code path for reading messages around some index. Bail and call that code path.
     if (around !== null) {
-        return readAgentWebMessagingPageAroundMessage(messageNouns, context, {
+        return readAgentWebMessagingPageAroundMessage(context, {
+            messageNouns,
             room,
             roomMetadataPromise,
             around,
@@ -246,10 +248,10 @@ export async function readAgentWebMessagingPage(
     }
 }
 
-export async function readAgentWebMessagingPageAroundMessage(
-    messageNouns: AgentWebMessagingPageNouns,
+export async function readAgentWebMessagingPageAroundMessage<Preamble>(
     context: AgentWebContextWithoutStorage,
     {
+        messageNouns,
         room,
         roomMetadataPromise,
         around,
@@ -257,14 +259,15 @@ export async function readAgentWebMessagingPageAroundMessage(
         printPage,
         createPageLinkPathname,
     }: {
+        messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
             target: ApiMentionTargetResponse;
-            description: ReadonlyArray<ApiContentInlineElementResponse>;
+            preamble: Preamble;
         }>;
         around: AgentWebMessagingPageMessageRange;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPageWithMetadata) => Promise<string>;
+        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
         createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
 ): Promise<{
@@ -378,7 +381,7 @@ export async function readAgentWebMessagingPageAroundMessage(
     }
 }
 
-function buildAgentWebMessagingPageFromApiMessages(
+function buildAgentWebMessagingPageFromApiMessages<Preamble>(
     context: AgentWebContextWithoutStorage,
     {
         messageNouns,
@@ -392,7 +395,7 @@ function buildAgentWebMessagingPageFromApiMessages(
         direction: "Start" | "End" | "Around";
         roomMetadata: {
             target: ApiMentionTargetResponse;
-            description: ReadonlyArray<ApiContentInlineElementResponse>;
+            preamble: Preamble;
         };
         messages: ReadonlyArray<ApiMessageResponse>;
         isStartOfMessages: boolean;
@@ -402,7 +405,7 @@ function buildAgentWebMessagingPageFromApiMessages(
     contextTime: Date;
     contextDate: CalendarDate;
     contextFormattedTimeZone: string;
-    page: AgentWebMessagingPageWithMetadata;
+    page: AgentWebMessagingPageWithMetadata<Preamble>;
 } {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
@@ -504,22 +507,7 @@ function buildAgentWebMessagingPageFromApiMessages(
     // Flush any remaining block
     flushCurrentBlock();
 
-    const preambleElements: Array<ApiContentInlineElementResponse> = [
-        {
-            type: "Text",
-            text:
-                messages.length > 0
-                    ? `Some ${messageNouns.pluralNoun} `
-                    : `No ${messageNouns.pluralNoun} `,
-        },
-        ...roomMetadata.description,
-        {
-            type: "Text",
-            text: ".",
-        },
-    ];
-
-    let pagination: AgentWebMessagingPagePreamblePagination | null = null;
+    let pagination: AgentWebMessagingPagePagination | null = null;
 
     if (messages.length > 0) {
         switch (direction) {
@@ -575,7 +563,8 @@ function buildAgentWebMessagingPageFromApiMessages(
         contextDate,
         contextFormattedTimeZone,
         page: {
-            preamble: {elements: preambleElements, pagination},
+            preamble: roomMetadata.preamble,
+            pagination,
             isEndOfMessages,
             blocks,
             metadata: {

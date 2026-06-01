@@ -1,16 +1,24 @@
-import {produce} from "immer";
+import {Draft, produce} from "immer";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
 import {AgentWebMessagingPage} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {ApiContentNormalizer} from "~/shared/api/markdown/normalize_api_content.js";
 
-export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPage>(
+export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPage<any>>(
     page: Page,
+    {
+        normalizePreamble,
+    }: {
+        normalizePreamble: (
+            normalizer: ApiContentNormalizer,
+            preamble: Draft<Page["preamble"]>,
+        ) => void;
+    },
 ): Page {
     return produce(page, page => {
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
-            normalizer.normalizeInlineElements(page.preamble.elements);
+            normalizePreamble(normalizer, page.preamble);
 
-            if (page.preamble.pagination)
-                normalizer.normalizeTarget(page.preamble.pagination.target);
+            if (page.pagination) normalizer.normalizeTarget(page.pagination.target);
 
             for (const block of page.blocks) {
                 if (block.type !== "Message") continue;

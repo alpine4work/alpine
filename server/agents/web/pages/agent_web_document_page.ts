@@ -147,7 +147,7 @@ export async function parseAgentWebDocumentPage(
             title = printMarkdownPhrasingContentText(firstChild.children);
         } else {
             throw new InvalidArgumentError("Missing title in document", {
-                displayMessage: errorDisplayMessage`A title is required for documents. Try again but make sure the document starts with a Markdown h1 (e.g. \`# My Document\`).`,
+                displayMessage: errorDisplayMessage`A title is required for documents. Try again but make sure the document starts with a markdown h1 (e.g. \`# My Document\`).`,
             });
         }
     }
@@ -160,7 +160,7 @@ export async function parseAgentWebDocumentPage(
 
             if (childNode.type === "heading" && childNode.depth === 1) {
                 throw new InvalidArgumentError("Documents can only have a single heading level 1", {
-                    displayMessage: errorDisplayMessage`A document can only have one Markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the start of the document. You added an additional Markdown h1 ${quoteMarkdown(childNode.children)}. Try again but remove the additional Markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
+                    displayMessage: errorDisplayMessage`A document can only have one markdown h1 (e.g. \`# My Document\`) and the h1 must be placed at the start of the document. You added an additional markdown h1 ${quoteMarkdown(childNode.children)}. Try again but remove the additional markdown h1 or make it an h2 (e.g. \`## My Sub-heading\`).`,
                 });
             }
 

@@ -6,6 +6,8 @@ import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messagin
 import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
 import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
+import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {
     ApiAccountTargetResponse,
     ApiContentInlineElementMark,
@@ -14,6 +16,8 @@ import {
     ApiContentResponse,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.js";
@@ -60,10 +64,48 @@ function text(
     return {type: "Text", text, marks};
 }
 
-runAgentWebPageTests<true, AgentWebMessagingPage>({
-    print: printAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
-    parse: parseAgentWebMessagingPage.bind(null, agentWebMessagingPageMessageNouns),
-    normalize: normalizeAgentWebMessagingPage,
+runAgentWebPageTests<
+    true,
+    AgentWebMessagingPage<{
+        elements: ReadonlyArray<ApiContentInlineElementResponse>;
+    }>
+>({
+    print: (storage, pageLink, page) =>
+        printAgentWebMessagingPage(storage, pageLink, page, {
+            messageNouns: agentWebMessagingPageMessageNouns,
+            printPreamble: async (storage, preamble) => {
+                return await printApiContentToAgentWebMarkdownTree(storage, {
+                    elements: [{type: "Paragraph", elements: preamble.elements}],
+                });
+            },
+        }),
+    parse: (storage, pageLink, root) =>
+        parseAgentWebMessagingPage(storage, pageLink, root, {
+            messageNouns: agentWebMessagingPageMessageNouns,
+            parsePreamble: async (storage, preamble) => {
+                const {elements} = await parseApiContentFromAgentWebMarkdownTree(storage, preamble);
+
+                let actualElements: ReadonlyArray<ApiContentInlineElementResponse> = [];
+
+                if (elements.length === 0) {
+                    // noop
+                } else if (elements.length === 1 && elements[0]!.type === "Paragraph") {
+                    actualElements = elements[0].elements;
+                } else {
+                    throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
+                        displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${agentWebMessagingPageMessageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${agentWebMessagingPageMessageNouns.noun}>\`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
+                    });
+                }
+
+                return {elements: actualElements};
+            },
+        }),
+    normalize: page =>
+        normalizeAgentWebMessagingPage(page, {
+            normalizePreamble: (normalizer, preamble) => {
+                normalizer.normalizeInlineElements(preamble.elements);
+            },
+        }),
     tests: [
         {
             name: "simple message log",
@@ -78,7 +120,8 @@ Hello there.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -114,7 +157,8 @@ Merged message block.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -151,7 +195,8 @@ Hello there.
 End of messages.
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: true,
                 blocks: [
                     {
@@ -187,8 +232,8 @@ Hello there.
                         text("Alpine", [{type: "Link", url: "https://example.com/alpine"}]),
                         text("."),
                     ],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -220,8 +265,8 @@ Hello there.
             page: {
                 preamble: {
                     elements: [text("The current page starts after the May planning sync.")],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -249,8 +294,8 @@ No messages matched the current filters.
             page: {
                 preamble: {
                     elements: [text("No messages matched the current filters.")],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
             },
@@ -264,15 +309,15 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
             page: {
                 preamble: {
                     elements: [text("Some messages in Engineering Room.")],
-                    pagination: {
-                        target: {
-                            type: "Chat",
-                            id: paginationChatId,
-                            title: "Engineering Room",
-                        },
-                        previousLink: {beforeMessageIndex: 3},
-                        nextLink: null,
+                },
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
                     },
+                    previousLink: {beforeMessageIndex: 3},
+                    nextLink: null,
                 },
                 isEndOfMessages: false,
                 blocks: [],
@@ -289,15 +334,15 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
             page: {
                 preamble: {
                     elements: [text("Some messages in Engineering Room.")],
-                    pagination: {
-                        target: {
-                            type: "Chat",
-                            id: paginationChatId,
-                            title: "Engineering Room",
-                        },
-                        previousLink: null,
-                        nextLink: {afterMessageIndex: 9},
+                },
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
                     },
+                    previousLink: null,
+                    nextLink: {afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],
@@ -314,15 +359,15 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
             page: {
                 preamble: {
                     elements: [text("Some messages in Engineering Room.")],
-                    pagination: {
-                        target: {
-                            type: "Chat",
-                            id: paginationChatId,
-                            title: "Engineering Room",
-                        },
-                        previousLink: {beforeMessageIndex: 3},
-                        nextLink: {afterMessageIndex: 9},
+                },
+                pagination: {
+                    target: {
+                        type: "Chat",
+                        id: paginationChatId,
+                        title: "Engineering Room",
                     },
+                    previousLink: {beforeMessageIndex: 3},
+                    nextLink: {afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],
@@ -344,8 +389,8 @@ Some messages in Engineering Room. [« Previous page](https://example.com/chat?b
                             {type: "Link", url: "https://example.com/chat?before=3"},
                         ]),
                     ],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
             },
@@ -386,8 +431,8 @@ Some messages in Engineering Room. [Previous page »](https://alpine.inc/chat/en
                             {type: "Link", url: "/chat/engineering-room?before=3"},
                         ]),
                     ],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
             },
@@ -415,7 +460,8 @@ const done = true;
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -481,7 +527,8 @@ Escaped attributes survive.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -519,7 +566,8 @@ After the empty paragraph.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -875,7 +923,8 @@ Hello.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -936,7 +985,8 @@ bar&#x20;
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -1036,7 +1086,8 @@ Hello there.
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
@@ -1065,7 +1116,8 @@ Hello there.
 <time></time>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [{type: "Time", timeContent: ""}],
             },
@@ -1089,8 +1141,8 @@ Hello there.
                             },
                         },
                     ],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
             },
@@ -1106,8 +1158,8 @@ Hello there.
                     elements: [
                         {type: "Text", text: " ", marks: [{type: "Highlight", color: "Purple"}]},
                     ],
-                    pagination: null,
                 },
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
             },
@@ -1129,7 +1181,8 @@ Second render:
 </message>
 `,
             page: {
-                preamble: {elements: [], pagination: null},
+                preamble: {elements: []},
+                pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {

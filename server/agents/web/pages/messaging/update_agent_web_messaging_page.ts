@@ -7,12 +7,11 @@ import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
-    AgentWebMessagingPagePreamble,
+    AgentWebMessagingPagePagination,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {
     normalizeApiContent,
-    normalizeApiContentInlineElements,
     normalizeApiTarget,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
@@ -30,21 +29,24 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
-export async function updateAgentWebMessagingPage(
-    messageNouns: AgentWebMessagingPageNouns,
+export async function updateAgentWebMessagingPage<Preamble>(
     context: AgentWebContextWithoutStorage,
     {
+        messageNouns,
         pathname,
         room,
         oldPageMetadata,
         oldPage,
         newPage,
+        arePreamblesEqual,
     }: {
+        messageNouns: AgentWebMessagingPageNouns;
         pathname: string;
         room: ApiMessageRoomTarget;
         oldPageMetadata: AgentWebMessagingPageMetadata;
-        oldPage: AgentWebMessagingPage;
-        newPage: AgentWebMessagingPage;
+        oldPage: AgentWebMessagingPage<Preamble>;
+        newPage: AgentWebMessagingPage<Preamble>;
+        arePreamblesEqual: (oldPreamble: Preamble, newPreamble: Preamble) => boolean;
     },
 ): Promise<AgentWebMessagingPageMetadata> {
     const updateThunks: Array<() => Promise<void>> = [];
@@ -53,19 +55,22 @@ export async function updateAgentWebMessagingPage(
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `target.title`s aren't equal. The `title` might have changed
     // between the old page load time and new page generation time.
-    const normalizePreamble = (preamble: AgentWebMessagingPagePreamble) => {
+    const normalizePagination = (pagination: AgentWebMessagingPagePagination | null) => {
+        if (!pagination) return null;
+
         return {
-            elements: normalizeApiContentInlineElements(preamble.elements),
-            pagination: preamble.pagination
-                ? {
-                      ...preamble.pagination,
-                      target: normalizeApiTarget(preamble.pagination.target),
-                  }
-                : null,
+            ...pagination,
+            target: normalizeApiTarget(pagination.target),
         };
     };
 
-    if (!isDeepEqual(normalizePreamble(oldPage.preamble), normalizePreamble(newPage.preamble))) {
+    if (
+        !arePreamblesEqual(oldPage.preamble, newPage.preamble) ||
+        !isDeepEqual(
+            normalizePagination(oldPage.pagination),
+            normalizePagination(newPage.pagination),
+        )
+    ) {
         throw new InvalidArgumentError("Can\u2019t update messaging page preamble", {
             displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the metadata on line 1 of the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
         });
@@ -73,7 +78,7 @@ export async function updateAgentWebMessagingPage(
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
-    let fallbackMessageIndex = newPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0;
+    let fallbackMessageIndex = newPage.pagination?.previousLink?.beforeMessageIndex ?? 0;
 
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
@@ -205,7 +210,7 @@ export async function updateAgentWebMessagingPage(
     }
 
     lastMessageIndex ??=
-        (oldPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0) + nullIdAttributeCount;
+        (oldPage.pagination?.previousLink?.beforeMessageIndex ?? 0) + nullIdAttributeCount;
 
     const expectedNewMessageIndexes: Array<number> = [];
 

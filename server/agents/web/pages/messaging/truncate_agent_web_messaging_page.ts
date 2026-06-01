@@ -38,7 +38,7 @@ import {exhaustIterable} from "~/shared/helpers/iterable/exhaust_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-export async function truncateAgentWebMessagingPage(
+export async function truncateAgentWebMessagingPage<Preamble>(
     messageNouns: AgentWebMessagingPageNouns,
     {
         limitLength,
@@ -59,7 +59,7 @@ export async function truncateAgentWebMessagingPage(
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage;
+        page: AgentWebMessagingPage<Preamble>;
         response: string;
         createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
@@ -84,7 +84,7 @@ export async function truncateAgentWebMessagingPage(
 
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
-            if (!page.preamble.pagination?.nextLink) {
+            if (!page.pagination?.nextLink) {
                 roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
@@ -178,7 +178,7 @@ export async function truncateAgentWebMessagingPage(
 
             // Update the "Next page" link to reflect the new last message index after
             // truncation.
-            if (page.preamble.pagination?.nextLink) {
+            if (page.pagination?.nextLink) {
                 const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
                 const paragraph = responseTree.children[0];
@@ -240,7 +240,7 @@ export async function truncateAgentWebMessagingPage(
 
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
-            if (!page.preamble.pagination?.previousLink) {
+            if (!page.pagination?.previousLink) {
                 roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
@@ -433,7 +433,7 @@ export async function truncateAgentWebMessagingPage(
             //
             // If there is no "Previous page" link and truncation occurred then we need to add
             // a "Previous page" link.
-            if (page.preamble.pagination?.previousLink) {
+            if (page.pagination?.previousLink) {
                 const beforeMessageIndex = truncatedMessages[0]!.index;
 
                 const paragraph = responseTree.children[0];
@@ -478,7 +478,7 @@ export async function truncateAgentWebMessagingPage(
     }
 }
 
-export async function truncateAgentWebMessagingPageAroundMessage(
+export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     messageNouns: AgentWebMessagingPageNouns,
     {
         limitLength,
@@ -499,7 +499,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage;
+        page: AgentWebMessagingPage<Preamble>;
         response: string;
         createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
     },
@@ -558,7 +558,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
-    if (!page.preamble.pagination?.previousLink) {
+    if (!page.pagination?.previousLink) {
         roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
 
         truncateLength +=
@@ -574,7 +574,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
-    if (!page.preamble.pagination?.nextLink) {
+    if (!page.pagination?.nextLink) {
         roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
 
         truncateLength +=
@@ -589,7 +589,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
         // If we have both a next page and a previous page link then we'll also be adding a
         // separator.
-        if (!page.preamble.pagination?.previousLink) {
+        if (!page.pagination?.previousLink) {
             truncateLength += " | ".length;
         }
     }
@@ -942,7 +942,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // Update the "Next page" link to reflect the new last message index after
     // truncation.
     if (truncateMessageBlockEndOffset !== lastMessageBlockEndOffset) {
-        if (page.preamble.pagination?.nextLink) {
+        if (page.pagination?.nextLink) {
             const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
             const paragraph = responseTree.children[0];
@@ -969,7 +969,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
             const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
 
-            if (!page.preamble.pagination?.previousLink) {
+            if (!page.pagination?.previousLink) {
                 truncatedResponse =
                     truncatedResponse.slice(0, paragraphEndOffset) +
                     ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
@@ -1000,7 +1000,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
     // If there is no "Previous page" link and truncation occurred then we need to add
     // a "Previous page" link.
     if (truncateMessageBlockStartOffset !== firstMessageBlockStartOffset) {
-        if (page.preamble.pagination?.previousLink) {
+        if (page.pagination?.previousLink) {
             const beforeMessageIndex = truncatedMessages[0]!.index;
 
             const paragraph = responseTree.children[0];
@@ -1008,7 +1008,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
 
             let link: PhrasingContent | undefined;
 
-            if (!page.preamble.pagination?.nextLink) {
+            if (!page.pagination?.nextLink) {
                 link = paragraph.children[paragraph.children.length - 1];
             } else {
                 link = paragraph.children[paragraph.children.length - 3];
@@ -1033,7 +1033,7 @@ export async function truncateAgentWebMessagingPageAroundMessage(
             const paragraph = responseTree.children[0];
             assert(paragraph?.type === "paragraph");
 
-            if (!page.preamble.pagination?.nextLink) {
+            if (!page.pagination?.nextLink) {
                 const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
 
                 truncatedResponse =

@@ -12,7 +12,7 @@ import {
     AgentWebMessagingPageMessageBlockParent,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageNouns,
-    AgentWebMessagingPagePreamblePagination,
+    AgentWebMessagingPagePagination,
     AgentWebMessagingPageTimeBlock,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -27,7 +27,6 @@ import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_ma
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiAccountTargetResponse,
-    ApiContentInlineElementResponse,
     ApiContentResponse,
     ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -44,20 +43,23 @@ import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
-export async function parseAgentWebMessagingPage<PageLink>(
-    messageNouns: AgentWebMessagingPageNouns,
+export async function parseAgentWebMessagingPage<PageLink, Preamble>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     root: Root,
-): Promise<AgentWebMessagingPage> {
+    options: {
+        messageNouns: AgentWebMessagingPageNouns;
+        parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
+    },
+): Promise<AgentWebMessagingPage<Preamble>> {
     const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>> = [];
 
     try {
         const result = await actuallyParseAgentWebMessagingPage(
-            messageNouns,
             storage,
             pageLink,
             root,
+            options,
             blockPromises,
         );
 
@@ -75,13 +77,19 @@ export async function parseAgentWebMessagingPage<PageLink>(
     }
 }
 
-async function actuallyParseAgentWebMessagingPage<PageLink>(
-    messageNouns: AgentWebMessagingPageNouns,
+async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     root: Root,
+    {
+        messageNouns,
+        parsePreamble,
+    }: {
+        messageNouns: AgentWebMessagingPageNouns;
+        parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
+    },
     blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>>,
-): Promise<Omit<AgentWebMessagingPage, "blocks">> {
+): Promise<Omit<AgentWebMessagingPage<Preamble>, "blocks">> {
     let hasFinishedPreamble = false;
     let isEndOfMessages = false;
     const preamble: Array<RootContent> = [];
@@ -694,33 +702,19 @@ async function actuallyParseAgentWebMessagingPage<PageLink>(
         preamble,
     );
 
-    const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, {
+    const actualPreamble = await parsePreamble(storage, {
         type: "root",
         children: preamble,
     });
 
-    let actualPreamble: ReadonlyArray<ApiContentInlineElementResponse> = [];
-
-    if (preambleContent.elements.length === 0) {
-        // noop
-    } else if (
-        preambleContent.elements.length === 1 &&
-        preambleContent.elements[0]!.type === "Paragraph"
-    ) {
-        actualPreamble = preambleContent.elements[0].elements;
-    } else {
-        throw new InvalidArgumentError("Preamble isn\u2019t a single paragraph", {
-            displayMessage: errorDisplayMessage`Unexpected markdown on line 1. ${messageNouns.startOfSentencePluralNoun} markdown must be a list of \`<${messageNouns.noun}>\`s. Though it may start with a single paragraph with a short description of what we\u2019re looking at.`,
-        });
-    }
-
     return {
-        preamble: {elements: actualPreamble, pagination},
+        preamble: actualPreamble,
+        pagination,
         isEndOfMessages,
     };
 }
 
-function isAgentWebMessagingPageEndOfMessagesParagraph(
+export function isAgentWebMessagingPageEndOfMessagesParagraph(
     messageNouns: AgentWebMessagingPageNouns,
     node: RootContent,
 ): boolean {
@@ -854,7 +848,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     preamble: Array<RootContent>,
-): Promise<AgentWebMessagingPagePreamblePagination | null> {
+): Promise<AgentWebMessagingPagePagination | null> {
     const lastNode = preamble[preamble.length - 1];
     if (lastNode?.type !== "paragraph") return null;
 
