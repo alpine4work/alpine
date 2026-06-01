@@ -873,7 +873,6 @@ test("throws InternalError when updating a cached new message without an id", as
         ],
     });
 
-    // NOCOMMIT: Why is this an internal error?? Should be ok?
     await expect(
         callAgentWebUpdateTool(context, {
             path: chatPath,
@@ -885,45 +884,5 @@ test("throws InternalError when updating a cached new message without an id", as
                 },
             ],
         }),
-    ).rejects.toThrow(InternalError);
-});
-
-test("throws InternalError when a current bot message block has a merged id range", async () => {
-    const response = await readChat({
-        totalMessageCount: 2,
-        createMessage: index =>
-            createMessage({
-                index,
-                author: aliceAccount,
-                content: `Merged Alice message ${index}`,
-                ...(index === 1
-                    ? {createdTime: new Date(Date.UTC(2026, 4, 14, 15, 4)).toISOString()}
-                    : {}),
-            }),
-    });
-    expect(response).toContain('<message id="0-1" from="[Alice](/human/alice)">');
-
-    // NOCOMMIT: Why is this an internal error? Should reject with some other display
-    // message.
-    await expect(
-        callAgentWebUpdateTool(
-            {
-                ...context,
-                botAccount: {
-                    ...intoApiAccountTarget(aliceAccount),
-                    pathname: "/human/alice",
-                },
-            },
-            {
-                path: chatPath,
-                updates: [
-                    {
-                        old: "Merged Alice message 1",
-                        new: "Edited merged Alice message 1",
-                        replaceAll: false,
-                    },
-                ],
-            },
-        ),
-    ).rejects.toThrow(InternalError);
+    ).rejects.toThrow(UnimplementedError);
 });

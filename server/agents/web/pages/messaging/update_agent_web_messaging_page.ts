@@ -65,9 +65,20 @@ export async function updateAgentWebMessagingPage(
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
+    let fallbackMessageIndex: number | null =
+        newPage.preamble.pagination?.previousLink?.beforeMessageIndex ?? 0;
+
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
         const newBlock = newPage.blocks[index]!;
+
+        if (newBlock.type === "Message") {
+            if (newBlock.idAttribute) {
+                fallbackMessageIndex = newBlock.idAttribute.endMessageIndex;
+            } else {
+                fallbackMessageIndex++;
+            }
+        }
 
         // Strip response properties from the block before comparing for equality. We don't
         // care if `target.title`s aren't equal. The `title` might have changed between the
@@ -139,14 +150,12 @@ export async function updateAgentWebMessagingPage(
             });
         }
 
-        if (!normalizedNewBlock.idAttribute) {
-            throw new InternalError("Missing `idAttribute` on existing message block");
-        }
+        const idAttribute = normalizedNewBlock.idAttribute ?? {
+            startMessageIndex: fallbackMessageIndex - 1,
+            endMessageIndex: fallbackMessageIndex,
+        };
 
-        if (
-            normalizedNewBlock.idAttribute.startMessageIndex !==
-            normalizedNewBlock.idAttribute.endMessageIndex - 1
-        ) {
+        if (idAttribute.startMessageIndex !== idAttribute.endMessageIndex - 1) {
             throw new InternalError("We should never merge the current bot\u2019s messages");
         }
 
