@@ -335,7 +335,10 @@ export async function parseAgentWebChatPage(
                 };
             }
 
-            const preambleContent = await parseApiContentFromAgentWebMarkdownTree(storage, root);
+            const preambleContent = await parseApiContentFromAgentWebMarkdownTree(
+                storage,
+                preamble,
+            );
 
             if (
                 preambleContent.elements.length !== 1 ||
