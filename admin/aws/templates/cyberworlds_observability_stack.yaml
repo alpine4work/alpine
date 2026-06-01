@@ -1772,6 +1772,8 @@ Resources:
                           Type: boolean
                         - Name: search__index__embedding_chunks__force_metadata_update
                           Type: boolean
+                        - Name: tracking__google__gclid
+                          Type: string
                     InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
                     Location:
                         Fn::Join:
