@@ -204,6 +204,25 @@ paths:
                                                         type: object
                                                         additionalProperties: true
 
+    /chats:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, chat]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                chat:
+                                    $ref: "#/components/schemas/CreateChatRequestBodyChat"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetChat"}
+
     /chats/{id}:
         parameters:
             - name: id
@@ -213,18 +232,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, chat]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    chat:
-                                        $ref: "#/components/schemas/Chat"
+                "200": {$ref: "#/components/responses/GetChat"}
 
     /chats/{id}/mention:
         parameters:
@@ -1285,6 +1293,19 @@ components:
                                                 description:
                                                     If true, it indicates that the request should
                                                     succeed if tried again.
+
+        GetChat:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, chat]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            chat:
+                                $ref: "#/components/schemas/Chat"
 
         GetDocument:
             content:
@@ -2503,6 +2524,54 @@ components:
                     const: Room
                 id:
                     $ref: "#/components/schemas/ChatId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        CreateChatRequestBodyChat:
+            oneOf:
+                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
+
+        CreateChatRequestBodyDirectChat:
+            type: object
+            required: [type, members]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                # TODO(#public-api): Should we add additional properties from `DirectChat` here
+                # so if you pass in a `DirectChat` object, it would work?
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required: [account]
+                        additionalProperties: false
+                        properties:
+                            account:
+                                type: object
+                                required: [id]
+                                additionalProperties: false
+                                properties:
+                                    # TODO(#public-api): Add additional properties from `Account` so you could pass
+                                    # in an `Account` object here and it would work.
+                                    id:
+                                        $ref: "#/components/schemas/AccountId"
+
+        CreateChatRequestBodyRoomChat:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Room
+                # TODO(#public-api): Should we add additional properties from `RoomChat` here
+                # so if you pass in a `RoomChat` object, it would work?
                 name:
                     $ref: "#/components/schemas/LabelString"
 

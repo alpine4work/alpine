@@ -311,6 +311,41 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/chats": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly chat: components["schemas"]["CreateChatRequestBodyChat"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetChat"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/chats/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -331,17 +366,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly chat: components["schemas"]["Chat"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetChat"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -789,7 +814,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly commentThread: components["schemas"]["DocumentCommentThread_Response"];
+                                readonly thread: components["schemas"]["DocumentThread_Response"];
                             };
                         };
                     };
@@ -2630,6 +2655,29 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["ChatId"];
                 readonly name: components["schemas"]["LabelString"];
             };
+            readonly CreateChatRequestBodyChat:
+                | components["schemas"]["CreateChatRequestBodyDirectChat"]
+                | components["schemas"]["CreateChatRequestBodyRoomChat"];
+            readonly CreateChatRequestBodyDirectChat: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Direct";
+                readonly members: readonly {
+                    readonly account: {
+                        readonly id: components["schemas"]["AccountId"];
+                    };
+                }[];
+            };
+            readonly CreateChatRequestBodyRoomChat: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Room";
+                readonly name: components["schemas"]["LabelString"];
+            };
             readonly Document: {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly creator?: {
@@ -2643,7 +2691,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
             };
-            readonly DocumentCommentThread: {
+            readonly DocumentThread: {
                 readonly id: components["schemas"]["DocumentThreadId"];
                 readonly createdTime: components["schemas"]["DateTime"];
                 readonly isResolved: boolean;
@@ -2917,11 +2965,11 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementStrikeMark"]
                 | components["schemas"]["ContentInlineElementCodeMark"];
             readonly MessageRoomTarget:
-                | components["schemas"]["ChatMessageRoom"]
-                | components["schemas"]["DocumentCommentRoom"]
-                | components["schemas"]["PostCommentRoom"]
-                | components["schemas"]["TaskCommentRoom"];
-            readonly ChatMessageRoom: {
+                | components["schemas"]["ChatMessageRoomTarget"]
+                | components["schemas"]["DocumentThreadMessageRoomTarget"]
+                | components["schemas"]["PostMessageRoomTarget"]
+                | components["schemas"]["TaskMessageRoomTarget"];
+            readonly ChatMessageRoomTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -2929,16 +2977,16 @@ export namespace ApiSpecification {
                 readonly type: "Chat";
                 readonly id: components["schemas"]["ChatId"];
             };
-            readonly DocumentCommentRoom: {
+            readonly DocumentThreadMessageRoomTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
-                readonly type: "DocumentCommentThread";
+                readonly type: "DocumentThread";
                 readonly id: components["schemas"]["DocumentId"];
                 readonly threadId: components["schemas"]["DocumentThreadId"];
             };
-            readonly PostCommentRoom: {
+            readonly PostMessageRoomTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -2946,7 +2994,7 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
             };
-            readonly TaskCommentRoom: {
+            readonly TaskMessageRoomTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3266,7 +3314,7 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly content: components["schemas"]["Content_Response"];
             };
-            readonly DocumentCommentThread_Response: {
+            readonly DocumentThread_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
                 readonly createdTime: components["schemas"]["DateTime"];
                 readonly isResolved: boolean;
@@ -3456,6 +3504,17 @@ export namespace ApiSpecification {
                                 readonly able: boolean;
                             };
                         };
+                    };
+                };
+            };
+            readonly GetChat: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly chat: components["schemas"]["Chat"];
                     };
                 };
             };

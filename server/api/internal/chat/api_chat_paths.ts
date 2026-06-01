@@ -18,48 +18,121 @@ import {
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {ApiChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
-export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
+export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) | "/chats"> = {
+    "/chats": {
+        post: async (context, {requestBody}) => {
+            switch (requestBody.chat.type) {
+                case "Direct": {
+                    const accountIds = new Set(
+                        mapIterable(requestBody.chat.members, member => member.account.id),
+                    );
+
+                    if (!accountIds.has(context.actor.getPossiblyBotAccountId())) {
+                        throw new UnimplementedError(
+                            "Getting direct chats that don\u2019t include the bot account isn\u2019t implemented (but it could be)",
+                            {
+                                displayMessage: errorDisplayMessage`Must include the current bot in \`accountIds\`. We may add support for getting a chat by \`accountIds\` that doesn\u2019t include the current bot in the future because bots are allowed to read chats they aren\u2019t in if the chat is within their access scope.`,
+                            },
+                        );
+                    }
+
+                    const chatId = await getOrCreateChatForAccounts(context, {
+                        spaceId: requestBody.spaceId,
+                        otherAccountIds: Array.from(
+                            filterIterable(
+                                accountIds,
+                                accountId => accountId !== context.actor.getPossiblyBotAccountId(),
+                            ),
+                        ),
+                    });
+
+                    const {title, sortedAccountIds} = await getSearchDirectChatEntityTitleAndMedia(
+                        context,
+                        requestBody.spaceId,
+                        chatId,
+                        accountIds,
+                    );
+
+                    const chat = {
+                        type: "Direct" as const,
+                        id: chatId,
+                        title,
+                        members: await runAllPromises(
+                            mapIterable(sortedAccountIds, async accountId => ({
+                                account: await getApiAccount(
+                                    context,
+                                    requestBody.spaceId,
+                                    accountId,
+                                    {consistency: "StrongWithinCache"},
+                                ),
+                            })),
+                        ),
+                    };
+
+                    return {
+                        content: {
+                            spaceId: requestBody.spaceId,
+                            chat,
+                        },
+                    };
+                }
+                case "Room": {
+                    // TODO(#public-api-blocking): We support creating room chats in the types but we
+                    // don't actually implement it yet. That's because we'd want to implement the whole
+                    // `creator.from` setup and proper access policy for a bot created thing. For now
+                    // while I'm supposed to be working on agent web changes I won't implement this.
+                    throw new UnimplementedError(
+                        "Creating room chats from the API isn't implemented yet",
+                    );
+                }
+                default:
+                    throw exhaustive(requestBody.chat);
+            }
+        },
+    },
+
     "/chats/{id}": {
         get: async (context, {pathParameters}) => {
             const chatDefinition = await getChatDefinition(context, pathParameters.id, {
                 consistency: "StrongWithinCache",
             });
 
-            let chat: ApiChat;
-
             switch (chatDefinition.definition.type) {
                 case "Direct": {
-                    const {title} = await getSearchDirectChatEntityTitleAndMedia(
+                    const {title, sortedAccountIds} = await getSearchDirectChatEntityTitleAndMedia(
                         context,
                         chatDefinition.spaceId,
                         pathParameters.id,
                         chatDefinition.definition.accountIds,
                     );
 
-                    chat = {
+                    const chat = {
                         type: "Direct",
                         id: pathParameters.id,
                         // NOCOMMIT: Test!!
                         title,
                         members: await runAllPromises(
-                            mapIterable(chatDefinition.definition.accountIds, async accountId => ({
+                            mapIterable(sortedAccountIds, async accountId => ({
                                 account: await getApiAccount(
                                     context,
                                     chatDefinition.spaceId,
@@ -69,26 +142,29 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                             })),
                         ),
                     };
-                    break;
+
+                    return {
+                        content: {
+                            spaceId: chatDefinition.spaceId,
+                            chat,
+                        },
+                    };
                 }
                 case "Room": {
-                    chat = {
-                        type: "Room",
-                        id: pathParameters.id,
-                        name: chatDefinition.definition.name,
+                    return {
+                        content: {
+                            spaceId: chatDefinition.spaceId,
+                            chat: {
+                                type: "Room",
+                                id: pathParameters.id,
+                                name: chatDefinition.definition.name,
+                            },
+                        },
                     };
-                    break;
                 }
                 default:
                     throw exhaustive(chatDefinition.definition);
             }
-
-            return {
-                content: {
-                    spaceId: chatDefinition.spaceId,
-                    chat,
-                },
-            };
         },
     },
 

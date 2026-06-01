@@ -198,6 +198,28 @@ paths:
                                                         additionalProperties: true
                 default:
                     $ref: "#/components/responses/Error"
+    /chats:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                                - chat
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                chat:
+                                    $ref: "#/components/schemas/CreateChatRequestBodyChat"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetChat"
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}:
         parameters:
             - name: id
@@ -208,19 +230,7 @@ paths:
         get:
             responses:
                 "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required:
-                                    - spaceId
-                                    - chat
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    chat:
-                                        $ref: "#/components/schemas/Chat"
+                    $ref: "#/components/responses/GetChat"
                 default:
                     $ref: "#/components/responses/Error"
     /chats/{id}/mention:
@@ -534,13 +544,13 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - commentThread
+                                    - thread
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    commentThread:
-                                        $ref: "#/components/schemas/DocumentCommentThread_Response"
+                                    thread:
+                                        $ref: "#/components/schemas/DocumentThread_Response"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}:
@@ -1409,6 +1419,20 @@ components:
                                                 type: boolean
                                                 description: If true, it indicates that the request should succeed if tried
                                                     again.
+        GetChat:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - chat
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            chat:
+                                $ref: "#/components/schemas/Chat"
         GetDocument:
             content:
                 application/json:
@@ -2695,6 +2719,51 @@ components:
                     $ref: "#/components/schemas/ChatId"
                 name:
                     $ref: "#/components/schemas/LabelString"
+        CreateChatRequestBodyChat:
+            oneOf:
+                - $ref: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                - $ref: "#/components/schemas/CreateChatRequestBodyRoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/CreateChatRequestBodyDirectChat"
+                    Room: "#/components/schemas/CreateChatRequestBodyRoomChat"
+        CreateChatRequestBodyDirectChat:
+            type: object
+            required:
+                - type
+                - members
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required:
+                            - account
+                        additionalProperties: false
+                        properties:
+                            account:
+                                type: object
+                                required:
+                                    - id
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/AccountId"
+        CreateChatRequestBodyRoomChat:
+            type: object
+            required:
+                - type
+                - name
+            additionalProperties: false
+            properties:
+                type:
+                    const: Room
+                name:
+                    $ref: "#/components/schemas/LabelString"
         Document:
             type: object
             required:
@@ -2732,7 +2801,7 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
-        DocumentCommentThread:
+        DocumentThread:
             type: object
             required:
                 - id
@@ -3315,18 +3384,18 @@ components:
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
         MessageRoomTarget:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoom"
-                - $ref: "#/components/schemas/DocumentCommentRoom"
-                - $ref: "#/components/schemas/PostCommentRoom"
-                - $ref: "#/components/schemas/TaskCommentRoom"
+                - $ref: "#/components/schemas/ChatMessageRoomTarget"
+                - $ref: "#/components/schemas/DocumentThreadMessageRoomTarget"
+                - $ref: "#/components/schemas/PostMessageRoomTarget"
+                - $ref: "#/components/schemas/TaskMessageRoomTarget"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoom"
-                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
-                    Post: "#/components/schemas/PostCommentRoom"
-                    Task: "#/components/schemas/TaskCommentRoom"
-        ChatMessageRoom:
+                    Chat: "#/components/schemas/ChatMessageRoomTarget"
+                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomTarget"
+                    Post: "#/components/schemas/PostMessageRoomTarget"
+                    Task: "#/components/schemas/TaskMessageRoomTarget"
+        ChatMessageRoomTarget:
             type: object
             required:
                 - type
@@ -3337,7 +3406,7 @@ components:
                     const: Chat
                 id:
                     $ref: "#/components/schemas/ChatId"
-        DocumentCommentRoom:
+        DocumentThreadMessageRoomTarget:
             type: object
             required:
                 - type
@@ -3346,12 +3415,12 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: DocumentCommentThread
+                    const: DocumentThread
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
-        PostCommentRoom:
+        PostMessageRoomTarget:
             type: object
             required:
                 - type
@@ -3362,7 +3431,7 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
-        TaskCommentRoom:
+        TaskMessageRoomTarget:
             type: object
             required:
                 - type
@@ -4005,7 +4074,7 @@ components:
                     type: string
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        DocumentCommentThread_Response:
+        DocumentThread_Response:
             type: object
             required:
                 - id

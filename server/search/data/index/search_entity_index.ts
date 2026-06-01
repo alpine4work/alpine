@@ -2665,13 +2665,15 @@ export async function getSearchDirectChatEntityTitleAndMedia(
     chatId: ChatId,
     accountIds: ReadonlySet<AccountId>,
 ) {
+    const sortedAccountIds = sortSearchDirectChatEntityAccountIds(chatId, accountIds);
+
     const media = await prepareSearchEntityMediaForResult(
         context,
         spaceId,
         `Chat:${chatId}`,
         {
             type: "AccountPile",
-            previewAccountIds: sortSearchDirectChatEntityAccountIds(chatId, accountIds).slice(
+            previewAccountIds: sortedAccountIds.slice(
                 0,
                 // Add 1 to make sure we can filter out the actor account and still have enough
                 // accounts to render a nice looking pile.
@@ -2691,7 +2693,7 @@ export async function getSearchDirectChatEntityTitleAndMedia(
         title = prepareSearchDirectChatEntityTitleForResult(context.actor.type, media);
     }
 
-    return {title, media};
+    return {title, media, sortedAccountIds};
 }
 
 type SearchEntityModelBaseResult =
