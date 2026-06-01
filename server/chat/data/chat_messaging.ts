@@ -114,9 +114,6 @@ import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchr
 /**
  * Send a message to to the provided chat.
  */
-// NOCOMMIT: Don't allow bot to send message to direct chat it's not a member of
-// even if the bot access policy would otherwise allow it. Bots are allowed to read
-// the chat messages though.
 export function sendChatMessage(
     context: ServerAccountActionContext,
     {

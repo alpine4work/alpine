@@ -57,6 +57,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                     }
 
                     const chatId = await getOrCreateChatForAccounts(context, {
+                        consistency: "StrongWithinCache",
                         spaceId: requestBody.spaceId,
                         otherAccountIds: Array.from(
                             filterIterable(

@@ -12,7 +12,7 @@ import {
 import {getOptimisticChatId} from "~/server/chat/data/internal/get_optimistic_chat_id.js";
 import {getSharedChats} from "~/server/chat/data/internal/get_shared_chats.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
@@ -54,7 +54,7 @@ export function actuallyGetOrCreateChatForAccounts(
         actorAccountId: AccountId;
         otherAccountIds: ReadonlyArray<AccountId>;
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<ChatForAccountsResult> {
     return context.tracer.withSpan("Get or create chat", async (context, span) => {
