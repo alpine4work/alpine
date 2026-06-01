@@ -138,8 +138,8 @@ async function expectInvalidUpdateDisplayMessage({
         throw new InternalError("Expected update tool call to throw");
     }
 
-    expect(result.error).toBeInstanceOf(InvalidArgumentError);
     expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
+    expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
 async function expectFailedPreconditionDisplayMessage({
@@ -159,8 +159,8 @@ async function expectFailedPreconditionDisplayMessage({
         throw new InternalError("Expected update tool call to throw");
     }
 
-    expect(result.error).toBeInstanceOf(FailedPreconditionError);
     expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
+    expect(result.error).toBeInstanceOf(FailedPreconditionError);
 }
 
 function createTextContent(text: string): ApiContentResponse {
@@ -227,7 +227,7 @@ async function readChat({
     createMessage?: (index: number) => ApiMessageResponse;
     readContext?: AgentWebContext;
 }): Promise<string> {
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
     mockApiGetChatMessages(api, {
         spaceId,
@@ -624,8 +624,29 @@ test("rejects preamble edits", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "messages in",
-                new: "edited messages in",
+                old: "# Incident Response",
+                new: "## Incident Response",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g. `Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).` or for chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a proper start to chat markdown on line 1.",
+    });
+});
+
+test("rejects pagination link edits", async () => {
+    const response = await readChat({
+        limit: "3kb",
+        totalMessageCount: 31,
+        createMessage: index => createMessage({index, content: `Existing message ${index}`}),
+    });
+    expect(response).toContain("[Previous page »](/chat/incident-response?before=");
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "?before=3",
+                new: "?before=7",
                 replaceAll: false,
             },
         ],
@@ -772,8 +793,8 @@ test("rejects creating messages before the end of the chat", async () => {
         path,
         updates: [
             {
-                old: "Message 8\n\n</message>",
-                new: 'Message 8\n\n</message>\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</message>',
+                old: "Message 9\n\n</message>",
+                new: 'Message 9\n\n</message>\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early.\n\n</message>',
                 replaceAll: false,
             },
         ],
@@ -880,8 +901,8 @@ test("rejects adding the end marker to a non-final page", async () => {
         path,
         updates: [
             {
-                old: '<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nMessage 8\n\n</message>',
-                new: '<message id="8" from="[Alice](/human/alice)" time="5 minutes later">\n\nMessage 8\n\n</message>\n\nEnd of messages.',
+                old: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>',
+                new: '<message id="9" from="[Bob](/human/bob)" time="5 minutes later">\n\nMessage 9\n\n</message>\n\nEnd of messages.',
                 replaceAll: false,
             },
         ],

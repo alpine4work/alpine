@@ -3,7 +3,7 @@ import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export function mockApiGetChat(
     api: ApiClientMock,
-    {spaceId, chatId}: {spaceId: SpaceId; chatId: ChatId},
+    {spaceId, chatId, name = "Test Chat"}: {spaceId: SpaceId; chatId: ChatId; name?: string},
 ) {
     api.mockGet(
         "/chats/{id}",
@@ -13,7 +13,7 @@ export function mockApiGetChat(
                 chat: {
                     type: "Room",
                     id: chatId,
-                    name: "Incident Response",
+                    name,
                 },
             },
         },

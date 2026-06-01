@@ -69,7 +69,7 @@ async function mockDirectChatForTest(): Promise<{chatId: ChatId; path: string}> 
     const path = await createAgentWebPageLinkPathname(storage, {
         type: "Chat",
         id: directChatId,
-        title: "Alice",
+        title: "Alice and Bob",
     });
 
     api.mockGet(
@@ -236,7 +236,7 @@ test("adds next page link to direct chat when there is already a pagination link
     expect(
         await callAgentWebReadTool(context, {
             path: `${path}?message=85`,
-            limit: "500b",
+            limit: "510b",
         }),
     ).toEqual(`\
 Chat with [Alice](/human/alice) and [Bob](/human/bob). [« Previous page](${path}?before=84) | [Next page »](${path}?after=86)
@@ -368,7 +368,7 @@ test("prints bot messages with bot `from` path", async () => {
         botId: generateId<BotId>(),
     });
 
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -406,7 +406,7 @@ test("escapes author names in message tags", async () => {
         botId: generateId<BotId>(),
     });
 
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -458,7 +458,7 @@ test("prints rich message content using agent web markdown links", async () => {
         ],
     };
 
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -488,7 +488,7 @@ End of messages.`);
 });
 
 test("prints timezone attributes when human message timezones differ from context", async () => {
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -529,7 +529,7 @@ test("omits timezone attributes for bot messages", async () => {
         botId: generateId<BotId>(),
     });
 
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -565,7 +565,7 @@ End of messages.`);
 });
 
 test("prints reply previews in blockquotes", async () => {
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -613,7 +613,7 @@ End of messages.`);
 });
 
 test("marks truncated reply previews with an ellipsis", async () => {
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -663,7 +663,7 @@ End of messages.`);
 });
 
 test("prints deleted messages", async () => {
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -740,7 +740,7 @@ test("throws on invalid pagination search parameters", async () => {
     ] as const;
 
     for (const {query, error} of cases) {
-        mockApiGetChat(api, {spaceId, chatId});
+        mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
         await expect(
             callAgentWebReadTool(context, {
                 path: `/chat/incident-response?${query}`,
@@ -758,7 +758,7 @@ test("caches the full chat read response for scroll", async () => {
         })),
     };
 
-    mockApiGetChat(api, {spaceId, chatId});
+    mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
     mockApiGetChatMessages(api, {
         spaceId,
         chatId,
@@ -949,7 +949,7 @@ End of messages.`,
 End of messages.`,
         },
     ])("reads messages from end with one request (limit: $limit)", async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
         mockApiGetChatMessages(api, {
             spaceId,
@@ -1098,7 +1098,7 @@ Test message 3
 <message id="29" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 29\n\n</message>`,
         },
     ])("reads messages from start with one request (limit: $limit)", async ({limit, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
         mockApiGetChatMessages(api, {
             spaceId,
@@ -1197,7 +1197,7 @@ End of messages.`,
     ])(
         "reads messages in small room from end with one request (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -1300,7 +1300,7 @@ End of messages.`,
     ])(
         "reads messages in small room from start with one request (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -1402,7 +1402,7 @@ End of messages.`,
     ])(
         "page ends right near the limit boundary when reading from end (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -1503,7 +1503,7 @@ End of messages.`,
     ])(
         "page ends right near the limit boundary when reading from start (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -1844,7 +1844,7 @@ End of messages.`,
     ])(
         "reads messages from end with multiple requests (requests: $requestCount)",
         async ({requestCount, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -2211,7 +2211,7 @@ End of messages.`,
     ])(
         "reads messages from start with multiple requests (requests: $requestCount)",
         async ({requestCount, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -2429,7 +2429,7 @@ Test message 59
     ])(
         "reads messages before a cursor with pagination (requests: $requestCount, limit: $limit)",
         async ({before, cursors, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const cursor of cursors) {
                 mockApiGetChatMessages(api, {
@@ -2645,7 +2645,7 @@ Test message 35
     ])(
         "reads messages after a cursor with pagination (requests: $requestCount, limit: $limit)",
         async ({after, cursors, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const cursor of cursors) {
                 mockApiGetChatMessages(api, {
@@ -2862,7 +2862,7 @@ End of messages.`,
     ])(
         "reads messages from end with one request when messages are more than an hour apart (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -3076,7 +3076,7 @@ Test message 2
     ])(
         "reads messages from start with one request when messages are more than an hour apart (limit: $limit)",
         async ({limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             mockApiGetChatMessages(api, {
                 spaceId,
@@ -3292,7 +3292,7 @@ Test message 2
     ])(
         "reads messages before a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
         async ({before, cursors, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const cursor of cursors) {
                 mockApiGetChatMessages(api, {
@@ -3532,7 +3532,7 @@ Test message 2
     ])(
         "reads messages after a cursor with pagination when messages are more than an hour apart (requests: $requestCount, limit: $limit)",
         async ({after, cursors, limit, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const cursor of cursors) {
                 mockApiGetChatMessages(api, {
@@ -3689,7 +3689,7 @@ Test message 2
 End of messages.`,
         },
     ])("paginates from start to end with 3kb pages ($path)", async ({path, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
         const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("after");
 
@@ -3838,7 +3838,7 @@ End of messages.`,
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 2\n\n</message>`,
         },
     ])("paginates from end to start with 3kb pages ($path)", async ({path, response}) => {
-        mockApiGetChat(api, {spaceId, chatId});
+        mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
         const cursorParam = new URL(`https://agent.test${path}`).searchParams.get("before");
 
@@ -4042,7 +4042,7 @@ End of messages.`,
     ])(
         "reads single message in the middle of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -4226,7 +4226,7 @@ End of messages.`,
     ])(
         "reads single message near the top of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -4373,7 +4373,7 @@ End of messages.`,
     ])(
         "reads single message at the top of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -4540,7 +4540,7 @@ End of messages.`,
     ])(
         "reads single message near the end of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -4701,7 +4701,7 @@ End of messages.`,
     ])(
         "reads single message at the end of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -4904,7 +4904,7 @@ End of messages.`,
     ])(
         "reads message range in the middle of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5073,7 +5073,7 @@ End of messages.`,
     ])(
         "reads message range near the top of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5220,7 +5220,7 @@ End of messages.`,
     ])(
         "reads message range at the top of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5398,7 +5398,7 @@ End of messages.`,
     ])(
         "reads message range near the end of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5561,7 +5561,7 @@ End of messages.`,
     ])(
         "reads message range at the end of a long message list (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5776,7 +5776,7 @@ End of messages.`,
     ])(
         "reads single message in the middle of a long message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -5997,7 +5997,7 @@ End of messages.`,
     ])(
         "reads single message near the start of a long message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -6216,7 +6216,7 @@ End of messages.`,
     ])(
         "reads single message at the start of a long message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -6401,7 +6401,7 @@ End of messages.`,
     ])(
         "reads single message near the end of a long message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -6564,7 +6564,7 @@ End of messages.`,
     ])(
         "reads single message at the end of a long message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -6797,7 +6797,7 @@ End of messages.`,
     ])(
         "reads single message in a small message list when messages are more than an hour apart (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -6918,7 +6918,7 @@ End of messages.`,
     ])(
         "reads messages from end when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7036,7 +7036,7 @@ End of messages.`,
     ])(
         "reads messages from start when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7166,7 +7166,7 @@ End of messages.`,
     ])(
         "reads messages before a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7269,7 +7269,7 @@ End of messages.`,
     ])(
         "reads messages after a cursor with pagination when adjacent messages may merge (requests: $requestCount, limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7396,7 +7396,7 @@ End of messages.`,
     ])(
         "reads single message in the middle of a long message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7579,7 +7579,7 @@ End of messages.`,
     ])(
         "reads single message near the start of a long message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7709,7 +7709,7 @@ End of messages.`,
     ])(
         "reads single message at the start of a long message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7817,7 +7817,7 @@ End of messages.`,
     ])(
         "reads single message near the end of a long message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -7923,7 +7923,7 @@ End of messages.`,
     ])(
         "reads single message at the end of a long message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
@@ -8044,7 +8044,7 @@ End of messages.`,
     ])(
         "reads single message in a small message list when adjacent messages may merge (limit: $limit)",
         async ({path, limit, requests, response}) => {
-            mockApiGetChat(api, {spaceId, chatId});
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
 
             for (const request of requests) {
                 mockApiGetChatMessages(api, {
