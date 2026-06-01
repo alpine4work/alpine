@@ -224,7 +224,7 @@ export async function printAgentWebMessagingPage<PageLink>(
     return {type: "root", children};
 }
 
-function printAgentWebMessagingPageMessageIndexRange({
+export function printAgentWebMessagingPageMessageIndexRange({
     startMessageIndex,
     endMessageIndex,
 }: AgentWebMessagingPageMessageRange): string {

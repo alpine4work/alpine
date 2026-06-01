@@ -363,7 +363,7 @@ test("creates a message on the final page when earlier messages are paginated", 
     ]);
 });
 
-test.only("counts newly-created messages without ids when validating the next id", async () => {
+test("counts newly-created messages without ids when validating the next id", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
@@ -406,6 +406,80 @@ test.only("counts newly-created messages without ids when validating the next id
     ]);
 });
 
+test("counts newly-created messages without ids when validating the next id (error case 1)", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages(1);
+
+    await callAgentWebUpdateTool(context, {
+        path: chatPath,
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nNew message without id.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="3" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `2`. Try again with `id="2"`.',
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("New message without id."),
+        },
+    ]);
+});
+
+test("counts newly-created messages without ids when validating the next id (error case 2)", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages(1);
+
+    await callAgentWebUpdateTool(context, {
+        path: chatPath,
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nNew message without id.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nNew message after null id.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `2`. Try again with `id="2"`.',
+    });
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("New message without id."),
+        },
+    ]);
+});
+
 test("rejects preamble edits", async () => {
     await readChat({
         totalMessageCount: 1,
@@ -421,8 +495,7 @@ test("rejects preamble edits", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Quote preamble?
-            "You can only update your `<message>`s. You can\u2019t update the metadata at the start of the messages markdown. Try again with a more specific update that only affects your messages.",
+            "You can only update your `<message>`s. You can\u2019t update the metadata on line 1 of the messages markdown. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
     });
 });
 
@@ -441,8 +514,7 @@ test("rejects time marker edits", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Quote time content?
-            "You can only update your `<message>`s. You can\u2019t update the `<time>` previous `<message>`s were sent at. Try again with a more specific update that only affects your messages.",
+            "You can only update your `<message>`s. You can\u2019t update `<time>`s which indicate when previous `<message>`s were sent. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
     });
 });
 
@@ -456,7 +528,7 @@ test("rejects edits to messages from another account", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [{old: "Alice original", new: "Alice edited by ChatGPT", replaceAll: false}],
         expected:
-            "You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. Try again with a more specific update that only affects your messages.",
+            'You can only update your `<message>`s. You can\u2019t update a `<message>` created by Alice. `<message id="0" from="Alice">` was changed by this update. Try again with a more specific update that only changes the content of messages from you or adds new messages.',
     });
 });
 
@@ -478,8 +550,7 @@ test("rejects changing an existing bot message into another account\u2019s messa
             },
         ],
         expected:
-            // NOCOMMIT: Bad error message!
-            "You can only update your `<message>`s. You can\u2019t update a `<message>` created by ChatGPT. Try again with a more specific update that only affects your messages.",
+            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     });
 });
 
@@ -499,8 +570,7 @@ test("rejects edits to existing message metadata", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Quote `id` tag that was changed?
-            "You can only update the content of your `<message>`s. Anything else (the `id`/`from`/`time` attributes or the `<blockquote cite>`) must be left unchanged. Try again with a more specific update that only affects the content of your messages.",
+            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="0">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     });
 });
 
@@ -531,8 +601,7 @@ test("rejects edits to an existing bot message blockquote parent", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Weird error message
-            "You can only update the content of your `<message>`s. Anything else (the `id`/`from`/`time` attributes or the `<blockquote cite>`) must be left unchanged. Try again with a more specific update that only affects the content of your messages.",
+            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
     });
 });
 
@@ -556,8 +625,7 @@ test("rejects removing message blocks", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Better error message
-            "You can\u2019t remove `<message>`s. If you want to delete one of your `<message>`s, then delete all the content of your `<message>`. You can only delete your own `<message>`s. Try again with a more specific update that only affects the content of your messages.",
+            "You can\u2019t remove `<message>`s. If you want to delete one of your `<message>`s, then delete all the content of your `<message>`. You can only delete your own `<message>`s. Try again with a more specific update that only changes the content of messages from you.",
     });
 });
 
@@ -652,7 +720,7 @@ test("rejects removing the end marker while creating messages", async () => {
             },
         ],
         expected:
-            "When you\u2019re adding a message you need to keep the \u201CEnd of messages\u201D text at the end of the message list below your new message. Try again without removing the \u201CEnd of messages\u201D text.",
+            "When you\u2019re adding a message you need to keep the \u201CEnd of messages\u201D marker at the end of the message list below your new message. Try again without removing the \u201CEnd of messages\u201D marker.",
     });
 });
 
@@ -665,7 +733,7 @@ test("rejects removing the end marker without creating messages", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [{old: "\n\nEnd of messages.", new: "", replaceAll: false}],
         expected:
-            "Can\u2019t remove the \u201CEnd of messages\u201D text in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without removing the \u201CEnd of messages\u201D text.",
+            "Can\u2019t remove the \u201CEnd of messages\u201D marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without removing the \u201CEnd of messages\u201D marker.",
     });
 });
 
@@ -683,8 +751,7 @@ test("rejects adding the end marker to a non-final page", async () => {
             },
         ],
         expected:
-            // NOCOMMIT: Rename to "End of messages" marker?
-            "Can\u2019t add the \u201CEnd of messages\u201D text in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without adding the \u201CEnd of messages\u201D text.",
+            "Can\u2019t add the \u201CEnd of messages\u201D marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without adding the \u201CEnd of messages\u201D marker.",
     });
 });
 

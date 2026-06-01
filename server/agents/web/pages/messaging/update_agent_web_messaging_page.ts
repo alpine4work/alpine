@@ -8,6 +8,7 @@ import {
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePreamble,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {
     normalizeApiContent,
     normalizeApiContentInlineElements,
@@ -58,7 +59,7 @@ export async function updateAgentWebMessagingPage(
 
     if (!isDeepEqual(normalizePreamble(oldPage.preamble), normalizePreamble(newPage.preamble))) {
         throw new InvalidArgumentError("Can\u2019t update messaging page preamble", {
-            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the metadata at the start of the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
+            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the metadata on line 1 of the ${messageNouns.pluralNoun} markdown. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
         });
     }
 
@@ -102,22 +103,28 @@ export async function updateAgentWebMessagingPage(
             normalizedNewBlock.type !== "Message" ||
             normalizedNewBlock.author.id !== context.botAccount.id
         ) {
-            if (normalizedOldBlock.type !== "Message") {
+            if (normalizedOldBlock.type !== "Message" || normalizedNewBlock.type !== "Message") {
                 throw new InvalidArgumentError(
                     "Can\u2019t update message created by someone else",
                     {
-                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update the \`<time>\` previous \`<${messageNouns.noun}>\`s were sent at. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
+                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update \`<time>\`s which indicate when previous \`<${messageNouns.noun}>\`s were sent. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                     },
                 );
             } else {
                 assert(oldBlock.type === "Message");
+                assert(newBlock.type === "Message");
 
-                throw new InvalidArgumentError(
-                    "Can\u2019t update message created by someone else",
-                    {
-                        displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author.shortName}. Try again with a more specific update that only affects your ${messageNouns.pluralNoun}.`,
-                    },
-                );
+                if (normalizedOldBlock.author.id !== context.botAccount.id) {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t update message created by someone else",
+                        {
+                            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author.shortName}. \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                        },
+                    );
+                } else {
+                    // Going to continue from here. The `if (isDeepEqual(...))` immediately below will
+                    // throw in this case and will produce a much better error message.
+                }
             }
         }
 
@@ -128,7 +135,7 @@ export async function updateAgentWebMessagingPage(
             )
         ) {
             throw new InvalidArgumentError("Can\u2019t update message created by someone else", {
-                displayMessage: errorDisplayMessage`You can only update the content of your \`<${messageNouns.noun}>\`s. Anything else (the \`id\`/\`from\`/\`time\` attributes or the \`<blockquote cite>\`) must be left unchanged. Try again with a more specific update that only affects the content of your ${messageNouns.pluralNoun}.`,
+                displayMessage: errorDisplayMessage`You can only update the content of your \`<${messageNouns.noun}>\`s. Any metadata (the \`id\`/\`from\`/\`time\` attributes or \`<blockquote cite>\`) must be left unchanged. The metadata of \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""}>\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
             });
         }
 
@@ -164,7 +171,7 @@ export async function updateAgentWebMessagingPage(
 
     if (oldPage.blocks.length > newPage.blocks.length) {
         throw new InvalidArgumentError("Can\u2019t remove messages, must delete in place", {
-            displayMessage: errorDisplayMessage`You can\u2019t remove \`<${messageNouns.noun}>\`s. If you want to delete one of your \`<${messageNouns.noun}>\`s, then delete all the content of your \`<${messageNouns.noun}>\`. You can only delete your own \`<${messageNouns.noun}>\`s. Try again with a more specific update that only affects the content of your ${messageNouns.pluralNoun}.`,
+            displayMessage: errorDisplayMessage`You can\u2019t remove \`<${messageNouns.noun}>\`s. If you want to delete one of your \`<${messageNouns.noun}>\`s, then delete all the content of your \`<${messageNouns.noun}>\`. You can only delete your own \`<${messageNouns.noun}>\`s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you.`,
         });
     }
 
@@ -254,14 +261,14 @@ export async function updateAgentWebMessagingPage(
             throw new InvalidArgumentError(
                 "Can\u2019t remove the end of messages paragraph when creating messages",
                 {
-                    displayMessage: errorDisplayMessage`When you\u2019re adding a ${messageNouns.noun} you need to keep the \u201CEnd of ${messageNouns.pluralNoun}\u201D text at the end of the ${messageNouns.noun} list below your new ${messageNouns.noun}. Try again without removing the \u201CEnd of ${messageNouns.pluralNoun}\u201D text.`,
+                    displayMessage: errorDisplayMessage`When you\u2019re adding a ${messageNouns.noun} you need to keep the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker at the end of the ${messageNouns.noun} list below your new ${messageNouns.noun}. Try again without removing the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
                 },
             );
         } else {
             throw new InvalidArgumentError(
                 "Can\u2019t change whether this page is the end of messages or not",
                 {
-                    displayMessage: errorDisplayMessage`Can\u2019t ${newPage.isEndOfMessages ? "add" : "remove"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D text in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without ${newPage.isEndOfMessages ? "adding" : "removing"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D text.`,
+                    displayMessage: errorDisplayMessage`Can\u2019t ${newPage.isEndOfMessages ? "add" : "remove"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without ${newPage.isEndOfMessages ? "adding" : "removing"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
                 },
             );
         }
