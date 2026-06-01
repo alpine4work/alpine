@@ -64,6 +64,33 @@ function stableRandomBit(index: number): number {
     return (index ^ (index >>> 16)) >>> 31;
 }
 
+async function mockDirectChatForTest(): Promise<{chatId: ChatId; path: string}> {
+    const directChatId = generateId<ChatId>();
+    const path = await createAgentWebPageLinkPathname(storage, {
+        type: "Chat",
+        id: directChatId,
+        title: "Alice",
+    });
+
+    api.mockGet(
+        "/chats/{id}",
+        {
+            data: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    id: directChatId,
+                    title: "Alice and Bob",
+                    members: [{account: aliceAccount}, {account: bobAccount}],
+                },
+            },
+        },
+        {path: {id: directChatId}},
+    );
+
+    return {chatId: directChatId, path};
+}
+
 test("reads a direct chat with one human message", async () => {
     const directChatId = generateId<ChatId>();
     const path = await createAgentWebPageLinkPathname(storage, {
@@ -98,13 +125,237 @@ test("reads a direct chat with one human message", async () => {
     });
 
     expect(await callAgentWebReadTool(context, {path, limit: "10kb"})).toEqual(`\
-Some messages in a chat with Alice.
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <time>May 14th at 11:00am EDT</time>
 
 <message id="0" from="[Alice](/human/alice)">
 
 Hello world!
+
+</message>
+
+End of messages.`);
+});
+
+test("adds next page link to direct chat when there are no pagination links", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        totalMessageCount: 20,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: `${path}?start`,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [Next page »](${path}?after=2)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>`);
+});
+
+test("adds previous page link to direct chat when there are no pagination links", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        from: "End",
+        totalMessageCount: 20,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [Previous page »](${path}?before=17)
+
+<time>May 14th at 12:25pm EDT</time>
+
+<message id="17" from="[Bob](/human/bob)">
+
+Test message 17
+
+</message>
+
+<message id="18" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 18
+
+</message>
+
+<message id="19" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 19
+
+</message>
+
+End of messages.`);
+});
+
+test("adds next page link to direct chat when there is already a pagination link", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        totalMessageCount: 90,
+        limit: 30,
+        cursor: 70,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: `${path}?message=85`,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [« Previous page](${path}?before=84) | [Next page »](${path}?after=86)
+
+<time>May 14th at 6:00pm EDT</time>\n
+<message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
+<message id="85" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 85\n\n</message>\n
+<message id="86" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 86\n\n</message>`);
+});
+
+test("adds previous page link to direct chat when there is already a pagination link", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        totalMessageCount: 90,
+        limit: 30,
+        cursor: -11,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: `${path}?message=4`,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [« Previous page](${path}?before=3) | [Next page »](${path}?after=5)
+
+<time>May 14th at 11:15am EDT</time>\n
+<message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>\n
+<message id="5" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 5\n\n</message>`);
+});
+
+test("updates next page pagination link for direct chat", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        totalMessageCount: 90,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path: `${path}?start`,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [Next page »](${path}?after=3)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>`);
+});
+
+test("updates previous page pagination link for direct chat", async () => {
+    const {chatId: directChatId, path} = await mockDirectChatForTest();
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        from: "End",
+        totalMessageCount: 90,
+        limit: 30,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    expect(
+        await callAgentWebReadTool(context, {
+            path,
+            limit: "500b",
+        }),
+    ).toEqual(`\
+Chat with [Alice](/human/alice) and [Bob](/human/bob). [Previous page »](${path}?before=87)
+
+<time>May 14th at 6:15pm EDT</time>
+
+<message id="87" from="[Bob](/human/bob)">
+
+Test message 87
+
+</message>
+
+<message id="88" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 88
+
+</message>
+
+<message id="89" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 89
 
 </message>
 
@@ -134,7 +385,7 @@ test("prints bot messages with bot `from` path", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -172,7 +423,7 @@ test("escapes author names in message tags", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -223,7 +474,7 @@ test("prints rich message content using agent web markdown links", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -259,7 +510,7 @@ test("prints timezone attributes when human message timezones differ from contex
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -300,7 +551,7 @@ test("omits timezone attributes for bot messages", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -342,7 +593,7 @@ test("prints reply previews in blockquotes", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:05am EDT</time>
 
@@ -392,7 +643,7 @@ test("marks truncated reply previews with an ellipsis", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:05am EDT</time>
 
@@ -431,7 +682,7 @@ test("prints deleted messages", async () => {
             limit: "10kb",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -520,10 +771,10 @@ test("caches the full chat read response for scroll", async () => {
     expect(
         await callAgentWebReadTool(context, {
             path: "/chat/incident-response",
-            limit: "170b",
+            limit: "154b",
         }),
     ).toEqual(`\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -570,7 +821,9 @@ describe("pagination and truncation", () => {
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>
 
@@ -597,7 +850,9 @@ End of messages.`,
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=84)
 
 <time>May 14th at 6:00pm EDT</time>
 
@@ -611,9 +866,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 End of messages.`,
         },
         {
-            limit: "3.05kb",
+            limit: "3.034kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=61)
 
 <time>May 14th at 4:05pm EDT</time>
 
@@ -650,9 +907,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 End of messages.`,
         },
         {
-            limit: "3.06kb",
+            limit: "3.045kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=60)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=60)
 
 <time>May 14th at 4:00pm EDT</time>
 
@@ -713,7 +972,9 @@ End of messages.`,
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=3)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -744,7 +1005,9 @@ Test message 3
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -758,7 +1021,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             limit: "3kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -793,9 +1058,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="28" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 28\n\n</message>`,
         },
         {
-            limit: "3.018kb",
+            limit: "3.003kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=29)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -853,7 +1120,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=17)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=17)
 
 <time>May 14th at 12:25pm EDT</time>
 
@@ -880,7 +1149,9 @@ End of messages.`,
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=14)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=14)
 
 <time>May 14th at 12:10pm EDT</time>
 
@@ -896,7 +1167,7 @@ End of messages.`,
         {
             limit: "3.06kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -950,7 +1221,9 @@ End of messages.`,
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=3)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=3)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -981,7 +1254,9 @@ Test message 3
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -995,7 +1270,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             limit: "3.06kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1046,9 +1321,11 @@ End of messages.`,
 
     test.each([
         {
-            limit: "2.89kb",
+            limit: "2.874kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=1)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=1)
 
 <time>May 14th at 11:05am EDT</time>
 
@@ -1086,7 +1363,7 @@ End of messages.`,
         {
             limit: "2.90kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1147,9 +1424,11 @@ End of messages.`,
 
     test.each([
         {
-            limit: "2.89kb",
+            limit: "2.874kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1185,7 +1464,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             limit: "2.90kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1248,7 +1527,9 @@ End of messages.`,
             requestCount: 2,
             limit: "5kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=41)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=41)
 
 <time>May 14th at 2:25pm EDT</time>
 
@@ -1306,9 +1587,11 @@ End of messages.`,
         },
         {
             requestCount: 2,
-            limit: "6kb",
+            limit: "5.985kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=30)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -1377,9 +1660,11 @@ End of messages.`,
         },
         {
             requestCount: 3,
-            limit: "7kb",
+            limit: "6.984kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=21)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=21)
 
 <time>May 14th at 12:45pm EDT</time>
 
@@ -1459,7 +1744,7 @@ End of messages.`,
             requestCount: 3,
             limit: "10kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1608,7 +1893,9 @@ End of messages.`,
             requestCount: 2,
             limit: "5kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=49)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=49)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1665,9 +1952,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             requestCount: 2,
-            limit: "5.958kb",
+            limit: "5.943kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1736,7 +2025,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 3,
             limit: "7.5kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=74)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=74)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1820,7 +2111,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 3,
             limit: "10kb",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -1968,7 +2259,9 @@ End of messages.`,
             cursors: [60],
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=57)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=57)
 
 <time>May 14th at 3:45pm EDT</time>
 
@@ -1996,7 +2289,9 @@ Test message 59
             cursors: [60],
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=54)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=54)
 
 <time>May 14th at 3:30pm EDT</time>
 
@@ -2040,9 +2335,11 @@ Test message 59
             requestCount: 1,
             before: 60,
             cursors: [60],
-            limit: "3.042kb",
+            limit: "3.027kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=30)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -2081,9 +2378,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             requestCount: 2,
             before: 60,
             cursors: [60, 30],
-            limit: "4kb",
+            limit: "3.984kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=21)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=21)
 
 <time>May 14th at 12:45pm EDT</time>
 
@@ -2160,7 +2459,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             cursors: [29],
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -2194,7 +2495,9 @@ Test message 33
             cursors: [29],
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=35)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=35)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -2238,9 +2541,11 @@ Test message 35
             requestCount: 1,
             after: 29,
             cursors: [29],
-            limit: "3.037kb",
+            limit: "3.022kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -2279,9 +2584,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 2,
             after: 29,
             cursors: [29, 59],
-            limit: "5kb",
+            limit: "4.984kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=78)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=78)
 
 <time>May 14th at 1:30pm EDT</time>
 
@@ -2364,7 +2671,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=87)
 
 <time>May 18th at 2:00am EDT</time>
 
@@ -2395,7 +2704,9 @@ End of messages.`,
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=85)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=85)
 
 <time>May 18th at 12:00am EDT</time>\n
 <message id="85" from="[Bob](/human/bob)">\n\nTest message 85\n\n</message>\n
@@ -2411,9 +2722,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 End of messages.`,
         },
         {
-            limit: "3.47kb",
+            limit: "3.454kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=61)
 
 <time>May 17th at 12:00am EDT</time>\n
 <message id="61" from="[Bob](/human/bob)">\n\nTest message 61\n\n</message>\n
@@ -2477,9 +2790,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
 End of messages.`,
         },
         {
-            limit: "3.474kb",
+            limit: "3.459kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=60)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=60)
 
 <time>May 16th at 11:00pm EDT</time>\n
 <message id="60" from="[Alice](/human/alice)">\n\nTest message 60\n\n</message>\n
@@ -2576,7 +2891,9 @@ End of messages.`,
         {
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -2605,7 +2922,9 @@ Test message 2
         {
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -2621,9 +2940,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="5" from="[Bob](/human/bob)">\n\nTest message 5\n\n</message>`,
         },
         {
-            limit: "3.42kb",
+            limit: "3.404kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -2685,9 +3006,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
 <message id="28" from="[Alice](/human/alice)">\n\nTest message 28\n\n</message>`,
         },
         {
-            limit: "3.431kb",
+            limit: "3.416kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=29)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=29)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -2784,7 +3107,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             cursors: [60],
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=57)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=57)
 
 <time>May 16th at 8:00pm EDT</time>\n
 <message id="57" from="[Bob](/human/bob)">\n\nTest message 57\n\n</message>\n
@@ -2799,7 +3124,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             cursors: [60],
             limit: "750b",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=55)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=55)
 
 <time>May 16th at 6:00pm EDT</time>\n
 <message id="55" from="[Bob](/human/bob)">\n\nTest message 55\n\n</message>\n
@@ -2816,9 +3143,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             requestCount: 1,
             before: 60,
             cursors: [60],
-            limit: "3.455kb",
+            limit: "3.440kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=30)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=30)
 
 <time>May 15th at 5:00pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -2885,9 +3214,11 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             requestCount: 2,
             before: 60,
             cursors: [60, 30],
-            limit: "4kb",
+            limit: "3.984kb",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=26)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=26)
 
 <time>May 15th at 1:00pm EDT</time>\n
 <message id="26" from="[Alice](/human/alice)">\n\nTest message 26\n\n</message>\n
@@ -2998,7 +3329,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             cursors: [29],
             limit: "500b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=32)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=32)
 
 <time>May 15th at 5:00pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -3011,9 +3344,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 1,
             after: 29,
             cursors: [29],
-            limit: "750b",
+            limit: "734b",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=34)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=34)
 
 <time>May 15th at 5:00pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -3030,9 +3365,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 1,
             after: 29,
             cursors: [29],
-            limit: "3.45kb",
+            limit: "3.435kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=59)
 
 <time>May 15th at 5:00pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -3099,9 +3436,11 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             requestCount: 2,
             after: 29,
             cursors: [29, 59],
-            limit: "5kb",
+            limit: "4.984kb",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=72)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=72)
 
 <time>May 15th at 5:00pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -3226,7 +3565,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             path: "/chat/incident-response?start",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3262,7 +3603,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             path: "/chat/incident-response?after=28",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=57)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=57)
 
 <time>May 14th at 1:25pm EDT</time>\n
 <message id="29" from="[Bob](/human/bob)">\n\nTest message 29\n\n</message>\n
@@ -3298,7 +3641,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             path: "/chat/incident-response?after=57",
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=86)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 3:50pm EDT</time>\n
 <message id="58" from="[Alice](/human/alice)">\n\nTest message 58\n\n</message>\n
@@ -3334,7 +3679,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             path: "/chat/incident-response?after=86",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 6:15pm EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
@@ -3369,7 +3714,9 @@ End of messages.`,
         {
             path: "/chat/incident-response?end",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=61)
 
 <time>May 14th at 4:05pm EDT</time>\n
 <message id="61" from="[Bob](/human/bob)">\n\nTest message 61\n\n</message>\n
@@ -3407,7 +3754,9 @@ End of messages.`,
         {
             path: "/chat/incident-response?before=61",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=32)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=32)
 
 <time>May 14th at 1:40pm EDT</time>\n
 <message id="32" from="[Alice](/human/alice)">\n\nTest message 32\n\n</message>\n
@@ -3443,7 +3792,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
         {
             path: "/chat/incident-response?before=32",
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=3)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=3)
 
 <time>May 14th at 11:15am EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
@@ -3479,7 +3830,7 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
         {
             path: "/chat/incident-response?before=3",
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3515,7 +3866,9 @@ Some messages in Incident Response.
             limit: "500b",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 14th at 2:40pm EDT</time>\n
 <message id="44" from="[Alice](/human/alice)">\n\nTest message 44\n\n</message>\n
@@ -3527,7 +3880,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=49)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=49)
 
 <time>May 14th at 2:30pm EDT</time>\n
 <message id="42" from="[Alice](/human/alice)">\n\nTest message 42\n\n</message>\n
@@ -3541,10 +3896,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=45",
-            limit: "3.091kb",
+            limit: "3.075kb",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:35pm EDT</time>\n
 <message id="31" from="[Bob](/human/bob)">\n\nTest message 31\n\n</message>\n
@@ -3579,10 +3936,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=45",
-            limit: "3.092kb",
+            limit: "3.077kb",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=60)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=60)
 
 <time>May 14th at 1:35pm EDT</time>\n
 <message id="31" from="[Bob](/human/bob)">\n\nTest message 31\n\n</message>\n
@@ -3625,7 +3984,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 60},
             ],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 14th at 12:45pm EDT</time>\n
 <message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
@@ -3708,7 +4069,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "500b",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:15am EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
@@ -3720,7 +4083,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "600b",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=6)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:15am EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
@@ -3733,7 +4098,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
 
 <time>May 14th at 11:05am EDT</time>\n
 <message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
@@ -3750,7 +4117,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "2.02kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3774,10 +4143,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=4",
-            limit: "2.038kb",
+            limit: "2.022kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3807,7 +4178,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=38)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=38)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3880,7 +4253,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3892,7 +4267,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "1kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3906,10 +4283,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=0",
-            limit: "1.645kb",
+            limit: "1.629kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3929,10 +4308,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=0",
-            limit: "1.646kb",
+            limit: "1.630kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -3955,7 +4336,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "3kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4017,7 +4400,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
@@ -4029,7 +4414,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
 <message id="82" from="[Alice](/human/alice)">\n\nTest message 82\n\n</message>\n
@@ -4045,10 +4432,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=85",
-            limit: "1.979kb",
+            limit: "1.963kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=72)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=72)
 
 <time>May 14th at 5:00pm EDT</time>\n
 <message id="72" from="[Alice](/human/alice)">\n\nTest message 72\n\n</message>\n
@@ -4074,10 +4463,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=85",
-            limit: "1.98kb",
+            limit: "1.965kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=71)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=71)
 
 <time>May 14th at 4:55pm EDT</time>\n
 <message id="71" from="[Bob](/human/bob)">\n\nTest message 71\n\n</message>\n
@@ -4110,7 +4501,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 71},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
 <message id="62" from="[Alice](/human/alice)">\n\nTest message 62\n\n</message>\n
@@ -4174,7 +4567,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
@@ -4188,7 +4583,9 @@ End of messages.`,
             limit: "1kb",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
 <message id="82" from="[Alice](/human/alice)">\n\nTest message 82\n\n</message>\n
@@ -4204,10 +4601,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=89",
-            limit: "1.587kb",
+            limit: "1.571kb",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=76)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=76)
 
 <time>May 14th at 5:20pm EDT</time>\n
 <message id="76" from="[Alice](/human/alice)">\n\nTest message 76\n\n</message>\n
@@ -4229,10 +4628,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=89",
-            limit: "1.588kb",
+            limit: "1.573kb",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=75)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=75)
 
 <time>May 14th at 5:15pm EDT</time>\n
 <message id="75" from="[Bob](/human/bob)">\n\nTest message 75\n\n</message>\n
@@ -4261,7 +4662,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 75},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
 <message id="62" from="[Alice](/human/alice)">\n\nTest message 62\n\n</message>\n
@@ -4325,7 +4728,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 29}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 14th at 2:40pm EDT</time>\n
 <message id="44" from="[Alice](/human/alice)">\n\nTest message 44\n\n</message>\n
@@ -4337,7 +4742,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 29}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=48)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=48)
 
 <time>May 14th at 2:25pm EDT</time>\n
 <message id="41" from="[Bob](/human/bob)">\n\nTest message 41\n\n</message>\n
@@ -4351,10 +4758,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=44-45",
-            limit: "3.091kb",
+            limit: "3.075kb",
             requests: [{limit: 30, cursor: 29}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:35pm EDT</time>\n
 <message id="31" from="[Bob](/human/bob)">\n\nTest message 31\n\n</message>\n
@@ -4389,10 +4798,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=44-45",
-            limit: "3.092kb",
+            limit: "3.077kb",
             requests: [{limit: 30, cursor: 29}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=30) | [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=30) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 14th at 1:30pm EDT</time>\n
 <message id="30" from="[Alice](/human/alice)">\n\nTest message 30\n\n</message>\n
@@ -4435,7 +4846,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 59},
             ],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 14th at 12:45pm EDT</time>\n
 <message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
@@ -4518,7 +4931,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "500b",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=6)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=4) | [Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:20am EDT</time>\n
 <message id="4" from="[Alice](/human/alice)">\n\nTest message 4\n\n</message>\n
@@ -4530,7 +4945,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=8)
 
 <time>May 14th at 11:05am EDT</time>\n
 <message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
@@ -4544,10 +4961,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=4-5",
-            limit: "2.037kb",
+            limit: "2.021kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4571,10 +4990,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=4-5",
-            limit: "2.038kb",
+            limit: "2.022kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=17)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=17)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4604,7 +5025,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=38)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=38)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4677,7 +5100,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=2)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4689,7 +5114,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "1kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4703,10 +5130,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=0-1",
-            limit: "1.645kb",
+            limit: "1.629kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4726,10 +5155,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=0-1",
-            limit: "1.646kb",
+            limit: "1.630kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=13)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=13)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4752,7 +5183,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "3kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=27)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -4814,7 +5247,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: 69}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 14th at 6:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
@@ -4826,7 +5261,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 69}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=81) | [Next page »](/chat/incident-response?after=88)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=81) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 14th at 5:45pm EDT</time>\n
 <message id="81" from="[Bob](/human/bob)">\n\nTest message 81\n\n</message>\n
@@ -4840,10 +5277,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=84-85",
-            limit: "2.079kb",
+            limit: "2.063kb",
             requests: [{limit: 30, cursor: 69}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=71)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=71)
 
 <time>May 14th at 4:55pm EDT</time>\n
 <message id="71" from="[Bob](/human/bob)">\n\nTest message 71\n\n</message>\n
@@ -4870,10 +5309,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=84-85",
-            limit: "2.08kb",
+            limit: "2.065kb",
             requests: [{limit: 30, cursor: 69}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=70)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=70)
 
 <time>May 14th at 4:50pm EDT</time>\n
 <message id="70" from="[Alice](/human/alice)">\n\nTest message 70\n\n</message>\n
@@ -4908,7 +5349,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 55},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=52)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=52)
 
 <time>May 14th at 3:20pm EDT</time>\n
 <message id="52" from="[Alice](/human/alice)">\n\nTest message 52\n\n</message>\n
@@ -4982,7 +5425,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 73}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=87)
 
 <time>May 14th at 6:15pm EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
@@ -4996,7 +5441,9 @@ End of messages.`,
             limit: "1kb",
             requests: [{limit: 30, cursor: 73}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=82)
 
 <time>May 14th at 5:50pm EDT</time>\n
 <message id="82" from="[Alice](/human/alice)">\n\nTest message 82\n\n</message>\n
@@ -5012,10 +5459,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=88-89",
-            limit: "1.687kb",
+            limit: "1.671kb",
             requests: [{limit: 30, cursor: 73}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=75)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=75)
 
 <time>May 14th at 5:15pm EDT</time>\n
 <message id="75" from="[Bob](/human/bob)">\n\nTest message 75\n\n</message>\n
@@ -5038,10 +5487,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=88-89",
-            limit: "1.688kb",
+            limit: "1.673kb",
             requests: [{limit: 30, cursor: 73}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=74)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=74)
 
 <time>May 14th at 5:10pm EDT</time>\n
 <message id="74" from="[Alice](/human/alice)">\n\nTest message 74\n\n</message>\n
@@ -5071,7 +5522,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 74},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=62)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=62)
 
 <time>May 14th at 4:10pm EDT</time>\n
 <message id="62" from="[Alice](/human/alice)">\n\nTest message 62\n\n</message>\n
@@ -5135,7 +5588,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=44) | [Next page »](/chat/incident-response?after=46)
 
 <time>May 16th at 7:00am EDT</time>\n
 <message id="44" from="[Alice](/human/alice)">\n\nTest message 44\n\n</message>\n
@@ -5149,7 +5604,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=48)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=42) | [Next page »](/chat/incident-response?after=48)
 
 <time>May 16th at 5:00am EDT</time>\n
 <message id="42" from="[Alice](/human/alice)">\n\nTest message 42\n\n</message>\n
@@ -5168,10 +5625,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=45",
-            limit: "3.505kb",
+            limit: "3.489kb",
             requests: [{limit: 30, cursor: 30}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=31) | [Next page »](/chat/incident-response?after=59)
 
 <time>May 15th at 6:00pm EDT</time>\n
 <message id="31" from="[Bob](/human/bob)">\n\nTest message 31\n\n</message>\n
@@ -5241,7 +5700,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 60},
             ],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=29) | [Next page »](/chat/incident-response?after=62)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=29) | [Next page »](/chat/incident-response?after=62)
 
 <time>May 15th at 4:00pm EDT</time>\n
 <message id="29" from="[Bob](/human/bob)">\n\nTest message 29\n\n</message>\n
@@ -5349,7 +5810,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "500b",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 2:00pm EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
@@ -5363,7 +5826,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 12:00pm EDT</time>\n
 <message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
@@ -5382,10 +5847,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=4",
-            limit: "3.43kb",
+            limit: "3.414kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5454,7 +5921,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5562,7 +6031,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=1)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=1)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5574,7 +6045,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "1kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=6)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=6)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5593,10 +6066,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?message=0",
-            limit: "3.43kb",
+            limit: "3.414kb",
             requests: [{limit: 30, cursor: -15}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5665,7 +6140,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=33)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=33)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -5773,7 +6250,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=86)
 
 <time>May 17th at 11:00pm EDT</time>\n
 <message id="84" from="[Alice](/human/alice)">\n\nTest message 84\n\n</message>\n
@@ -5787,7 +6266,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=82) | [Next page »](/chat/incident-response?after=88)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=82) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 17th at 9:00pm EDT</time>\n
 <message id="82" from="[Alice](/human/alice)">\n\nTest message 82\n\n</message>\n
@@ -5806,10 +6287,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=85",
-            limit: "2.237kb",
+            limit: "2.221kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=72)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=72)
 
 <time>May 17th at 11:00am EDT</time>\n
 <message id="72" from="[Alice](/human/alice)">\n\nTest message 72\n\n</message>\n
@@ -5858,7 +6341,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 71},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=65)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=65)
 
 <time>May 17th at 4:00am EDT</time>\n
 <message id="65" from="[Bob](/human/bob)">\n\nTest message 65\n\n</message>\n
@@ -5950,7 +6435,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=87)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=87)
 
 <time>May 18th at 2:00am EDT</time>\n
 <message id="87" from="[Bob](/human/bob)">\n\nTest message 87\n\n</message>\n
@@ -5966,7 +6453,9 @@ End of messages.`,
             limit: "1kb",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=83)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=83)
 
 <time>May 17th at 10:00pm EDT</time>\n
 <message id="83" from="[Bob](/human/bob)">\n\nTest message 83\n\n</message>\n
@@ -5987,10 +6476,12 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response?message=89",
-            limit: "1.786kb",
+            limit: "1.77kb",
             requests: [{limit: 30, cursor: 74}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=76)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=76)
 
 <time>May 17th at 3:00pm EDT</time>\n
 <message id="76" from="[Alice](/human/alice)">\n\nTest message 76\n\n</message>\n
@@ -6031,7 +6522,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 75},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=74)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=74)
 
 <time>May 17th at 1:00pm EDT</time>\n
 <message id="74" from="[Alice](/human/alice)">\n\nTest message 74\n\n</message>\n
@@ -6105,7 +6598,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=3) | [Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 2:00pm EDT</time>\n
 <message id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</message>\n
@@ -6119,7 +6614,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=1) | [Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 12:00pm EDT</time>\n
 <message id="1" from="[Bob](/human/bob)">\n\nTest message 1\n\n</message>\n
@@ -6138,10 +6635,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=4",
-            limit: "3.43kb",
+            limit: "3.414kb",
             requests: [{limit: 30, cursor: -11}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=28)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=28)
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -6210,7 +6709,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:00am EDT</time>\n
 <message id="0" from="[Alice](/human/alice)">\n\nTest message 0\n\n</message>\n
@@ -6332,7 +6831,9 @@ End of messages.`,
             limit: "500b",
             requests: [{from: "End" as const, limit: 30}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=84)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=84)
 
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
@@ -6346,7 +6847,9 @@ End of messages.`,
             limit: "750b",
             requests: [{from: "End" as const, limit: 30}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=82)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=82)
 
 <time>May 15th at 10:49am EDT</time>\n
 <message id="82" from="[Alice](/human/alice)">\n\nTest message 82\n\n</message>\n
@@ -6360,13 +6863,15 @@ End of messages.`,
         },
         {
             path: "/chat/incident-response",
-            limit: "3.47kb",
+            limit: "3.454kb",
             requests: [
                 {from: "End" as const, limit: 30},
                 {from: "End" as const, limit: 30, cursor: 60},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=48)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=48)
 
 <time>May 15th at 12:46am EDT</time>\n
 <message id="48" from="[Alice](/human/alice)">\n\nTest message 48\n\n</message>\n
@@ -6451,7 +6956,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=5)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=5)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -6464,7 +6971,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "750b",
             requests: [{limit: 30}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=7)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=7)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -6477,10 +6986,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         },
         {
             path: "/chat/incident-response?start",
-            limit: "3.42kb",
+            limit: "3.404kb",
             requests: [{limit: 30}, {limit: 30, cursor: 29}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=40)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=40)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -6564,7 +7075,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{from: "End" as const, limit: 30, cursor: 67}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=61)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=61)
 
 <time>May 15th at 4:28am EDT</time>\n
 <message id="61" from="[Bob](/human/bob)">\n\nTest message 61\n\n</message>\n
@@ -6575,10 +7088,12 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
         {
             path: "/chat/incident-response?before=67",
             requestCount: 1,
-            limit: "750b",
+            limit: "734b",
             requests: [{from: "End" as const, limit: 30, cursor: 67}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=59)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=59)
 
 <time>May 15th at 4:04am EDT</time>\n
 <message id="59" from="[Alice](/human/alice)">\n\nTest message 59\n\n</message>\n
@@ -6591,13 +7106,15 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
         {
             path: "/chat/incident-response?before=67",
             requestCount: 2,
-            limit: "4kb",
+            limit: "3.984kb",
             requests: [
                 {from: "End" as const, limit: 30, cursor: 67},
                 {from: "End" as const, limit: 30, cursor: 37},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=19)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=19)
 
 <time>May 14th at 3:46pm EDT</time>\n
 <message id="19" from="[Bob](/human/bob)">\n\nTest message 19\n\n</message>\n
@@ -6688,7 +7205,9 @@ Some messages in Incident Response. [Previous page »](/chat/incident-response?b
             limit: "500b",
             requests: [{limit: 30, cursor: 62}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=68)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=68)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
@@ -6698,10 +7217,12 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
         {
             path: "/chat/incident-response?after=62",
             requestCount: 1,
-            limit: "750b",
+            limit: "734b",
             requests: [{limit: 30, cursor: 62}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=70)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=70)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
@@ -6717,7 +7238,7 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "3.45kb",
             requests: [{limit: 30, cursor: 62}],
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
@@ -6786,7 +7307,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 49}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=63) | [Next page »](/chat/incident-response?after=67)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=63) | [Next page »](/chat/incident-response?after=67)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
@@ -6797,7 +7320,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 49}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=60) | [Next page »](/chat/incident-response?after=69)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=60) | [Next page »](/chat/incident-response?after=69)
 
 <time>May 15th at 4:12am EDT</time>\n
 <message id="60" from="[Alice](/human/alice)">\n\nTest message 60\n\n</message>\n
@@ -6818,7 +7343,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 79},
             ],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=88)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=41) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 14th at 10:39pm EDT</time>\n
 <message id="41" from="[Bob](/human/bob)">\n\nTest message 41\n\n</message>\n
@@ -6907,7 +7434,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "500b",
             requests: [{limit: 30, cursor: -5}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=8) | [Next page »](/chat/incident-response?after=11)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=8) | [Next page »](/chat/incident-response?after=11)
 
 <time>May 14th at 1:09pm EDT</time>\n
 <message id="8" from="[Bob](/human/bob)">\n\nTest message 8\n\n</message>\n
@@ -6919,7 +7448,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: -5}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=6) | [Next page »](/chat/incident-response?after=14)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=6) | [Next page »](/chat/incident-response?after=14)
 
 <time>May 14th at 12:04pm EDT</time>\n
 <message id="6" from="[Bob](/human/bob)">\n\nTest message 6\n\n</message>\n
@@ -6941,7 +7472,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 29},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=40)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=40)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -6992,7 +7525,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 44},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=47)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=47)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -7082,7 +7617,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: -14}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=4)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=4)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -7094,7 +7631,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "1kb",
             requests: [{limit: 30, cursor: -14}],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=10)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=10)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -7116,7 +7655,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
                 {limit: 15, cursor: 44},
             ],
             response: `\
-Some messages in Incident Response. [Next page »](/chat/incident-response?after=47)
+# Incident Response
+
+[Next page »](/chat/incident-response?after=47)
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n
@@ -7206,7 +7747,9 @@ Some messages in Incident Response. [Next page »](/chat/incident-response?after
             limit: "500b",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
@@ -7217,7 +7760,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 70}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=79)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=79)
 
 <time>May 15th at 10:21am EDT</time>\n
 <message id="79-80" from="[Bob](/human/bob)">\n\nTest message 79\n\nTest message 80\n\n</message>\n
@@ -7239,7 +7784,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 71},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=63)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=63)
 
 <time>May 15th at 6:04am EDT</time>\n
 <message id="63-66" from="[Bob](/human/bob)">\n\nTest message 63\n\nTest message 64\n\nTest message 65\n\nTest message 66\n\n</message>\n
@@ -7308,7 +7855,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 71}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=84) | [Next page »](/chat/incident-response?after=88)
 
 <time>May 15th at 12:25pm EDT</time>\n
 <message id="84-87" from="[Alice](/human/alice)">\n\nTest message 84\n\nTest message 85\n\nTest message 86\n\nTest message 87\n\n</message>\n
@@ -7319,7 +7868,9 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
             limit: "1kb",
             requests: [{limit: 30, cursor: 71}],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=79)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=79)
 
 <time>May 15th at 10:21am EDT</time>\n
 <message id="79-80" from="[Bob](/human/bob)">\n\nTest message 79\n\nTest message 80\n\n</message>\n
@@ -7341,7 +7892,9 @@ End of messages.`,
                 {from: "End" as const, limit: 15, cursor: 72},
             ],
             response: `\
-Some messages in Incident Response. [Previous page »](/chat/incident-response?before=68)
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=68)
 
 <time>May 15th at 6:35am EDT</time>\n
 <message id="68" from="[Alice](/human/alice)">\n\nTest message 68\n\n</message>\n
@@ -7408,7 +7961,9 @@ End of messages.`,
             limit: "500b",
             requests: [{limit: 30, cursor: 8}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=25)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=21) | [Next page »](/chat/incident-response?after=25)
 
 <time>May 14th at 5:22pm EDT</time>\n
 <message id="21" from="[Bob](/human/bob)">\n\nTest message 21\n\n</message>\n
@@ -7417,10 +7972,12 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
         },
         {
             path: "/chat/incident-response?message=23",
-            limit: "1kb",
+            limit: "984b",
             requests: [{limit: 30, cursor: 8}],
             response: `\
-Some messages in Incident Response. [« Previous page](/chat/incident-response?before=19) | [Next page »](/chat/incident-response?after=27)
+# Incident Response
+
+[« Previous page](/chat/incident-response?before=19) | [Next page »](/chat/incident-response?after=27)
 
 <time>May 14th at 3:46pm EDT</time>\n
 <message id="19" from="[Bob](/human/bob)">\n\nTest message 19\n\n</message>\n
@@ -7441,7 +7998,7 @@ Some messages in Incident Response. [« Previous page](/chat/incident-response?b
                 {limit: 15, cursor: 38},
             ],
             response: `\
-Some messages in Incident Response.
+# Incident Response
 
 <time>May 14th at 11:01am EDT</time>\n
 <message id="0-2" from="[Alice](/human/alice)">\n\nTest message 0\n\nTest message 1\n\nTest message 2\n\n</message>\n

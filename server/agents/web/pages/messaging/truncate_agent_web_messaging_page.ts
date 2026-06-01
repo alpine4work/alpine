@@ -1,6 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import escapeHtml from "escape-html";
-import {Parent, PhrasingContent} from "mdast";
+import {Paragraph, Parent, PhrasingContent, RootContent} from "mdast";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     AgentWebMessagingPage,
@@ -88,7 +88,10 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
-                    " [".length +
+                    // We need double newlines when adding after a heading and a single space when
+                    // adding into a paragraph. Given double newlines is the longer of the two use that
+                    // in our character count.
+                    "\n\n[".length +
                     agentWebMessagingNextPageLinkText.length +
                     "](".length +
                     roomTargetPathname.length +
@@ -181,8 +184,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             if (page.pagination?.nextLink) {
                 const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-                const paragraph = responseTree.children[0];
-                assert(paragraph?.type === "paragraph");
+                const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
                 const link = paragraph.children[paragraph.children.length - 1];
                 assert(link?.type === "link");
 
@@ -200,15 +202,11 @@ export async function truncateAgentWebMessagingPage<Preamble>(
 
                 const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-                const paragraph = responseTree.children[0];
-                assert(paragraph?.type === "paragraph");
-
-                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
-
-                truncatedResponse =
-                    truncatedResponse.slice(0, paragraphEndOffset) +
-                    ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
-                    truncatedResponse.slice(paragraphEndOffset);
+                truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
+                    responseTree,
+                    truncatedResponse,
+                    `[${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+                ).truncatedResponse;
             }
 
             return {
@@ -244,7 +242,10 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
-                    " [".length +
+                    // We need double newlines when adding after a heading and a single space when
+                    // adding into a paragraph. Given double newlines is the longer of the two use that
+                    // in our character count.
+                    "\n\n[".length +
                     agentWebMessagingPreviousPageLinkTextWithEndArrow.length +
                     "](".length +
                     roomTargetPathname.length +
@@ -436,8 +437,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             if (page.pagination?.previousLink) {
                 const beforeMessageIndex = truncatedMessages[0]!.index;
 
-                const paragraph = responseTree.children[0];
-                assert(paragraph?.type === "paragraph");
+                const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
                 const link = paragraph.children[paragraph.children.length - 1];
                 assert(link?.type === "link");
 
@@ -455,15 +455,11 @@ export async function truncateAgentWebMessagingPage<Preamble>(
 
                 const beforeMessageIndex = truncatedMessages[0]!.index;
 
-                const paragraph = responseTree.children[0];
-                assert(paragraph?.type === "paragraph");
-
-                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
-
-                truncatedResponse =
-                    truncatedResponse.slice(0, paragraphEndOffset) +
-                    ` [${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})` +
-                    truncatedResponse.slice(paragraphEndOffset);
+                truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
+                    responseTree,
+                    truncatedResponse,
+                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})`,
+                ).truncatedResponse;
             }
 
             return {
@@ -562,7 +558,10 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
 
         truncateLength +=
-            " [".length +
+            // We need double newlines when adding after a heading and a single space when
+            // adding into a paragraph. Given double newlines is the longer of the two use that
+            // in our character count.
+            "\n\n[".length +
             agentWebMessagingPreviousPageLinkTextWithEndArrow.length +
             "](".length +
             roomTargetPathname.length +
@@ -578,7 +577,10 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
 
         truncateLength +=
-            " [".length +
+            // We need double newlines when adding after a heading and a single space when
+            // adding into a paragraph. Given double newlines is the longer of the two use that
+            // in our character count.
+            "\n\n[".length +
             agentWebMessagingNextPageLinkText.length +
             "](".length +
             roomTargetPathname.length +
@@ -816,11 +818,11 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     assert(lastMessageBlockEndOffset !== null);
     assert(firstMessageBlockStartOffset !== null);
 
+    const didTruncateFromEnd = truncateMessageBlockEndOffset !== lastMessageBlockEndOffset;
+    const didTruncateFromStart = truncateMessageBlockStartOffset !== firstMessageBlockStartOffset;
+
     // No truncation occurred!
-    if (
-        truncateMessageBlockEndOffset === lastMessageBlockEndOffset &&
-        truncateMessageBlockStartOffset === firstMessageBlockStartOffset
-    ) {
+    if (!didTruncateFromEnd && !didTruncateFromStart) {
         return null;
     }
 
@@ -878,9 +880,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
             // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
             // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
             // `direction` then we're implicitly not at the end of messages anymore.
-            truncateMessageBlockEndOffset !== lastMessageBlockEndOffset
-                ? truncateMessageBlockEndOffset
-                : undefined,
+            didTruncateFromEnd ? truncateMessageBlockEndOffset : undefined,
         );
 
     // `truncatedResponse` currently doesn't include an initial `<time>` element. So
@@ -939,14 +939,31 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                 .replace(/ time="[^"]*"/, "");
     }
 
+    if (
+        didTruncateFromEnd &&
+        didTruncateFromStart &&
+        !page.pagination?.nextLink &&
+        !page.pagination?.previousLink
+    ) {
+        assert(roomTargetPathname !== null);
+
+        const beforeMessageIndex = truncatedMessages[0]!.index;
+        const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
+
+        truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
+            responseTree,
+            truncatedResponse,
+            `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomTargetPathname}?before=${beforeMessageIndex}) | [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+        ).truncatedResponse;
+    }
+
     // Update the "Next page" link to reflect the new last message index after
     // truncation.
-    if (truncateMessageBlockEndOffset !== lastMessageBlockEndOffset) {
+    if (didTruncateFromEnd) {
         if (page.pagination?.nextLink) {
             const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-            const paragraph = responseTree.children[0];
-            assert(paragraph?.type === "paragraph");
+            const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
             const link = paragraph.children[paragraph.children.length - 1];
             assert(link?.type === "link");
 
@@ -959,22 +976,21 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                     .slice(linkStartOffset, linkEndOffset)
                     .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
                 truncatedResponse.slice(linkEndOffset);
-        } else {
+        } else if (page.pagination?.previousLink || !didTruncateFromStart) {
             assert(roomTargetPathname !== null);
 
             const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
-            const paragraph = responseTree.children[0];
-            assert(paragraph?.type === "paragraph");
-
-            const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
-
             if (!page.pagination?.previousLink) {
-                truncatedResponse =
-                    truncatedResponse.slice(0, paragraphEndOffset) +
-                    ` [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
-                    truncatedResponse.slice(paragraphEndOffset);
+                const insertResult = insertAgentWebMessagingPagePreamblePaginationLink(
+                    responseTree,
+                    truncatedResponse,
+                    `[${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+                );
+                truncatedResponse = insertResult.truncatedResponse;
             } else {
+                const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
+                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
                 const link = paragraph.children[paragraph.children.length - 1];
                 assert(link?.type === "link");
 
@@ -999,12 +1015,11 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     //
     // If there is no "Previous page" link and truncation occurred then we need to add
     // a "Previous page" link.
-    if (truncateMessageBlockStartOffset !== firstMessageBlockStartOffset) {
+    if (didTruncateFromStart) {
         if (page.pagination?.previousLink) {
             const beforeMessageIndex = truncatedMessages[0]!.index;
 
-            const paragraph = responseTree.children[0];
-            assert(paragraph?.type === "paragraph");
+            const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
 
             let link: PhrasingContent | undefined;
 
@@ -1025,22 +1040,20 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                     .slice(linkStartOffset, linkEndOffset)
                     .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
                 truncatedResponse.slice(linkEndOffset);
-        } else {
+        } else if (page.pagination?.nextLink || !didTruncateFromEnd) {
             assert(roomTargetPathname !== null);
 
             const beforeMessageIndex = truncatedMessages[0]!.index;
 
-            const paragraph = responseTree.children[0];
-            assert(paragraph?.type === "paragraph");
-
             if (!page.pagination?.nextLink) {
-                const paragraphEndOffset = assertExists(paragraph.position?.end.offset);
-
-                truncatedResponse =
-                    truncatedResponse.slice(0, paragraphEndOffset) +
-                    ` [${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})` +
-                    truncatedResponse.slice(paragraphEndOffset);
+                const insertResult = insertAgentWebMessagingPagePreamblePaginationLink(
+                    responseTree,
+                    truncatedResponse,
+                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})`,
+                );
+                truncatedResponse = insertResult.truncatedResponse;
             } else {
+                const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
                 const link = paragraph.children[paragraph.children.length - 1];
                 assert(link?.type === "link");
 
@@ -1059,5 +1072,44 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         truncatedMetadata: {
             messages: truncatedMessages.map(message => ({index: message.index})),
         },
+    };
+}
+
+function getAgentWebMessagingPagePreamblePaginationParagraph(responseTree: Parent): Paragraph {
+    const firstNode = responseTree.children[0] as RootContent | undefined;
+    if (firstNode?.type === "paragraph") return firstNode;
+
+    assert(firstNode?.type === "heading");
+
+    const paginationParagraph = responseTree.children[1] as RootContent | undefined;
+    assert(paginationParagraph?.type === "paragraph");
+    return paginationParagraph;
+}
+
+function insertAgentWebMessagingPagePreamblePaginationLink(
+    responseTree: Parent,
+    truncatedResponse: string,
+    linkMarkdown: string,
+): {
+    truncatedResponse: string;
+    linkStartOffset: number;
+    paragraphEndOffset: number;
+} {
+    const firstNode = responseTree.children[0] as RootContent | undefined;
+    assert(firstNode?.type === "paragraph" || firstNode?.type === "heading");
+
+    const insertionOffset = assertExists(firstNode.position?.end.offset);
+    const prefix = firstNode.type === "paragraph" ? " " : "\n\n";
+    const linkStartOffset = insertionOffset + prefix.length;
+    const paragraphEndOffset = linkStartOffset + linkMarkdown.length;
+
+    return {
+        truncatedResponse:
+            truncatedResponse.slice(0, insertionOffset) +
+            prefix +
+            linkMarkdown +
+            truncatedResponse.slice(insertionOffset),
+        linkStartOffset,
+        paragraphEndOffset,
     };
 }
