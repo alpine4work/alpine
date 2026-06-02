@@ -131,23 +131,55 @@ function printApiContentToMarkdown(
     content: ApiContent,
     options: ApiContentMarkdownPrinterOptions,
 ): Root {
+    const firstPrintableBlockElementIndex = getFirstPrintableBlockElementIndex(content.elements);
+
     return {
         type: "root",
         children:
             // If the first element in our content is a divider then we serialize it using the
-            // HTML syntax `<hr/>` so the divider isn't confused with frontmatter.
-            content.elements.length > 0 && content.elements[0]!.type === "Divider"
+            // HTML syntax `<hr/>` so the divider isn't confused with frontmatter. Ignore
+            // leading empty lists since they don't print any markdown and are stripped by
+            // normalization during round trips.
+            firstPrintableBlockElementIndex !== -1 &&
+            content.elements[firstPrintableBlockElementIndex]!.type === "Divider"
                 ? Array.from(
                       concatIterables(
                           [{type: "html", value: "<hr/>"}],
                           printApiContentBlockElementsToMarkdown(
-                              content.elements.slice(1),
+                              content.elements.slice(firstPrintableBlockElementIndex + 1),
                               options,
                           ),
                       ),
                   )
                 : Array.from(printApiContentBlockElementsToMarkdown(content.elements, options)),
     };
+}
+
+/**
+ * Finds the first block element that can produce markdown output.
+ *
+ * Empty lists are skipped because they don't print anything and normalization
+ * removes them during markdown round trips.
+ */
+function getFirstPrintableBlockElementIndex(
+    elements: ReadonlyArray<ApiContentBlockElement>,
+): number {
+    for (let index = 0; index < elements.length; index++) {
+        const element = elements[index]!;
+
+        if (
+            (element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList") &&
+            element.items.length === 0
+        ) {
+            continue;
+        }
+
+        return index;
+    }
+
+    return -1;
 }
 
 function* printApiContentBlockElementsToMarkdown(

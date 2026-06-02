@@ -9914,6 +9914,33 @@ The quick brown fox jumps over the lazy dog.
 `,
                 },
                 {
+                    description: "leading empty checklist before divider then empty checklist item",
+                    content: {
+                        elements: [
+                            {
+                                type: "CheckList",
+                                items: [],
+                            },
+                            {type: "Divider"},
+                            {
+                                type: "CheckList",
+                                items: [
+                                    {
+                                        checked: false,
+                                        elements: [{type: "Paragraph", elements: []}],
+                                        nestedListElements: [],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<hr/>
+
+- [ ] <span></span>
+`,
+                },
+                {
                     description: "divider after paragraph but before empty unordered list",
                     content: {
                         elements: [
