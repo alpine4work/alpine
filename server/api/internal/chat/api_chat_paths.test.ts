@@ -3,7 +3,6 @@ import {createTestApiServer} from "~/server/api/internal/test_helpers/create_tes
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {convertDirectChatToRoomChat} from "~/server/chat/data/convert_direct_chat_to_room_chat.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -254,13 +253,16 @@ describe("POST /chats", () => {
                 },
             }),
         ).toEqual({
-            status: 500,
+            status: 403,
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: {
                     message:
                         "Can\u2019t create a chat with only bot accounts. " +
                         "Try again but include at least one human account in the chat.",
+                    stack: expect.stringMatching(
+                        /^PermissionDeniedError: Can’t create a chat with only bot accounts\n/,
+                    ),
                     retry: {
                         able: false,
                     },
@@ -330,6 +332,56 @@ describe("POST /chats", () => {
         });
     });
 
+    test("creates a new direct ChatId after matching direct chat is converted to room chat", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const [session2, session3] = await space.createSessions(2);
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey();
+
+        const originalResponse = await server.POST("/chats", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: {id: bot.id}},
+                        {account: {id: session1.account.id}},
+                        {account: {id: session2.account.id}},
+                        {account: {id: session3.account.id}},
+                    ],
+                },
+            },
+        });
+
+        await convertDirectChatToRoomChat(session1.action(), {
+            chatId: originalResponse.body.chat.id,
+            name: "Project Room",
+        });
+
+        const newResponse = await server.POST("/chats", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: {id: bot.id}},
+                        {account: {id: session1.account.id}},
+                        {account: {id: session2.account.id}},
+                        {account: {id: session3.account.id}},
+                    ],
+                },
+            },
+        });
+
+        expect(originalResponse.status).toBe(200);
+        expect(newResponse.status).toBe(200);
+        expect(originalResponse.body.chat.id).not.toEqual(newResponse.body.chat.id);
+    });
+
     test("fails if a member isn\u2019t in the requested space", async () => {
         const space1 = await TestSpace.create(context);
         const session1 = await space1.createSession({role: "Admin"});
@@ -365,28 +417,6 @@ describe("POST /chats", () => {
             },
         });
     });
-});
-
-test("creates a new direct ChatId after matching direct chat is converted to room chat", async () => {
-    const space = await TestSpace.create(context);
-    const [session1, session2, session3] = await space.createSessions(3);
-
-    const originalChatId = await getOrCreateChatForAccounts(session1.action(), {
-        spaceId: space.id,
-        otherAccountIds: [session2.account.id, session3.account.id],
-    });
-
-    await convertDirectChatToRoomChat(session1.action(), {
-        chatId: originalChatId,
-        name: "Project Room",
-    });
-
-    const newChatId = await getOrCreateChatForAccounts(session1.action(), {
-        spaceId: space.id,
-        otherAccountIds: [session2.account.id, session3.account.id],
-    });
-
-    expect(newChatId).not.toEqual(originalChatId);
 });
 
 test("can read chat information", async () => {

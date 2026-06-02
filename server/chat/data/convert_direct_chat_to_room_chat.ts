@@ -7,12 +7,16 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
@@ -52,11 +56,25 @@ export function convertDirectChatToRoomChat(
             );
         }
 
-        // Everyone in the chat continues to have manage access.
+        const accountIdsForAccessPolicy = await runAllPromises(
+            chatItem.accountItems.map(async chatAccountItem => {
+                const isBot = await isBotSpaceAccount(
+                    context,
+                    chatItem.attributesItem.spaceId,
+                    chatAccountItem.accountId,
+                );
+
+                if (isBot) return;
+                return chatAccountItem.accountId;
+            }),
+        );
+
+        // Everyone in the chat continues to have manage access, except bot accounts which
+        // can't be granted access through room access policies.
         const accessPolicy: AccessPolicy = {
             type: "Local",
             accountGrantById: new Map(
-                chatItem.accountItems.map(({accountId}) => [
+                mapIterable(filterIterable(accountIdsForAccessPolicy, isNonNullable), accountId => [
                     accountId,
                     {level: "Manage", generation: 0},
                 ]),
