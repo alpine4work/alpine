@@ -243,6 +243,52 @@ async function readChat({
     return await callAgentWebReadTool(readContext, {path, limit});
 }
 
+async function readDirectChat({
+    totalMessageCount,
+    createMessage: actuallyCreateMessage,
+}: {
+    totalMessageCount: number;
+    createMessage?: (index: number) => ApiMessageResponse;
+}): Promise<{path: string; response: string}> {
+    const directChatId = generateId<ChatId>();
+    const path = await createAgentWebPageLinkPathname(storage, {
+        type: "Chat",
+        id: directChatId,
+        title: "Alice and Bob",
+    });
+
+    api.mockGet(
+        "/chats/{id}",
+        {
+            data: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    id: directChatId,
+                    title: "Alice and Bob",
+                    members: [{account: aliceAccount}, {account: bobAccount}],
+                },
+            },
+        },
+        {path: {id: directChatId}},
+    );
+
+    mockApiGetChatMessages(api, {
+        spaceId,
+        chatId: directChatId,
+        from: "End",
+        totalMessageCount,
+        limit: 30,
+        createMessage:
+            actuallyCreateMessage ??
+            (index => createMessage({index, author: index % 2 === 0 ? aliceAccount : bobAccount})),
+    });
+
+    const response = await callAgentWebReadTool(context, {path, limit: "100kb"});
+
+    return {path, response};
+}
+
 function mockCreateMessages({count, startIndex = 0}: {count: number; startIndex?: number}) {
     for (let index = 0; index < count; index++) {
         api.mockPost(
@@ -615,6 +661,73 @@ test("counts newly-created messages without ids when validating the next id (err
     ]);
 });
 
+test("throws UnimplementedError when converting a direct chat to a room chat", async () => {
+    const {path} = await readDirectChat({totalMessageCount: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [
+                {
+                    old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
+                    new: "# Incident Response",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
+test("rejects changing direct chat members", async () => {
+    const {path} = await readDirectChat({totalMessageCount: 1});
+
+    await expectInvalidUpdateDisplayMessage({
+        path,
+        updates: [
+            {
+                old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
+                new: "Chat with [Alice](/human/alice).",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Can\u2019t add or remove members from a chat. Instead try calling the `create` tool to create a new chat instead. If you must preserve the chat message history then try using the `update` tool to convert this chat into a named chat room by replacing the chat member list with a markdown h1 with the new chat room name. In most cases it\u2019s better to use the `create` tool to create a new chat because converting to a named chat room is an irreversible decision.",
+    });
+});
+
+test("rejects converting a room chat to a direct chat", async () => {
+    await readChat({totalMessageCount: 2});
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "# Incident Response",
+                new: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "A named chat room can\u2019t be converted into a direct chat. Try calling the `create` tool to create a new direct chat instead.",
+    });
+});
+
+test("throws UnimplementedError when renaming a room chat", async () => {
+    await readChat({totalMessageCount: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "# Incident Response",
+                    new: "# Escalated Incident Response",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
 test("rejects preamble edits", async () => {
     await readChat({
         totalMessageCount: 1,
@@ -651,7 +764,7 @@ test("rejects pagination link edits", async () => {
             },
         ],
         expected:
-            "You can only update your `<message>`s. You can\u2019t update the metadata on line 1 of the messages markdown. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
+            "You can only update your `<message>`s. You can\u2019t update the previous/next page links in the messages markdown. Try again with a more specific update that only changes the content of messages from you or adds new messages.",
     });
 });
 

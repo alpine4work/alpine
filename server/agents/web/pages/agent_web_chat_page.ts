@@ -1,7 +1,11 @@
 import {Root} from "mdast";
-import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
+import {
+    AgentWebContext,
+    AgentWebContextWithoutStorage,
+} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
@@ -26,7 +30,7 @@ import {
     ApiContentResponse,
     ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {
@@ -37,6 +41,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble> & {
@@ -181,13 +187,108 @@ async function getChatRoomMetadata(
     }
 }
 
+export async function createAgentWebChatPage(
+    context: AgentWebContext,
+    newPage: AgentWebChatPage,
+): Promise<{
+    pageMetadata: AgentWebChatPageMetadata;
+    pageLink: Extract<AgentWebPageLink, {type: "Chat"}>;
+}> {
+    // NOCOMMIT: Test when direct chat already exists and we create a chat page with
+    // messages?
+    const {
+        data: {chat},
+    } = await context.api.post(context.span, "/chats", {
+        body: {
+            spaceId: context.spaceId,
+            chat:
+                newPage.preamble.type === "Direct"
+                    ? {
+                          type: "Direct",
+                          members: newPage.preamble.members.map(account => ({account})),
+                      }
+                    : {type: "Room", name: newPage.preamble.name},
+        },
+    });
+
+    const pageLink: Extract<AgentWebPageLink, {type: "Chat"}> = {
+        type: "Chat",
+        id: chat.id,
+        title: chat.type === "Direct" ? chat.title : chat.name,
+    };
+
+    const pageMetadata = await updateAgentWebChatPage(
+        context,
+        () => createAgentWebPageLinkPathname(context.storage, pageLink),
+        {
+            type: "Chat",
+            id: chat.id,
+            messages: [],
+        },
+        {
+            type: "Chat",
+            preamble: newPage.preamble,
+            pagination: null,
+            isEndOfMessages: true,
+            blocks: [],
+        },
+        newPage,
+    );
+
+    return {pageMetadata, pageLink};
+}
+
 export async function updateAgentWebChatPage(
     context: AgentWebContextWithoutStorage,
-    pathname: string,
+    pathname: MaybeThunk<MaybePromise<string>>,
     oldPageMetadata: AgentWebChatPageMetadata,
     oldPage: AgentWebChatPage,
     newPage: AgentWebChatPage,
-): Promise<AgentWebChatPageMetadata & {type: "Chat"}> {
+): Promise<AgentWebChatPageMetadata> {
+    switch (oldPage.preamble.type) {
+        case "Direct": {
+            if (newPage.preamble.type === "Room") {
+                // TODO(#agents-web): Implement convert direct chat to room chat endpoint. I feel
+                // like this could definitely use some speed bumps given it's non-reversible.
+                throw new UnimplementedError(
+                    "Convert direct chat to room chat API endpoint hasn\u2019t been implemented",
+                );
+            }
+
+            if (
+                !isDeepEqual(
+                    oldPage.preamble.members.map(account => account.id),
+                    newPage.preamble.members.map(account => account.id),
+                )
+            ) {
+                throw new InvalidArgumentError("Can\u2019t change the members of a direct chat", {
+                    displayMessage: errorDisplayMessage`Can\u2019t add or remove members from a chat. Instead try calling the \`create\` tool to create a new chat instead. If you must preserve the chat message history then try using the \`update\` tool to convert this chat into a named chat room by replacing the chat member list with a markdown h1 with the new chat room name. In most cases it\u2019s better to use the \`create\` tool to create a new chat because converting to a named chat room is an irreversible decision.`,
+                });
+            }
+            break;
+        }
+        case "Room": {
+            if (newPage.preamble.type === "Direct") {
+                throw new InvalidArgumentError(
+                    "Can\u2019t convert a room chat into a direct chat",
+                    {
+                        displayMessage: errorDisplayMessage`A named chat room can\u2019t be converted into a direct chat. Try calling the \`create\` tool to create a new direct chat instead.`,
+                    },
+                );
+            }
+
+            if (oldPage.preamble.name !== newPage.preamble.name) {
+                // TODO(#agents-web): Implement chat room rename API endpoint.
+                throw new UnimplementedError(
+                    "Update room chat name API endpoint hasn\u2019t been implemented",
+                );
+            }
+            break;
+        }
+        default:
+            throw exhaustive(oldPage.preamble);
+    }
+
     const newPageMetadata = await updateAgentWebMessagingPage(context, {
         messageNouns: agentWebMessagingPageMessageNouns,
         pathname,
@@ -195,27 +296,6 @@ export async function updateAgentWebChatPage(
         oldPageMetadata,
         oldPage,
         newPage,
-        arePreamblesEqual: (oldPreamble, newPreamble) => {
-            switch (oldPreamble.type) {
-                case "Direct": {
-                    if (newPreamble.type !== "Direct") return false;
-
-                    // NOCOMMIT: Test that we can't update chat room members.
-                    return isDeepEqual(
-                        newPreamble.members.map(account => account.id),
-                        oldPreamble.members.map(account => account.id),
-                    );
-                }
-                case "Room": {
-                    if (newPreamble.type !== "Room") return false;
-
-                    // NOCOMMIT: Update chat room name?
-                    return oldPreamble.name === newPreamble.name;
-                }
-                default:
-                    throw exhaustive(oldPreamble);
-            }
-        },
     });
 
     return {...newPageMetadata, type: "Chat", id: oldPageMetadata.id};

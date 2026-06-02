@@ -11,6 +11,10 @@ import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agen
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
+    createAgentWebChatPage,
+    parseAgentWebChatPage,
+} from "~/server/agents/web/pages/agent_web_chat_page.js";
+import {
     createAgentWebDocumentPage,
     parseAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
@@ -178,20 +182,27 @@ async function createAgentWebPageLink(
         case "document": {
             const newPage = await parseAgentWebDocumentPage(context.storage, null, content);
 
-            const newPageMetadata = await createAgentWebDocumentPage(
-                context,
-                context.spaceId,
-                newPage,
-            );
+            const pageMetadata = await createAgentWebDocumentPage(context, newPage);
 
             return {
                 noun: "document",
-                pageMetadata: newPageMetadata,
+                pageMetadata,
                 pageLink: {
                     type: "Document",
-                    id: newPageMetadata.id,
+                    id: pageMetadata.id,
                     title: newPage.title,
                 },
+            };
+        }
+        case "chat": {
+            const newPage = await parseAgentWebChatPage(context.storage, null, content);
+
+            const {pageMetadata, pageLink} = await createAgentWebChatPage(context, newPage);
+
+            return {
+                noun: "chat",
+                pageMetadata,
+                pageLink,
             };
         }
         default: {

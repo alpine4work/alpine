@@ -59,14 +59,13 @@ export async function readAgentWebDocumentPage(
 
 export async function createAgentWebDocumentPage(
     context: AgentWebContextWithoutStorage,
-    spaceId: SpaceId,
     newPage: AgentWebDocumentPage,
 ): Promise<AgentWebDocumentPageMetadata> {
     const {
         data: {document},
     } = await context.api.post(context.span, "/documents", {
         body: {
-            spaceId,
+            spaceId: context.spaceId,
             document: {
                 title: newPage.title,
                 content: newPage.content,
