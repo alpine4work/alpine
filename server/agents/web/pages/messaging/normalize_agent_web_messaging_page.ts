@@ -18,7 +18,13 @@ export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPag
         withApiContentNormalizerForAgentWebMarkdown(normalizer => {
             normalizePreamble(normalizer, page.preamble);
 
-            if (page.pagination) normalizer.normalizeTarget(page.pagination.target);
+            if (page.pagination) {
+                if (page.pagination.pageLink.type === "TaskMessageList") {
+                    normalizer.normalizeTarget(page.pagination.pageLink.task);
+                } else {
+                    normalizer.normalizeTarget(page.pagination.pageLink);
+                }
+            }
 
             for (const block of page.blocks) {
                 if (block.type !== "Message") continue;

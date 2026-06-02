@@ -8,6 +8,7 @@ import {
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePagination,
+    AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageWithMetadata,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -20,7 +21,6 @@ import {
     ApiContentBlockElementResponse,
     ApiContentInlineElementResponse,
     ApiContentResponse,
-    ApiMentionTargetResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
     ApiMessageRoomTarget,
@@ -53,7 +53,7 @@ export async function readAgentWebMessagingPage<Preamble>(
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
-            target: ApiMentionTargetResponse;
+            pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
         }>;
         defaultDirection: "Start" | "End";
@@ -229,7 +229,7 @@ export async function readAgentWebMessagingPage<Preamble>(
         const result = await truncateAgentWebMessagingPage(context.storage, {
             messageNouns,
             limitLength,
-            roomMetadataTarget: roomMetadata.target,
+            roomMetadataPageLink: roomMetadata.pageLink,
             direction,
             messages,
             contextTimeZone: context.timeZone,
@@ -257,7 +257,7 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
         roomMetadataPromise: Promise<{
-            target: ApiMentionTargetResponse;
+            pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
         }>;
         around: AgentWebMessagingPageMessageRange;
@@ -329,7 +329,7 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
             const result = await truncateAgentWebMessagingPageAroundMessage(context.storage, {
                 messageNouns,
                 limitLength,
-                roomMetadataTarget: roomMetadata.target,
+                roomMetadataPageLink: roomMetadata.pageLink,
                 around,
                 messages,
                 contextTimeZone: context.timeZone,
@@ -388,7 +388,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
         messageNouns: AgentWebMessagingPageNouns;
         direction: "Start" | "End" | "Around";
         roomMetadata: {
-            target: ApiMentionTargetResponse;
+            pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
         };
         messages: ReadonlyArray<ApiMessageResponse>;
@@ -508,7 +508,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
             case "Start": {
                 if (!isEndOfMessages) {
                     pagination = {
-                        target: roomMetadata.target,
+                        pageLink: roomMetadata.pageLink,
                         previousLink: null,
                         nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
                     };
@@ -518,7 +518,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
             case "End": {
                 if (!isStartOfMessages) {
                     pagination = {
-                        target: roomMetadata.target,
+                        pageLink: roomMetadata.pageLink,
                         previousLink: {beforeMessageIndex: messages[0]!.index},
                         nextLink: null,
                     };
@@ -528,19 +528,19 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
             case "Around": {
                 if (!isEndOfMessages && !isStartOfMessages) {
                     pagination = {
-                        target: roomMetadata.target,
+                        pageLink: roomMetadata.pageLink,
                         previousLink: {beforeMessageIndex: messages[0]!.index},
                         nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
                     };
                 } else if (!isEndOfMessages) {
                     pagination = {
-                        target: roomMetadata.target,
+                        pageLink: roomMetadata.pageLink,
                         previousLink: null,
                         nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
                     };
                 } else if (!isStartOfMessages) {
                     pagination = {
-                        target: roomMetadata.target,
+                        pageLink: roomMetadata.pageLink,
                         previousLink: {beforeMessageIndex: messages[0]!.index},
                         nextLink: null,
                     };

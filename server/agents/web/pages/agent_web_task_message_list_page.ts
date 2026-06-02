@@ -3,6 +3,7 @@ import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     AgentWebMessagingPage,
@@ -123,7 +124,7 @@ async function getTaskRoomMetadata(
     context: AgentWebContextWithoutStorage,
     id: TaskId,
 ): Promise<{
-    target: ApiMentionTargetResponse;
+    pageLink: Extract<AgentWebPageRoutedLink, {type: "TaskMessageList"}>;
     preamble: AgentWebTaskMessageListPagePreamble;
 }> {
     const {
@@ -135,7 +136,10 @@ async function getTaskRoomMetadata(
     });
 
     return {
-        target,
+        pageLink: {
+            type: "TaskMessageList",
+            task: target,
+        },
         preamble: {task: target},
     };
 }

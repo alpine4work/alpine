@@ -6,7 +6,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
 import {createAgentWebPageLinkApiPreviewTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_target_if_possible.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
-import {routeAgentWebPageLinkPathname} from "~/server/agents/web/internal/route_agent_web_page_link_pathname.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,

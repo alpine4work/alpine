@@ -97,17 +97,30 @@ export const ApiContentTextArbitrary = fc.oneof(
     {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
 );
 
+export const ApiChatTargetArbitrary = fc.record({
+    type: fc.constant("Chat"),
+    id: createIdArbitrary<ChatId>(),
+    title: ApiContentTextArbitrary,
+});
+
+export const ApiTaskTargetArbitrary = fc.record({
+    type: fc.constant("Task"),
+    id: createIdArbitrary<TaskId>(),
+    title: ApiContentTextArbitrary,
+    status: fc.oneof(
+        fc.constant({type: "Open", isActive: false}),
+        fc.constant({type: "Open", isActive: true}),
+        fc.constant({type: "Closed", isActive: false}),
+    ),
+});
+
 const ApiPreviewTargetArbitraries = {
     Channel: fc.record({
         type: fc.constant("Channel"),
         id: createIdArbitrary<ChannelId>(),
         title: ApiContentTextArbitrary,
     }),
-    Chat: fc.record({
-        type: fc.constant("Chat"),
-        id: createIdArbitrary<ChatId>(),
-        title: ApiContentTextArbitrary,
-    }),
+    Chat: ApiChatTargetArbitrary,
     Document: fc.record({
         type: fc.constant("Document"),
         id: createIdArbitrary<DocumentId>(),
@@ -118,16 +131,7 @@ const ApiPreviewTargetArbitraries = {
         id: createIdArbitrary<PostId>(),
         title: ApiContentTextArbitrary,
     }),
-    Task: fc.record({
-        type: fc.constant("Task"),
-        id: createIdArbitrary<TaskId>(),
-        title: ApiContentTextArbitrary,
-        status: fc.oneof(
-            fc.constant({type: "Open", isActive: false}),
-            fc.constant({type: "Open", isActive: true}),
-            fc.constant({type: "Closed", isActive: false}),
-        ),
-    }),
+    Task: ApiTaskTargetArbitrary,
     TaskCollection: fc.record({
         type: fc.constant("TaskCollection"),
         id: createIdArbitrary<TaskCollectionId>(),

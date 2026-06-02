@@ -1,10 +1,8 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Link, Node, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
-import {routeAgentWebPageLinkPathname} from "~/server/agents/web/internal/route_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -13,6 +11,7 @@ import {
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePagination,
+    AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageTimeBlock,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -23,12 +22,12 @@ import {
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiAccountTargetResponse,
     ApiContentResponse,
-    ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -926,7 +925,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     if (
         previousPaginationLink &&
         nextPaginationLink &&
-        !isDeepEqual(previousPaginationLink.target, nextPaginationLink.target)
+        !isDeepEqual(previousPaginationLink.pageLink, nextPaginationLink.pageLink)
     ) {
         throw new InvalidArgumentError("Pagination links point to different pages", {
             displayMessage: errorDisplayMessage`\u201D${agentWebMessagingPreviousPageLinkTextWithStartArrow}\u201D and \u201C${agentWebMessagingNextPageLinkText}\u201D links must link to the same page. \u201C${agentWebMessagingPreviousPageLinkTextWithStartArrow}\u201D links to \`${previousPaginationLink.pathname.slice(0, 75)}\` and \u201C${agentWebMessagingNextPageLinkText}\u201D links to \`${nextPaginationLink.pathname.slice(0, 75)}\`. Try again and make sure both links point to the same page (it\u2019s ok if the URL search params like \`?before\` and \`?after\` are different but the pathname must be the same).`,
@@ -948,7 +947,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
 
     if (previousPaginationLink) {
         return {
-            target: previousPaginationLink.target,
+            pageLink: previousPaginationLink.pageLink,
             previousLink: {beforeMessageIndex: previousPaginationLink.messageIndex},
             nextLink: nextPaginationLink
                 ? {afterMessageIndex: nextPaginationLink.messageIndex}
@@ -959,7 +958,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     assert(nextPaginationLink !== null);
 
     return {
-        target: nextPaginationLink.target,
+        pageLink: nextPaginationLink.pageLink,
         previousLink: null,
         nextLink: {afterMessageIndex: nextPaginationLink.messageIndex},
     };
@@ -967,7 +966,7 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
 
 type AgentWebMessagingPageParsedPaginationLink = {
     readonly pathname: string;
-    readonly target: ApiMentionTargetResponse;
+    readonly pageLink: AgentWebMessagingPagePaginationPageLink;
     readonly messageIndex: number;
 };
 
@@ -993,9 +992,9 @@ async function parseAgentWebMessagingPagePaginationLink({
         });
     }
 
-    const paginationPageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
 
-    if (!paginationPageLinkResult) {
+    if (!pageLinkResult) {
         throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
             messageNouns,
             link,
@@ -1003,22 +1002,26 @@ async function parseAgentWebMessagingPagePaginationLink({
         });
     }
 
-    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
-        storage.spaceId,
-        paginationPageLinkResult.pageLink,
-    );
+    const {pageLink} = pageLinkResult;
 
-    if (mentionTargetResult.type !== "MentionTarget") {
-        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
-            messageNouns,
-            link,
-            searchParamName,
-        });
+    switch (pageLink.type) {
+        case "Chat":
+        case "TaskMessageList": {
+            // Ok!
+            break;
+        }
+        default: {
+            throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+                messageNouns,
+                link,
+                searchParamName,
+            });
+        }
     }
 
     return {
         pathname,
-        target: mentionTargetResult.target,
+        pageLink,
         messageIndex: parseInt(searchParam, 10),
     };
 }

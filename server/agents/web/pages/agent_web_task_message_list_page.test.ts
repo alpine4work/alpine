@@ -152,13 +152,13 @@ End of comments.
             name: "task comments with previous page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task/write-spec?before=3)
+Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task-comments/write-spec?before=3)
 `,
             page: {
                 type: "TaskMessageList",
                 preamble: {task: taskTarget},
                 pagination: {
-                    target: taskTarget,
+                    pageLink: {type: "TaskMessageList", task: taskTarget},
                     previousLink: {beforeMessageIndex: 3},
                     nextLink: null,
                 },
@@ -173,13 +173,13 @@ Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task/writ
             name: "task comments with next page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task/write-spec?after=9)
+Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task-comments/write-spec?after=9)
 `,
             page: {
                 type: "TaskMessageList",
                 preamble: {task: taskTarget},
                 pagination: {
-                    target: taskTarget,
+                    pageLink: {type: "TaskMessageList", task: taskTarget},
                     previousLink: null,
                     nextLink: {afterMessageIndex: 9},
                 },
@@ -194,13 +194,13 @@ Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task/write-sp
             name: "task comments with previous and next page pagination links",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task/write-spec?before=3) | [Next page »](/task/write-spec?after=9)
+Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task-comments/write-spec?before=3) | [Next page »](/task-comments/write-spec?after=9)
 `,
             page: {
                 type: "TaskMessageList",
                 preamble: {task: taskTarget},
                 pagination: {
-                    target: taskTarget,
+                    pageLink: {type: "TaskMessageList", task: taskTarget},
                     previousLink: {beforeMessageIndex: 3},
                     nextLink: {afterMessageIndex: 9},
                 },

@@ -8,7 +8,7 @@ import {
     printAgentWebPageStoredLinkLabel,
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
@@ -32,9 +32,9 @@ import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdo
 import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import {
     ApiAccountTargetResponse,
+    ApiChatTargetResponse,
     ApiContentInlineElementResponse,
     ApiContentResponse,
-    ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {
@@ -166,7 +166,7 @@ async function getChatRoomMetadata(
     context: AgentWebContextWithoutStorage,
     id: ChatId,
 ): Promise<{
-    target: ApiMentionTargetResponse;
+    pageLink: ApiChatTargetResponse;
     preamble: AgentWebChatPagePreamble;
 }> {
     const {
@@ -178,7 +178,7 @@ async function getChatRoomMetadata(
     switch (chat.type) {
         case "Direct": {
             return {
-                target: {type: "Chat", id, title: chat.title},
+                pageLink: {type: "Chat", id, title: chat.title},
                 preamble: {
                     type: "Direct",
                     members: assertNonEmptyReadonlyArray(
@@ -189,7 +189,7 @@ async function getChatRoomMetadata(
         }
         case "Room": {
             return {
-                target: {type: "Chat", id, title: chat.name},
+                pageLink: {type: "Chat", id, title: chat.name},
                 preamble: {
                     type: "Room",
                     name: chat.name,

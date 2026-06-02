@@ -172,11 +172,6 @@ test("throws a redirect error when document title changes for same document id",
         content: createDocumentContentWithDocumentMention(documentId, "Engineering Plan"),
     });
 
-    api.mockGetDocument(spaceId, documentId, {
-        title: "Engineering Plan",
-        content: createDocumentContentFromParagraphs(["Updated title, same document id."]),
-    });
-
     const oldMentionResponse = await callAgentWebReadTool(context, {
         path: sourcePathname,
         limit: "10kb",

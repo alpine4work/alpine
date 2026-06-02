@@ -2,13 +2,14 @@ import {CalendarDate} from "@internationalized/date";
 import escapeHtml from "escape-html";
 import {Paragraph, Parent, PhrasingContent, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
+import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
+    AgentWebMessagingPagePaginationPageLink,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {
     agentWebMessagingNextPageLinkText,
@@ -16,10 +17,7 @@ import {
     agentWebMessagingPreviousPageLinkTextWithStartArrow,
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {
-    ApiMentionTargetResponse,
-    ApiMessageResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -44,7 +42,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
     {
         messageNouns,
         limitLength,
-        roomMetadataTarget,
+        roomMetadataPageLink,
         direction,
         messages,
         contextTimeZone,
@@ -55,7 +53,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         limitLength: number;
-        roomMetadataTarget: ApiMentionTargetResponse;
+        roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         direction: "Start" | "End";
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
@@ -86,9 +84,9 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.nextLink) {
-                roomTargetPathname = await createAgentWebPageStoredLinkPathname(
+                roomTargetPathname = await createAgentWebPageLinkPathname(
                     storage,
-                    roomMetadataTarget,
+                    roomMetadataPageLink,
                 );
 
                 truncateLength +=
@@ -243,9 +241,9 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.previousLink) {
-                roomTargetPathname = await createAgentWebPageStoredLinkPathname(
+                roomTargetPathname = await createAgentWebPageLinkPathname(
                     storage,
-                    roomMetadataTarget,
+                    roomMetadataPageLink,
                 );
 
                 truncateLength +=
@@ -486,7 +484,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     {
         messageNouns,
         limitLength,
-        roomMetadataTarget,
+        roomMetadataPageLink,
         around,
         messages,
         contextTimeZone,
@@ -497,7 +495,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         limitLength: number;
-        roomMetadataTarget: ApiMentionTargetResponse;
+        roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         around: AgentWebMessagingPageMessageRange;
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
@@ -562,10 +560,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.previousLink) {
-        roomTargetPathname ??= await createAgentWebPageStoredLinkPathname(
-            storage,
-            roomMetadataTarget,
-        );
+        roomTargetPathname ??= await createAgentWebPageLinkPathname(storage, roomMetadataPageLink);
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when
@@ -584,10 +579,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.nextLink) {
-        roomTargetPathname ??= await createAgentWebPageStoredLinkPathname(
-            storage,
-            roomMetadataTarget,
-        );
+        roomTargetPathname ??= await createAgentWebPageLinkPathname(storage, roomMetadataPageLink);
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when

@@ -4,7 +4,7 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import {mockApiGetTaskMessages} from "~/server/agents/api/test_helpers/mock_api_get_task_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiTaskTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -115,7 +115,7 @@ test("adds next page link to task message list", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [Next page »](${taskPath}?after=2)
+Comments on [Write Spec (Open)](/task/write-spec). [Next page »](${taskCommentsPath}?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -155,7 +155,7 @@ test("adds previous page link to task message list", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](${taskPath}?before=17)
+Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](${taskCommentsPath}?before=17)
 
 <time>May 14th at 12:25pm EDT</time>
 
@@ -197,7 +197,7 @@ test("reads a task message list around a comment", async () => {
             limit: "500b",
         }),
     ).toEqual(`\
-Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](${taskPath}?before=3) | [Next page »](${taskPath}?after=5)
+Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](${taskCommentsPath}?before=3) | [Next page »](${taskCommentsPath}?after=5)
 
 <time>May 14th at 11:15am EDT</time>\n
 <comment id="3" from="[Bob](/human/bob)">\n\nTest message 3\n\n</comment>\n

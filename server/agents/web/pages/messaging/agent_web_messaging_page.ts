@@ -1,7 +1,7 @@
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
     ApiAccountTargetResponse,
     ApiContentResponse,
-    ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 export type AgentWebMessagingPage<Preamble> = {
@@ -12,7 +12,7 @@ export type AgentWebMessagingPage<Preamble> = {
 };
 
 export type AgentWebMessagingPagePagination = {
-    readonly target: ApiMentionTargetResponse;
+    readonly pageLink: AgentWebMessagingPagePaginationPageLink;
 } & (
     | {
           readonly previousLink: {readonly beforeMessageIndex: number};
@@ -23,6 +23,11 @@ export type AgentWebMessagingPagePagination = {
           readonly nextLink: {readonly afterMessageIndex: number};
       }
 );
+
+export type AgentWebMessagingPagePaginationPageLink = Extract<
+    AgentWebPageLink,
+    {type: "Chat" | "TaskMessageList"}
+>;
 
 export type AgentWebMessagingPageMessageRange = {
     /** Inclusive */

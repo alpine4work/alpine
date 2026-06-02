@@ -62,14 +62,17 @@ export async function updateAgentWebMessagingPage<Preamble>(
     const createThunks: Array<() => Promise<{index: number}>> = [];
 
     // Strip response properties from the preamble before comparing for equality. We
-    // don't care if `target.title`s aren't equal. The `title` might have changed
+    // don't care if `pageLink.title`s aren't equal. The `title` might have changed
     // between the old page load time and new page generation time.
     const normalizePagination = (pagination: AgentWebMessagingPagePagination | null) => {
         if (!pagination) return null;
 
         return {
             ...pagination,
-            target: normalizeApiTarget(pagination.target),
+            pageLink:
+                pagination.pageLink.type === "TaskMessageList"
+                    ? {...pagination.pageLink, task: normalizeApiTarget(pagination.pageLink.task)}
+                    : normalizeApiTarget(pagination.pageLink),
         };
     };
 

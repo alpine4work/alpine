@@ -313,7 +313,7 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
                     elements: [text("Some messages in Engineering Room.")],
                 },
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Engineering Room",
@@ -338,7 +338,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
                     elements: [text("Some messages in Engineering Room.")],
                 },
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Engineering Room",
@@ -363,7 +363,7 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
                     elements: [text("Some messages in Engineering Room.")],
                 },
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Engineering Room",

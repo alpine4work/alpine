@@ -264,7 +264,7 @@ Chat with [Alice](/human/alice). [Previous page »](/chat/alice?before=3)
                 type: "Chat",
                 preamble: {type: "Direct", members: [aliceTarget]},
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Alice",
@@ -287,7 +287,7 @@ Chat with [Alice](/human/alice). [Next page »](/chat/alice?after=9)
                 type: "Chat",
                 preamble: {type: "Direct", members: [aliceTarget]},
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Alice",
@@ -379,7 +379,7 @@ Room update.
                 type: "Chat",
                 preamble: {type: "Room", name: "Engineering Room"},
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Engineering Room",
@@ -404,7 +404,7 @@ Room update.
                 type: "Chat",
                 preamble: {type: "Room", name: "Engineering Room"},
                 pagination: {
-                    target: {
+                    pageLink: {
                         type: "Chat",
                         id: paginationChatId,
                         title: "Engineering Room",

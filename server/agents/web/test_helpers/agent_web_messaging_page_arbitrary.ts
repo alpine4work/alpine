@@ -4,13 +4,15 @@ import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPagePagination,
+    AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageTimeBlock,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {
     ApiAccountTargetArbitrary,
+    ApiChatTargetArbitrary,
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
-    ApiMentionTargetArbitrary,
+    ApiTaskTargetArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
 
@@ -62,20 +64,29 @@ const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagi
     Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
 });
 
+const AgentWebMessagingPagePaginationPageLinkArbitrary =
+    createUnionArbitrary<AgentWebMessagingPagePaginationPageLink>({
+        Chat: ApiChatTargetArbitrary,
+        TaskMessageList: fc.record({
+            type: fc.constant("TaskMessageList"),
+            task: ApiTaskTargetArbitrary,
+        }),
+    });
+
 const AgentWebMessagingPagePaginationArbitrary: Arbitrary<AgentWebMessagingPagePagination> =
     fc.oneof(
         fc.record({
-            target: ApiMentionTargetArbitrary,
+            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
             previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
             nextLink: fc.constant(null),
         }),
         fc.record({
-            target: ApiMentionTargetArbitrary,
+            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
             previousLink: fc.constant(null),
             nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
         }),
         fc.record({
-            target: ApiMentionTargetArbitrary,
+            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
             previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
             nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
         }),

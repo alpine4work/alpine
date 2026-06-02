@@ -14,7 +14,7 @@ import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_pag
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
-import {routeAgentWebPageLinkPathname} from "~/server/agents/web/internal/route_agent_web_page_link_pathname.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {
     normalizeAgentWebChatPage,
     parseAgentWebChatPage,
