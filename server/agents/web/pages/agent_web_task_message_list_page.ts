@@ -18,14 +18,14 @@ import {
     readAgentWebMessagingPage,
     readAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
+import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
-import {
-    ApiMentionTargetResponse,
-    ApiTaskTargetResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {normalizeApiTarget} from "~/shared/api/markdown/normalize_api_content.js";
+import {ApiTaskTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebTaskMessageListPage =
@@ -152,6 +152,36 @@ export function normalizeAgentWebTaskMessageListPage<Page extends AgentWebTaskMe
             normalizer.normalizeTarget(preamble.task);
         },
     });
+}
+
+export async function updateAgentWebTaskMessageListPage(
+    context: AgentWebContextWithoutStorage,
+    pathname: string,
+    oldPageMetadata: AgentWebTaskMessageListPageMetadata,
+    oldPage: AgentWebTaskMessageListPage,
+    newPage: AgentWebTaskMessageListPage,
+): Promise<AgentWebTaskMessageListPageMetadata> {
+    if (
+        !isDeepEqual(
+            normalizeApiTarget(oldPage.preamble.task),
+            normalizeApiTarget(newPage.preamble.task),
+        )
+    ) {
+        throw new InvalidArgumentError("Can\u2019t update task comments preamble", {
+            displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You can\u2019t change which task the comments belong to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+        });
+    }
+
+    const newPageMetadata = await updateAgentWebMessagingPage(context, {
+        messageNouns: agentWebMessagingPageCommentNouns,
+        pathname,
+        room: {type: "Task", id: oldPageMetadata.id},
+        oldPageMetadata,
+        oldPage,
+        newPage,
+    });
+
+    return {...newPageMetadata, type: "TaskMessageList", id: oldPageMetadata.id};
 }
 
 export async function printAgentWebTaskMessageListPage(

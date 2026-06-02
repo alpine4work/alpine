@@ -11,7 +11,7 @@ import {ApiContentResponse} from "~/shared/api/specification/types/api_specifica
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebDocumentPage = {
     readonly type: "Document";
