@@ -4,7 +4,7 @@
 
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
+import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
@@ -105,7 +105,7 @@ test("deduplicates the created document pathname from existing pathnames", async
     const documentId = generateId<DocumentId>();
     const content = createDocumentContentFromText("Created after a pathname collision.");
 
-    await context.storage.pageLinkByPathname.put("/document/product-spec", {
+    await context.storage.pageStoredLinkByPathname.put("/document/product-spec", {
         type: "Document",
         id: existingDocumentId,
         title: "Product Spec",
@@ -128,19 +128,19 @@ Created after a pathname collision.`,
     expect(responseString).toEqual(
         "Create was successful. New document: [Product Spec](/document/product-spec-2).\n",
     );
-    expect(await context.storage.pageLinkByPathname.get("/document/product-spec")).toEqual({
+    expect(await context.storage.pageStoredLinkByPathname.get("/document/product-spec")).toEqual({
         type: "Document",
         id: existingDocumentId,
         title: "Product Spec",
     });
-    expect(await context.storage.pageLinkByPathname.get("/document/product-spec-2")).toEqual({
+    expect(await context.storage.pageStoredLinkByPathname.get("/document/product-spec-2")).toEqual({
         type: "Document",
         id: documentId,
         title: "Product Spec",
     });
     expect(
-        await context.storage.latestPageLinkPathnameByKey.get(
-            printAgentWebPageLinkKey({type: "Document", id: documentId}),
+        await context.storage.latestPageStoredLinkPathnameByKey.get(
+            printAgentWebPageStoredLinkKey({type: "Document", id: documentId}),
         ),
     ).toBe("/document/product-spec-2");
 });

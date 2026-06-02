@@ -4,7 +4,7 @@
 
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
+import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
@@ -53,7 +53,7 @@ test("throws when the link path has not been seen", async () => {
 test("returns full markdown and stores normalized read response", async () => {
     const documentId = generateId<DocumentId>();
 
-    await context.storage.pageLinkByPathname.put("/document/engineering-spec", {
+    await context.storage.pageStoredLinkByPathname.put("/document/engineering-spec", {
         type: "Document",
         id: documentId,
         title: "Engineering Spec",
@@ -83,7 +83,7 @@ Implementation details paragraph.`);
 test("truncates the returned response but caches the full response", async () => {
     const documentId = generateId<DocumentId>();
 
-    await context.storage.pageLinkByPathname.put("/document/pagination-spec", {
+    await context.storage.pageStoredLinkByPathname.put("/document/pagination-spec", {
         type: "Document",
         id: documentId,
         title: "Pagination Spec",
@@ -115,7 +115,7 @@ Paragraph 01 detail detail detail detail detail detail.
 test("reads GFM table content without crashing prettier formatting", async () => {
     const documentId = generateId<DocumentId>();
 
-    await context.storage.pageLinkByPathname.put("/document/roadmap-table", {
+    await context.storage.pageStoredLinkByPathname.put("/document/roadmap-table", {
         type: "Document",
         id: documentId,
         title: "Roadmap Table",
@@ -156,7 +156,7 @@ test("throws a redirect error when document title changes for same document id",
     const oldPathname = "/document/engineering-spec";
     const newPathname = "/document/engineering-plan";
 
-    await context.storage.pageLinkByPathname.put(sourcePathname, {
+    await context.storage.pageStoredLinkByPathname.put(sourcePathname, {
         type: "Document",
         id: sourceDocumentId,
         title: "Mention Source",
@@ -193,21 +193,23 @@ test("throws a redirect error when document title changes for same document id",
     expect(newMentionResponse).toContain(`[Engineering Plan](${newPathname})`);
     expect(newMentionResponse).not.toContain(`[Engineering Spec](${oldPathname})`);
 
-    const pageLinkKey = printAgentWebPageLinkKey({type: "Document", id: documentId});
+    const pageLinkKey = printAgentWebPageStoredLinkKey({type: "Document", id: documentId});
 
-    expect(await context.storage.pageLinkByPathname.get(oldPathname)).toEqual({
+    expect(await context.storage.pageStoredLinkByPathname.get(oldPathname)).toEqual({
         type: "Document",
         id: documentId,
         title: "Engineering Spec",
     });
 
-    expect(await context.storage.pageLinkByPathname.get(newPathname)).toEqual({
+    expect(await context.storage.pageStoredLinkByPathname.get(newPathname)).toEqual({
         type: "Document",
         id: documentId,
         title: "Engineering Plan",
     });
 
-    expect(await context.storage.latestPageLinkPathnameByKey.get(pageLinkKey)).toEqual(newPathname);
+    expect(await context.storage.latestPageStoredLinkPathnameByKey.get(pageLinkKey)).toEqual(
+        newPathname,
+    );
 
     await expect(
         callAgentWebReadTool(context, {path: oldPathname, limit: "10kb"}),

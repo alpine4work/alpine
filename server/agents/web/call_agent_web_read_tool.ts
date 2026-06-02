@@ -12,14 +12,14 @@ import {
     AgentWebPageMetadata,
     AgentWebPageWithMetadata,
 } from "~/server/agents/web/agent_web_page.js";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {
-    AgentWebPageLinkKeyObject,
-    printAgentWebPageLinkKey,
-} from "~/server/agents/web/agent_web_page_link_key.js";
+    AgentWebPageStoredLinkKeyObject,
+    printAgentWebPageStoredLinkKey,
+} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
     normalizeAgentWebChatPage,
@@ -64,7 +64,7 @@ export async function callAgentWebReadTool(
         path,
         () => new Mutex(),
     ).withLock(async () => {
-        const pageLink = await context.storage.pageLinkByPathname.get(pathname);
+        const pageLink = await context.storage.pageStoredLinkByPathname.get(pathname);
 
         if (!pageLink) {
             throw new NotFoundError("Link not found", {
@@ -72,11 +72,11 @@ export async function callAgentWebReadTool(
             });
         }
 
-        const pageLinkKey = printAgentWebPageLinkKey(pageLink);
+        const pageLinkKey = printAgentWebPageStoredLinkKey(pageLink);
 
         const latestPageLinkPathnameForKeyPromise = (async () => {
             const latestPageLinkPathnameForKey =
-                await context.storage.latestPageLinkPathnameByKey.get(pageLinkKey);
+                await context.storage.latestPageStoredLinkPathnameByKey.get(pageLinkKey);
 
             // Allow the agent to observe when a path change occurs. We frame this as a
             // "redirect", like an HTTP redirect. Otherwise it may mistakingly think different
@@ -111,12 +111,12 @@ export async function callAgentWebReadTool(
                     );
                     return response;
                 },
-                createPageLinkPathname: async pageLink => {
+                createPageStoredLinkPathname: async pageLink => {
                     // Before we create a link and mutate storage, wait to see if this path was
                     // redirected (this promise throws if the path was redirected).
                     await latestPageLinkPathnameForKeyPromise;
 
-                    return await createAgentWebPageLinkPathname(context.storage, pageLink);
+                    return await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
                 },
             }),
         ]);
@@ -238,12 +238,12 @@ function readAgentWebPageLink(
     // We intentionally use the "key object" type so the code within this function
     // doesn't rely on `title` or any extra data we include in the full link object to
     // print a friendly path for the agent.
-    pageLink: AgentWebPageLinkKeyObject,
+    pageLink: AgentWebPageStoredLinkKeyObject,
     options: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebPageWithMetadata) => Promise<string>;
-        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {

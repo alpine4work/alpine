@@ -1,6 +1,6 @@
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
-import {AgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -56,15 +56,18 @@ export interface AgentWebSessionStorage {
      * Map of paths (e.g. `/document/tech-spec`) to the underlying resource that path
      * represents (e.g. a `DocumentId`).
      */
-    readonly pageLinkByPathname: AgentWebSessionStorageCollection<string, AgentWebPageLink>;
+    readonly pageStoredLinkByPathname: AgentWebSessionStorageCollection<
+        string,
+        AgentWebPageStoredLink
+    >;
 
     /**
      * The latest path (e.g. `/document/tech-spec`) for a given page key. If you try
      * reading a pathname for this key that's not the latest pathname then we throw an
      * error.
      */
-    readonly latestPageLinkPathnameByKey: AgentWebSessionStorageCollection<
-        AgentWebPageLinkKey,
+    readonly latestPageStoredLinkPathnameByKey: AgentWebSessionStorageCollection<
+        AgentWebPageStoredLinkKey,
         string
     >;
 

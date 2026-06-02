@@ -1,11 +1,12 @@
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {ApiMentionTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
+// NOCOMMIT: Rename to "stored" or use specifically a mention target?
 export function createAgentWebPageLinkApiMentionTargetIfPossible(
     spaceId: SpaceId,
-    link: AgentWebPageLink,
+    link: AgentWebPageStoredLink,
 ): {type: "MentionTarget"; target: ApiMentionTargetResponse} | {type: "Url"; url: string} {
     switch (link.type) {
         case "Account":

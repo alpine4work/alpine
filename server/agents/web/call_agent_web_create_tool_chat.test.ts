@@ -4,7 +4,7 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
 import type {
@@ -59,19 +59,19 @@ const context: AgentWebContext = {
 };
 
 beforeEach(async () => {
-    const actualAlicePathname = await createAgentWebPageLinkPathname(
+    const actualAlicePathname = await createAgentWebPageStoredLinkPathname(
         storage,
         intoApiAccountTarget(aliceAccount),
     );
     assert(actualAlicePathname === "/human/alice");
 
-    const actualBobPathname = await createAgentWebPageLinkPathname(
+    const actualBobPathname = await createAgentWebPageStoredLinkPathname(
         storage,
         intoApiAccountTarget(bobAccount),
     );
     assert(actualBobPathname === "/human/bob");
 
-    const actualBotAccountPathname = await createAgentWebPageLinkPathname(
+    const actualBotAccountPathname = await createAgentWebPageStoredLinkPathname(
         storage,
         context.botAccount,
     );

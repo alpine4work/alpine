@@ -49,7 +49,7 @@ function createReadResponse(response: string): {
 test("paginates through a long document across multiple scroll calls", async () => {
     const documentId = generateId<DocumentId>();
 
-    await context.storage.pageLinkByPathname.put("/document/long-document", {
+    await context.storage.pageStoredLinkByPathname.put("/document/long-document", {
         type: "Document",
         id: documentId,
         title: "Long Document",
@@ -231,7 +231,7 @@ test("iterates through realistic wikipedia content one page at a time", async ()
     const documentId = generateId<DocumentId>();
     const path = "/document/youtube";
 
-    await context.storage.pageLinkByPathname.put(path, {
+    await context.storage.pageStoredLinkByPathname.put(path, {
         type: "Document",
         id: documentId,
         title: "YouTube",
@@ -308,7 +308,7 @@ The choice of the name www.youtube.com led to problems for a similarly named web
 test("uses normalized path when reading cached responses", async () => {
     const documentId = generateId<DocumentId>();
 
-    await context.storage.pageLinkByPathname.put("/document/path-normalized", {
+    await context.storage.pageStoredLinkByPathname.put("/document/path-normalized", {
         type: "Document",
         id: documentId,
         title: "Path Normalized",

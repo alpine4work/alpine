@@ -24,7 +24,8 @@ export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPag
                 if (block.type !== "Message") continue;
 
                 // The order of these normalization calls matters and needs to match the order of
-                // `createAgentWebPageLinkPathname()` calls in `printAgentWebMessagingPage()`.
+                // `createAgentWebPageStoredLinkPathname()` calls in
+                // `printAgentWebMessagingPage()`.
 
                 normalizer.normalizeTarget(block.author);
 

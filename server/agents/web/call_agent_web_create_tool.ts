@@ -4,11 +4,11 @@ import {stemmer} from "stemmer";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
 import {
-    AgentWebPageLink,
-    printAgentWebPageLinkLabel,
-} from "~/server/agents/web/agent_web_page_link.js";
+    AgentWebPageStoredLink,
+    printAgentWebPageStoredLinkLabel,
+} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     createAgentWebChatPage,
@@ -85,7 +85,7 @@ export async function callAgentWebCreateTool(
 
     let noun: string;
     let pageMetadata: AgentWebPageMetadata;
-    let pageLink: AgentWebPageLink;
+    let pageLink: AgentWebPageStoredLink;
     try {
         ({noun, pageMetadata, pageLink} = await createAgentWebPageLink(
             contextWithPartialSuccessDetection,
@@ -115,7 +115,7 @@ export async function callAgentWebCreateTool(
         );
     }
 
-    const pageLinkPathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
+    const pageLinkPathname = await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
 
     // Find all the newline indexes in our content. So the `scroll` tool can easily
     // return a slice of the content.
@@ -157,7 +157,9 @@ export async function callAgentWebCreateTool(
                         {
                             type: "link",
                             url: pageLinkPathname,
-                            children: [{type: "text", value: printAgentWebPageLinkLabel(pageLink)}],
+                            children: [
+                                {type: "text", value: printAgentWebPageStoredLinkLabel(pageLink)},
+                            ],
                         },
                         {type: "text", value: "."},
                     ],
@@ -171,7 +173,7 @@ async function createAgentWebPageLink(
     context: AgentWebContext,
     originalType: string,
     content: Root,
-): Promise<{noun: string; pageMetadata: AgentWebPageMetadata; pageLink: AgentWebPageLink}> {
+): Promise<{noun: string; pageMetadata: AgentWebPageMetadata; pageLink: AgentWebPageStoredLink}> {
     // Stem and lowercase whatever random stuff the agent decides to throw at us.
     // Though we tell the agent to use whatever is in the path prefix (e.g. `document`
     // in `/document/cool-thing`, but we want to support `documents`).

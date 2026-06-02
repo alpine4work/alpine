@@ -39,8 +39,8 @@ export function createAgentWebSessionStorageForTest(
     const storage: AgentWebSessionStorage & {deleteAll(): Promise<void>} = {
         spaceId,
         mutex: new Mutex(),
-        pageLinkByPathname: createAgentWebSessionStorageCollection(),
-        latestPageLinkPathnameByKey: createAgentWebSessionStorageCollection(),
+        pageStoredLinkByPathname: createAgentWebSessionStorageCollection(),
+        latestPageStoredLinkPathnameByKey: createAgentWebSessionStorageCollection(),
         urlByTruncatedUrl: createAgentWebSessionStorageCollection(),
         dedupeNumberByTruncatedUrlAndUrl: createAgentWebSessionStorageCollection(),
         documentCommentThreadNumberById: createAgentWebSessionStorageCollection(),

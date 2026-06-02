@@ -1,13 +1,13 @@
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {
     ApiMentionTargetResponse,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-export function createApiTargetAgentWebPageLink(
+export function createApiTargetAgentWebPageStoredLink(
     target: ApiMentionTargetResponse | ApiSearchResult,
-): AgentWebPageLink {
+): AgentWebPageStoredLink {
     switch (target.type) {
         case "Account":
         case "Chat":

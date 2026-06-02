@@ -1,6 +1,6 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
-import {printAgentWebPageLinkPathname} from "~/server/agents/web/agent_web_page_link.js";
+import {printAgentWebPageStoredLinkPathname} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
@@ -49,7 +49,7 @@ async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): 
 
     await printApiContentToAgentWebMarkdown(context.storage, content);
 
-    return printAgentWebPageLinkPathname({type: "Document", id: documentId, title}, 1);
+    return printAgentWebPageStoredLinkPathname({type: "Document", id: documentId, title}, 1);
 }
 
 async function seedReadCacheViaRead({

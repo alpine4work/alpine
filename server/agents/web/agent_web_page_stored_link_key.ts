@@ -13,7 +13,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type AgentWebPageLinkKey =
+export type AgentWebPageStoredLinkKey =
     | `Account:${AccountId}`
     | `Channel:${ChannelId}`
     | `Chat:${ChatId}`
@@ -27,7 +27,7 @@ export type AgentWebPageLinkKey =
     | `TaskCollection:${TaskCollectionId}`
     | `File:${FileId}`;
 
-export type AgentWebPageLinkKeyObject =
+export type AgentWebPageStoredLinkKeyObject =
     | {
           readonly type: "Account";
           readonly id: AccountId;
@@ -83,7 +83,9 @@ export type AgentWebPageLinkKeyObject =
           readonly id: FileId;
       };
 
-export function printAgentWebPageLinkKey(key: AgentWebPageLinkKeyObject): AgentWebPageLinkKey {
+export function printAgentWebPageStoredLinkKey(
+    key: AgentWebPageStoredLinkKeyObject,
+): AgentWebPageStoredLinkKey {
     switch (key.type) {
         case "Account":
             return `Account:${key.id}`;
@@ -114,7 +116,9 @@ export function printAgentWebPageLinkKey(key: AgentWebPageLinkKeyObject): AgentW
     }
 }
 
-export function parseAgentWebPageLinkKey(key: AgentWebPageLinkKey): AgentWebPageLinkKeyObject {
+export function parseAgentWebPageStoredLinkKey(
+    key: AgentWebPageStoredLinkKey,
+): AgentWebPageStoredLinkKeyObject {
     const [type = "", data = ""] = key.split(":", 2);
 
     switch (type) {

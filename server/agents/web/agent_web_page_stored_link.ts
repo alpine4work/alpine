@@ -1,4 +1,4 @@
-import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.js";
+import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.js";
 import {ApiMentionTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FileContentType,
@@ -21,7 +21,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type AgentWebPageLink =
+export type AgentWebPageStoredLink =
     | ApiMentionTargetResponse
     | {
           readonly type: "ChatMessage";
@@ -59,28 +59,22 @@ export type AgentWebPageLink =
           readonly contentLength: number;
       };
 
-// NOCOMMIT: Use this??
-type AgentWebPageMentionLink = Extract<
-    AgentWebPageLink,
-    {type: "Account" | "Channel" | "Chat" | "Document" | "Post" | "Task" | "TaskCollection"}
->;
-
-assertAssignableTypes<AgentWebPageLink, AgentWebPageLinkKeyObject>();
+assertAssignableTypes<AgentWebPageStoredLink, AgentWebPageStoredLinkKeyObject>();
 
 /**
  * Prints a human readable path for an agent web page link. When a page link is
  * printed to Markdown this is the `path` part in `[label](path)`.
- * `printAgentWebPageLinkLabel(page)` prints the `label` part.
+ * `printAgentWebPageStoredLinkLabel(page)` prints the `label` part.
  *
  * Page paths must be unique. If two pages coincidentally have the same path then
  * we'll increment `dedupeNumber` and try to print a new path until we find a
  * unique path.
  */
-export function printAgentWebPageLinkPathname(
-    link: AgentWebPageLink,
+export function printAgentWebPageStoredLinkPathname(
+    link: AgentWebPageStoredLink,
     dedupeNumber: number,
 ): string {
-    const path = actuallyPrintAgentWebPageLinkPathname(link, dedupeNumber);
+    const path = actuallyPrintAgentWebPageStoredLinkPathname(link, dedupeNumber);
 
     // Validation in development and tests that we actually use `dedupeNumber` to
     // create a unique path.
@@ -92,7 +86,7 @@ export function printAgentWebPageLinkPathname(
         assert(!path.includes("#"));
 
         assert(
-            path !== actuallyPrintAgentWebPageLinkPathname(link, dedupeNumber + 1),
+            path !== actuallyPrintAgentWebPageStoredLinkPathname(link, dedupeNumber + 1),
             "Printed agent web page path must include dedupe number",
         );
     }
@@ -100,8 +94,8 @@ export function printAgentWebPageLinkPathname(
     return path;
 }
 
-function actuallyPrintAgentWebPageLinkPathname(
-    link: AgentWebPageLink,
+function actuallyPrintAgentWebPageStoredLinkPathname(
+    link: AgentWebPageStoredLink,
     dedupeNumber: number,
 ): string {
     const dedupe = dedupeNumber > 1 ? `-${dedupeNumber}` : "";
@@ -170,9 +164,9 @@ function slugify(string: string) {
 /**
  * Prints a human readable label for an agent web page link. When a page link is
  * printed to Markdown this is the `label` part in `[label](path)`.
- * `printAgentWebPageLinkPath(page)` prints the `path` part.
+ * `printAgentWebPageStoredLinkPath(page)` prints the `path` part.
  */
-export function printAgentWebPageLinkLabel(link: AgentWebPageLink): string {
+export function printAgentWebPageStoredLinkLabel(link: AgentWebPageStoredLink): string {
     switch (link.type) {
         case "Account":
         case "Channel":

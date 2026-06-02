@@ -4,11 +4,11 @@ import {
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
 import {
-    AgentWebPageLink,
-    printAgentWebPageLinkLabel,
-} from "~/server/agents/web/agent_web_page_link.js";
+    AgentWebPageStoredLink,
+    printAgentWebPageStoredLinkLabel,
+} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
@@ -113,12 +113,12 @@ export async function readAgentWebChatPage(
         searchParams,
         limitLength,
         printPage,
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
-        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const result = await readAgentWebMessagingPage(context, {
@@ -129,7 +129,7 @@ export async function readAgentWebChatPage(
         searchParams,
         limitLength,
         printPage: page => printPage(buildAgentWebChatPage(page, id)),
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     });
 
     return {
@@ -145,11 +145,11 @@ export async function readAgentWebChatMessagePage(
     {
         limitLength,
         printPage,
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     }: {
         limitLength: number;
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
-        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const result = await readAgentWebMessagingPageAroundMessage(context, {
@@ -159,7 +159,7 @@ export async function readAgentWebChatMessagePage(
         around: {startMessageIndex: index, endMessageIndex: index + 1},
         limitLength,
         printPage: page => printPage(buildAgentWebChatPage(page, id)),
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     });
 
     return {
@@ -212,7 +212,7 @@ export async function createAgentWebChatPage(
     newPage: AgentWebChatPage,
 ): Promise<{
     pageMetadata: AgentWebChatPageMetadata;
-    pageLink: Extract<AgentWebPageLink, {type: "Chat"}>;
+    pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}>;
 }> {
     let wasCreated = false;
 
@@ -239,7 +239,7 @@ export async function createAgentWebChatPage(
             },
         });
 
-        const pageLink: Extract<AgentWebPageLink, {type: "Chat"}> = {
+        const pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}> = {
             type: "Chat",
             id: chat.id,
             title: chat.type === "Direct" ? chat.title : chat.name,
@@ -256,7 +256,7 @@ export async function createAgentWebChatPage(
             context,
             async () => {
                 const {pageLink} = await createPromise.get();
-                return await createAgentWebPageLinkPathname(context.storage, pageLink);
+                return await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
             },
             async () => {
                 const {chat} = await createPromise.get();
@@ -298,7 +298,10 @@ export async function createAgentWebChatPage(
                 assert(index >= 0);
                 assert(Number.isInteger(index));
 
-                const pathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
+                const pathname = await createAgentWebPageStoredLinkPathname(
+                    context.storage,
+                    pageLink,
+                );
 
                 const chatSummaryEntries: Array<string> = [
                     ...chat.members.slice(0, 2).map(member => member.account.shortName),
@@ -317,7 +320,7 @@ export async function createAgentWebChatPage(
                         updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
                         {
                             cause: error,
-                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageLinkLabel(pageLink)}](${pathname}). ${newMessages.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessages.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessages.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${index}\`.`,
+                            displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageStoredLinkLabel(pageLink)}](${pathname}). ${newMessages.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessages.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessages.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${index}\`.`,
                         },
                     ),
                     {newMessages},

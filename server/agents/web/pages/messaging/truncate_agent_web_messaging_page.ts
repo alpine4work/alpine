@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import escapeHtml from "escape-html";
 import {Paragraph, Parent, PhrasingContent, RootContent} from "mdast";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -50,7 +50,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
         contextFormattedTimeZone,
         page,
         response,
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     }: {
         limitLength: number;
         roomMetadataTarget: ApiMentionTargetResponse;
@@ -61,7 +61,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
         contextFormattedTimeZone: string;
         page: AgentWebMessagingPage<Preamble>;
         response: string;
-        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{
     truncatedResponse: string;
@@ -85,7 +85,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.nextLink) {
-                roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
+                roomTargetPathname = await createPageStoredLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
                     // We need double newlines when adding after a heading and a single space when
@@ -239,7 +239,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.previousLink) {
-                roomTargetPathname = await createPageLinkPathname(roomMetadataTarget);
+                roomTargetPathname = await createPageStoredLinkPathname(roomMetadataTarget);
 
                 truncateLength +=
                     // We need double newlines when adding after a heading and a single space when
@@ -486,7 +486,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         contextFormattedTimeZone,
         page,
         response,
-        createPageLinkPathname,
+        createPageStoredLinkPathname,
     }: {
         limitLength: number;
         roomMetadataTarget: ApiMentionTargetResponse;
@@ -497,7 +497,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         contextFormattedTimeZone: string;
         page: AgentWebMessagingPage<Preamble>;
         response: string;
-        createPageLinkPathname: (pageLink: AgentWebPageLink) => Promise<string>;
+        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{
     truncatedResponse: string;
@@ -555,7 +555,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.previousLink) {
-        roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
+        roomTargetPathname ??= await createPageStoredLinkPathname(roomMetadataTarget);
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when
@@ -574,7 +574,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.nextLink) {
-        roomTargetPathname ??= await createPageLinkPathname(roomMetadataTarget);
+        roomTargetPathname ??= await createPageStoredLinkPathname(roomMetadataTarget);
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when

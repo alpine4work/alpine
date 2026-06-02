@@ -1,8 +1,8 @@
 import escapeHtml from "escape-html";
 import {Link, PhrasingContent, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createApiTargetAgentWebPageLink} from "~/server/agents/web/create_api_target_agent_web_page_link.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
+import {createApiTargetAgentWebPageStoredLink} from "~/server/agents/web/create_api_target_agent_web_page_stored_link.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMessageBlockParent,
@@ -109,8 +109,8 @@ export async function printAgentWebMessagingPage<PageLink, Preamble>(
                     const pagination = page.pagination;
                     if (!pagination) return [];
 
-                    const pageLink = createApiTargetAgentWebPageLink(pagination.target);
-                    const pathname = await createAgentWebPageLinkPathname(storage, pageLink);
+                    const pageLink = createApiTargetAgentWebPageStoredLink(pagination.target);
+                    const pathname = await createAgentWebPageStoredLinkPathname(storage, pageLink);
 
                     const paginationLinks: Array<PhrasingContent> = [];
 
@@ -167,10 +167,10 @@ export async function printAgentWebMessagingPage<PageLink, Preamble>(
                 // The order of calls in this function matters and needs to match the normalization
                 // order in `normalizeAgentWebMessagingPage()`.
                 const [authorPathname, parent, contentTree] = await runAllPromises([
-                    createAgentWebPageLinkPathname(storage, block.author),
+                    createAgentWebPageStoredLinkPathname(storage, block.author),
                     block.parent
                         ? runAllObjectPromises({
-                              authorPathname: createAgentWebPageLinkPathname(
+                              authorPathname: createAgentWebPageStoredLinkPathname(
                                   storage,
                                   block.parent.author,
                               ),

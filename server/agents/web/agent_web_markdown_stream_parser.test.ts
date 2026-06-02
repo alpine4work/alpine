@@ -1941,37 +1941,37 @@ test("streams file gallery rows as their HTML completes", async () => {
     const file5Id = generateChronologicalId<FileId>();
     const file6Id = generateChronologicalId<FileId>();
 
-    await storage.pageLinkByPathname.put("/file/image.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image.png", {
         type: "File",
         id: file1Id,
         contentType: "image/png",
         contentLength: 100,
     });
-    await storage.pageLinkByPathname.put("/file/image-2.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image-2.png", {
         type: "File",
         id: file2Id,
         contentType: "image/png",
         contentLength: 200,
     });
-    await storage.pageLinkByPathname.put("/file/image-3.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image-3.png", {
         type: "File",
         id: file3Id,
         contentType: "image/png",
         contentLength: 300,
     });
-    await storage.pageLinkByPathname.put("/file/image-4.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image-4.png", {
         type: "File",
         id: file4Id,
         contentType: "image/png",
         contentLength: 400,
     });
-    await storage.pageLinkByPathname.put("/file/image-5.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image-5.png", {
         type: "File",
         id: file5Id,
         contentType: "image/png",
         contentLength: 500,
     });
-    await storage.pageLinkByPathname.put("/file/image-6.png", {
+    await storage.pageStoredLinkByPathname.put("/file/image-6.png", {
         type: "File",
         id: file6Id,
         contentType: "image/png",
