@@ -2287,54 +2287,84 @@ Resources:
                                 inputs:
                                     commands:
                                         - set -ex
-                                        - rm -rf /tmp/alpine-runner-image && mkdir -p
-                                          /tmp/alpine-runner-image
                                         - Fn::Join:
                                               - ""
-                                              - - source_bundle_key="$(aws ssm get-parameter --name '
+                                              - - >-
+                                                    set -euo pipefail
+
+                                                    rm -rf /tmp/alpine-runner-image
+
+                                                    mkdir -p /tmp/alpine-runner-image
+                                                    /opt/alpine-runner-image
+
+                                                    source_bundle_key="$(aws ssm get-parameter --name
+                                                    '
                                                 - Ref: GithubRunnersTestRunnerAsgProviderAmiSourceBundleKeyParameter1EBC150B
-                                                - "' --query 'Parameter.Value' --output text)\" &&
-                                                  test -n \"$source_bundle_key\" && test
-                                                  \"$source_bundle_key\" != \"uninitialized\" && aws
-                                                  s3 cp
-                                                  \"s3://cyberworlds-github-runner-source-bundle/$s\
-                                                  ource_bundle_key\"
-                                                  /tmp/alpine-runner-image/cyberworlds-main.tar.gz"
-                                        - rm -rf /home/runner/_work/cyberworlds && mkdir -p
-                                          /home/runner/_work/cyberworlds/cyberworlds && tar -xzf
-                                          /tmp/alpine-runner-image/cyberworlds-main.tar.gz -C
-                                          /home/runner/_work/cyberworlds/cyberworlds && chown -R
-                                          runner:runner /home/runner/_work
-                                        - sudo -Hu runner bash -lc 'if git -C
-                                          /home/runner/_work/cyberworlds/cyberworlds remote get-url
-                                          origin >/dev/null 2>&1; then git -C
-                                          /home/runner/_work/cyberworlds/cyberworlds remote set-url
-                                          origin https://github.com/cyberworlds/cyberworlds.git;
-                                          else git -C /home/runner/_work/cyberworlds/cyberworlds
-                                          remote add origin
-                                          https://github.com/cyberworlds/cyberworlds.git; fi' &&
-                                          sudo -Hu runner git -C
-                                          /home/runner/_work/cyberworlds/cyberworlds checkout -B
-                                          main HEAD && sudo -Hu runner git -C
-                                          /home/runner/_work/cyberworlds/cyberworlds reset --hard
-                                          HEAD
-                                        - Fn::Join:
-                                              - ""
-                                              - - mkdir -p /opt/alpine-runner-image && aws ssm
-                                                  get-parameter --name '
+                                                - |-
+                                                    ' --query 'Parameter.Value' --output text)"
+                                                    bazel_cache_key="$(aws ssm get-parameter --name '
                                                 - Ref: GithubRunnersTestRunnerAsgProviderAmiBazelCacheKeyParameter8CEDCAAF
-                                                - "' --query 'Parameter.Value' --output text >
-                                                  /opt/alpine-runner-image/bazel-cache-key && chown
-                                                  -R runner:runner /opt/alpine-runner-image"
-                                        - sudo -Hu runner bash -lc 'cd
-                                          /home/runner/_work/cyberworlds/cyberworlds &&
-                                          admin/bin/bazel
-                                          --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch
-                                          //... --config=github-runner --remote_cache=
-                                          --build_tests_only --test_tag_filters=-macos &&
-                                          admin/bin/bazel
-                                          --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build
-                                          //:node_modules --config=github-runner --remote_cache='
+                                                - >-
+                                                    ' --query 'Parameter.Value' --output text)"
+
+                                                    printf '%s\n' "$bazel_cache_key" >
+                                                    /opt/alpine-runner-image/bazel-cache-key
+
+                                                    chown -R runner:runner /opt/alpine-runner-image
+
+                                                    if [ -z "$source_bundle_key" ] || [
+                                                    "$source_bundle_key" = "uninitialized" ] || [ -z
+                                                    "$bazel_cache_key" ] || [ "$bazel_cache_key" =
+                                                    "uninitialized" ]; then
+                                                        echo 'No published AMI image cache is available yet; leaving this runner image cache cold.'
+                                                        exit 0
+                                                    fi
+
+                                                    aws s3 cp
+                                                    "s3://cyberworlds-github-runner-source-bundle/$source_bundle_key"
+                                                    /tmp/alpine-runner-image/cyberworlds-main.tar.gz
+
+                                                    rm -rf /home/runner/_work/cyberworlds
+
+                                                    mkdir -p
+                                                    /home/runner/_work/cyberworlds/cyberworlds
+
+                                                    tar -xzf
+                                                    /tmp/alpine-runner-image/cyberworlds-main.tar.gz
+                                                    -C /home/runner/_work/cyberworlds/cyberworlds
+
+                                                    chown -R runner:runner /home/runner/_work
+
+                                                    sudo -Hu runner bash -lc 'if git -C
+                                                    /home/runner/_work/cyberworlds/cyberworlds remote
+                                                    get-url origin >/dev/null 2>&1; then git -C
+                                                    /home/runner/_work/cyberworlds/cyberworlds remote
+                                                    set-url origin
+                                                    https://github.com/cyberworlds/cyberworlds.git;
+                                                    else git -C
+                                                    /home/runner/_work/cyberworlds/cyberworlds remote
+                                                    add origin
+                                                    https://github.com/cyberworlds/cyberworlds.git;
+                                                    fi'
+
+                                                    sudo -Hu runner git -C
+                                                    /home/runner/_work/cyberworlds/cyberworlds
+                                                    checkout -B main HEAD
+
+                                                    sudo -Hu runner git -C
+                                                    /home/runner/_work/cyberworlds/cyberworlds reset
+                                                    --hard HEAD
+
+                                                    sudo -Hu runner bash -lc 'cd
+                                                    /home/runner/_work/cyberworlds/cyberworlds &&
+                                                    admin/bin/bazel
+                                                    --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc
+                                                    fetch //... --config=github-runner --remote_cache=
+                                                    --build_tests_only --test_tag_filters=-macos &&
+                                                    admin/bin/bazel
+                                                    --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc
+                                                    build //:node_modules --config=github-runner
+                                                    --remote_cache='
                 description: Component 8 Custom-PopulateCyberworldsImageCache
         UpdateReplacePolicy: Retain
         DeletionPolicy: Retain
@@ -2352,39 +2382,43 @@ Resources:
                         Custom-PopulateCyberworldsImageCache\",\"schemaVersion\":\"1.0\",\"phases\"\
                         :[{\"name\":\"build\",\"steps\":[{\"name\":\"Download\",\"action\":\"S3Down\
                         load\",\"inputs\":[]},{\"name\":\"Run\",\"action\":\"ExecuteBash\",\"inputs\
-                        \":{\"commands\":[\"set -ex\",\"rm -rf /tmp/alpine-runner-image && mkdir -p
-                        /tmp/alpine-runner-image\",\"source_bundle_key=\\\"$(aws ssm get-parameter
+                        \":{\"commands\":[\"set -ex\",\"set -euo pipefail\\nrm -rf
+                        /tmp/alpine-runner-image\\nmkdir -p /tmp/alpine-runner-image
+                        /opt/alpine-runner-image\\nsource_bundle_key=\\\"$(aws ssm get-parameter
                         --name '"
                       - Ref: GithubRunnersTestRunnerAsgProviderAmiSourceBundleKeyParameter1EBC150B
-                      - "' --query 'Parameter.Value' --output text)\\\" && test -n
-                        \\\"$source_bundle_key\\\" && test \\\"$source_bundle_key\\\" !=
-                        \\\"uninitialized\\\" && aws s3 cp
+                      - "' --query 'Parameter.Value' --output text)\\\"\\nbazel_cache_key=\\\"$(aws
+                        ssm get-parameter --name '"
+                      - Ref: GithubRunnersTestRunnerAsgProviderAmiBazelCacheKeyParameter8CEDCAAF
+                      - "' --query 'Parameter.Value' --output text)\\\"\\nprintf '%s\\\\n'
+                        \\\"$bazel_cache_key\\\" > /opt/alpine-runner-image/bazel-cache-key\\nchown
+                        -R runner:runner /opt/alpine-runner-image\\nif [ -z
+                        \\\"$source_bundle_key\\\" ] || [ \\\"$source_bundle_key\\\" =
+                        \\\"uninitialized\\\" ] || [ -z \\\"$bazel_cache_key\\\" ] || [
+                        \\\"$bazel_cache_key\\\" = \\\"uninitialized\\\" ]; then\\n    echo 'No
+                        published AMI image cache is available yet; leaving this runner image cache
+                        cold.'\\n    exit 0\\nfi\\naws s3 cp
                         \\\"s3://cyberworlds-github-runner-source-bundle/$source_bundle_key\\\"
-                        /tmp/alpine-runner-image/cyberworlds-main.tar.gz\",\"rm -rf
-                        /home/runner/_work/cyberworlds && mkdir -p
-                        /home/runner/_work/cyberworlds/cyberworlds && tar -xzf
+                        /tmp/alpine-runner-image/cyberworlds-main.tar.gz\\nrm -rf
+                        /home/runner/_work/cyberworlds\\nmkdir -p
+                        /home/runner/_work/cyberworlds/cyberworlds\\ntar -xzf
                         /tmp/alpine-runner-image/cyberworlds-main.tar.gz -C
-                        /home/runner/_work/cyberworlds/cyberworlds && chown -R runner:runner
-                        /home/runner/_work\",\"sudo -Hu runner bash -lc 'if git -C
+                        /home/runner/_work/cyberworlds/cyberworlds\\nchown -R runner:runner
+                        /home/runner/_work\\nsudo -Hu runner bash -lc 'if git -C
                         /home/runner/_work/cyberworlds/cyberworlds remote get-url origin >/dev/null
                         2>&1; then git -C /home/runner/_work/cyberworlds/cyberworlds remote set-url
                         origin https://github.com/cyberworlds/cyberworlds.git; else git -C
                         /home/runner/_work/cyberworlds/cyberworlds remote add origin
-                        https://github.com/cyberworlds/cyberworlds.git; fi' && sudo -Hu runner git
-                        -C /home/runner/_work/cyberworlds/cyberworlds checkout -B main HEAD && sudo
-                        -Hu runner git -C /home/runner/_work/cyberworlds/cyberworlds reset --hard
-                        HEAD\",\"mkdir -p /opt/alpine-runner-image && aws ssm get-parameter --name
-                        '"
-                      - Ref: GithubRunnersTestRunnerAsgProviderAmiBazelCacheKeyParameter8CEDCAAF
-                      - ''' --query ''Parameter.Value'' --output text >
-                        /opt/alpine-runner-image/bazel-cache-key && chown -R runner:runner
-                        /opt/alpine-runner-image","sudo -Hu runner bash -lc ''cd
+                        https://github.com/cyberworlds/cyberworlds.git; fi'\\nsudo -Hu runner git -C
+                        /home/runner/_work/cyberworlds/cyberworlds checkout -B main HEAD\\nsudo -Hu
+                        runner git -C /home/runner/_work/cyberworlds/cyberworlds reset --hard
+                        HEAD\\nsudo -Hu runner bash -lc 'cd
                         /home/runner/_work/cyberworlds/cyberworlds && admin/bin/bazel
                         --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //...
                         --config=github-runner --remote_cache= --build_tests_only
                         --test_tag_filters=-macos && admin/bin/bazel
                         --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules
-                        --config=github-runner --remote_cache=''"]}}]}]}'
+                        --config=github-runner --remote_cache='\"]}}]}]}"
             Description: Component 8 Custom-PopulateCyberworldsImageCache
             Name: CyberworldsLifecycleStack-GithubRunners-TestRunnerAsgProvidmageBuilder-Component8Custom-PopulateCyberworldsImageCache-7F56117F
             Platform: Linux

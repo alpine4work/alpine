@@ -147,35 +147,33 @@ export function awsGithubTestRunnerImageBuilderComponents(
         RunnerImageComponent.custom({
             name: "PopulateCyberworldsImageCache",
             commands: [
-                "rm -rf /tmp/alpine-runner-image && mkdir -p /tmp/alpine-runner-image",
                 [
+                    "set -euo pipefail",
+                    "rm -rf /tmp/alpine-runner-image",
+                    "mkdir -p /tmp/alpine-runner-image /opt/alpine-runner-image",
                     `source_bundle_key="$(aws ssm get-parameter --name '${amiSourceBundleKeyParameterName}' --query 'Parameter.Value' --output text)"`,
-                    `test -n "$source_bundle_key"`,
-                    `test "$source_bundle_key" != "uninitialized"`,
+                    `bazel_cache_key="$(aws ssm get-parameter --name '${bazelCacheKeyParameterName}' --query 'Parameter.Value' --output text)"`,
+                    `printf '%s\\n' "$bazel_cache_key" > /opt/alpine-runner-image/bazel-cache-key`,
+                    "chown -R runner:runner /opt/alpine-runner-image",
+                    `if [ -z "$source_bundle_key" ] || [ "$source_bundle_key" = "uninitialized" ] || [ -z "$bazel_cache_key" ] || [ "$bazel_cache_key" = "uninitialized" ]; then`,
+                    "    echo 'No published AMI image cache is available yet; leaving this runner image cache cold.'",
+                    "    exit 0",
+                    "fi",
                     `aws s3 cp "s3://${amiSourceBundleBucketName}/$source_bundle_key" /tmp/alpine-runner-image/cyberworlds-main.tar.gz`,
-                ].join(" && "),
-                [
                     "rm -rf /home/runner/_work/cyberworlds",
                     "mkdir -p /home/runner/_work/cyberworlds/cyberworlds",
                     "tar -xzf /tmp/alpine-runner-image/cyberworlds-main.tar.gz -C /home/runner/_work/cyberworlds/cyberworlds",
                     "chown -R runner:runner /home/runner/_work",
-                ].join(" && "),
-                [
                     "sudo -Hu runner bash -lc 'if git -C /home/runner/_work/cyberworlds/cyberworlds remote get-url origin >/dev/null 2>&1; then git -C /home/runner/_work/cyberworlds/cyberworlds remote set-url origin https://github.com/cyberworlds/cyberworlds.git; else git -C /home/runner/_work/cyberworlds/cyberworlds remote add origin https://github.com/cyberworlds/cyberworlds.git; fi'",
                     "sudo -Hu runner git -C /home/runner/_work/cyberworlds/cyberworlds checkout -B main HEAD",
                     "sudo -Hu runner git -C /home/runner/_work/cyberworlds/cyberworlds reset --hard HEAD",
-                ].join(" && "),
-                [
-                    "mkdir -p /opt/alpine-runner-image",
-                    `aws ssm get-parameter --name '${bazelCacheKeyParameterName}' --query 'Parameter.Value' --output text > /opt/alpine-runner-image/bazel-cache-key`,
-                    "chown -R runner:runner /opt/alpine-runner-image",
-                ].join(" && "),
-                [
-                    "sudo -Hu runner bash -lc",
-                    `'cd /home/runner/_work/cyberworlds/cyberworlds`,
-                    "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos",
-                    "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache='",
-                ].join(" "),
+                    [
+                        "sudo -Hu runner bash -lc",
+                        `'cd /home/runner/_work/cyberworlds/cyberworlds`,
+                        "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos",
+                        "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache='",
+                    ].join(" "),
+                ].join("\n"),
             ],
         }),
     ];
