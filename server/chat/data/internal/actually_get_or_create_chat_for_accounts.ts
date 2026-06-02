@@ -21,6 +21,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -207,7 +208,9 @@ export function actuallyGetOrCreateChatForAccounts(
                 ]);
 
             if (isActorBotAccount && otherAccounts.every(account => account.botId)) {
-                throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts");
+                throw new PermissionDeniedError("Can\u2019t create a chat with only bot accounts", {
+                    displayMessage: errorDisplayMessage`Can\u2019t create a chat with only bot accounts. Try again but include at least one human account in the chat.`,
+                });
             }
 
             // If the optimistic `ChatId` does not exist then create a new chat with the
