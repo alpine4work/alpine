@@ -51,7 +51,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                         throw new UnimplementedError(
                             "Getting direct chats that don\u2019t include the bot account isn\u2019t implemented (but it could be)",
                             {
-                                displayMessage: errorDisplayMessage`Must include the current bot in \`accountIds\`. We may add support for getting a chat by \`accountIds\` that doesn\u2019t include the current bot in the future because bots are allowed to read chats they aren\u2019t in if the chat is within their access scope.`,
+                                displayMessage: errorDisplayMessage`Must include the current bot in \`accountIds\`. We may add support for creating a chat by \`accountIds\` that doesn\u2019t include the current bot in the future because bots are allowed to read chats they aren\u2019t in if the chat is within their access scope.`,
                             },
                         );
                     }
