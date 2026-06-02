@@ -1,3 +1,7 @@
+// NOTE: We mostly use documents in this file to test general
+// `callAgentWebReadTool()` behavior. For document-specific tests see
+// `server/agents/web/call_agent_web_read_tool_document.test.ts`.
+
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";

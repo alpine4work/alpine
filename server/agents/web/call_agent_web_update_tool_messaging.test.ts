@@ -1,3 +1,8 @@
+// NOTE: We mostly use chats in this file to test general
+// `updateAgentWebMessagingPage()` behavior through `callAgentWebUpdateTool()`. For
+// chat-specific tests see
+// `server/agents/web/call_agent_web_update_tool_chat.test.ts`.
+
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {
@@ -241,52 +246,6 @@ async function readChat({
     });
 
     return await callAgentWebReadTool(readContext, {path, limit});
-}
-
-async function readDirectChat({
-    totalMessageCount,
-    createMessage: actuallyCreateMessage,
-}: {
-    totalMessageCount: number;
-    createMessage?: (index: number) => ApiMessageResponse;
-}): Promise<{path: string; response: string}> {
-    const directChatId = generateId<ChatId>();
-    const path = await createAgentWebPageLinkPathname(storage, {
-        type: "Chat",
-        id: directChatId,
-        title: "Alice and Bob",
-    });
-
-    api.mockGet(
-        "/chats/{id}",
-        {
-            data: {
-                spaceId,
-                chat: {
-                    type: "Direct",
-                    id: directChatId,
-                    title: "Alice and Bob",
-                    members: [{account: aliceAccount}, {account: bobAccount}],
-                },
-            },
-        },
-        {path: {id: directChatId}},
-    );
-
-    mockApiGetChatMessages(api, {
-        spaceId,
-        chatId: directChatId,
-        from: "End",
-        totalMessageCount,
-        limit: 30,
-        createMessage:
-            actuallyCreateMessage ??
-            (index => createMessage({index, author: index % 2 === 0 ? aliceAccount : bobAccount})),
-    });
-
-    const response = await callAgentWebReadTool(context, {path, limit: "100kb"});
-
-    return {path, response};
 }
 
 function mockCreateMessages({count, startIndex = 0}: {count: number; startIndex?: number}) {
@@ -659,92 +618,6 @@ test("counts newly-created messages without ids when validating the next id (err
             content: createTextContent("New message without id."),
         },
     ]);
-});
-
-test("throws UnimplementedError when converting a direct chat to a room chat", async () => {
-    const {path} = await readDirectChat({totalMessageCount: 1});
-
-    await expect(
-        callAgentWebUpdateTool(context, {
-            path,
-            updates: [
-                {
-                    old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
-                    new: "# Incident Response",
-                    replaceAll: false,
-                },
-            ],
-        }),
-    ).rejects.toThrow(UnimplementedError);
-});
-
-test("rejects changing direct chat members", async () => {
-    const {path} = await readDirectChat({totalMessageCount: 1});
-
-    await expectInvalidUpdateDisplayMessage({
-        path,
-        updates: [
-            {
-                old: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
-                new: "Chat with [Alice](/human/alice).",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Can\u2019t add or remove members from a chat. Instead try calling the `create` tool to create a new chat instead. If you must preserve the chat message history then try using the `update` tool to convert this chat into a named chat room by replacing the chat member list with a markdown h1 with the new chat room name. In most cases it\u2019s better to use the `create` tool to create a new chat because converting to a named chat room is an irreversible decision.",
-    });
-});
-
-test("rejects converting a room chat to a direct chat", async () => {
-    await readChat({totalMessageCount: 2});
-
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "# Incident Response",
-                new: "Chat with [Alice](/human/alice) and [Bob](/human/bob).",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "A named chat room can\u2019t be converted into a direct chat. Try calling the `create` tool to create a new direct chat instead.",
-    });
-});
-
-test("throws UnimplementedError when renaming a room chat", async () => {
-    await readChat({totalMessageCount: 1});
-
-    await expect(
-        callAgentWebUpdateTool(context, {
-            path: chatPath,
-            updates: [
-                {
-                    old: "# Incident Response",
-                    new: "# Escalated Incident Response",
-                    replaceAll: false,
-                },
-            ],
-        }),
-    ).rejects.toThrow(UnimplementedError);
-});
-
-test("rejects preamble edits", async () => {
-    await readChat({
-        totalMessageCount: 1,
-        createMessage: index => createMessage({index, content: "Existing message"}),
-    });
-
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "# Incident Response",
-                new: "## Incident Response",
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "Chat markdown must start with \u201CChat with\u201D followed by a list of chat members (e.g. `Chat with [John](/human/john-doe) and [Jane](/human/jane-doe).` or for chats with 2+ members `Chat with A, B, and C.`). Chat markdown for named chat rooms must start with a markdown h1 (e.g. `# My Chat Room`). Try again with a proper start to chat markdown on line 1.",
-    });
 });
 
 test("rejects pagination link edits", async () => {
@@ -1124,7 +997,7 @@ test("throws UnimplementedError when updating and creating messages together", a
     ]);
 });
 
-test("throws InternalError when updating a cached new message without an id", async () => {
+test("throws UnimplementedError when updating a cached new message without an id", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),

@@ -1,0 +1,87 @@
+import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
+import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+const {span} = testTracer.startSpan("call_agent_web_create_tool.test.ts");
+const api = new ApiClientMock();
+const spaceId = generateId<SpaceId>();
+const storage = createAgentWebSessionStorageForTest(spaceId);
+const context: AgentWebContext = {spaceId, api, storage, span};
+
+function createDocumentContentFromText(text: string): ApiContentResponse {
+    return {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text}],
+            },
+        ],
+    };
+}
+
+function mockCreateDocument({
+    id = generateId<DocumentId>(),
+    title,
+    content,
+    version = 1,
+}: {
+    id?: DocumentId;
+    title: string;
+    content: ApiContentResponse;
+    version?: number;
+}): DocumentId {
+    api.mockPost("/documents", {
+        data: {
+            spaceId,
+            document: {
+                id,
+                title,
+                content,
+                version,
+            },
+        },
+    });
+
+    return id;
+}
+
+test("calls the documents API with parsed document content", async () => {
+    const documentId = generateId<DocumentId>();
+    const content = createDocumentContentFromText("Initial body paragraph.");
+
+    mockCreateDocument({
+        id: documentId,
+        title: "API Created Document",
+        content,
+        version: 7,
+    });
+
+    const responseString = await callAgentWebCreateTool(context, {
+        type: "document",
+        content: `\
+# API Created Document
+
+Initial body paragraph.`,
+    });
+
+    expect(responseString).toEqual(
+        "Create was successful. New document: [API Created Document](/document/api-created-document).\n",
+    );
+    expect(api.getCallCount("POST", "/documents")).toBe(1);
+    expect(api.getRequestHistory()[0]).toMatchObject({
+        method: "POST",
+        path: "/documents",
+        body: {
+            spaceId,
+            document: {
+                title: "API Created Document",
+                content,
+            },
+        },
+    });
+});

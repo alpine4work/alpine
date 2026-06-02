@@ -1,3 +1,7 @@
+// NOTE: We mostly use documents in this file to test general
+// `callAgentWebUpdateTool()` behavior. For document-specific tests see
+// `server/agents/web/call_agent_web_update_tool_document.test.ts`.
+
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageLinkPathname} from "~/server/agents/web/agent_web_page_link.js";
@@ -220,7 +224,7 @@ test("throws for no match when replaceAll is false", async () => {
             path,
             updates: [{old: "Missing", new: "Beta", replaceAll: false}],
         }),
-    ).rejects.toThrow("Couldn’t find a match for the old string");
+    ).rejects.toThrow("Couldn\u2019t find a match for the old string");
 });
 
 test("throws for multiple matches when replaceAll is false", async () => {
@@ -304,7 +308,7 @@ test("replaceAll true with zero matches throws and keeps cached content unchange
             path,
             updates: [{old: "Missing", new: "Beta", replaceAll: true}],
         }),
-    ).rejects.toThrow("Couldn’t find a match for the old string");
+    ).rejects.toThrow("Couldn\u2019t find a match for the old string");
 
     const after = await readFull(path);
     expect(after).toEqual(before);
@@ -406,46 +410,6 @@ test("normalizes path during update lookup", async () => {
     expect(response).toContain("Updated");
 });
 
-test("parse failure for missing title bubbles and keeps cache unchanged", async () => {
-    const {path} = await setupDocument({
-        title: "Main Title",
-        bodyMarkdown: "Body text.",
-    });
-
-    const before = await readFull(path);
-
-    await expect(
-        callAgentWebUpdateTool(context, {
-            path,
-            updates: [{old: "# Main Title", new: "Main Title", replaceAll: false}],
-        }),
-    ).rejects.toThrow("Missing title in document");
-
-    const after = await readFull(path);
-    expect(after).toEqual(before);
-    expect(getDocumentPatchRequests()).toHaveLength(0);
-});
-
-test("parse failure for second h1 bubbles and keeps cache unchanged", async () => {
-    const {path} = await setupDocument({
-        title: "Main Title",
-        bodyMarkdown: "Body text.",
-    });
-
-    const before = await readFull(path);
-
-    await expect(
-        callAgentWebUpdateTool(context, {
-            path,
-            updates: [{old: "Body text.", new: "# Extra\n\nBody text.", replaceAll: false}],
-        }),
-    ).rejects.toThrow("Documents can only have a single heading level 1");
-
-    const after = await readFull(path);
-    expect(after).toEqual(before);
-    expect(getDocumentPatchRequests()).toHaveLength(0);
-});
-
 test("api patch failure bubbles unchanged and keeps cache unchanged", async () => {
     const {path} = await setupDocument({
         title: "PATCH Failure",
@@ -473,32 +437,6 @@ test("api patch failure bubbles unchanged and keeps cache unchanged", async () =
 
     const after = await readFull(path);
     expect(after).toEqual(before);
-});
-
-test("uses updated version from first update as precondition for second update", async () => {
-    const {documentId, path} = await setupDocument({
-        title: "Version Inference",
-        bodyMarkdown: "one two",
-        version: 1,
-    });
-
-    mockDocumentPatch(documentId, 2, 3);
-
-    await callAgentWebUpdateTool(context, {
-        path,
-        updates: [{old: "two", new: "three", replaceAll: false}],
-    });
-
-    await callAgentWebUpdateTool(context, {
-        path,
-        updates: [{old: "three", new: "four", replaceAll: false}],
-    });
-
-    const patchRequests = getDocumentPatchRequests();
-
-    expect(patchRequests).toHaveLength(2);
-    expect((patchRequests[0] as any).body.document.version).toBe(1);
-    expect((patchRequests[1] as any).body.document.version).toBe(2);
 });
 
 test("does not extend cache expiration after update", async () => {

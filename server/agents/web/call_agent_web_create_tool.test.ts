@@ -1,3 +1,7 @@
+// NOTE: We mostly use documents in this file to test general
+// `callAgentWebCreateTool()` behavior. For document-specific tests see
+// `server/agents/web/call_agent_web_create_tool_document.test.ts`.
+
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {printAgentWebPageLinkKey} from "~/server/agents/web/agent_web_page_link_key.js";
@@ -60,42 +64,6 @@ function getCreatedPathname(responseString: string): string {
 
     return assertExists(match?.[1]);
 }
-
-test("calls the documents API with parsed document content", async () => {
-    const documentId = generateId<DocumentId>();
-    const content = createDocumentContentFromText("Initial body paragraph.");
-
-    mockCreateDocument({
-        id: documentId,
-        title: "API Created Document",
-        content,
-        version: 7,
-    });
-
-    const responseString = await callAgentWebCreateTool(context, {
-        type: "document",
-        content: `\
-# API Created Document
-
-Initial body paragraph.`,
-    });
-
-    expect(responseString).toEqual(
-        "Create was successful. New document: [API Created Document](/document/api-created-document).\n",
-    );
-    expect(api.getCallCount("POST", "/documents")).toBe(1);
-    expect(api.getRequestHistory()[0]).toMatchObject({
-        method: "POST",
-        path: "/documents",
-        body: {
-            spaceId,
-            document: {
-                title: "API Created Document",
-                content,
-            },
-        },
-    });
-});
 
 test.each([
     "doc",
