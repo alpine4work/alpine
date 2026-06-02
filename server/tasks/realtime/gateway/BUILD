@@ -7,6 +7,7 @@ ts_project(
     name = "gateway_lib",
     deps = [
         "//:node_modules/@types/node",
+        "//server/helpers/node",
         "//shared/helpers",
     ],
 )
