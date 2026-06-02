@@ -107,18 +107,16 @@ function buildAgentWebChatPageMetadata(
 }
 
 export async function readAgentWebChatPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     id: ChatId,
     {
         searchParams,
         limitLength,
         printPage,
-        createPageStoredLinkPathname,
     }: {
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
-        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const result = await readAgentWebMessagingPage(context, {
@@ -129,7 +127,6 @@ export async function readAgentWebChatPage(
         searchParams,
         limitLength,
         printPage: page => printPage(buildAgentWebChatPage(page, id)),
-        createPageStoredLinkPathname,
     });
 
     return {
@@ -139,17 +136,15 @@ export async function readAgentWebChatPage(
 }
 
 export async function readAgentWebChatMessagePage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     id: ChatId,
     index: number,
     {
         limitLength,
         printPage,
-        createPageStoredLinkPathname,
     }: {
         limitLength: number;
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
-        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
     const result = await readAgentWebMessagingPageAroundMessage(context, {
@@ -159,7 +154,6 @@ export async function readAgentWebChatMessagePage(
         around: {startMessageIndex: index, endMessageIndex: index + 1},
         limitLength,
         printPage: page => printPage(buildAgentWebChatPage(page, id)),
-        createPageStoredLinkPathname,
     });
 
     return {

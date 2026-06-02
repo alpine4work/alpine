@@ -5,8 +5,8 @@ import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_pa
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
 import {createAgentWebPageLinkApiPreviewTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_target_if_possible.js";
-import {getAgentWebPageStoredLinkByPathname} from "~/server/agents/web/internal/get_agent_web_page_stored_link_by_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/internal/route_agent_web_page_link_pathname.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,
@@ -519,12 +519,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // mentionable, `pageLink` will be null. We need to build a plain link for non
                     // mentionable content and we also need to swap the label so something more user
                     // friendly (`mentionLabel`).
-                    //
-                    // NOCOMMIT: Generic page link parsing/handling?
-                    const pageLinkResult = await getAgentWebPageStoredLinkByPathname(
-                        storage,
-                        pathname,
-                    );
+                    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
                     if (!pageLinkResult) return node;
                     const {pageLink} = pageLinkResult;
 
@@ -580,8 +575,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
                 const {pathname} = normalizeAgentWebPath(node.url);
 
-                // NOCOMMIT: Generic page link parsing/handling?
-                const pageLinkResult = await getAgentWebPageStoredLinkByPathname(storage, pathname);
+                const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
                 if (!pageLinkResult) return node;
                 const {pageLink} = pageLinkResult;
 

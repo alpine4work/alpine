@@ -2,9 +2,9 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Link, Node, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
-import {getAgentWebPageStoredLinkByPathname} from "~/server/agents/web/internal/get_agent_web_page_stored_link_by_pathname.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/internal/route_agent_web_page_link_pathname.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
@@ -251,7 +251,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                                 const firstGrandchild = firstChild.children[0]!;
                                 if (firstGrandchild.type !== "link") throw createError();
 
-                                const pageLinkResult = await getAgentWebPageStoredLinkByPathname(
+                                const pageLinkResult = await routeAgentWebPageLinkPathname(
                                     storage,
                                     firstGrandchild.url,
                                 );
@@ -993,7 +993,7 @@ async function parseAgentWebMessagingPagePaginationLink({
         });
     }
 
-    const paginationPageLinkResult = await getAgentWebPageStoredLinkByPathname(storage, pathname);
+    const paginationPageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
 
     if (!paginationPageLinkResult) {
         throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({

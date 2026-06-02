@@ -7,6 +7,10 @@ export type ApiAccountTarget = ApiSpecification.components["schemas"]["AccountTa
 export type ApiAccountTargetResponse =
     ApiSpecification.components["schemas"]["AccountTarget_Response"];
 
+export type ApiTaskTarget = ApiSpecification.components["schemas"]["TaskTarget"];
+
+export type ApiTaskTargetResponse = ApiSpecification.components["schemas"]["TaskTarget_Response"];
+
 export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
 
 export type ApiMentionTargetResponse =

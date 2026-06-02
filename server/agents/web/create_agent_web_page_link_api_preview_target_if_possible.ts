@@ -1,10 +1,9 @@
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {ApiPreviewTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-// NOCOMMIT: How does this interact with stored links vs other kinds of links?
 export function createAgentWebPageLinkApiPreviewTargetIfPossible(
-    link: AgentWebPageStoredLink,
+    link: AgentWebPageLink,
 ): ApiPreviewTargetResponse | null {
     switch (link.type) {
         case "Channel":
@@ -14,6 +13,8 @@ export function createAgentWebPageLinkApiPreviewTargetIfPossible(
         case "Task":
         case "TaskCollection":
             return link;
+        case "TaskMessageList":
+            return link.task;
         case "Account":
         case "ChatMessage":
         case "DocumentMessage":

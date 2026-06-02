@@ -13,6 +13,9 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
+/**
+ * See `AgentWebPageStoredLink` for more information on what this is.
+ */
 export type AgentWebPageStoredLinkKey =
     | `Account:${AccountId}`
     | `Channel:${ChannelId}`

@@ -1,8 +1,7 @@
 import {CalendarDate, fromDate, toCalendarDate} from "@internationalized/date";
 import {differenceInMinutes} from "date-fns";
 import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
-import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.js";
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMessageRange,
@@ -41,7 +40,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 const agentWebMessagingPageApiMessagesBatchCount = 30;
 
 export async function readAgentWebMessagingPage<Preamble>(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     {
         messageNouns,
         room,
@@ -50,7 +49,6 @@ export async function readAgentWebMessagingPage<Preamble>(
         searchParams,
         limitLength,
         printPage,
-        createPageStoredLinkPathname,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
@@ -62,7 +60,6 @@ export async function readAgentWebMessagingPage<Preamble>(
         searchParams: URLSearchParams;
         limitLength: number;
         printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
-        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -165,7 +162,6 @@ export async function readAgentWebMessagingPage<Preamble>(
             around,
             limitLength,
             printPage,
-            createPageStoredLinkPathname,
         });
     }
 
@@ -230,7 +226,8 @@ export async function readAgentWebMessagingPage<Preamble>(
         // Truncate the response to fit within the limit length. This function is carefully
         // written such that we return a string that can be parsed back into a valid
         // messaging page.
-        const result = await truncateAgentWebMessagingPage(messageNouns, {
+        const result = await truncateAgentWebMessagingPage(context.storage, {
+            messageNouns,
             limitLength,
             roomMetadataTarget: roomMetadata.target,
             direction,
@@ -240,7 +237,6 @@ export async function readAgentWebMessagingPage<Preamble>(
             contextFormattedTimeZone,
             page,
             response,
-            createPageStoredLinkPathname,
         });
 
         if (result === null) return {response, metadata: page.metadata};
@@ -249,7 +245,7 @@ export async function readAgentWebMessagingPage<Preamble>(
 }
 
 export async function readAgentWebMessagingPageAroundMessage<Preamble>(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     {
         messageNouns,
         room,
@@ -257,7 +253,6 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         around,
         limitLength,
         printPage,
-        createPageStoredLinkPathname,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomTarget;
@@ -268,7 +263,6 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         around: AgentWebMessagingPageMessageRange;
         limitLength: number;
         printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
-        createPageStoredLinkPathname: (pageLink: AgentWebPageStoredLink) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -332,7 +326,8 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
             // Truncate the response to fit within the limit length. This function is carefully
             // written such that we return a string that can be parsed back into a valid
             // messaging page.
-            const result = await truncateAgentWebMessagingPageAroundMessage(messageNouns, {
+            const result = await truncateAgentWebMessagingPageAroundMessage(context.storage, {
+                messageNouns,
                 limitLength,
                 roomMetadataTarget: roomMetadata.target,
                 around,
@@ -342,7 +337,6 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
                 contextFormattedTimeZone,
                 page,
                 response,
-                createPageStoredLinkPathname,
             });
 
             if (result === null) return {response, metadata: page.metadata};
@@ -382,7 +376,7 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
 }
 
 function buildAgentWebMessagingPageFromApiMessages<Preamble>(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     {
         messageNouns,
         direction,

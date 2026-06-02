@@ -21,6 +21,19 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
+/**
+ * A human-readable link to some stable internal target where the exact path is
+ * stored in `AgentWebSessionStorage`. See the detailed documentation comment on
+ * `AgentWebPageLink` for more information.
+ *
+ * This type contains extra "hydrated" non-canonical data. For example in
+ * `{type: "Document", id: DocumentId, title: string}` `title` is the document
+ * title and considered hydrated non-canonical data because the document title can
+ * change over time.
+ *
+ * For a canonical stored link key that always points to the same underlying data
+ * see `AgentWebPageStoredLinkKey`.
+ */
 export type AgentWebPageStoredLink =
     | ApiMentionTargetResponse
     | {
@@ -115,25 +128,25 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
             return `/chat/${slugify(link.title)}${dedupe}`;
         }
         case "ChatMessage": {
-            return `/chat/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/chat-message/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Document": {
             return `/document/${slugify(link.title)}${dedupe}`;
         }
         case "DocumentMessage": {
-            return `/document-thread/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/document-thread-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Post": {
             return `/post/${slugify(link.title)}${dedupe}`;
         }
         case "PostMessage": {
-            return `/post/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/post-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Task": {
             return `/task/${slugify(link.title)}${dedupe}`;
         }
         case "TaskMessage": {
-            return `/task-comments/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/task-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "TaskCollection": {
             return `/task-collection/${slugify(link.title)}${dedupe}`;

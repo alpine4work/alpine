@@ -3,6 +3,16 @@ import {printAgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
+/**
+ * Get the `AgentWebPageStoredLink` for the given pathname if one exists.
+ *
+ * Returns `null` if no link is found for the given pathname.
+ *
+ * If there's a newer pathname for the underlying content (determined by
+ * `AgentWebPageStoredLinkKey`) then we return it as `latestPathname`. If
+ * `latestPathname` is different from `pathname` then treat it as a 302 HTTP
+ * redirect.
+ */
 export async function getAgentWebPageStoredLinkByPathname(
     storage: AgentWebSessionStorage,
     pathname: string,

@@ -7,6 +7,26 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
+/**
+ * Create the URL pathname for a `AgentWebPageStoredLink`. Return this pathname in
+ * agent web Markdown and the agent can use the pathname with the `read` tool to
+ * retrieve the page content.
+ *
+ * If:
+ *
+ * - We already called with exactly the same `AgentWebPageStoredLink` then we
+ *   return the URL pathname we already created.
+ *
+ * - We called with a `AgentWebPageStoredLink` referencing the same underlying
+ *   content (same `AgentWebPageStoredLinkKey`) then we create a new URL pathname
+ *   (if the URL pathname has changed, e.g. document has been renamed) and mark the
+ *   returned URL pathname as latest.
+ *
+ * - We called with a `AgentWebPageStoredLink` referencing different underlying
+ *   content (different `AgentWebPageStoredLinkKey`) but they happen to have the
+ *   same pathname according to `printAgentWebPageStoredLinkPathname()` then we add
+ *   a dedupe number to the pathname to avoid collisions.
+ */
 export function createAgentWebPageStoredLinkPathname(
     storage: AgentWebSessionStorage,
     pageLink: AgentWebPageStoredLink,

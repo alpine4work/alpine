@@ -1,5 +1,6 @@
 import {AgentWebChatPageWithMetadata} from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {AgentWebDocumentPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_page.js";
+import {AgentWebTaskMessageListPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 
@@ -44,7 +45,8 @@ export type AgentWebPageMetadata = AgentWebPageWithMetadata["metadata"];
  */
 export type AgentWebPageWithMetadata =
     | AgentWebDocumentPageWithMetadata
-    | AgentWebChatPageWithMetadata;
+    | AgentWebChatPageWithMetadata
+    | AgentWebTaskMessageListPageWithMetadata;
 
 // This checks that at the type system level `page.metadata.type === page.type`.
 assertEqualTypes<
