@@ -1,0 +1,131 @@
+name: Build test runner AMI
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: "0 0 * * 1"
+    push:
+        branches:
+            - main
+        paths:
+            # Keep these paths in sync with every Bazel cache-key `hashFiles()`
+            # definition below and in `initialize-bazel-cache/action.yml`. If a
+            # path changes the cache key but does not trigger this workflow, the
+            # image cache will fall behind `main`.
+            - ".bazelversion"
+            - "WORKSPACE"
+            - "pnpm-lock.yaml"
+            - "requirements_lock.txt"
+            - "admin/patches/*.patch"
+            - "admin/patches/bazel/*.patch"
+            - "admin/bazel/third_party/*.bazel"
+            - "admin/aws/internal/aws_github_runner_asg_provider.ts"
+            - "admin/aws/internal/aws_github_test_runner_image_builder_components.ts"
+            - ".github/workflows/build-test-runner-ami.yaml"
+
+concurrency:
+    group: build-test-runner-ami
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    build-test-runner-ami:
+        name: Build test runner AMI
+        runs-on: [self-hosted, aws-ami-builder]
+        env:
+            AWS_REGION: us-east-1
+            # Keep this `hashFiles()` input list in sync with the `push.paths`
+            # trigger above and the matching Bazel cache-key `hashFiles()` in
+            # `initialize-bazel-cache/action.yml`.
+            BAZEL_CACHE_KEY: bazel-Linux-ARM64-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+            AMI_SOURCE_BUNDLE_KEY_PARAMETER_NAME: /cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key
+            AMI_BAZEL_CACHE_KEY_PARAMETER_NAME: /cyberworlds/github-runners/test-runner-asg/bazel-cache-key
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Publish main checkout bundle
+              shell: bash
+              run: |
+                  account_id=$(aws sts get-caller-identity --query 'Account' --output text)
+                  source_bucket_name="cw-ghr-testasg-amisrc-$account_id-$AWS_REGION"
+                  source_bundle_key="main/${GITHUB_SHA}/cyberworlds-main.tar.gz"
+
+                  tar \
+                      --exclude='./node_modules' \
+                      --exclude='./bazel-*' \
+                      --exclude='./.git/objects/pack/*.keep' \
+                      -czf "$RUNNER_TEMP/cyberworlds-main.tar.gz" \
+                      .
+
+                  aws s3 cp \
+                      "$RUNNER_TEMP/cyberworlds-main.tar.gz" \
+                      "s3://$source_bucket_name/$source_bundle_key"
+
+                  aws ssm put-parameter \
+                      --name "$AMI_SOURCE_BUNDLE_KEY_PARAMETER_NAME" \
+                      --type String \
+                      --overwrite \
+                      --value "$source_bundle_key"
+
+                  aws ssm put-parameter \
+                      --name "$AMI_BAZEL_CACHE_KEY_PARAMETER_NAME" \
+                      --type String \
+                      --overwrite \
+                      --value "$BAZEL_CACHE_KEY"
+
+            - name: Start runner image build
+              id: image-build
+              shell: bash
+              run: |
+                  image_pipeline_arn=$(
+                      aws imagebuilder list-image-pipelines \
+                          --query "imagePipelineList[?contains(name, 'TestRunnerAsgProvider-RunnerImageBuilder')].arn | [0]" \
+                          --output text
+                  )
+                  if [ -z "$image_pipeline_arn" ] || [ "$image_pipeline_arn" = "None" ]; then
+                      echo "Could not find the ASG test runner image pipeline." >&2
+                      exit 1
+                  fi
+
+                  image_build_version_arn=$(
+                      aws imagebuilder start-image-pipeline-execution \
+                          --image-pipeline-arn "$image_pipeline_arn" \
+                          --query 'imageBuildVersionArn' \
+                          --output text
+                  )
+                  echo "image-build-version-arn=$image_build_version_arn" >> "$GITHUB_OUTPUT"
+
+            - name: Wait for runner image build
+              shell: bash
+              run: |
+                  image_build_version_arn="${{ steps.image-build.outputs.image-build-version-arn }}"
+                  deadline_epoch=$(( $(date +%s) + 90 * 60 ))
+                  while true; do
+                      image_status=$(
+                          aws imagebuilder get-image \
+                              --image-build-version-arn "$image_build_version_arn" \
+                              --query 'image.state.status' \
+                              --output text
+                      )
+                      case "$image_status" in
+                          AVAILABLE)
+                              exit 0
+                              ;;
+                          BUILDING|CREATING|DISTRIBUTING|INTEGRATING|PENDING|TESTING)
+                              if [ "$(date +%s)" -ge "$deadline_epoch" ]; then
+                                  echo "Timed out waiting for image build $image_build_version_arn" >&2
+                                  exit 1
+                              fi
+                              sleep 60
+                              ;;
+                          *)
+                              echo "Runner image build failed with status: $image_status" >&2
+                              exit 1
+                              ;;
+                      esac
+                  done

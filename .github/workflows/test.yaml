@@ -6,41 +6,28 @@ on:
             - main
 
 jobs:
-    # On ASG-backed runners, warm the exact-key shared cache once before the test
-    # fan-out so later jobs can start after the cache volume is already hydrated.
-    #
-    # We intentionally do not use a job-level `if` here. The test jobs `need` this
-    # job, and GitHub Actions skips downstream `needs` jobs when an upstream job is
-    # skipped. So on legacy branches we run this job and fast exit instead.
-    ensure-cache-volume:
-        name: Ensure cache volume
+    # We intentionally keep this as a real job instead of a job-level `if`. The
+    # test jobs `need` it, and GitHub Actions skips downstream `needs` jobs when
+    # an upstream job is skipped. This lets us centralize `[SKIP CI]` handling so
+    # we stop before spinning up the rest of the runner fan-out.
+    prepare-ci:
+        name: Prepare CI
         runs-on:
             [
                 self-hosted,
                 "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
             ]
         steps:
-            - name: Fast exit on legacy runners
-              if: ${{ !startsWith(github.ref_name, 'CI-ASG/') }}
-              run: echo "Legacy runners do not use the shared cache volume."
-
-            - if: startsWith(github.ref_name, 'CI-ASG/')
-              name: Checkout repo
+            - name: Checkout repo
               uses: actions/checkout@v3
 
             - name: Check for “[SKIP CI]”
-              if: startsWith(github.ref_name, 'CI-ASG/') && github.ref != 'refs/heads/main'
+              if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
-
-            - if: startsWith(github.ref_name, 'CI-ASG/')
-              name: Ensure cache volume
-              uses: ./.github/actions/initialize-bazel-cache
-              with:
-                  start-bazel-remote-cache: "false"
 
     unit-tests:
         name: Unit tests (${{ matrix.bucket }}/2)
-        needs: [ensure-cache-volume]
+        needs: [prepare-ci]
         runs-on:
             [
                 self-hosted,
@@ -54,10 +41,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
-
-            - name: Check for "[SKIP CI]"
-              if: github.ref != 'refs/heads/main'
-              uses: ./.github/actions/check-skip-ci
 
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
@@ -101,7 +84,7 @@ jobs:
 
     integration-tests:
         name: Integration tests (${{ matrix.bucket }}/3)
-        needs: [ensure-cache-volume]
+        needs: [prepare-ci]
         runs-on:
             [
                 self-hosted,
@@ -116,10 +99,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
-
-            - name: Check for "[SKIP CI]"
-              if: github.ref != 'refs/heads/main'
-              uses: ./.github/actions/check-skip-ci
 
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
@@ -165,7 +144,7 @@ jobs:
 
     screenshot-tests:
         name: Screenshot tests
-        needs: [ensure-cache-volume]
+        needs: [prepare-ci]
         runs-on:
             [
                 self-hosted,
@@ -174,10 +153,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
-
-            - name: Check for "[SKIP CI]"
-              if: github.ref != 'refs/heads/main'
-              uses: ./.github/actions/check-skip-ci
 
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
