@@ -35,10 +35,6 @@ jobs:
         runs-on: [self-hosted, aws-ami-builder]
         env:
             AWS_REGION: us-east-1
-            # Keep this `hashFiles()` input list in sync with the `push.paths`
-            # trigger above and the matching Bazel cache-key `hashFiles()` in
-            # `initialize-bazel-cache/action.yml`.
-            BAZEL_CACHE_KEY: bazel-Linux-ARM64-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
             AMI_SOURCE_BUNDLE_KEY_PARAMETER_NAME: /cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key
             AMI_BAZEL_CACHE_KEY_PARAMETER_NAME: /cyberworlds/github-runners/test-runner-asg/bazel-cache-key
         steps:
@@ -50,6 +46,11 @@ jobs:
 
             - name: Publish main checkout bundle
               shell: bash
+              env:
+                  # Keep this `hashFiles()` input list in sync with the
+                  # `push.paths` trigger above and the matching Bazel cache-key
+                  # `hashFiles()` in `initialize-bazel-cache/action.yml`.
+                  BAZEL_CACHE_KEY: bazel-Linux-ARM64-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
               run: |
                   account_id=$(aws sts get-caller-identity --query 'Account' --output text)
                   source_bucket_name="cw-ghr-testasg-amisrc-$account_id-$AWS_REGION"
