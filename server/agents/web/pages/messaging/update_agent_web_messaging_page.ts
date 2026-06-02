@@ -26,6 +26,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -46,8 +47,8 @@ export async function updateAgentWebMessagingPage<Preamble>(
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         pathname: MaybeThunk<MaybePromise<string>>;
-        room: ApiMessageRoomTarget;
-        oldPageMetadata: AgentWebMessagingPageMetadata;
+        room: MaybeThunk<MaybePromise<ApiMessageRoomTarget>>;
+        oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
         oldPage: AgentWebMessagingPage<Preamble>;
         newPage: AgentWebMessagingPage<Preamble>;
     },
@@ -220,8 +221,7 @@ export async function updateAgentWebMessagingPage<Preamble>(
         const newBlock = newPage.blocks[index]!;
 
         if (!oldPage.isEndOfMessages) {
-            const actualPathname =
-                typeof pathname === "function" ? await pathname() : await pathname;
+            const actualPathname = await unwrapMaybeThunk(pathname);
 
             throw new InvalidArgumentError("Can only create messages on the last page", {
                 displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} list. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} list.`,
@@ -286,7 +286,7 @@ export async function updateAgentWebMessagingPage<Preamble>(
 
             const {
                 data: {message},
-            } = await createApiMessage(context.span, context.api, room, {
+            } = await createApiMessage(context.span, context.api, actualRoom, {
                 content: newBlock.content,
             });
 
@@ -311,6 +311,13 @@ export async function updateAgentWebMessagingPage<Preamble>(
             );
         }
     }
+
+    // Call the `room` and `oldPageMetadata` thunks right before actually running
+    // mutations. That way all validation gets a chance to run first.
+    const [actualRoom, actualOldPageMetadata] = await runAllPromises([
+        unwrapMaybeThunk(room),
+        unwrapMaybeThunk(oldPageMetadata),
+    ]);
 
     // Finally now that we're done validating the update, actually make all changes!
     const [, newMessages] = await runAllPromises([
@@ -354,6 +361,6 @@ export async function updateAgentWebMessagingPage<Preamble>(
     }
 
     return {
-        messages: [...oldPageMetadata.messages, ...newMessages],
+        messages: [...actualOldPageMetadata.messages, ...newMessages],
     };
 }
