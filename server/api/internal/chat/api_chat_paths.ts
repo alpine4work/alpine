@@ -98,12 +98,13 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                     };
                 }
                 case "Room": {
-                    // TODO(#public-api-blocking): We support creating room chats in the types but we
-                    // don't actually implement it yet. That's because we'd want to implement the whole
-                    // `creator.from` setup and proper access policy for a bot created thing. For now
-                    // while I'm supposed to be working on agent web changes I won't implement this.
+                    // TODO(#public-api-blocking, #agents-web): We support creating room chats in the
+                    // types but we don't actually implement it yet. That's because we'd want to
+                    // implement the whole `creator.from` setup and proper access policy for a bot
+                    // created thing. For now while I'm supposed to be working on agent web changes I
+                    // won't implement this.
                     throw new UnimplementedError(
-                        "Creating room chats from the API isn't implemented yet",
+                        "Creating room chats from the API isn\u2019t implemented yet",
                     );
                 }
                 default:
