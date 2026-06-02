@@ -6,15 +6,17 @@ import {
     Os,
     RunnerRuntimeParameters,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, Fn, RemovalPolicy, Stack} from "aws-cdk-lib";
+import {Duration, Fn, Stack} from "aws-cdk-lib";
 import {
     IVpc,
     InstanceClass,
     InstanceSize,
     InstanceType,
+    Port,
     SecurityGroup,
     SubnetType,
 } from "aws-cdk-lib/aws-ec2";
+import {FileSystem, PerformanceMode, ThroughputMode} from "aws-cdk-lib/aws-efs";
 import {
     CfnInstanceProfile,
     IGrantable,
@@ -24,8 +26,6 @@ import {
     ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
 import {ILogGroup, LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs";
-import {BlockPublicAccess, Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3";
-import {StringParameter} from "aws-cdk-lib/aws-ssm";
 import {IChainable, IntegrationPattern, JsonPath, Timeout} from "aws-cdk-lib/aws-stepfunctions";
 import {CallAwsService} from "aws-cdk-lib/aws-stepfunctions-tasks";
 import {Construct} from "constructs";
@@ -35,11 +35,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const awsGithubRunnerTaskTimeout = Duration.hours(6);
 const awsGithubRunnerHeartbeatTimeout = Duration.minutes(10);
-const awsGithubRunnerAmiCacheKeyPath = "/opt/alpine-runner-image/bazel-cache-key";
-const awsGithubRunnerAmiSourceBundleKeyParameterName =
-    "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
-const awsGithubRunnerAmiBazelCacheKeyParameterName =
-    "/cyberworlds/github-runners/test-runner-asg/bazel-cache-key";
 
 /* eslint-disable cyberworlds/string-quotes */
 function createLinuxUserDataTemplate() {
@@ -49,10 +44,10 @@ logGroupName="{}"
 runnerNamePath="{}"
 runnerTokenPath="{}"
 registrationURL="{}"
+cacheFileSystemDnsName="{}"
 label="{}"
 export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
 export ALPINE_RUNNER_TAG="$label"
-export ALPINE_AMI_BAZEL_CACHE_KEY_PATH="${awsGithubRunnerAmiCacheKeyPath}"
 
 setup_logs () {
   # Ship the runner bootstrap log to CloudWatch so Step Functions timeouts and
@@ -78,14 +73,27 @@ setup_logs () {
 EOF
   /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf || exit 2
 }
-setup_runtime_env () {
+mount_cache () {
   # Resolve the region from IMDS so the bootstrap can use the instance role for
-  # both Step Functions callbacks and the Bazel remote cache proxy.
+  # both Step Functions callbacks and the shared Bazel cache setup.
   metadata_token=$(curl -sS -X PUT http://169.254.169.254/latest/api/token \
     -H 'x-aws-ec2-metadata-token-ttl-seconds: 21600')
   export AWS_REGION=$(curl -sS -H "x-aws-ec2-metadata-token: $metadata_token" \
     http://169.254.169.254/latest/dynamic/instance-identity/document | \
     node -e 'let data="";process.stdin.on("data",chunk=>data+=chunk);process.stdin.on("end",()=>process.stdout.write(JSON.parse(data).region));')
+
+  # Mount the shared EFS-backed Bazel cache and expose it through the same
+  # path the workflow-level cache initialization action expects.
+  #
+  # This is intentionally **not** a strong workload-isolation boundary: jobs on
+  # different instances can observe and mutate data on the same filesystem. Any
+  # future copy of this pattern should treat those runners as trust-equivalent,
+  # not as fully isolated tenants with independent authz boundaries.
+  mkdir -p /mnt/bazel-cache
+  mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport "$cacheFileSystemDnsName":/ /mnt/bazel-cache
+  mkdir -p /mnt/bazel-cache/cache-root
+  chown runner:runner /mnt/bazel-cache/cache-root
+  export GITHUB_RUNNER_SHARED_BAZEL_CACHE_DIR=/mnt/bazel-cache/cache-root
 }
 heartbeat () {
   # Match the legacy EC2 runner behavior: once bootstrap reaches the actual
@@ -115,16 +123,15 @@ action () {
   trap 'kill "$heartbeat_pid" >/dev/null 2>&1 || true' EXIT
 
   # Run the stock GitHub runner as the unprivileged runner account while
-  # preserving only the environment needed for tracing and the AMI image
-  # cache metadata.
-  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZEL_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2
+  # preserving only the environment needed for cache access and tracing.
+  sudo --preserve-env=AWS_REGION,GITHUB_RUNNER_SHARED_BAZEL_CACHE_DIR,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner /home/runner/run.sh || exit 2
 
   # Mirror the legacy provider's log line so downstream debugging still has the
   # same job-completion breadcrumb in CloudWatch.
   STATUS=$(grep -Phors "finish job request for job [0-9a-f\\-]+ with result: \\K.*" /home/runner/_diag/ | tail -n1)
   [ -n "$STATUS" ] && echo CDKGHA JOB DONE "$label" "$STATUS"
 }
-if setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1; then
+if setup_logs && mount_cache && action | tee /var/log/runner.log 2>&1; then
   aws stepfunctions send-task-success --task-token "$TASK_TOKEN" --task-output '{"ok": true}'
 else
   aws stepfunctions send-task-failure --task-token "$TASK_TOKEN"
@@ -143,15 +150,13 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
     public readonly logGroup: ILogGroup;
     public readonly retryableErrors: Array<string> = ["Ec2.Ec2Exception", "States.Timeout"];
 
+    private readonly cacheFileSystemDnsName: string;
     private readonly runnerLaunchTemplateId: string;
     private readonly runnerRole: Role;
     private readonly runnerSecurityGroup: SecurityGroup;
     private readonly subnets: Array<{subnetId: string}>;
     private readonly userDataTemplate: string;
     private readonly userDataExtraBase64: string;
-    private readonly amiBazelCacheKeyParameter: StringParameter;
-    private readonly amiSourceBundleBucket: Bucket;
-    private readonly amiSourceBundleKeyParameter: StringParameter;
 
     constructor(
         scope: Construct,
@@ -170,7 +175,6 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
 
         this.labels = [label];
         this.subnets = vpc.selectSubnets({subnetType: SubnetType.PUBLIC}).subnets;
-        const amiSourceBundleBucketName = `cyberworlds-github-runner-source-bundle`;
 
         this.runnerRole = new Role(this, "RunnerRole", {
             assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
@@ -203,25 +207,26 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
             allowAllOutbound: true,
         });
 
-        this.amiSourceBundleBucket = new Bucket(this, "AmiSourceBundleBucket", {
-            bucketName: amiSourceBundleBucketName,
-            encryption: BucketEncryption.S3_MANAGED,
-            blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-            removalPolicy: RemovalPolicy.DESTROY,
-            autoDeleteObjects: true,
-            lifecycleRules: [{expiration: Duration.days(14)}],
-        });
-        this.amiSourceBundleKeyParameter = new StringParameter(
+        const cacheFileSystemSecurityGroup = new SecurityGroup(
             this,
-            "AmiSourceBundleKeyParameter",
+            "CacheFileSystemSecurityGroup",
             {
-                parameterName: awsGithubRunnerAmiSourceBundleKeyParameterName,
-                stringValue: "uninitialized",
+                vpc,
+                allowAllOutbound: true,
             },
         );
-        this.amiBazelCacheKeyParameter = new StringParameter(this, "AmiBazelCacheKeyParameter", {
-            parameterName: awsGithubRunnerAmiBazelCacheKeyParameterName,
-            stringValue: "uninitialized",
+        cacheFileSystemSecurityGroup.addIngressRule(
+            this.runnerSecurityGroup,
+            Port.tcp(2049),
+            "Allow runners to mount the shared Bazel cache",
+        );
+
+        const cacheFileSystem = new FileSystem(this, "CacheFileSystem", {
+            vpc,
+            securityGroup: cacheFileSystemSecurityGroup,
+            vpcSubnets: {subnetType: SubnetType.PUBLIC},
+            performanceMode: PerformanceMode.GENERAL_PURPOSE,
+            throughputMode: ThroughputMode.ELASTIC,
         });
 
         const runnerImageBuilder = Ec2RunnerProvider.imageBuilder(this, "RunnerImageBuilder", {
@@ -236,22 +241,10 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                 resourceName: "ubuntu-server-24-lts-arm64/x.x.x",
             }),
             awsImageBuilderOptions: {
-                // The AMI build runs `bazel fetch //...` and `build //:node_modules`. Give it a
-                // runner-sized box so weekly/main image refreshes spend their time warming the
-                // cache rather than waiting on a tiny builder.
-                instanceType: InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
+                instanceType: InstanceType.of(InstanceClass.M7G, InstanceSize.MEDIUM),
             },
-            components: awsGithubTestRunnerImageBuilderComponents([], {
-                amiSourceBundleBucketName,
-                amiSourceBundleKeyParameterName: this.amiSourceBundleKeyParameter.parameterName,
-                bazelCacheKeyParameterName: this.amiBazelCacheKeyParameter.parameterName,
-            }),
+            components: awsGithubTestRunnerImageBuilderComponents(["nfs-common", "rsync"]),
         });
-        const runnerImageBuilderRole: unknown = (runnerImageBuilder as any).role;
-        assert(runnerImageBuilderRole instanceof Role);
-        this.amiSourceBundleBucket.grantRead(runnerImageBuilderRole);
-        this.amiSourceBundleKeyParameter.grantRead(runnerImageBuilderRole);
-        this.amiBazelCacheKeyParameter.grantRead(runnerImageBuilderRole);
 
         const runnerAmi = runnerImageBuilder.bindAmi();
         assert(
@@ -260,6 +253,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
             ),
         );
         this.runnerLaunchTemplateId = assertExists(runnerAmi.launchTemplate.launchTemplateId);
+        this.cacheFileSystemDnsName = `${cacheFileSystem.fileSystemId}.efs.${Stack.of(this).region}.amazonaws.com`;
         this.userDataTemplate = createLinuxUserDataTemplate();
         this.userDataExtraBase64 = Fn.base64(userDataExtra);
     }
@@ -270,24 +264,6 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
 
     public get grantPrincipal() {
         return this.runnerRole.grantPrincipal;
-    }
-
-    public grantAmiRefreshWorkflow(grantee: IGrantable) {
-        this.amiSourceBundleBucket.grantReadWrite(grantee);
-        this.amiSourceBundleKeyParameter.grantRead(grantee);
-        this.amiSourceBundleKeyParameter.grantWrite(grantee);
-        this.amiBazelCacheKeyParameter.grantRead(grantee);
-        this.amiBazelCacheKeyParameter.grantWrite(grantee);
-        grantee.grantPrincipal.addToPrincipalPolicy(
-            new PolicyStatement({
-                actions: [
-                    "imagebuilder:GetImage",
-                    "imagebuilder:ListImagePipelines",
-                    "imagebuilder:StartImagePipelineExecution",
-                ],
-                resources: ["*"],
-            }),
-        );
     }
 
     public getStepFunctionTask(parameters: RunnerRuntimeParameters): IChainable {
@@ -322,6 +298,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                             parameters.runnerNamePath,
                             parameters.runnerTokenPath,
                             parameters.registrationUrl,
+                            this.cacheFileSystemDnsName,
                             this.labels.join(","),
                             this.userDataExtraBase64,
                         ),

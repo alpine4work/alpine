@@ -189,57 +189,6 @@ export class AwsGithubRunners extends Construct {
         sqs.grantSendJobQueueMessages(testRunnerAsgProvider);
         observability.grantPutToTracerEventStream(testRunnerAsgProvider);
 
-        const amiBuilderRunnerImageBuilder = Ec2RunnerProvider.imageBuilder(
-            this,
-            "AmiBuilderRunnerImageBuilder",
-            {
-                vpc,
-                subnetSelection: {subnetType: SubnetType.PUBLIC},
-
-                os: Os.LINUX_UBUNTU,
-                architecture: Architecture.ARM64,
-                baseAmi: stack.formatArn({
-                    service: "imagebuilder",
-                    resource: "image",
-                    account: "aws",
-                    resourceName: `ubuntu-server-24-lts-arm64/x.x.x`,
-                }),
-                awsImageBuilderOptions: {
-                    instanceType: InstanceType.of(testInstanceClass, InstanceSize.MEDIUM),
-                },
-
-                components: awsGithubRunnerImageBuilderComponents(),
-            },
-        );
-
-        const amiBuilderRunnerProvider = new Ec2RunnerProvider(this, "AmiBuilderRunnerProvider", {
-            vpc,
-            subnetSelection: {subnetType: SubnetType.PUBLIC},
-            labels: ["aws-ami-builder"],
-            instanceType: InstanceType.of(testInstanceClass, InstanceSize.LARGE),
-            storageSize: Size.gibibytes(40),
-            spot: false,
-            imageBuilder: amiBuilderRunnerImageBuilder,
-            /* eslint-disable cyberworlds/string-quotes */
-            userDataExtra: Fn.join("", [
-                '{"alpineRunnerTag":"aws-ami-builder","jobQueueUrl":"',
-                sqs.getJobQueueUrl(),
-                '"}',
-            ]),
-            /* eslint-enable cyberworlds/string-quotes */
-            extraTags: [{key: "CloudWatchAgent", value: "true"}],
-        });
-
-        const amiBuilderRunnerProviderRole: unknown = (amiBuilderRunnerProvider as any).role;
-        assert(amiBuilderRunnerProviderRole instanceof Role);
-        amiBuilderRunnerProviderRole.addManagedPolicy(
-            ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
-        );
-        amiBuilderRunnerProviderRole.addManagedPolicy(
-            ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
-        );
-        testRunnerAsgProvider.grantAmiRefreshWorkflow(amiBuilderRunnerProvider);
-
         const deployImageBuilder = Ec2RunnerProvider.imageBuilder(
             this,
             "DeployRunnerImageBuilder",
@@ -379,12 +328,7 @@ export class AwsGithubRunners extends Construct {
         //
         // [1]: https://github.com/CloudSnorkel/cdk-github-runners/issues/596
         new GitHubRunners(this, "Runners", {
-            providers: [
-                testRunnerProvider,
-                testRunnerAsgProvider,
-                amiBuilderRunnerProvider,
-                deployRunnerProvider,
-            ],
+            providers: [testRunnerProvider, testRunnerAsgProvider, deployRunnerProvider],
             setupAccess: LambdaAccess.noAccess(),
             webhookAccess: LambdaAccess.lambdaUrl(),
         });
