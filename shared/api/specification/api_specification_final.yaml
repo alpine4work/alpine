@@ -2753,6 +2753,14 @@ components:
                                 properties:
                                     id:
                                         $ref: "#/components/schemas/AccountId"
+                                    type:
+                                        const: Account
+                                    title:
+                                        type: string
+                                    shortName:
+                                        type: string
+                                    botId:
+                                        $ref: "#/components/schemas/BotId"
         CreateChatRequestBodyRoomChat:
             type: object
             required:

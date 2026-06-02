@@ -2667,6 +2667,11 @@ export namespace ApiSpecification {
                 readonly members: readonly {
                     readonly account: {
                         readonly id: components["schemas"]["AccountId"];
+                        /** @constant */
+                        readonly type?: "Account";
+                        readonly title?: string;
+                        readonly shortName?: string;
+                        readonly botId?: components["schemas"]["BotId"];
                     };
                 }[];
             };

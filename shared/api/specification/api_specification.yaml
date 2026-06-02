@@ -2558,10 +2558,20 @@ components:
                                 required: [id]
                                 additionalProperties: false
                                 properties:
-                                    # TODO(#public-api): Add additional properties from `Account` so you could pass
-                                    # in an `Account` object here and it would work.
                                     id:
                                         $ref: "#/components/schemas/AccountId"
+                                    # TODO(#public-api): Add additional properties from `Account` so you could pass
+                                    # in an `Account` object here and it would work. These are properties from
+                                    # `AccountTarget_Response`. I reaaallly wish we had an API specification
+                                    # generator that did this automatically for us.
+                                    type:
+                                        const: Account
+                                    title:
+                                        type: string
+                                    shortName:
+                                        type: string
+                                    botId:
+                                        $ref: "#/components/schemas/BotId"
 
         CreateChatRequestBodyRoomChat:
             type: object
