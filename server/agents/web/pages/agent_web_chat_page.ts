@@ -3,7 +3,10 @@ import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
+import {
+    AgentWebPageLink,
+    printAgentWebPageLinkLabel,
+} from "~/server/agents/web/agent_web_page_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {
@@ -19,7 +22,10 @@ import {
     readAgentWebMessagingPage,
     readAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
-import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {
+    updateAgentWebMessagingPage,
+    updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
+} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
@@ -30,9 +36,15 @@ import {
     ApiContentResponse,
     ApiMentionTargetResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {
     NonEmptyReadonlyArray,
     assertNonEmptyReadonlyArray,
@@ -41,6 +53,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
@@ -194,8 +209,6 @@ export async function createAgentWebChatPage(
     pageMetadata: AgentWebChatPageMetadata;
     pageLink: Extract<AgentWebPageLink, {type: "Chat"}>;
 }> {
-    // NOCOMMIT: Test when direct chat already exists and we create a chat page with
-    // messages?
     const {
         data: {chat},
     } = await context.api.post(context.span, "/chats", {
@@ -217,25 +230,72 @@ export async function createAgentWebChatPage(
         title: chat.type === "Direct" ? chat.title : chat.name,
     };
 
-    const pageMetadata = await updateAgentWebChatPage(
-        context,
-        () => createAgentWebPageLinkPathname(context.storage, pageLink),
-        {
-            type: "Chat",
-            id: chat.id,
-            messages: [],
-        },
-        {
-            type: "Chat",
-            preamble: newPage.preamble,
-            pagination: null,
-            isEndOfMessages: true,
-            blocks: [],
-        },
-        newPage,
-    );
+    try {
+        const pageMetadata = await updateAgentWebChatPage(
+            context,
+            () => createAgentWebPageLinkPathname(context.storage, pageLink),
+            {
+                type: "Chat",
+                id: chat.id,
+                messages: [],
+            },
+            {
+                type: "Chat",
+                preamble: newPage.preamble,
+                pagination: null,
+                isEndOfMessages: true,
+                blocks: [],
+            },
+            newPage,
+        );
 
-    return {pageMetadata, pageLink};
+        return {pageMetadata, pageLink};
+    } catch (error) {
+        if (
+            chat.type === "Direct" &&
+            error instanceof FailedPreconditionError &&
+            error.message === updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage
+        ) {
+            assert("newMessages" in error);
+            const {newMessages} = error;
+            assert(isReadonlyArray(newMessages));
+            assert(newMessages.length > 0);
+            const firstNewMessage = newMessages[0]!;
+            assert(isObject(firstNewMessage));
+            assert("index" in firstNewMessage);
+            const {index} = firstNewMessage;
+            assert(typeof index === "number");
+            assert(index >= 0);
+            assert(Number.isInteger(index));
+
+            const pathname = await createAgentWebPageLinkPathname(context.storage, pageLink);
+
+            const chatSummaryEntries: Array<string> = [
+                ...chat.members.slice(0, 2).map(member => member.account.shortName),
+            ];
+
+            if (chat.members.length > 2) {
+                chatSummaryEntries.push(
+                    printPrettyNumber(defaultLocale, chat.members.length - 2, "other"),
+                );
+            }
+
+            const chatSummary = joinPrettyConjunctionList(chatSummaryEntries);
+
+            throw Object.assign(
+                new FailedPreconditionError(
+                    updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
+                    {
+                        cause: error,
+                        displayMessage: errorDisplayMessage`Create was successful. Found chat: [${printAgentWebPageLinkLabel(pageLink)}](${pathname}). ${newMessages.length === 1 ? `The message you added was` : `The messages you added were`} created, but a chat with ${chatSummary} already existed so your ${newMessages.length === 1 ? `message was` : `messages were`} added to the end of the existing chat. If you want to see the previous messages in the chat before the new ${newMessages.length === 1 ? `message` : `messages`} you added then call the \`read\` tool with \`${pathname}?before=${index}\`.`,
+                    },
+                ),
+                {newMessages},
+            );
+        }
+
+        throw error;
+    }
 }
 
 export async function updateAgentWebChatPage(

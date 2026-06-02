@@ -31,6 +31,9 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
+export const updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage =
+    "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed";
+
 export async function updateAgentWebMessagingPage<Preamble>(
     context: AgentWebContextWithoutStorage,
     {
@@ -335,11 +338,18 @@ export async function updateAgentWebMessagingPage<Preamble>(
     ) {
         const actualPathname = typeof pathname === "function" ? await pathname() : await pathname;
 
-        throw new FailedPreconditionError(
-            "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed",
-            {
-                displayMessage: errorDisplayMessage`Update was successful, ${newMessages.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessages.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
-            },
+        throw Object.assign(
+            new FailedPreconditionError(
+                updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage,
+                {
+                    displayMessage: errorDisplayMessage`Update was successful, ${newMessages.length === 1 ? `the ${messageNouns.noun} you added was` : `the ${messageNouns.pluralNoun} you added were`} created. But between the last ${messageNouns.noun} you read${lastMessageIndex > 0 ? ` (\`<${messageNouns.noun} id="${lastMessageIndex - 1}">\`)` : ""} and the ${newMessages.length === 1 ? messageNouns.noun : messageNouns.pluralNoun} you created there are some new ${messageNouns.pluralNoun} from others you haven\u2019t seen. These new ${messageNouns.pluralNoun} may not be relevant to you, but if you want to see them anyway you can call the \`read\` tool with \`${actualPathname}${lastMessageIndex > 0 ? `?after=${lastMessageIndex}` : "?start"}\`.`,
+                },
+            ),
+            // This error is caught by `createAgentWebChatPage()` which wants to change the
+            // display message to something more semantically relevant. Include `newMessages`
+            // so `createAgentWebChatPage()` has the same information we do when constructing
+            // this error.
+            {newMessages},
         );
     }
 
