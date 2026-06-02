@@ -216,6 +216,11 @@ export async function createAgentWebChatPage(
 }> {
     let wasCreated = false;
 
+    // Creation is placed in a `Lazy` since we want to create the chat at the last
+    // possible moment before it's needed. We want `updateAgentWebChatPage()` to run
+    // any validations first before we create the chat and then only right before
+    // `updateAgentWebChatPage()` tries to create new chat messages do we want to
+    // create the chat.
     const createPromise = new Lazy(async () => {
         wasCreated = true;
 

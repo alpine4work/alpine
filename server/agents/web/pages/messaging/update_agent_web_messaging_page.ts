@@ -46,8 +46,13 @@ export async function updateAgentWebMessagingPage<Preamble>(
         newPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
+        // Will only run the thunk in the error cases which need to display the `pathname`.
         pathname: MaybeThunk<MaybePromise<string>>;
+        // Will only run the thunk right before messages are created. Validation always
+        // runs before we call this thunk.
         room: MaybeThunk<MaybePromise<ApiMessageRoomTarget>>;
+        // Will only run the thunk right before messages are created. Validation always
+        // runs before we call this thunk.
         oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
         oldPage: AgentWebMessagingPage<Preamble>;
         newPage: AgentWebMessagingPage<Preamble>;

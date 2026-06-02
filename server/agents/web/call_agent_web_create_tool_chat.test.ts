@@ -333,8 +333,6 @@ End of messages.`,
 });
 
 test("creates a direct chat with messages without the end marker", async () => {
-    mockCreateDirectChat({title: "Alice and Bob Follow Up"});
-
     await expectInvalidCreateDisplayMessage({
         content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
@@ -351,8 +349,66 @@ The created messages should still use indexes zero and one.
 
 </message>`,
         expected:
-            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker.",
     });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a new message is from another account", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[Alice](/human/alice)">
+
+This should fail validation before creating the chat.
+
+</message>
+
+End of messages.`,
+        expected:
+            'You can only add a `<message>` from yourself. Try again with a `from` attribute that references yourself (`from="[ChatGPT](/bot/chatgpt)"`).',
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a new message has the wrong id", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="3" from="[ChatGPT](/bot/chatgpt)">
+
+This should fail validation before creating the chat.
+
+</message>
+
+End of messages.`,
+        expected:
+            'Invalid `id` attribute for new `<message>`. The `<message>` `id` attribute is an integer sequence so the next valid `id` is `0`. Try again with `id="0"`.',
+    });
+    expect(getCreateChatRequests()).toEqual([]);
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("does not create a chat when a new message sets time", async () => {
+    await expectInvalidCreateDisplayMessage({
+        content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">
+
+This should fail validation before creating the chat.
+
+</message>
+
+End of messages.`,
+        expected:
+            "You can\u2019t add a `<message>` with a `time` attribute. The creation time of the message will be decided by the server. Try again without the `time` attribute.",
+    });
+    expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
@@ -441,8 +497,6 @@ End of messages.`,
 });
 
 test("creates a room chat with messages without the end marker", async () => {
-    mockCreateRoomChat({name: "Incident Launch Follow Up"});
-
     await expectInvalidCreateDisplayMessage({
         content: `\
 # Incident Launch Follow Up
@@ -459,8 +513,9 @@ Message creation should still be sequential.
 
 </message>`,
         expected:
-            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker.",
     });
+    expect(getCreateChatRequests()).toEqual([]);
     expect(getCreateMessageRequests()).toEqual([]);
 });
 
