@@ -437,6 +437,55 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
 
         const chat = await TestChat.get(session, otherSession);
         const message1 = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        await createAffinityForAccount(session, space, otherSession.account.id, 100);
+
+        // Use two distinct inbox entries so the title counts 2 updates.
+        const pendingSubtleNotifications = new Map<string, PendingSubtleNotificationStub>([
+            [
+                "notification-1",
+                {
+                    eventAuthorId: otherSession.account.id,
+                    eventTime: message1.createdTime,
+                    inboxEntryKey: {type: "Chat", chatId: chat.id},
+                },
+            ],
+            [
+                "notification-2",
+                {
+                    eventAuthorId: otherSession.account.id,
+                    eventTime: new Date(message1.createdTime.getTime() - 1),
+                    inboxEntryKey: {type: "Chat", chatId: generateId<ChatId>()},
+                },
+            ],
+        ]);
+
+        const result = await getPendingSubtleNotificationSummaryContent({
+            context: space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            spaceId: space.id,
+            currentAccount,
+            pendingSubtleNotifications,
+        });
+
+        expect(result).not.toBeNull();
+        expect(result!.title).toBe(
+            `2 updates from ${otherSession.account.initialName.split(" ")[0]}`,
+        );
+    });
+
+    test("collapses multiple notifications for the same inbox entry into one update", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+        const currentAccount = await getAccountWithoutAvatar(
+            space.systemAction(),
+            space.id,
+            session.account.id,
+        );
+
+        const chat = await TestChat.get(session, otherSession);
+        const message1 = await chat.sendMessage(otherSession, "Hello");
         const message2 = await chat.sendMessage(otherSession, "Hello again");
         await ProcessContextModule.waitForTestTasks();
 
@@ -469,9 +518,7 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
         });
 
         expect(result).not.toBeNull();
-        expect(result!.title).toBe(
-            `2 updates from ${otherSession.account.initialName.split(" ")[0]}`,
-        );
+        expect(result!.title).toBe(`Update from ${otherSession.account.initialName.split(" ")[0]}`);
     });
 
     test("returns title with updates from two authors", async () => {
@@ -869,13 +916,21 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
 
         await createAffinityForAccount(session, space, otherSession.account.id, 100);
 
-        // Create 15 notifications to test the 10+ formatting
+        // Create 15 notifications across 15 distinct inbox entries to test the 10+
+        // formatting. The real chat entry (used for the most recent notification) supplies
+        // the body; the other entries don't need to exist in the database since the title
+        // only depends on the entry key.
         const pendingSubtleNotifications = new Map<string, PendingSubtleNotificationStub>();
-        for (let i = 0; i < 15; i++) {
+        pendingSubtleNotifications.set("notification-0", {
+            eventAuthorId: otherSession.account.id,
+            eventTime: new Date(message.createdTime.getTime() + 14),
+            inboxEntryKey: {type: "Chat", chatId: chat.id},
+        });
+        for (let i = 1; i < 15; i++) {
             pendingSubtleNotifications.set(`notification-${i}`, {
                 eventAuthorId: otherSession.account.id,
-                eventTime: new Date(message.createdTime.getTime() + i),
-                inboxEntryKey: {type: "Chat", chatId: chat.id},
+                eventTime: new Date(message.createdTime.getTime() + i - 1),
+                inboxEntryKey: {type: "Chat", chatId: generateId<ChatId>()},
             });
         }
 
@@ -1061,9 +1116,12 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
         expect(result).not.toBeNull();
         const author1FirstName = author1.account.initialName.split(" ")[0];
         const author2FirstName = author2.account.initialName.split(" ")[0];
-        // 4 authors - 2 shown = 2 others
+        // The 9 notifications collapse into 6 distinct inbox entries (the chat, the
+        // channel posts entry, the post comments entry, the document new comment threads
+        // entry, the document comment thread entry, and the task). 4 authors - 2 shown = 2
+        // others.
         expect(result!.title).toBe(
-            `9 updates from ${author1FirstName}, ${author2FirstName}, and 2 others`,
+            `6 updates from ${author1FirstName}, ${author2FirstName}, and 2 others`,
         );
     });
 });

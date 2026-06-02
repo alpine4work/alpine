@@ -24,7 +24,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
 import {AccountModelDataWithoutAvatar} from "~/shared/spaces/account_model.js";
 
 /**
@@ -271,7 +271,18 @@ export async function getPendingSubtleNotificationSummaryContent({
         return null;
     }
 
-    const title = `${printPrettySmallNumberSummary(pendingSubtleNotifications.size, "update")} ${authorsListString}`;
+    // Multiple pending subtle notifications can collapse into a single inbox entry
+    // (e.g. several chat messages in the same chat), so count distinct inbox entries
+    // based on the key path
+    const distinctInboxEntryCount = new Set(
+        pendingSubtleNotifications
+            .values()
+            .map(notification =>
+                getInboxEntryKeyPath(spaceId, notification.inboxEntryKey, "narrow"),
+            ),
+    ).size;
+
+    const title = `${printPrettySmallNumberSummary(distinctInboxEntryCount, "update")} ${authorsListString}`;
 
     const inboxEntryDisplay = getInboxEntryDisplayContent({
         entry: inboxEntry,
