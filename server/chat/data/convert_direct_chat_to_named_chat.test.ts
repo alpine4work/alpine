@@ -1,3 +1,4 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {sendChatMessage} from "~/server/chat/data/chat_messaging.js";
 import {convertDirectChatToRoomChat} from "~/server/chat/data/convert_direct_chat_to_room_chat.js";
@@ -96,6 +97,49 @@ test("convertDirectChatToRoomChat derives access policy and creates subscription
             .map(item => ({accountId: item.accountId, isSubscribed: item.isSubscribed}))
             .sort((itemA, itemB) => itemA.accountId.localeCompare(itemB.accountId)),
     ).toEqual(expectedSubscriptions);
+});
+
+test("excludes bot accounts from access policy", async () => {
+    const space = await TestSpace.create(context);
+    const sessionA = await space.createSession({role: "Admin"});
+    const [sessionB, sessionC] = await space.createSessions(2);
+    const bot = await TestBot.createAndInstantiate(sessionA);
+
+    const chat = await TestChat.get(sessionA, sessionB, sessionC, bot);
+
+    await convertDirectChatToRoomChat(sessionA.action(), {
+        chatId: chat.id,
+        name: "Announcements",
+    });
+
+    const attributesItem = await ChatTable.getItem(context, {
+        partitionType: "Chat",
+        sortRangeType: "Attributes",
+        chatId: chat.id,
+    });
+
+    const accessGrants =
+        attributesItem.definition.type === "Room" &&
+        attributesItem.definition.accessPolicy.type === "Local"
+            ? Array.from(attributesItem.definition.accessPolicy.accountGrantById.entries())
+                  .map(([accountId, grant]) => ({accountId, ...grant}))
+                  .sort((grantA, grantB) => grantA.accountId.localeCompare(grantB.accountId))
+            : [];
+
+    expect({
+        definition: attributesItem.definition,
+        accessGrants,
+    }).toEqual({
+        definition: expect.objectContaining({
+            type: "Room",
+            name: "Announcements",
+        }),
+        accessGrants: [
+            {accountId: sessionA.account.id, level: "Manage", generation: 0},
+            {accountId: sessionB.account.id, level: "Manage", generation: 0},
+            {accountId: sessionC.account.id, level: "Manage", generation: 0},
+        ].sort((grantA, grantB) => grantA.accountId.localeCompare(grantB.accountId)),
+    });
 });
 
 test("convertDirectChatToRoomChat is idempotent", async () => {
