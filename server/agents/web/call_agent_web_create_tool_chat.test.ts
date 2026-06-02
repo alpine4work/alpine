@@ -3,6 +3,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
+import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/internal/create_agent_web_page_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
@@ -10,7 +11,12 @@ import type {
     ApiAccount,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ErrorBase, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {
+    ErrorBase,
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.js";
 import type {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -131,6 +137,25 @@ async function expectFailedPreconditionDisplayMessage({
 
     expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
     expect(result.error).toBeInstanceOf(FailedPreconditionError);
+}
+
+async function expectInvalidCreateDisplayMessage({
+    content,
+    expected,
+}: {
+    content: string;
+    expected: string;
+}) {
+    const result = await captureResultPromise(
+        async () => await callAgentWebCreateTool(context, {type: "chat", content}),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected create tool call to throw");
+    }
+
+    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
+    expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
 function mockCreateDirectChat({
@@ -308,13 +333,10 @@ End of messages.`,
 });
 
 test("creates a direct chat with messages without the end marker", async () => {
-    const chatId = mockCreateDirectChat({title: "Alice and Bob Follow Up"});
-    mockCreateMessages({chatId, count: 2});
+    mockCreateDirectChat({title: "Alice and Bob Follow Up"});
 
-    await expect(
-        callAgentWebCreateTool(context, {
-            type: "chat",
-            content: `\
+    await expectInvalidCreateDisplayMessage({
+        content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -328,22 +350,10 @@ I can start this without an explicit end marker.
 The created messages should still use indexes zero and one.
 
 </message>`,
-        }),
-    ).resolves.toEqual(
-        "Create was successful. New chat: [Alice and Bob Follow Up](/chat/alice-and-bob-follow-up).\n",
-    );
-
-    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I can start this without an explicit end marker.")},
-        {content: createTextContent("The created messages should still use indexes zero and one.")},
-    ]);
-    expect(await storage.readResponseByPath.get("/chat/alice-and-bob-follow-up")).toMatchObject({
-        pageMetadata: {
-            type: "Chat",
-            id: chatId,
-            messages: [{index: 0}, {index: 1}],
-        },
+        expected:
+            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
     });
+    expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("creates a room chat without messages", async () => {
@@ -431,13 +441,10 @@ End of messages.`,
 });
 
 test("creates a room chat with messages without the end marker", async () => {
-    const chatId = mockCreateRoomChat({name: "Incident Launch Follow Up"});
-    mockCreateMessages({chatId, count: 2});
+    mockCreateRoomChat({name: "Incident Launch Follow Up"});
 
-    await expect(
-        callAgentWebCreateTool(context, {
-            type: "chat",
-            content: `\
+    await expectInvalidCreateDisplayMessage({
+        content: `\
 # Incident Launch Follow Up
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
@@ -451,26 +458,123 @@ I opened this room without an explicit end marker.
 Message creation should still be sequential.
 
 </message>`,
+        expected:
+            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+    });
+    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("updates a created chat to add more messages", async () => {
+    const chatId = mockCreateRoomChat({name: "Incident Launch Updates"});
+    mockCreateMessages({chatId, count: 1});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+# Incident Launch Updates
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+I opened this room for launch triage.
+
+</message>
+
+End of messages.`,
         }),
     ).resolves.toEqual(
-        "Create was successful. New chat: [Incident Launch Follow Up](/chat/incident-launch-follow-up).\n",
+        "Create was successful. New chat: [Incident Launch Updates](/chat/incident-launch-updates).\n",
     );
 
+    mockCreateMessages({chatId, count: 2, startIndex: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/chat/incident-launch-updates",
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nI found the first blocker.\n\n</message>\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nI will post the next update here.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
-        {content: createTextContent("I opened this room without an explicit end marker.")},
-        {content: createTextContent("Message creation should still be sequential.")},
+        {content: createTextContent("I opened this room for launch triage.")},
+        {content: createTextContent("I found the first blocker.")},
+        {content: createTextContent("I will post the next update here.")},
     ]);
-    expect(await storage.readResponseByPath.get("/chat/incident-launch-follow-up")).toMatchObject({
+    expect(await storage.readResponseByPath.get("/chat/incident-launch-updates")).toMatchObject({
         pageMetadata: {
             type: "Chat",
             id: chatId,
-            messages: [{index: 0}, {index: 1}],
+            messages: [{index: 0}, {index: 1}, {index: 2}],
+        },
+    });
+});
+
+test("updates a created chat with messages without ids to add messages without ids", async () => {
+    const chatId = mockCreateRoomChat({name: "Incident Launch No Ids"});
+    mockCreateMessages({chatId, count: 2});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+# Incident Launch No Ids
+
+<message from="[ChatGPT](/bot/chatgpt)">
+
+I opened this room without an id attribute.
+
+</message>
+
+<message from="[ChatGPT](/bot/chatgpt)">
+
+This second message also has no id attribute.
+
+</message>
+
+End of messages.`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New chat: [Incident Launch No Ids](/chat/incident-launch-no-ids).\n",
+    );
+
+    mockCreateMessages({chatId, count: 2, startIndex: 2});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/chat/incident-launch-no-ids",
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nA third no-id message should append at index two.\n\n</message>\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nA fourth no-id message should append at index three.\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("I opened this room without an id attribute.")},
+        {content: createTextContent("This second message also has no id attribute.")},
+        {content: createTextContent("A third no-id message should append at index two.")},
+        {content: createTextContent("A fourth no-id message should append at index three.")},
+    ]);
+    expect(await storage.readResponseByPath.get("/chat/incident-launch-no-ids")).toMatchObject({
+        pageMetadata: {
+            type: "Chat",
+            id: chatId,
+            messages: [{index: 0}, {index: 1}, {index: 2}, {index: 3}],
         },
     });
 });
 
 test("reports unseen messages when creating message in an existing direct chat", async () => {
-    const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing"});
+    const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing Single"});
     mockCreateMessages({chatId: existingChatId, count: 1, startIndex: 20});
 
     await expectFailedPreconditionDisplayMessage({
@@ -485,7 +589,7 @@ I am following up in the existing direct chat.
 
 End of messages.`,
         expected:
-            "Create was successful. Found chat: [Alice and Bob Existing](/chat/alice-and-bob-existing). The message you added was created, but a chat with Alice and Bob already existed so your message was added to the end of the existing chat. If you want to see the previous messages in the chat before the new message you added then call the `read` tool with `/chat/alice-and-bob-existing?before=40`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+            "Create was successful. Found chat: [Alice and Bob Existing Single](/chat/alice-and-bob-existing-single). The message you added was created, but a chat with Alice and Bob already existed so your message was added to the end of the existing chat. If you want to see the previous messages in the chat before the new message you added then call the `read` tool with `/chat/alice-and-bob-existing-single?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
     });
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
@@ -494,7 +598,7 @@ End of messages.`,
 });
 
 test("reports unseen messages when creating messages in an existing direct chat", async () => {
-    const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing"});
+    const existingChatId = mockCreateDirectChat({title: "Alice and Bob Existing Multiple"});
     mockCreateMessages({chatId: existingChatId, count: 2, startIndex: 20});
 
     await expectFailedPreconditionDisplayMessage({
@@ -515,7 +619,7 @@ These should land after the existing history.
 
 End of messages.`,
         expected:
-            "Create was successful. Found chat: [Alice and Bob Existing](/chat/alice-and-bob-existing). The messages you added were created, but a chat with Alice and Bob already existed so your messages were added to the end of the existing chat. If you want to see the previous messages in the chat before the new messages you added then call the `read` tool with `/chat/alice-and-bob-existing?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
+            "Create was successful. Found chat: [Alice and Bob Existing Multiple](/chat/alice-and-bob-existing-multiple). The messages you added were created, but a chat with Alice and Bob already existed so your messages were added to the end of the existing chat. If you want to see the previous messages in the chat before the new messages you added then call the `read` tool with `/chat/alice-and-bob-existing-multiple?before=20`. (This create was a partial success. Try to figure out which parts of the create were successful before trying again.)",
     });
 
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
