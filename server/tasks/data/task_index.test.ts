@@ -62,7 +62,7 @@ test("can\u2019t update task from a different space", async () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -142,7 +142,7 @@ test("can\u2019t update collection from a different space", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: null,
+                    creator: null,
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -682,21 +682,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -718,21 +722,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -754,21 +762,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -790,21 +802,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -826,21 +842,25 @@ test("processing account name update action only updates one space", async () =>
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task2.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task3.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
     expect((await task4.getIndexDoc()).creator).toEqual({
         accountId: account.id,
+        from: null,
         workingAccountName: newAccountName2,
         workingAccountNameVersion: 2,
     });
@@ -1149,6 +1169,7 @@ test("if account name updates during indexing it will still be correctly updated
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1166,6 +1187,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1186,6 +1208,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1197,6 +1220,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });
@@ -1232,6 +1256,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: session1.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1270,6 +1295,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
@@ -1293,6 +1319,7 @@ test("if account name updates during indexing it will still be correctly update 
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session1.account.id,
+        from: null,
         workingAccountName: newAccountName1,
         workingAccountNameVersion: 1,
     });
@@ -1323,6 +1350,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await task.getIndexDoc()).creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1344,6 +1372,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: session.account.initialName,
         workingAccountNameVersion: 0,
     });
@@ -1364,6 +1393,7 @@ test("account name update will still work when there\u2019s a version conflict",
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
         accountId: session.account.id,
+        from: null,
         workingAccountName: newAccountName,
         workingAccountNameVersion: 1,
     });

@@ -736,7 +736,7 @@ export class TaskRealtimeStoreInternal {
                         const task = createEmptyTaskIndexDoc(action.time, action.taskAction);
 
                         const account = assertExists(
-                            actionReferencedAccountById.get(action.taskAction.creatorId),
+                            actionReferencedAccountById.get(action.taskAction.creator.accountId),
                         );
 
                         const taskEntry = new TaskRealtimeStoreTaskEntry(this, {
@@ -744,9 +744,10 @@ export class TaskRealtimeStoreInternal {
                             spaceId: this.spaceId,
                             ...task,
                             creator: {
-                                accountId: action.taskAction.creatorId,
+                                accountId: action.taskAction.creator.accountId,
                                 workingAccountName: account.initialData.name,
                                 workingAccountNameVersion: account.initialData.nameVersion,
+                                from: task.creator.from,
                             },
                         });
                         this._taskEntryById.set(action.taskId, taskEntry);

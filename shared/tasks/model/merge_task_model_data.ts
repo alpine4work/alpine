@@ -21,6 +21,9 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
     if (task1.creator.accountId !== task2.creator.accountId)
         throw new InternalError("Incompatible task `creator` when merging");
 
+    if (!isDeepEqualForUnknownValues(task1.creator.from, task2.creator.from))
+        throw new InternalError("Incompatible task `creator.from` when merging");
+
     if (!task1.createdTime.isEqual(task2.createdTime))
         throw new InternalError("Incompatible task `createdTime` when merging");
 
@@ -28,7 +31,21 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         id: task1.id,
         spaceId: task1.spaceId,
 
-        creator: mergeTaskSortableAccounts(task1.creator, task2.creator),
+        creator: {
+            ...mergeTaskSortableAccounts(
+                {
+                    accountId: task1.creator.accountId,
+                    workingAccountName: task1.creator.workingAccountName,
+                    workingAccountNameVersion: task1.creator.workingAccountNameVersion,
+                },
+                {
+                    accountId: task2.creator.accountId,
+                    workingAccountName: task2.creator.workingAccountName,
+                    workingAccountNameVersion: task2.creator.workingAccountNameVersion,
+                },
+            ),
+            from: task1.creator.from,
+        },
         createdTime: task1.createdTime,
         deletedTime:
             task1.deletedTime !== null && task2.deletedTime !== null

@@ -414,7 +414,7 @@ function TaskCollectionsInput(
                                 collectionId,
                                 collectionAction: {
                                     type: "Create",
-                                    creatorId: currentAccount.id,
+                                    creator: {accountId: currentAccount.id, from: null},
                                     name: inputState.value,
                                     accessPolicy: {
                                         type: "Local",
@@ -1115,7 +1115,7 @@ function TaskCollectionsInput(
                                     collectionId,
                                     collectionAction: {
                                         type: "Create",
-                                        creatorId: currentAccount.id,
+                                        creator: {accountId: currentAccount.id, from: null},
                                         name: inputValue,
                                         accessPolicy: {
                                             type: "Local",

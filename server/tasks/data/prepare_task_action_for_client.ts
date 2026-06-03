@@ -45,7 +45,7 @@ export async function prepareTaskActionForClient(
                             ...action,
                             taskAction: {
                                 ...action.taskAction,
-                                creatorId: unknownAccountId,
+                                creator: {accountId: unknownAccountId, from: null},
                             },
                         };
                     }

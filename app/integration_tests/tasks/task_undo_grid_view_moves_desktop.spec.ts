@@ -54,7 +54,7 @@ test.beforeAll(async () => {
             taskId,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         });

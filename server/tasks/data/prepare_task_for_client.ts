@@ -7,22 +7,22 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskModel, TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
-import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
-const unknownTaskSortableAccount = new Lazy((): TaskSortableAccount => {
+const unknownTaskSortableAccount = new Lazy((): TaskModelData["creator"] => {
     const unknownAccount = AccountModel.getUnknown();
 
     return {
         accountId: unknownAccount.id,
         workingAccountName: unknownAccount.initialData.name,
         workingAccountNameVersion: unknownAccount.initialData.nameVersion,
+        from: null,
     };
 });
 

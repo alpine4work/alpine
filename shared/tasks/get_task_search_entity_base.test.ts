@@ -52,7 +52,12 @@ function makeRawData({
     return {
         id: generateId<TaskId>(),
         spaceId: generateId<SpaceId>(),
-        creator: {accountId, workingAccountName: "Test", workingAccountNameVersion: 0},
+        creator: {
+            accountId,
+            workingAccountName: "Test",
+            workingAccountNameVersion: 0,
+            from: null,
+        },
         createdTime: TaskFilterableTime.test(createdTime),
         deletedTime,
         undeletedTime,

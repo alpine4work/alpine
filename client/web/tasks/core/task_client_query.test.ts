@@ -148,7 +148,7 @@ function createTask(
         time = store.clock.now(),
         taskAction = {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     }: {
@@ -238,7 +238,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -916,7 +916,7 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -933,7 +933,7 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -950,7 +950,7 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -1182,7 +1182,7 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -1199,7 +1199,7 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -1216,7 +1216,7 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -1467,7 +1467,7 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -1484,7 +1484,7 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -1501,7 +1501,7 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -1766,7 +1766,7 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -1783,7 +1783,7 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -1800,7 +1800,7 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -2117,7 +2117,7 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -2134,7 +2134,7 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -2151,7 +2151,7 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -2333,7 +2333,7 @@ test("references from optimistic task can be removed", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2440,7 +2440,7 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -2457,7 +2457,7 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -2474,7 +2474,7 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -2739,7 +2739,7 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -2756,7 +2756,7 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -2773,7 +2773,7 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -3056,7 +3056,7 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
                 type: "Local",
@@ -3073,7 +3073,7 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
                 type: "Local",
@@ -3090,7 +3090,7 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
                 type: "Local",
@@ -3827,7 +3827,7 @@ test("action removing from the query immediately releases task", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3932,7 +3932,7 @@ test("optimistic update retains task until resolved", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4040,7 +4040,7 @@ test("optimistic update retains task until rejected", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4149,7 +4149,7 @@ test("deleting task and all children when subscribed to task and its children", 
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -4652,6 +4652,7 @@ test("peek task over collection initial load scenario", () => {
                     collection: {
                         id: collection1Id,
                         spaceId: store.spaceId,
+                        creator: null,
                         createdTime: "111178016799522816",
                         deletedTime: null,
                         undeletedTime: null,
@@ -4809,6 +4810,7 @@ test("peek task over collection initial load scenario", () => {
                     collection: {
                         id: collection1Id,
                         spaceId: store.spaceId,
+                        creator: null,
                         createdTime: "111178016799522816",
                         deletedTime: null,
                         undeletedTime: null,
@@ -4855,7 +4857,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -4884,7 +4886,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
     const task1 = createTask(store, {
         taskAction: {
             type: "Create",
-            creatorId: account2.id,
+            creator: {accountId: account2.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -4892,7 +4894,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
     let task2 = createTask(store, {
         taskAction: {
             type: "Create",
-            creatorId: account2.id,
+            creator: {accountId: account2.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -5109,7 +5111,7 @@ test("can undo/redo creation of many tasks", async () => {
         time: [1775058180643, 0],
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -5145,7 +5147,7 @@ test("can undo/redo creation of many tasks", async () => {
         time: [1775058180643, 3],
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -5266,7 +5268,7 @@ test("can undo/redo creation of many tasks", async () => {
             taskId: assertId<TaskId>("cdpyapwkrng3rwmatdtadgs2h4"),
             taskAction: {
                 type: "Create",
-                creatorId: account1.id,
+                creator: {accountId: account1.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5286,7 +5288,7 @@ test("can undo/redo creation of many tasks", async () => {
             taskId: assertId<TaskId>("73sv7bcp454v5bbdbfdnkn0smc"),
             taskAction: {
                 type: "Create",
-                creatorId: account1.id,
+                creator: {accountId: account1.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5306,7 +5308,7 @@ test("can undo/redo creation of many tasks", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: account1.id,
+                creator: {accountId: account1.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5326,7 +5328,7 @@ test("can undo/redo creation of many tasks", async () => {
             taskId: task31Id,
             taskAction: {
                 type: "Create",
-                creatorId: account1.id,
+                creator: {accountId: account1.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -5642,7 +5644,7 @@ test("can undo moving one task out of query range", async () => {
         let task = createTask(store, {
             taskAction: {
                 type: "Create",
-                creatorId: account1.id,
+                creator: {accountId: account1.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         });
@@ -5777,7 +5779,7 @@ test("can undo deletion of single task with `deleteTaskAndAllChildren()`", async
     const task = createTask(store, {
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });

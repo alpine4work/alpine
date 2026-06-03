@@ -159,7 +159,7 @@ describe("getCloneActions", () => {
             creatorTimeZone: timeZone,
         });
         const createAction = findAction<TaskCreateAction>(actions, "Create");
-        expect(createAction.taskAction.creatorId).toBe(accountId);
+        expect(createAction.taskAction.creator.accountId).toBe(accountId);
 
         const basicActionTypes = actions.map(
             action => "taskAction" in action && action.taskAction.type,

@@ -42,7 +42,7 @@ export function createTestTaskModel({
         createdTime,
         {
             type: "Create",
-            creatorId,
+            creator: {accountId: creatorId, from: null},
             creatorTimeZone: defaultTimeZone,
         },
         getActionReferencedSortableAccount,

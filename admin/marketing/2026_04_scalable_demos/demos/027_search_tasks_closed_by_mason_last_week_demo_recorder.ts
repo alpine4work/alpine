@@ -428,7 +428,7 @@ is landing.
             taskId: tablesLaunchProject.id,
             sharedTime: daysAgoAt(0, 9, 55),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "UpdatedToProjectLayout",
         },
         {
@@ -458,7 +458,7 @@ is landing.
             collectionId: q4PlanningCollection.id,
             sharedTime: daysAgoAt(2, 13, 5),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "Created",
         },
         {
@@ -474,7 +474,7 @@ is landing.
             taskId: ssoImplementationWindowTask.id,
             sharedTime: daysAgoAt(3, 16, 0),
             sharerId: accounts.cliffWeathers.account.id,
-            creatorId: accounts.cliffWeathers.account.id,
+            creator: {id: accounts.cliffWeathers.account.id, from: null},
             event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
         },
         {

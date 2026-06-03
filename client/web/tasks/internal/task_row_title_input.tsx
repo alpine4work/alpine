@@ -2214,7 +2214,7 @@ function handleTaskRowTitleInputPaste(
                         taskId: pastedTaskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: currentAccountId,
+                            creator: {accountId: currentAccountId, from: null},
                             creatorTimeZone: timeZone,
                         },
                     });

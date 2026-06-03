@@ -29,7 +29,10 @@ function makeRawData({
         id: generateId(),
         spaceId: generateId(),
         createdTime: [0, 0],
-        creatorId: generateId<AccountId>(),
+        creator: {
+            accountId: generateId<AccountId>(),
+            from: null,
+        },
         deletedTime,
         undeletedTime,
         name: new LabelStringRegister(name, nameVersion),

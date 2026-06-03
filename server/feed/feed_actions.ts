@@ -535,11 +535,11 @@ async function updateFeedEntries(
     ): AccountId | null {
         switch (entry.type) {
             case "Document":
+            case "Task":
+            case "TaskCollection":
                 return entry.creator.id ?? null;
             case "Channel":
             case "RoomChat":
-            case "Task":
-            case "TaskCollection":
                 return entry.creatorId ?? null;
             default:
                 throw exhaustive(entry);

@@ -834,7 +834,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId: newTaskId,
                     taskAction: {
                         type: "Create",
-                        creatorId: currentAccount.id,
+                        creator: {accountId: currentAccount.id, from: null},
                         creatorTimeZone: timeZone,
                     },
                 },
@@ -870,7 +870,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         taskId: newTaskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: currentAccount.id,
+                            creator: {accountId: currentAccount.id, from: null},
                             creatorTimeZone: timeZone,
                         },
                     },
@@ -951,7 +951,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             taskId: newTaskId,
                             taskAction: {
                                 type: "Create",
-                                creatorId: currentAccount.id,
+                                creator: {accountId: currentAccount.id, from: null},
                                 creatorTimeZone: timeZone,
                             },
                         },
@@ -1012,7 +1012,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId: newTaskId,
                     taskAction: {
                         type: "Create",
-                        creatorId: currentAccount.id,
+                        creator: {accountId: currentAccount.id, from: null},
                         creatorTimeZone: timeZone,
                     },
                 },

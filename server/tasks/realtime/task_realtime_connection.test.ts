@@ -17589,6 +17589,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             spaceId: space.id,
                             creator: {
                                 accountId: creatorSession.account.id,
+                                from: null,
                                 workingAccountName: creatorSession.account.initialName,
                                 workingAccountNameVersion: 0,
                             },
@@ -17710,6 +17711,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             spaceId: space.id,
                             creator: {
                                 accountId: creatorSession.account.id,
+                                from: null,
                                 workingAccountName: creatorSession.account.initialName,
                                 workingAccountNameVersion: 0,
                             },

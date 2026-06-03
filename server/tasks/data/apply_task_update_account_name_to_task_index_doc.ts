@@ -34,6 +34,7 @@ export function applyTaskUpdateAccountNameToTaskIndexDoc<
                     accountId: action.accountId,
                     workingAccountName: action.accountName,
                     workingAccountNameVersion: action.accountNameVersion,
+                    from: task.creator.from,
                 },
             };
         }

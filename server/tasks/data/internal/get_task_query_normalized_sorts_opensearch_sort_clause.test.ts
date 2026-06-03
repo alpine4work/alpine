@@ -248,7 +248,7 @@ test("sorts by created time by default", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -267,7 +267,7 @@ test("sorts by created time by default", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -277,7 +277,7 @@ test("sorts by created time by default", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -296,7 +296,7 @@ test("sorts by created time by default", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -306,7 +306,7 @@ test("sorts by created time by default", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -334,7 +334,7 @@ test("sort tiebreaks with task id", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -344,7 +344,7 @@ test("sort tiebreaks with task id", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -354,7 +354,7 @@ test("sort tiebreaks with task id", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -364,7 +364,7 @@ test("sort tiebreaks with task id", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -374,7 +374,7 @@ test("sort tiebreaks with task id", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -402,7 +402,7 @@ test("sorts by created time", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -427,7 +427,7 @@ test("sorts by created time", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -437,7 +437,7 @@ test("sorts by created time", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -466,7 +466,7 @@ test("sorts by created time", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -476,7 +476,7 @@ test("sorts by created time", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -515,7 +515,7 @@ test("sorts by display status", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -525,7 +525,7 @@ test("sorts by display status", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -535,7 +535,7 @@ test("sorts by display status", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -545,7 +545,7 @@ test("sorts by display status", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -634,7 +634,7 @@ test("sorts by priority", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -644,7 +644,7 @@ test("sorts by priority", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -654,7 +654,7 @@ test("sorts by priority", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -664,7 +664,7 @@ test("sorts by priority", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -674,7 +674,7 @@ test("sorts by priority", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -684,7 +684,7 @@ test("sorts by priority", async () => {
             taskId: task6Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -769,7 +769,7 @@ test("sorts by layout", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -779,7 +779,7 @@ test("sorts by layout", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -789,7 +789,7 @@ test("sorts by layout", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -839,7 +839,7 @@ test("sorts by assignee", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -849,7 +849,7 @@ test("sorts by assignee", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -859,7 +859,7 @@ test("sorts by assignee", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -869,7 +869,7 @@ test("sorts by assignee", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -879,7 +879,7 @@ test("sorts by assignee", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -975,7 +975,7 @@ test("sorts by creator", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -988,7 +988,7 @@ test("sorts by creator", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -998,7 +998,7 @@ test("sorts by creator", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1011,7 +1011,7 @@ test("sorts by creator", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1047,7 +1047,7 @@ test("sorts by assigner", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1057,7 +1057,7 @@ test("sorts by assigner", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1083,7 +1083,7 @@ test("sorts by assigner", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1093,7 +1093,7 @@ test("sorts by assigner", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1132,7 +1132,7 @@ test("sorts by assigner", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session3.account.id,
+                creator: {accountId: session3.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1185,7 +1185,7 @@ test("sorts by due date", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1195,7 +1195,7 @@ test("sorts by due date", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1205,7 +1205,7 @@ test("sorts by due date", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1215,7 +1215,7 @@ test("sorts by due date", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1225,7 +1225,7 @@ test("sorts by due date", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1317,7 +1317,7 @@ test("sorts by assigned time", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1327,7 +1327,7 @@ test("sorts by assigned time", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1337,7 +1337,7 @@ test("sorts by assigned time", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1347,7 +1347,7 @@ test("sorts by assigned time", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1357,7 +1357,7 @@ test("sorts by assigned time", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1449,7 +1449,7 @@ test("sorts by closed time", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1459,7 +1459,7 @@ test("sorts by closed time", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1469,7 +1469,7 @@ test("sorts by closed time", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1479,7 +1479,7 @@ test("sorts by closed time", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1489,7 +1489,7 @@ test("sorts by closed time", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1626,7 +1626,7 @@ test("sorts by activated time", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1636,7 +1636,7 @@ test("sorts by activated time", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1646,7 +1646,7 @@ test("sorts by activated time", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1656,7 +1656,7 @@ test("sorts by activated time", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1666,7 +1666,7 @@ test("sorts by activated time", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1676,7 +1676,7 @@ test("sorts by activated time", async () => {
             taskId: task6Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1836,7 +1836,7 @@ test("sorts by collection position", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1854,7 +1854,7 @@ test("sorts by collection position", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 name: "Test",
                 accessPolicy: {
                     type: "Local",
@@ -1872,7 +1872,7 @@ test("sorts by collection position", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1882,7 +1882,7 @@ test("sorts by collection position", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1892,7 +1892,7 @@ test("sorts by collection position", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1902,7 +1902,7 @@ test("sorts by collection position", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1912,7 +1912,7 @@ test("sorts by collection position", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1922,7 +1922,7 @@ test("sorts by collection position", async () => {
             taskId: task6Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1932,7 +1932,7 @@ test("sorts by collection position", async () => {
             taskId: task7Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -1942,7 +1942,7 @@ test("sorts by collection position", async () => {
             taskId: task8Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2163,7 +2163,7 @@ test("sorts by parent position", async () => {
             taskId: parentTask1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2173,7 +2173,7 @@ test("sorts by parent position", async () => {
             taskId: parentTask2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2183,7 +2183,7 @@ test("sorts by parent position", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2193,7 +2193,7 @@ test("sorts by parent position", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2203,7 +2203,7 @@ test("sorts by parent position", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2213,7 +2213,7 @@ test("sorts by parent position", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2223,7 +2223,7 @@ test("sorts by parent position", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2233,7 +2233,7 @@ test("sorts by parent position", async () => {
             taskId: task6Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2243,7 +2243,7 @@ test("sorts by parent position", async () => {
             taskId: task7Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2253,7 +2253,7 @@ test("sorts by parent position", async () => {
             taskId: task8Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2578,7 +2578,7 @@ test("sorts by assignee position", async () => {
             taskId: task1Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2588,7 +2588,7 @@ test("sorts by assignee position", async () => {
             taskId: task2Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2598,7 +2598,7 @@ test("sorts by assignee position", async () => {
             taskId: task3Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2608,7 +2608,7 @@ test("sorts by assignee position", async () => {
             taskId: task4Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2618,7 +2618,7 @@ test("sorts by assignee position", async () => {
             taskId: task5Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2628,7 +2628,7 @@ test("sorts by assignee position", async () => {
             taskId: task6Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2638,7 +2638,7 @@ test("sorts by assignee position", async () => {
             taskId: task8Id,
             taskAction: {
                 type: "Create",
-                creatorId: session1.account.id,
+                creator: {accountId: session1.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },
@@ -2729,7 +2729,7 @@ test("sorts by assignee position", async () => {
             taskId: task7Id,
             taskAction: {
                 type: "Create",
-                creatorId: session2.account.id,
+                creator: {accountId: session2.account.id, from: null},
                 creatorTimeZone: defaultTimeZone,
             },
         },

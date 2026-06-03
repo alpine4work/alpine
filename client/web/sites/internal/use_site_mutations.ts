@@ -539,7 +539,7 @@ export function useSiteMutations() {
                             taskId,
                             taskAction: {
                                 type: "Create",
-                                creatorId: assertExists(currentAccount).id,
+                                creator: {accountId: assertExists(currentAccount).id, from: null},
                                 creatorTimeZone: clientInfo.timeZone,
                             },
                         },
@@ -627,7 +627,7 @@ export function useSiteMutations() {
                             collectionId,
                             collectionAction: {
                                 type: "Create",
-                                creatorId: assertExists(currentAccount).id,
+                                creator: {accountId: assertExists(currentAccount).id, from: null},
                                 name: "Untitled collection",
                                 accessPolicy: {
                                     type: "Site",

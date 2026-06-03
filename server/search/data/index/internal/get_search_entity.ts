@@ -2779,7 +2779,7 @@ async function getTaskCollectionSearchEntity(
             version: color.version,
         },
         embeddingChunks: getEmbeddingChunks(),
-        creatorId: collection.rawData.creatorId,
+        creatorId: collection.rawData.creator?.accountId ?? null,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
         contributorIds: emptyMap,

@@ -85,7 +85,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session.account.id,
+                    creator: {accountId: session.account.id, from: null},
                     name,
                     accessPolicy:
                         accessPolicy.type === "Site"

@@ -816,7 +816,7 @@ function TaskRouteInner() {
                             taskId,
                             taskAction: {
                                 type: "Create",
-                                creatorId: currentAccount.id,
+                                creator: {accountId: currentAccount.id, from: null},
                                 creatorTimeZone: clientInfo.timeZone,
                             },
                         },

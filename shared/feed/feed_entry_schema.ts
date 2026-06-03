@@ -10,6 +10,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type FeedEntryEvent = SchemaType<typeof FeedEntryEventSchema>;
 
@@ -83,7 +84,12 @@ export const FeedEntrySchema = Schema.union({
         taskId: Schema.id<TaskId>(),
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
-        creatorId: Schema.id<AccountId>().nullable(),
+        creator: Schema.object({
+            id: Schema.id<AccountId>().nullable(),
+            from: TaskCreatorFromSchema.nullable().default(null),
+        })
+            .wrapOriginalPropertyInObject("id", {from: null})
+            .originalPropertyKey("creatorId"),
         excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedTaskEntryEventSchema,
     }),
@@ -97,7 +103,12 @@ export const FeedEntrySchema = Schema.union({
         collectionId: Schema.id<TaskCollectionId>(),
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
-        creatorId: Schema.id<AccountId>().nullable(),
+        creator: Schema.object({
+            id: Schema.id<AccountId>().nullable(),
+            from: TaskCreatorFromSchema.nullable().default(null),
+        })
+            .wrapOriginalPropertyInObject("id", {from: null})
+            .originalPropertyKey("creatorId"),
         excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),

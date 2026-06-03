@@ -1508,9 +1508,12 @@ async function actuallyIndexTaskAction(
                     : await state.getTaskIndexDocIfExists(action.taskId);
 
             if (!oldTask && action.taskAction.type === "Create") {
-                const creator = state.getActionReferencedSortableAccount(
-                    action.taskAction.creatorId,
-                );
+                const creator = {
+                    ...state.getActionReferencedSortableAccount(
+                        action.taskAction.creator.accountId,
+                    ),
+                    from: action.taskAction.creator?.from ?? null,
+                };
 
                 state.putTaskIndexDoc(
                     action.taskId,
@@ -1860,7 +1863,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                                         action.accountNameVersion
                                 ) {
                                     hasChanged = true;
-                                    newDoc.creator = newAccount;
+                                    newDoc.creator = {...newAccount, from: newDoc.creator.from};
                                 }
 
                                 if (

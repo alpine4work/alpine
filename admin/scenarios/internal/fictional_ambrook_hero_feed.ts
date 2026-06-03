@@ -204,7 +204,7 @@ designing our offsite swag. It looks soooo good!!
             collectionId: recruitingCollection.id,
             sharedTime: baseTime.subtract({days: 1}).add({hours: 1, minutes: 32}).toDate(timeZone),
             sharerId: roseCompas.account.id,
-            creatorId: roseCompas.account.id,
+            creator: {id: roseCompas.account.id, from: null},
             event: "SharedWithAccessPolicyDefaultGrant",
         },
         {

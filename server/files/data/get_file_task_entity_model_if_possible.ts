@@ -65,6 +65,7 @@ export async function getFileTaskEntityModelIfPossible(
                         accountId: unknownAccountData.id,
                         workingAccountName: unknownAccountData.name,
                         workingAccountNameVersion: unknownAccountData.nameVersion,
+                        from: null,
                     },
                     createdTime: new TaskFilterableTime({
                         absoluteTime: zeroHybridLogicalTime,

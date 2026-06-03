@@ -147,7 +147,7 @@ export class TestTask extends TestCommentRoomBase {
                 taskId: id,
                 taskAction: {
                     type: "Create",
-                    creatorId: session.account.id,
+                    creator: {accountId: session.account.id, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },

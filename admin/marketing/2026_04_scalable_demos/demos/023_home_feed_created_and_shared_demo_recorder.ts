@@ -599,7 +599,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: tablesLaunchTask.id,
             sharedTime: daysAgoAt(0, 9, 55),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "UpdatedToProjectLayout",
         },
         {
@@ -630,7 +630,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             collectionId: q4PlanningCollection.id,
             sharedTime: daysAgoAt(1, 13, 10),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "Created",
         },
         {
@@ -676,7 +676,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: ssoProspectTask.id,
             sharedTime: daysAgoAt(3, 16, 0),
             sharerId: accounts.cliffWeathers.account.id,
-            creatorId: accounts.cliffWeathers.account.id,
+            creator: {id: accounts.cliffWeathers.account.id, from: null},
             event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
         },
         {
@@ -692,7 +692,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             taskId: surveyFollowupTask.id,
             sharedTime: daysAgoAt(4, 14, 0),
             sharerId: accounts.hollyEvergreen.account.id,
-            creatorId: accounts.hollyEvergreen.account.id,
+            creator: {id: accounts.hollyEvergreen.account.id, from: null},
             event: "UpdatedToProjectLayout",
         },
         {
@@ -715,7 +715,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
             collectionId: caseStudiesCollection.id,
             sharedTime: daysAgoAt(5, 10, 45),
             sharerId: accounts.hollyEvergreen.account.id,
-            creatorId: accounts.hollyEvergreen.account.id,
+            creator: {id: accounts.hollyEvergreen.account.id, from: null},
             event: "Created",
         },
         {

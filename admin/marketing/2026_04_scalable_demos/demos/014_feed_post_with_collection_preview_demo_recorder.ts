@@ -818,7 +818,7 @@ feature, and they wish they\u2019d had it from week one.
             collectionId: fy26Q3Collection.id,
             sharedTime: daysAgoAt(2, 9, 0),
             sharerId: accounts.cassCade.account.id,
-            creatorId: accounts.cassCade.account.id,
+            creator: {id: accounts.cassCade.account.id, from: null},
             event: "SharedWithAccessPolicyDefaultGrant",
         },
         {

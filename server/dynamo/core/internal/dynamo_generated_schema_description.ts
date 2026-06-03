@@ -7205,6 +7205,45 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "optional": false
                                                         },
+                                                        "creator": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "from": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Union",
+                                                                                "typeKey": "type",
+                                                                                "variantSchemaByTypeValue": {
+                                                                                    "Bot": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "type": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Value",
+                                                                                                    "value": "Bot"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "accountId": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Id"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "referenceId": "07a4a621"
+                                                                            }
+                                                                        },
+                                                                        "optional": true
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
+                                                        },
                                                         "excludeFromCreatorFeed": {
                                                             "valueSchema": {
                                                                 "type": "Boolean"
@@ -7260,6 +7299,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "creator": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "from": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "07a4a621"
+                                                                            }
+                                                                        },
+                                                                        "optional": true
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "excludeFromCreatorFeed": {
                                                             "valueSchema": {
@@ -14073,6 +14130,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
+                                                                                "creator": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "from": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "07a4a621"
+                                                                                                    }
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": true
+                                                                                },
                                                                                 "creatorTimeZone": {
                                                                                     "valueSchema": {
                                                                                         "type": "String"
@@ -14702,7 +14777,28 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Nullable",
                                                                                         "schema": {
-                                                                                            "type": "Id"
+                                                                                            "type": "Nullable",
+                                                                                            "schema": {
+                                                                                                "type": "Id"
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": true
+                                                                                },
+                                                                                "creator": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "from": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "07a4a621"
+                                                                                                    }
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
                                                                                         }
                                                                                     },
                                                                                     "optional": true
@@ -15098,6 +15194,16 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "creatorFrom": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "07a4a621"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "rawDeletedTime": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -15257,6 +15363,16 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Id"
                                         },
                                         "optional": false
+                                    },
+                                    "creatorFrom": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "07a4a621"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "createdTime": {
                                         "valueSchema": {

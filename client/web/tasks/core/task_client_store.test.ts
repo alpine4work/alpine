@@ -268,7 +268,7 @@ function createTask(
         time = store.clock.now(),
         taskAction = {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     }: {
@@ -287,7 +287,7 @@ function createCollection(
         time = store.clock.now(),
         collectionAction = {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -1347,7 +1347,7 @@ test("create action will create a task", () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1396,7 +1396,7 @@ test("can receive create action out of order", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1453,7 +1453,7 @@ test("can receive create action with another action within a transaction", () =>
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1512,7 +1512,7 @@ test("can receive create action out of order within a transaction", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1618,7 +1618,7 @@ test("can create tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1680,7 +1680,7 @@ test("can create then update tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1810,7 +1810,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1948,7 +1948,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2102,7 +2102,7 @@ test("can create then update tasks optimistically our of order", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2233,7 +2233,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2388,7 +2388,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2566,7 +2566,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3500,7 +3500,7 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3666,7 +3666,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3901,7 +3901,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4512,7 +4512,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4769,7 +4769,7 @@ test("can create tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4826,7 +4826,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4939,7 +4939,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5068,7 +5068,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5201,7 +5201,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5323,7 +5323,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5465,7 +5465,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5624,7 +5624,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6523,7 +6523,7 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6680,7 +6680,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6895,7 +6895,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7473,7 +7473,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7657,7 +7657,7 @@ test("create task applied after optimistic updates", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7805,7 +7805,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7956,7 +7956,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -8095,7 +8095,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -8237,7 +8237,7 @@ test("can create then update collections optimistically", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -8373,7 +8373,7 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -8517,7 +8517,7 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -8677,7 +8677,7 @@ test("can create then update collections optimistically our of order", async () 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -8814,7 +8814,7 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -8975,7 +8975,7 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -9159,7 +9159,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -10071,7 +10071,7 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -10237,7 +10237,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -10462,7 +10462,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11057,7 +11057,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11307,7 +11307,7 @@ test("can create collections optimistically (rejected)", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11370,7 +11370,7 @@ test("can create then update collections optimistically (rejected)", async () =>
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11489,7 +11489,7 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11624,7 +11624,7 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11763,7 +11763,7 @@ test("can create then update collections optimistically our of order (rejected)"
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -11891,7 +11891,7 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -12039,7 +12039,7 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -12204,7 +12204,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -13093,7 +13093,7 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -13254,7 +13254,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -13470,7 +13470,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14045,7 +14045,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14221,7 +14221,7 @@ test("create collection applied after optimistic updates", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14369,7 +14369,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14520,7 +14520,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14663,7 +14663,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
                 type: "Local",
@@ -14966,7 +14966,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15003,7 +15003,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15068,7 +15068,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: {
                     type: "Local",
@@ -15135,7 +15135,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15232,7 +15232,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15275,7 +15275,7 @@ describe("referenced sites", () => {
         const collection1 = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Collection 1",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId1),
             },
@@ -15284,7 +15284,7 @@ describe("referenced sites", () => {
         const collection2 = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Collection 2",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId2),
             },
@@ -15326,7 +15326,7 @@ describe("referenced sites", () => {
         const collection1 = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection 1",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15335,7 +15335,7 @@ describe("referenced sites", () => {
         const collection2 = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection 2",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15495,7 +15495,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },
@@ -15645,7 +15645,7 @@ describe("referenced sites", () => {
         const collection = createCollection(store, {
             collectionAction: {
                 type: "Create",
-                creatorId: null,
+                creator: null,
                 name: "Test Collection",
                 accessPolicy: createSiteAccessPolicyForUpdate(siteId),
             },

@@ -58,7 +58,7 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                     id: collectionId,
                     spaceId,
                     createdTime: zeroHybridLogicalTime,
-                    creatorId: null,
+                    creator: null,
                     deletedTime: null,
                     undeletedTime: null,
                     name: new LabelStringRegister("Mock collection", zeroHybridLogicalTime),

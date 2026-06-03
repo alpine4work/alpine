@@ -35,6 +35,7 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
@@ -84,7 +85,11 @@ const TaskModelDataSchema = Schema.object({
     id: Schema.id<TaskId>(),
     spaceId: Schema.id<SpaceId>(),
 
-    creator: TaskSortableAccountSchema,
+    creator: TaskSortableAccountSchema.merge(
+        Schema.object({
+            from: TaskCreatorFromSchema.nullable().default(null),
+        }),
+    ),
     createdTime: TaskFilterableTime.schema,
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
@@ -168,7 +173,10 @@ export class TaskModel {
         return new TaskModel({
             spaceId,
             id: taskId,
-            creator: getActionReferencedSortableAccount(action.creatorId),
+            creator: {
+                ...getActionReferencedSortableAccount(action.creator.accountId),
+                from: action.creator.from,
+            },
             createdTime: new TaskFilterableTime({
                 absoluteTime: actionTime,
                 setterTimeZone: action.creatorTimeZone,
@@ -294,7 +302,7 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "Create",
-                creatorId: creatorId,
+                creator: {accountId: creatorId, from: null},
                 creatorTimeZone: creatorTimeZone,
             },
         });

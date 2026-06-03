@@ -3,6 +3,7 @@ import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskCreator, TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
 
@@ -21,10 +22,34 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
     // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
-    creatorId: Schema.id<AccountId>().nullable().default(null),
+    creator: Schema.object({
+        accountId: Schema.id<AccountId>().nullable().default(null),
+        from: TaskCreatorFromSchema.nullable().default(null),
+    })
+        .wrapOriginalPropertyInObject("accountId", {
+            from: null,
+        })
+        .originalPropertyKey("creatorId")
+        .nullable(),
     name: LabelStringSchema,
     accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
+
+export function getTaskCollectionCreateActionCreator(action: {
+    readonly creator: {
+        readonly accountId: AccountId | null;
+        readonly from: TaskCreator["from"];
+    } | null;
+}): TaskCreator | null {
+    if (action.creator === null || action.creator.accountId === null) {
+        return null;
+    }
+
+    return {
+        accountId: action.creator.accountId,
+        from: action.creator.from,
+    };
+}
 
 /**
  * Deletes a task collection.

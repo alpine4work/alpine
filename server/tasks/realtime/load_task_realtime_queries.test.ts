@@ -3157,6 +3157,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3282,6 +3283,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3313,11 +3315,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3332,11 +3335,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime1,
                                     setterTimeZone: defaultTimeZone,
@@ -3402,6 +3406,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3433,11 +3438,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3452,11 +3458,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime1,
                                     setterTimeZone: defaultTimeZone,
@@ -3527,6 +3534,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3652,6 +3660,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3683,11 +3692,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3702,11 +3712,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime2,
                                     setterTimeZone: defaultTimeZone,
@@ -3772,6 +3783,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3803,11 +3815,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3822,11 +3835,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime2,
                                     setterTimeZone: defaultTimeZone,
@@ -3894,6 +3908,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3999,6 +4014,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -4030,11 +4046,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -4104,6 +4121,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -4135,11 +4153,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,

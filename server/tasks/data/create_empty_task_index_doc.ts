@@ -22,10 +22,10 @@ export function createEmptyTaskIndexDoc(
     actionTime: HybridLogicalTime,
     action: TaskCreateAction,
 ): Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {
-    creator: {accountId: AccountId};
+    creator: {accountId: AccountId; from: TaskIndexDoc["creator"]["from"]};
 } {
     return {
-        creator: {accountId: action.creatorId},
+        creator: {accountId: action.creator.accountId, from: action.creator.from},
         createdTime: new TaskFilterableTime({
             absoluteTime: actionTime,
             setterTimeZone: action.creatorTimeZone,

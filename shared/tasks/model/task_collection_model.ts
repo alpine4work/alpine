@@ -4,15 +4,19 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
+import {
+    TaskCollectionCreateAction,
+    getTaskCollectionCreateActionCreator,
+} from "~/shared/tasks/actions/task_collection_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
+import {TaskCreatorSchema} from "~/shared/tasks/task_creator.js";
 
 export type TaskCollectionModelData = SchemaType<typeof TaskCollectionModelDataSchema>;
 
@@ -21,7 +25,7 @@ const TaskCollectionModelDataSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
 
     createdTime: HybridLogicalTimeSchema,
-    creatorId: Schema.id<AccountId>().nullable().default(null),
+    creator: TaskCreatorSchema.nullable(),
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
 
@@ -53,11 +57,12 @@ export class TaskCollectionModel {
         actionTime: HybridLogicalTime,
         action: TaskCollectionCreateAction,
     ) {
+        const creator = getTaskCollectionCreateActionCreator(action);
         return new TaskCollectionModel({
             spaceId,
             id: collectionId,
             createdTime: actionTime,
-            creatorId: action.creatorId,
+            creator,
             deletedTime: null,
             undeletedTime: null,
             name: new LabelStringRegister(action.name, actionTime),
@@ -125,6 +130,10 @@ export class TaskCollectionModel {
 
     public getCreatedTime() {
         return this.rawData.createdTime;
+    }
+
+    public getCreator() {
+        return this.rawData.creator;
     }
 
     public isDeleted() {

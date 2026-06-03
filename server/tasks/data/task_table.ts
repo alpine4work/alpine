@@ -231,6 +231,7 @@ import {
     TaskUpdateTaskAction,
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
+import {getTaskCollectionCreateActionCreator} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
@@ -240,6 +241,7 @@ import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
     createTaskCommentNotFoundError,
@@ -550,6 +552,7 @@ const TaskTable = DynamoTableSchema.new({
                          * collection creator may lose access if they are removed from the `accessPolicy`.
                          */
                         creatorId: Schema.id<AccountId>().nullable().default(null),
+                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
 
                         // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our collection
                         // in DynamoDB so we can create a full `TaskCollectionModel`. The collection is
@@ -628,6 +631,7 @@ const TaskTable = DynamoTableSchema.new({
                          * access if removed from the access policy.
                          */
                         creatorId: Schema.id<AccountId>(),
+                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
 
                         /**
                          * The time this task was created.
@@ -2585,7 +2589,7 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (taskAction.type) {
                     case "Create": {
-                        const {creatorId} = taskAction;
+                        const creatorId = taskAction.creator.accountId;
 
                         if (creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
@@ -2603,6 +2607,7 @@ async function actuallyCommitTaskActionTransaction(
                             // Caleb (with ChatGPT). Counting steps on documents and tasks should be similar.
                             // "caleb's docs" in search should find docs written by me (with ChatGPT).
                             creatorId,
+                            creatorFrom: taskAction.creator.from,
                             createdTime: action.time,
                             deletedTime: null,
                             statusType: new TaskStatusTypeRegister("Open", action.time),
@@ -3361,7 +3366,10 @@ async function actuallyCommitTaskActionTransaction(
                                             taskId,
                                             sharedTime: new Date(action.time[0]),
                                             sharerId: context.actor.getAccountId(),
-                                            creatorId: taskItem.creatorId,
+                                            creator: {
+                                                id: taskItem.creatorId,
+                                                from: taskItem.creatorFrom,
+                                            },
                                             // Override the default behavior to exclude entries from the creator feed that
                                             // aren't `event: "Created"`.
                                             excludeFromCreatorFeed: false,
@@ -3441,7 +3449,10 @@ async function actuallyCommitTaskActionTransaction(
                                             taskId,
                                             sharedTime: new Date(action.time[0]),
                                             sharerId: context.actor.getAccountId(),
-                                            creatorId: taskItem.creatorId,
+                                            creator: {
+                                                id: taskItem.creatorId,
+                                                from: taskItem.creatorFrom,
+                                            },
                                             // If we've already added this entry to the creator's feed then we don't want to
                                             // add it again.
                                             excludeFromCreatorFeed:
@@ -3525,7 +3536,10 @@ async function actuallyCommitTaskActionTransaction(
                                 taskId,
                                 sharedTime: new Date(action.time[0]),
                                 sharerId: context.actor.getAccountId(),
-                                creatorId: newTaskItem.creatorId,
+                                creator: {
+                                    id: newTaskItem.creatorId,
+                                    from: newTaskItem.creatorFrom,
+                                },
                                 // If we've already added this entry to the creator's feed then we don't want to
                                 // add it again.
                                 excludeFromCreatorFeed:
@@ -3546,7 +3560,8 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (collectionAction.type) {
                     case "Create": {
-                        const {creatorId} = collectionAction;
+                        const creator = getTaskCollectionCreateActionCreator(collectionAction);
+                        const creatorId = creator?.accountId;
 
                         if (creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
@@ -3567,6 +3582,7 @@ async function actuallyCommitTaskActionTransaction(
                             spaceId,
                             createdTime: action.time,
                             creatorId,
+                            creatorFrom: creator?.from ?? null,
                             rawDeletedTime: null,
                             rawUndeletedTime: null,
                             name: new LabelStringRegister(collectionAction.name, action.time),
@@ -3589,7 +3605,7 @@ async function actuallyCommitTaskActionTransaction(
                                 collectionId,
                                 sharedTime: new Date(action.time[0]),
                                 sharerId: creatorId,
-                                creatorId,
+                                creator: {id: creatorId, from: creator?.from ?? null},
                                 event: "Created",
                             };
 
@@ -3769,7 +3785,10 @@ async function actuallyCommitTaskActionTransaction(
                                             collectionId,
                                             sharedTime: new Date(action.time[0]),
                                             sharerId: state.getActorAccountId(),
-                                            creatorId: collectionItem.creatorId,
+                                            creator: {
+                                                id: collectionItem.creatorId,
+                                                from: collectionItem.creatorFrom,
+                                            },
                                             event: "SharedWithAccessPolicyDefaultGrant",
                                         };
 
@@ -4103,6 +4122,9 @@ export function deleteTaskAndAllChildren(
  *
  * On the client we may not know all the transitive children of a task. So this
  * functionality needs to be implemented on the server.
+ *
+ * TODO: if we ever allow duplicating a task from the API, we should add
+ * creatorFrom here.
  */
 export function duplicateTaskAndAllChildren(
     context: ServerSessionActionContext,
@@ -8048,6 +8070,7 @@ function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesI
         taskId: task.id,
         spaceId: task.spaceId,
         creatorId: task.creator.accountId,
+        creatorFrom: task.creator.from,
         createdTime: task.createdTime.absoluteTime,
         deletedTime: isTaskIndexDocDeleted(task) ? task.rawDeletedTime : null,
         statusType: new TaskStatusTypeRegister(task.status.value.type, task.status.version),
@@ -8084,6 +8107,7 @@ function convertTaskCollectionIndexDocToItem(
         spaceId: collection.spaceId,
         createdTime: collection.createdTime,
         creatorId: collection.creatorId,
+        creatorFrom: collection.creatorFrom,
         rawDeletedTime: collection.rawDeletedTime,
         rawUndeletedTime: collection.rawUndeletedTime,
         name: collection.name,
@@ -8532,7 +8556,13 @@ async function createTaskCollectionModelSearchResultFromItem(
             id: collectionItem.collectionId,
             spaceId: collectionItem.spaceId,
             createdTime: collectionItem.createdTime,
-            creatorId: collectionItem.creatorId,
+            creator:
+                collectionItem.creatorId === null
+                    ? null
+                    : {
+                          accountId: collectionItem.creatorId,
+                          from: collectionItem.creatorFrom,
+                      },
             deletedTime: collectionItem.rawDeletedTime,
             undeletedTime: collectionItem.rawUndeletedTime,
             name: collectionItem.name,

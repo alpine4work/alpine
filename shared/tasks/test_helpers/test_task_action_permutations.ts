@@ -113,7 +113,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             ],
@@ -126,12 +126,12 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
-                    creatorId: account2.accountId,
+                    creator: {accountId: account2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             ],
@@ -144,12 +144,12 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: assertTimeZone("America/Denver"),
                 },
             ],
@@ -162,7 +162,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -219,7 +219,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -264,7 +264,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -303,7 +303,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -344,7 +344,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -364,7 +364,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -387,7 +387,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -412,7 +412,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -437,7 +437,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -463,7 +463,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -485,7 +485,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -510,7 +510,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -538,7 +538,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -565,7 +565,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -595,7 +595,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -627,7 +627,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -663,7 +663,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -699,7 +699,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -737,7 +737,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -776,7 +776,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -817,7 +817,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -857,7 +857,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -930,7 +930,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -972,7 +972,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1010,7 +1010,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1066,7 +1066,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1127,7 +1127,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1187,7 +1187,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1262,7 +1262,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1322,7 +1322,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1389,7 +1389,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1456,7 +1456,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1523,7 +1523,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1591,7 +1591,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1673,7 +1673,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1747,7 +1747,7 @@ const taskTaskActionTestCases: Array<{
                     {
                         type: "Create",
                         time: time1,
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1807,7 +1807,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1828,7 +1828,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1853,7 +1853,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1874,7 +1874,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1899,7 +1899,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1920,7 +1920,7 @@ const taskTaskActionTestCases: Array<{
                 actions: [
                     {
                         type: "Create",
-                        creatorId: creator.accountId,
+                        creator: {accountId: creator.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                     {
@@ -1944,7 +1944,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -1963,7 +1963,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -1986,7 +1986,7 @@ const taskTaskActionTestCases: Array<{
             actions: [
                 {
                     type: "Create",
-                    creatorId: creator.accountId,
+                    creator: {accountId: creator.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
                 {
@@ -2085,7 +2085,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2128,7 +2128,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2179,7 +2179,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2232,7 +2232,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2285,7 +2285,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2344,7 +2344,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2389,7 +2389,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2440,7 +2440,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2496,7 +2496,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2512,7 +2512,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2577,7 +2577,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2593,7 +2593,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2669,7 +2669,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2685,7 +2685,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2748,7 +2748,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2764,7 +2764,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2848,7 +2848,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2864,7 +2864,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -2924,7 +2924,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -2968,7 +2968,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -3021,7 +3021,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -3065,7 +3065,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -3118,7 +3118,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -3172,7 +3172,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
-                            creatorId: null,
+                            creator: null,
                             name: "Test",
                             accessPolicy: {
                                 type: "Local",
@@ -3240,7 +3240,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3309,7 +3309,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3352,7 +3352,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3402,7 +3402,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3412,7 +3412,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3422,7 +3422,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId3,
                         taskAction: {
                             type: "Create",
-                            creatorId: account2.accountId,
+                            creator: {accountId: account2.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3484,7 +3484,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3547,7 +3547,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3616,7 +3616,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3639,7 +3639,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3717,7 +3717,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3740,7 +3740,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3813,7 +3813,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3877,7 +3877,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3951,7 +3951,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -3974,7 +3974,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4054,7 +4054,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4077,7 +4077,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4152,7 +4152,7 @@ const taskActionTestCases: Array<{
                         taskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4217,7 +4217,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4240,7 +4240,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4320,7 +4320,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId1,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4343,7 +4343,7 @@ const taskActionTestCases: Array<{
                         taskId: taskId2,
                         taskAction: {
                             type: "Create",
-                            creatorId: creator.accountId,
+                            creator: {accountId: creator.accountId, from: null},
                             creatorTimeZone: defaultTimeZone,
                         },
                     },
@@ -4611,6 +4611,23 @@ export function testTaskActionPermutations({
                                         ),
                                     );
 
+                                    const expectedCreator =
+                                        expectation.task.creator === undefined
+                                            ? expect.objectContaining({
+                                                  accountId: assertExists(
+                                                      createAction?.taskAction.creator.accountId,
+                                                      "Expected `Create` task action when `creator` is not provided",
+                                                  ),
+                                                  from:
+                                                      createAction?.taskAction.creator.from ?? null,
+                                              })
+                                            : "from" in expectation.task.creator
+                                              ? expectation.task.creator
+                                              : {
+                                                    ...expectation.task.creator,
+                                                    from: null,
+                                                };
+
                                     const expectedTask: TaskTestInterface = {
                                         isDeleted: false,
                                         parent: null,
@@ -4642,14 +4659,7 @@ export function testTaskActionPermutations({
                                         priority: null,
                                         layout: null,
                                         ...expectation.task,
-                                        creator:
-                                            expectation.task.creator ??
-                                            expect.objectContaining({
-                                                accountId: assertExists(
-                                                    createAction?.taskAction.creatorId,
-                                                    "Expected `Create` task action when `creatorId` is not provided",
-                                                ),
-                                            }),
+                                        creator: expectedCreator,
                                         createdTime:
                                             expectation.task.createdTime ??
                                             new TaskFilterableTime({

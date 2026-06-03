@@ -244,7 +244,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session.account.id,
+                    creator: {accountId: session.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -262,7 +262,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session.accountId,
+                    creator: {accountId: session.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -289,7 +289,7 @@ describe("old style", () => {
                 taskId: generateId(),
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -305,7 +305,7 @@ describe("old style", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -323,7 +323,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -337,7 +337,7 @@ describe("old style", () => {
                     taskId,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -354,7 +354,7 @@ describe("old style", () => {
                     taskId: generateId(),
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -372,7 +372,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -417,7 +417,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -460,7 +460,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -492,7 +492,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -522,7 +522,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -552,7 +552,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -583,7 +583,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -602,7 +602,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -641,7 +641,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -660,7 +660,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -749,7 +749,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -788,7 +788,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -849,7 +849,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -898,7 +898,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -967,7 +967,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1010,7 +1010,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1053,7 +1053,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1094,7 +1094,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1189,7 +1189,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1242,7 +1242,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1313,7 +1313,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1355,7 +1355,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1387,7 +1387,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1406,7 +1406,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1446,7 +1446,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1465,7 +1465,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1507,7 +1507,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1525,7 +1525,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1556,7 +1556,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1577,7 +1577,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1610,7 +1610,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1631,7 +1631,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1665,7 +1665,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1686,7 +1686,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1705,7 +1705,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1747,7 +1747,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1766,7 +1766,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1785,7 +1785,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1841,7 +1841,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1859,7 +1859,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1892,7 +1892,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1910,7 +1910,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -1950,7 +1950,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -1968,7 +1968,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -2010,7 +2010,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2028,7 +2028,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -2070,7 +2070,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2089,7 +2089,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -2131,7 +2131,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2150,7 +2150,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -2189,7 +2189,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2215,7 +2215,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: null,
+                        creator: null,
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2242,7 +2242,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: session2.account.id,
+                        creator: {accountId: session2.account.id, from: null},
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2268,7 +2268,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2290,7 +2290,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2317,7 +2317,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2348,7 +2348,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2375,7 +2375,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: session1.account.id,
+                        creator: {accountId: session1.account.id, from: null},
                         name: "Test",
                         accessPolicy: {
                             type: "Local",
@@ -2399,7 +2399,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2452,7 +2452,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2503,7 +2503,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2543,7 +2543,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2581,7 +2581,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2619,7 +2619,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2657,7 +2657,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2696,7 +2696,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2733,7 +2733,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2797,7 +2797,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2866,7 +2866,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2923,7 +2923,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -2983,7 +2983,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3034,7 +3034,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3085,7 +3085,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3134,7 +3134,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3180,7 +3180,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3227,7 +3227,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3272,7 +3272,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3327,7 +3327,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3377,7 +3377,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3416,7 +3416,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3455,7 +3455,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3494,7 +3494,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3534,7 +3534,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3572,7 +3572,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3627,7 +3627,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3677,7 +3677,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3716,7 +3716,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3755,7 +3755,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3794,7 +3794,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3834,7 +3834,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3872,7 +3872,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -3943,7 +3943,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4001,7 +4001,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4048,7 +4048,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4095,7 +4095,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4142,7 +4142,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4190,7 +4190,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4236,7 +4236,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4339,7 +4339,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4410,7 +4410,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4425,7 +4425,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4450,7 +4450,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4473,7 +4473,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4505,7 +4505,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4524,7 +4524,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4600,7 +4600,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -4619,7 +4619,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4700,7 +4700,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4729,7 +4729,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4760,7 +4760,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4789,7 +4789,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4820,7 +4820,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4849,7 +4849,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4881,7 +4881,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4894,7 +4894,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4924,7 +4924,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4937,7 +4937,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4969,7 +4969,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -4979,7 +4979,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5006,7 +5006,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5016,7 +5016,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5046,7 +5046,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5059,7 +5059,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5086,7 +5086,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5099,7 +5099,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5130,7 +5130,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5143,7 +5143,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5179,7 +5179,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5211,7 +5211,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5243,7 +5243,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5256,7 +5256,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5300,7 +5300,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5313,7 +5313,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5326,7 +5326,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5367,7 +5367,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5380,7 +5380,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5412,7 +5412,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5425,7 +5425,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5458,7 +5458,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -5477,7 +5477,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5500,7 +5500,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5533,7 +5533,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -5552,7 +5552,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5575,7 +5575,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5606,7 +5606,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -5625,7 +5625,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5648,7 +5648,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5707,7 +5707,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -5726,7 +5726,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5749,7 +5749,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5762,7 +5762,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5775,7 +5775,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -5992,7 +5992,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session2.account.id,
+                    creator: {accountId: session2.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -6011,7 +6011,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6034,7 +6034,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6118,7 +6118,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -6137,7 +6137,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6160,7 +6160,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6173,7 +6173,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6186,7 +6186,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6446,7 +6446,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6459,7 +6459,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6472,7 +6472,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6485,7 +6485,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6498,7 +6498,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6511,7 +6511,7 @@ describe("old style", () => {
                 taskId: taskId6,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6524,7 +6524,7 @@ describe("old style", () => {
                 taskId: taskId7,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6617,7 +6617,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6630,7 +6630,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6643,7 +6643,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6656,7 +6656,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6669,7 +6669,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6754,7 +6754,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -6775,7 +6775,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6798,7 +6798,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6866,7 +6866,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -6887,7 +6887,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6910,7 +6910,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -6933,7 +6933,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7015,7 +7015,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -7036,7 +7036,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7059,7 +7059,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7082,7 +7082,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7105,7 +7105,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7128,7 +7128,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7234,7 +7234,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -7255,7 +7255,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7278,7 +7278,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7301,7 +7301,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7324,7 +7324,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7347,7 +7347,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7453,7 +7453,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -7474,7 +7474,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7497,7 +7497,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7520,7 +7520,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7543,7 +7543,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7566,7 +7566,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7672,7 +7672,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -7693,7 +7693,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7716,7 +7716,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7739,7 +7739,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7762,7 +7762,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7785,7 +7785,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7891,7 +7891,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -7912,7 +7912,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7935,7 +7935,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7958,7 +7958,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -7981,7 +7981,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8004,7 +8004,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8114,7 +8114,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -8135,7 +8135,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8158,7 +8158,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8181,7 +8181,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8204,7 +8204,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8227,7 +8227,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8250,7 +8250,7 @@ describe("old style", () => {
                 taskId: taskId6,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8273,7 +8273,7 @@ describe("old style", () => {
                 taskId: taskId7,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8296,7 +8296,7 @@ describe("old style", () => {
                 taskId: taskId8,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8319,7 +8319,7 @@ describe("old style", () => {
                 taskId: taskId9,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8483,7 +8483,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8496,7 +8496,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8509,7 +8509,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8522,7 +8522,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8634,7 +8634,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8647,7 +8647,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8660,7 +8660,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8673,7 +8673,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8824,7 +8824,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -8845,7 +8845,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8868,7 +8868,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8891,7 +8891,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8914,7 +8914,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -8937,7 +8937,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9065,7 +9065,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9086,7 +9086,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9109,7 +9109,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9132,7 +9132,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9155,7 +9155,7 @@ describe("old style", () => {
                 taskId: taskId4,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9178,7 +9178,7 @@ describe("old style", () => {
                 taskId: taskId5,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9279,7 +9279,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9297,7 +9297,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9315,7 +9315,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9338,7 +9338,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9407,7 +9407,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9425,7 +9425,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9443,7 +9443,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9466,7 +9466,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9486,7 +9486,7 @@ describe("old style", () => {
                 taskId: taskId3,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9554,7 +9554,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9572,7 +9572,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -9590,7 +9590,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9613,7 +9613,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session2.accountId,
+                    creator: {accountId: session2.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9677,7 +9677,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9709,7 +9709,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9719,7 +9719,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9758,7 +9758,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9768,7 +9768,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9809,7 +9809,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9819,7 +9819,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9870,7 +9870,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9928,7 +9928,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9938,7 +9938,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -9981,7 +9981,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10026,7 +10026,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10061,7 +10061,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10096,7 +10096,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10133,7 +10133,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10183,7 +10183,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10229,7 +10229,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10290,7 +10290,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10325,7 +10325,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10362,7 +10362,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10399,7 +10399,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10512,7 +10512,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10562,7 +10562,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10821,7 +10821,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10872,7 +10872,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10909,7 +10909,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -10951,7 +10951,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -10969,7 +10969,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11010,7 +11010,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11028,7 +11028,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11071,7 +11071,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11089,7 +11089,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11135,7 +11135,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11153,7 +11153,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11197,7 +11197,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11215,7 +11215,7 @@ describe("old style", () => {
                 taskId: taskId1,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11225,7 +11225,7 @@ describe("old style", () => {
                 taskId: taskId2,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11268,7 +11268,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11286,7 +11286,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11341,7 +11341,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
-                    creatorId: session1.account.id,
+                    creator: {accountId: session1.account.id, from: null},
                     name: "Test",
                     accessPolicy: {
                         type: "Local",
@@ -11359,7 +11359,7 @@ describe("old style", () => {
                 taskId,
                 taskAction: {
                     type: "Create",
-                    creatorId: session1.accountId,
+                    creator: {accountId: session1.accountId, from: null},
                     creatorTimeZone: defaultTimeZone,
                 },
             },
@@ -11543,7 +11543,7 @@ describe("old style", () => {
                     taskId: taskId1,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11560,7 +11560,7 @@ describe("old style", () => {
                     taskId: taskId2,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11577,7 +11577,7 @@ describe("old style", () => {
                     taskId: taskId3,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11709,7 +11709,7 @@ describe("old style", () => {
                     taskId: taskId1,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11726,7 +11726,7 @@ describe("old style", () => {
                     taskId: taskId2,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11924,7 +11924,7 @@ describe("old style", () => {
                     taskId: taskId1,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11941,7 +11941,7 @@ describe("old style", () => {
                     taskId: taskId2,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -11958,7 +11958,7 @@ describe("old style", () => {
                     taskId: taskId3,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -12131,7 +12131,7 @@ describe("old style", () => {
                     taskId: parentTaskId1,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -12148,7 +12148,7 @@ describe("old style", () => {
                     taskId: parentTaskId2,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -12165,7 +12165,7 @@ describe("old style", () => {
                     taskId: taskId1,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -12182,7 +12182,7 @@ describe("old style", () => {
                     taskId: taskId2,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },
@@ -12199,7 +12199,7 @@ describe("old style", () => {
                     taskId: taskId3,
                     taskAction: {
                         type: "Create",
-                        creatorId: session1.accountId,
+                        creator: {accountId: session1.accountId, from: null},
                         creatorTimeZone: defaultTimeZone,
                     },
                 },

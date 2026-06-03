@@ -29,8 +29,8 @@ export function collectReferencedIdsFromTaskAction(
         case "UpdateTask": {
             switch (action.taskAction.type) {
                 case "Create": {
-                    if (action.taskAction.creatorId !== unknownAccountId)
-                        accountIds.add(action.taskAction.creatorId);
+                    if (action.taskAction.creator.accountId !== unknownAccountId)
+                        accountIds.add(action.taskAction.creator.accountId);
                     return;
                 }
                 case "UpdateStatus": {

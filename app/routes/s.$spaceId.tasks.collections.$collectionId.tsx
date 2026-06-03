@@ -129,7 +129,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                     collectionId,
                     collectionAction: {
                         type: "Create",
-                        creatorId: sessionContext.actor.getAccountId(),
+                        creator: {accountId: sessionContext.actor.getAccountId(), from: null},
                         name: createSearchParam,
                         accessPolicy: {
                             type: "Local",
