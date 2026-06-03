@@ -134,6 +134,80 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/Account"
 
+    /spaces/{id}/accounts/{accountId}/inbox:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+
+    /spaces/{id}/accounts/{accountId}/inbox/entries:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 20
+                - name: cursor
+                  in: query
+                  schema:
+                      type: string
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [New, Done]
+                      default: New
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox, entries, nextCursor]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+                                    nextCursor:
+                                        oneOf:
+                                            - type: string
+                                            - type: "null"
+                                    entries:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/InboxEntry"
+
     /spaces/{id}/bots/{botId}/settings:
         parameters:
             - name: id
@@ -2456,6 +2530,272 @@ components:
                                   properties:
                                       type:
                                           const: InvitePending
+
+        Inbox:
+            type: object
+            required: [newEntryCount, loudNotificationCount]
+            additionalProperties: false
+            properties:
+                newEntryCount:
+                    type: integer
+                    minimum: 0
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+
+        InboxEntryShared:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured]
+            additionalProperties: false
+            # Anchor merged into each `Inbox*Entry` schema (YAML merge) so shared fields stay
+            # single-sourced while each variant remains one flat object for AJV.
+            properties: &inboxEntrySharedProperties
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum: [New, Done]
+                featured:
+                    type: object
+                    required: [type]
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured"
+                otherAccount:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryTitleItem:
+            oneOf:
+                - $ref: "#/components/schemas/InboxEntryTitleTextItem"
+                - $ref: "#/components/schemas/InboxEntryTitleAccountItem"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/InboxEntryTitleTextItem"
+                    Account: "#/components/schemas/InboxEntryTitleAccountItem"
+
+        InboxEntryTitleTextItem:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+
+        InboxEntryTitleAccountItem:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryAccountFeatured:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntry:
+            oneOf:
+                - $ref: "#/components/schemas/InboxChatEntry"
+                - $ref: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                - $ref: "#/components/schemas/InboxPostEntry"
+                - $ref: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                - $ref: "#/components/schemas/InboxDocumentThreadEntry"
+                - $ref: "#/components/schemas/InboxTaskMessagesEntry"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/InboxChatEntry"
+                    CreatedChannelPosts: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                    Post: "#/components/schemas/InboxPostEntry"
+                    CreatedDocumentThreads: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                    DocumentThread: "#/components/schemas/InboxDocumentThreadEntry"
+                    TaskMessages: "#/components/schemas/InboxTaskMessagesEntry"
+
+        InboxChatEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, chat, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Chat
+                chat:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChatId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedChannelPostsEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, channel, posts]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedChannelPosts
+                channel:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChannelId"
+                posts:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/PostId"
+
+        InboxPostEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, post]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Post
+                post:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                # TODO(#public-api): Document that `previewMessage` is optional because an
+                # `InboxPostEntry` can be created from a mention in the post itself, before
+                # any comments exist on the post. In that case there is no comment to preview.
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedDocumentThreadsEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, document, threads]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedDocumentThreads
+                document:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                threads:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/DocumentThreadId"
+
+        InboxDocumentThreadEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, thread, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: DocumentThread
+                thread:
+                    type: object
+                    required: [id, document]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
+                        document:
+                            type: object
+                            required: [id]
+                            additionalProperties: false
+                            properties:
+                                id:
+                                    $ref: "#/components/schemas/DocumentId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxTaskMessagesEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, task, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: TaskMessages
+                task:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
 
         Chat:
             oneOf:

@@ -18,7 +18,9 @@ import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/s
  * nice error message. We'll figure out the best error message to present to the
  * user.
  */
-export async function createAccessPolicyPermissionDeniedError(
+export async function createAccessPolicyPermissionDeniedError<
+    ExpectedAccessLevel extends AccessLevel,
+>(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -33,9 +35,13 @@ export async function createAccessPolicyPermissionDeniedError(
         displayMessages,
     }: {
         spaceId: SpaceId;
-        expectedAccessLevel: AccessLevel;
+        expectedAccessLevel: ExpectedAccessLevel;
         aggregateDedupeKey?: string;
-        displayMessages: Record<AccessLevel, ErrorDisplayMessage>;
+        // Keyed by the same subset of `AccessLevel` the caller might pass as
+        // `expectedAccessLevel`. Callers that only support a couple of levels (e.g. inbox
+        // only allows `View | Manage`) get to express that in the type rather than provide
+        // stub entries for unreachable levels.
+        displayMessages: Record<ExpectedAccessLevel, ErrorDisplayMessage>;
     },
 ): Promise<ErrorBase> {
     // Throw an unauthenticated error if this is an anonymous user instead of returning

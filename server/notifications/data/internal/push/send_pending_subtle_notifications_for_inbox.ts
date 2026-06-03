@@ -25,6 +25,7 @@ import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_p
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {InboxEntryModel, getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
+import {printInboxEntryDisplayContentTitleAsText} from "~/shared/notifications/print_inbox_entry_display_content_title_as_text.js";
 import {AccountModelDataWithoutAvatar} from "~/shared/spaces/account_model.js";
 
 /**
@@ -289,16 +290,10 @@ export async function getPendingSubtleNotificationSummaryContent({
         locale: defaultLocale,
         currentAccount: currentAccount,
     });
-    const body = inboxEntryDisplay.summary
-        .map(item => {
-            if (typeof item === "string") {
-                return item;
-            } else {
-                return getAccountShortNameWithoutFullNameTooltip(item.initialData);
-            }
-        })
-        .join("");
-
+    const body = printInboxEntryDisplayContentTitleAsText(
+        inboxEntryDisplay.title,
+        account => account.initialData,
+    );
     return {
         title,
         body,

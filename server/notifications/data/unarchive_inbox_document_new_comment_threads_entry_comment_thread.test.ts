@@ -61,7 +61,7 @@ test("can\u2019t unarchive comment thread in a fully archived new comment thread
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentNewCommentThreadsEntryModel({
             isArchived: true,
             session: session2,
@@ -98,7 +98,7 @@ test("can\u2019t unarchive comment thread in a deleted new comment threads comme
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -144,7 +144,7 @@ test("can unarchive comment thread in a new comment threads comment threads entr
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -177,7 +177,7 @@ test("can unarchive comment thread in a new comment threads comment threads entr
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -244,7 +244,7 @@ test("can archive comment thread again after unarchiving", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -298,7 +298,7 @@ test("can\u2019t unarchive comment thread in a fully archived new comment thread
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentNewCommentThreadsEntryModel({
             isArchived: true,
             session: session2,
@@ -345,7 +345,7 @@ test("can\u2019t unarchive comment thread in a fully archived new comment thread
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentNewCommentThreadsEntryModel({
             isArchived: true,
             session: session2,
@@ -371,7 +371,7 @@ test("can\u2019t unarchive comment thread in a fully archived new comment thread
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentNewCommentThreadsEntryModel({
             isArchived: true,
             session: session2,
@@ -435,7 +435,7 @@ test("can unarchive two comment threads in a new comment threads comment threads
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -482,7 +482,7 @@ test("can unarchive two comment threads in a new comment threads comment threads
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -536,7 +536,7 @@ test("unarchiving single comment thread is idempotent", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -576,7 +576,7 @@ test("unarchiving single comment thread is idempotent", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -632,7 +632,7 @@ test("noops when unarchiving individual comment thread in entry that doesn\u2019
 
     expect(await testGetInboxEntries(session)).toEqual([]);
 
-    expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session, {filter: "Done"})).toEqual([]);
 });
 
 test("can\u2019t unarchive individual comment thread which doesn\u2019t exist in inbox entry", async () => {
@@ -677,7 +677,7 @@ test("can\u2019t unarchive individual comment thread which doesn\u2019t exist in
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 test("archiving a comment thread, unarchiving, then reacting to the comment thread will archive the comment thread in the new comment threads comment threads entry", async () => {
@@ -716,7 +716,7 @@ test("archiving a comment thread, unarchiving, then reacting to the comment thre
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -738,7 +738,7 @@ test("archiving a comment thread, unarchiving, then reacting to the comment thre
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -785,7 +785,7 @@ test("archiving a comment thread, unarchiving, then commenting on the comment th
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -807,7 +807,7 @@ test("archiving a comment thread, unarchiving, then commenting on the comment th
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,

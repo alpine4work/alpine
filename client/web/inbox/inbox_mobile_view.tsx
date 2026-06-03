@@ -26,13 +26,14 @@ import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.j
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
 export function InboxMobileView({
     filter,
     initialEntriesResult,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
 }) {
     // This component only supports rendering on mobile platforms. Unlike
@@ -57,7 +58,7 @@ export function InboxMobileView({
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        title: filter === "New" ? "Inbox" : "Inbox (old)",
+        title: filter === "New" ? "Inbox" : "Inbox (done)",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
         // This is a route for a root tab in our mobile app so don't show the back button.
@@ -75,12 +76,12 @@ export function InboxMobileView({
                     },
                 },
                 {
-                    label: "Old notifications",
-                    isSelected: filter === "Archive",
-                    pressErrorTitle: "Can\u2019t open old notifications",
+                    label: "Done notifications",
+                    isSelected: filter === "Done",
+                    pressErrorTitle: "Can\u2019t open done notifications",
                     onPress: async () => {
-                        if (filter === "Archive") return;
-                        await navigate(`/s/${space.id}/inbox?tab=old`, {replace: true});
+                        if (filter === "Done") return;
+                        await navigate(`/s/${space.id}/inbox?tab=done`, {replace: true});
                     },
                 },
             ],
@@ -284,7 +285,7 @@ function InboxMobileEntryView({
     isLastItem,
     deletedItemAnimation,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;

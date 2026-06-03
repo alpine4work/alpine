@@ -55,13 +55,13 @@ export async function getNotificationDigestContent(
             });
             const selectedSearchParam = getEncodedInboxEntryPath(entry.model, "wide");
 
-            const summary = entryDisplay.summary.map(item => {
+            const title = entryDisplay.title.map(item => {
                 if (typeof item === "string") {
                     return item;
                 } else {
                     assert(
                         item instanceof AccountModel,
-                        "Received non-account item in InboxEntryDisplayContentSummary",
+                        "Received non-account item in InboxEntryDisplayContentTitle",
                     );
                     return {
                         type: "Account",
@@ -78,7 +78,7 @@ export async function getNotificationDigestContent(
                     `/s/${entry.model.spaceId}/inbox?selected=${selectedSearchParam}`,
                     context.constants.edgeServiceUrl,
                 ),
-                summary,
+                title,
                 preview: showLatestMessage
                     ? `${getAccountShortNameWithoutFullNameTooltip(
                           entryDisplay.latestMessage.author.initialData,
@@ -87,14 +87,14 @@ export async function getNotificationDigestContent(
                 brandIconType: entryDisplay.brandIconType,
                 time: entryDisplay.time,
                 loudNotificationCount: entry.model.loudNotificationCount,
-                firstAccount: await getAccountDataWithSignedAvatarUrl(
+                featuredAccount: await getAccountDataWithSignedAvatarUrl(
                     context,
-                    entryDisplay.firstAccount.initialData,
+                    entryDisplay.featuredAccount.initialData,
                 ),
-                secondAccount: entryDisplay.secondAccount?.initialData
+                otherAccount: entryDisplay.otherAccount?.initialData
                     ? await getAccountDataWithSignedAvatarUrl(
                           context,
-                          entryDisplay.secondAccount.initialData,
+                          entryDisplay.otherAccount.initialData,
                       )
                     : undefined,
             };

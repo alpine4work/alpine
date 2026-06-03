@@ -61,7 +61,7 @@ test("can\u2019t unarchive post in a fully archived channel posts entry with one
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxChannelPostsEntryModel({
             isArchived: true,
             session: session2,
@@ -104,7 +104,7 @@ test("can\u2019t unarchive post in a deleted channel posts entry with one post",
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -150,7 +150,7 @@ test("can unarchive post in a channel posts entry with three posts", async () =>
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -182,7 +182,7 @@ test("can unarchive post in a channel posts entry with three posts", async () =>
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -248,7 +248,7 @@ test("can archive post again after unarchiving", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -300,7 +300,7 @@ test("can\u2019t unarchive post in a fully archived channel posts entry where in
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxChannelPostsEntryModel({
             isArchived: true,
             session: session2,
@@ -348,7 +348,7 @@ test("can\u2019t unarchive post in a fully archived channel posts entry where in
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxChannelPostsEntryModel({
             isArchived: true,
             session: session2,
@@ -374,7 +374,7 @@ test("can\u2019t unarchive post in a fully archived channel posts entry where in
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxChannelPostsEntryModel({
             isArchived: true,
             session: session2,
@@ -439,7 +439,7 @@ test("can unarchive two posts in a channel posts entry", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -484,7 +484,7 @@ test("can unarchive two posts in a channel posts entry", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -536,7 +536,7 @@ test("unarchiving single post is idempotent", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -576,7 +576,7 @@ test("unarchiving single post is idempotent", async () => {
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -631,7 +631,7 @@ test("noops when unarchiving individual post in entry that doesn\u2019t exist", 
 
     expect(await testGetInboxEntries(session)).toEqual([]);
 
-    expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session, {filter: "Done"})).toEqual([]);
 });
 
 test("can\u2019t unarchive individual post which doesn\u2019t exist in inbox entry", async () => {
@@ -678,7 +678,7 @@ test("can\u2019t unarchive individual post which doesn\u2019t exist in inbox ent
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 test("archiving a post, unarchiving, then reacting to the post will archive the post in the channel posts entry", async () => {
@@ -718,7 +718,7 @@ test("archiving a post, unarchiving, then reacting to the post will archive the 
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -740,7 +740,7 @@ test("archiving a post, unarchiving, then reacting to the post will archive the 
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -787,7 +787,7 @@ test("archiving a post, unarchiving, then commenting on the post will archive th
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,
@@ -809,7 +809,7 @@ test("archiving a post, unarchiving, then commenting on the post will archive th
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxPostCommentsEntryModel({
             isArchived: true,
             session: session2,

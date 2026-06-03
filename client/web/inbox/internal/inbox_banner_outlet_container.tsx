@@ -243,6 +243,7 @@ export function InboxBannerOutletContainer({
                         latestComment: {
                             author: entry.model.firstCommentThread.author,
                             createdTime: entry.model.firstCommentThread.createdTime,
+                            index: 0,
                             contentTextSnippet: entry.model.firstCommentThread.contentTextSnippet,
                             isStickyMention: false,
                         },
@@ -304,9 +305,9 @@ export function InboxBannerOutletContainer({
             () =>
                 printInboxEntryDisplayContentSummaryWithoutInteractivityStore(
                     accountRegistry,
-                    entryDisplay.summary,
+                    entryDisplay.title,
                 ),
-            [accountRegistry, entryDisplay.summary],
+            [accountRegistry, entryDisplay.title],
         ),
     );
 
@@ -349,7 +350,7 @@ export function InboxBannerOutletContainer({
                 withAnimation: true,
             });
 
-            if (navigation?.filter === "Archive") {
+            if (navigation?.filter === "Done") {
                 if (navigation.nextEntry) {
                     await navigation.selectEntry(navigation.nextEntry);
                 } else if (navigation.previousEntry) {
@@ -495,7 +496,7 @@ export function InboxBannerOutletContainer({
 
                                         await rootNavigate(
                                             `/s/${space.id}/inbox?${
-                                                entry.model.isArchived ? `tab=old&` : ""
+                                                entry.model.isArchived ? `tab=done&` : ""
                                             }selected=${selectedSearchParam}`,
                                         );
                                     }}

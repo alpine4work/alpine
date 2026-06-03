@@ -5,6 +5,7 @@ import {
     AccountActorContextModule,
     ActorContextModule,
     AnonymousActorContextModule,
+    AuthenticatedActorContextModule,
     BotActorContextModule,
     ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
@@ -140,5 +141,18 @@ export type ServerAccountActionContext = Context<ServerAccountActionContextModul
 export type ServerAccountActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
         actor: AccountActorContextModule;
+    }
+>;
+
+/**
+ * Context for actions where the actor is expected to be authenticated and known
+ * (i.e. _not_ anonymous or unknown). Either a session actor, impersonated account
+ * actor, bot actor, or system actor.
+ */
+export type ServerAuthenticatedActionContext = Context<ServerAuthenticatedActionContextModules>;
+
+export type ServerAuthenticatedActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor: AuthenticatedActorContextModule;
     }
 >;

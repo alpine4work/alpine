@@ -46,6 +46,12 @@ export type AccountActorContextModule =
     | ImpersonatedAccountActorContextModule
     | BotActorContextModule;
 
+export type AuthenticatedActorContextModule =
+    | SessionActorContextModule
+    | SystemActorContextModule
+    | ImpersonatedAccountActorContextModule
+    | BotActorContextModule;
+
 interface ActorContextModuleBase extends ContextModuleBase {
     /**
      * Name of the service which initiated the current action. If the browser initiated
@@ -462,6 +468,9 @@ export class ImpersonatedAccountActorContextModule
      * don't verify that the `SpaceId` exists or the `AccountId` is a member of the
      * space. You should use `impersonateAccountAsSystemContext()` to construct this
      * context module.
+     *
+     * Bot actors are not allowed to impersonate accounts. Bots have to use their own
+     * actor context with the appropriate scope.
      */
     public static dangerouslyNew(
         actorContextModule: SystemActorContextModule,

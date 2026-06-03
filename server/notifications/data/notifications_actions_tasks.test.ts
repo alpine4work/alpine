@@ -1079,7 +1079,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1112,7 +1112,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1145,7 +1145,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1190,7 +1190,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1231,7 +1231,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1272,7 +1272,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1329,7 +1329,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             await comment3.setReaction(session2);
 
@@ -1337,7 +1337,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1399,7 +1399,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1417,7 +1417,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxTaskEntryModel({
                     isArchived: true,
                     session: session2,

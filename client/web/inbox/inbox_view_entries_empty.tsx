@@ -1,8 +1,9 @@
 import {Tray} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 
-export function InboxViewEntriesEmpty({filter}: {filter: "New" | "Archive"}) {
+export function InboxViewEntriesEmpty({filter}: {filter: InboxEntryStatus}) {
     return (
         <Box
             flexGrow="1"

@@ -160,6 +160,7 @@ export class InboxChatEntryModel
             latestMessage: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
                 clerical: MessageContentPayloadClericalSchema.optional(),
@@ -201,6 +202,7 @@ export class InboxPostCommentsEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
             }).nullable(),
@@ -238,6 +240,10 @@ export class InboxChannelPostsEntryModel
             postAuthorCount: Schema.integer.min(1),
             postIds: Schema.set(Schema.id<PostId>()).minSize(1),
             latestPost: Schema.object({
+                // TODO (rmtobin, #inbox-entry-updates): This is optional to support backwards
+                // compatibility during the initial deploy of this code. Once it has been deployed,
+                // it can be made required.
+                id: Schema.id<PostId>().optional(),
                 author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
@@ -285,6 +291,7 @@ export class InboxDocumentCommentThreadEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
             }),
@@ -331,6 +338,10 @@ export class InboxDocumentNewCommentThreadsEntryModel
             commentThreadAuthorCount: Schema.integer.min(1),
             commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(1),
             firstCommentThread: Schema.object({
+                // TODO (rmtobin, #inbox-entry-updates): This is optional to support backwards
+                // compatibility during the initial deploy of this code. Once it has been deployed,
+                // it can be made required.
+                id: Schema.id<DocumentCommentThreadId>().optional(),
                 author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
@@ -377,6 +388,7 @@ export class InboxTaskEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean,
             }),

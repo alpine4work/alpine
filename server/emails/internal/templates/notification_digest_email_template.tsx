@@ -61,9 +61,9 @@ export function NotificationDigestEmailTemplate({
     for (const entry of parsedEntries) {
         if (
             entry.loudNotificationCount > 0 &&
-            !loudNotificationAccountByIds.has(entry.firstAccount.id)
+            !loudNotificationAccountByIds.has(entry.featuredAccount.id)
         ) {
-            loudNotificationAccountByIds.set(entry.firstAccount.id, entry.firstAccount);
+            loudNotificationAccountByIds.set(entry.featuredAccount.id, entry.featuredAccount);
         }
     }
 
@@ -151,7 +151,7 @@ export function NotificationDigestEmailTemplate({
                             }}
                         >
                             <Column width={92} data-skip-in-text="true">
-                                {entry.secondAccount ? (
+                                {entry.otherAccount ? (
                                     <TwoAccountAvatar
                                         entry={entry}
                                         resourceServiceUrl={resourceServiceUrl}
@@ -184,7 +184,7 @@ export function NotificationDigestEmailTemplate({
                                                 paddingTop: emailSpacing["0.5"],
                                             }}
                                         >
-                                            {entry.summary.map((item, index) => {
+                                            {entry.title.map((item, index) => {
                                                 if (typeof item === "string") {
                                                     return <Fragment key={index}> {item}</Fragment>;
                                                 } else {
@@ -411,7 +411,7 @@ function OneAccountAvatar({
                             marginTop: "5px",
                         }}
                     >
-                        <EmailAccountAvatar accountData={entry.firstAccount} size="10" />
+                        <EmailAccountAvatar accountData={entry.featuredAccount} size="10" />
                     </div>
                 </Column>
             </Row>
@@ -464,7 +464,7 @@ function TwoAccountAvatar({
                             marginLeft: "10px",
                         }}
                     >
-                        <EmailAccountAvatar accountData={entry.secondAccount!} size="9" />
+                        <EmailAccountAvatar accountData={entry.otherAccount!} size="9" />
                     </div>
                 </Column>
                 <Column style={{verticalAlign: "top"}}>
@@ -515,7 +515,7 @@ function TwoAccountAvatar({
                                 width: "45px",
                             }}
                         >
-                            <EmailAccountAvatar accountData={entry.firstAccount} size="9" />
+                            <EmailAccountAvatar accountData={entry.featuredAccount} size="9" />
                         </div>
                     </div>
                 </Column>

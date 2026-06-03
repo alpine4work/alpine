@@ -41,6 +41,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryModel,
     getEncodedInboxEntryPath,
@@ -58,7 +59,7 @@ export function SpaceLayoutSideBarInboxOverlay({
     onArchivePress,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     initialEntriesResultPromise: PromiseImmediate<RynamoIndexQueryResult<InboxEntryModel>>;
     onNewPress: () => MaybePromise<void>;
     onArchivePress: () => MaybePromise<void>;
@@ -122,7 +123,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     entriesRef,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     withoutAnimation: boolean;
     entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef | null>;
     onClose: () => void;
@@ -191,8 +192,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
             onPress={async () => {
                 const searchParams = new URLSearchParams();
 
-                if (filter === "Archive") {
-                    searchParams.set("tab", "old");
+                if (filter === "Done") {
+                    searchParams.set("tab", "done");
                 }
 
                 // Optimization: Since we know the first inbox entry we can include it in the URL
@@ -226,7 +227,7 @@ const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
             initialEntriesResult,
             onClose,
         }: {
-            filter: "New" | "Archive";
+            filter: InboxEntryStatus;
             initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
             onClose: Memo<() => void>;
         },
@@ -267,7 +268,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     tryLoadingMore,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
@@ -394,7 +395,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
     isLastItem,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;

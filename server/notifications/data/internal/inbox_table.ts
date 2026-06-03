@@ -23,6 +23,7 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
+import {authorizeInboxAccessForAccount} from "~/server/notifications/data/authorize_inbox_access_for_account.js";
 import {
     RynamoTableItemKeyType,
     RynamoTableItemType,
@@ -40,7 +41,7 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -872,6 +873,7 @@ export const InboxTable = RynamoTableSchema.new({
                                     : "",
                                 isStickyMention: item.latestMessage.isStickyMention,
                                 clerical: item.latestMessage.clerical,
+                                index: item.latestMessage.index,
                             },
                             otherChatAccount,
                         });
@@ -1003,6 +1005,7 @@ export const InboxTable = RynamoTableSchema.new({
                                 ? {
                                       author: latestComment.author,
                                       createdTime: latestComment.comment.createdTime,
+                                      index: latestComment.comment.index,
                                       contentTextSnippet: hasPostAccess
                                           ? // If the actor lost access to the post then don't show them the latest comment
                                             // snippet. They may have already seen this content in a push notification so it's
@@ -1083,6 +1086,7 @@ export const InboxTable = RynamoTableSchema.new({
                                 ),
                             ),
                             latestPost: {
+                                id: latestPostId,
                                 author: latestPostAuthor,
                                 createdTime: latestPost.createdTime,
                                 contentTextSnippet:
@@ -1145,6 +1149,7 @@ export const InboxTable = RynamoTableSchema.new({
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
+                                index: item.latestComment.index,
                                 contentTextSnippet: documentResult.ok
                                     ? // If the actor lost access to the document then don't show them the latest comment
                                       // snippet. They may have already seen this content in a push notification so it's
@@ -1238,6 +1243,7 @@ export const InboxTable = RynamoTableSchema.new({
                                 ),
                             ),
                             firstCommentThread: {
+                                id: firstCommentThreadId,
                                 author: firstCommentThreadAuthor,
                                 createdTime: firstCommentThread.createdTime,
                                 contentTextSnippet:
@@ -1309,6 +1315,7 @@ export const InboxTable = RynamoTableSchema.new({
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
+                                index: item.latestComment.index,
                                 contentTextSnippet: taskOwnerResult.ok
                                     ? // If the actor lost access to the task then don't show them the latest comment
                                       // snippet. They may have already seen this content in a push notification so it's
@@ -1482,7 +1489,7 @@ export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime
  * event job) then we impersonate the account associated with the inbox entry to
  * avoid loading data with a system permission level.
  */
-function protectInboxEntryModelBuilder<Value>(
+async function protectInboxEntryModelBuilder<Value>(
     context: ServerActionContext,
     {accountId}: {accountId: AccountId},
     action: (context: ServerActionContext) => Promise<Value>,
@@ -1492,7 +1499,7 @@ function protectInboxEntryModelBuilder<Value>(
             throw new PermissionDeniedError("Can\u2019t read inbox as an anonymous actor");
         }
         case "System": {
-            return impersonateAccountAsSystemContext(
+            return await impersonateAccountAsSystemContext(
                 context.actor.authorizeSystem(),
                 accountId,
                 action,
@@ -1503,10 +1510,15 @@ function protectInboxEntryModelBuilder<Value>(
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError("Can only read inbox for our own account");
             }
-            return action(context);
+            return await action(context);
         }
         case "Bot": {
-            throw new InternalError("Bot actors shouldn\u2019t have an inbox");
+            await authorizeInboxAccessForAccount(context, {
+                spaceId: context.actor.getSpaceId(),
+                accountId,
+                expectedAccessLevel: "View",
+            });
+            return await action(context);
         }
         default:
             throw exhaustive(context.actor);

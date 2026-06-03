@@ -1,9 +1,10 @@
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export type InboxContextNavigation = {
-    readonly filter: "New" | "Archive";
+    readonly filter: InboxEntryStatus;
     readonly nextEntry: RynamoItem<InboxEntryModel> | null;
     readonly previousEntry: RynamoItem<InboxEntryModel> | null;
     readonly selectEntry: (entry: RynamoItem<InboxEntryModel> | null) => Promise<void>;

@@ -141,6 +141,23 @@ type TaskName =
     | "personalTask"
     | "personalDeletedTask";
 
+// Expected outcomes for `authorizeTaskAccess` across every (target task, requested
+// access level, actor) combination.
+//
+// The outer keys describe the _target_ — the task being accessed and the access
+// level requested for it:
+//
+// - `TaskName`: which task the actor is trying to access (e.g. `privateTask`).
+// - `"View" | "Comment" | "Edit"`: the access level being requested.
+//
+// The inner keys describe the _actor_ attempting the access, grouped by actor
+// type. For bot actors specifically, the keys under `bot.{bot,otherBot}.task`
+// describe the bot's _scope_ (the task the bot is scoped to), not another target
+// task. So `privateTask.View.bot.bot.task.urlPublicTask` reads as: "when `bot` is
+// scoped to `urlPublicTask` and tries to `View` `privateTask`".
+//
+// Each leaf value is either `null` (access is allowed) or the expected error
+// message (access is denied with that message).
 const testCases: Record<
     TaskName,
     Record<
@@ -523,8 +540,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: null,
                         privateDeletedTask: null,
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -575,8 +592,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         privateTask: null,
                         privateDeletedTask: null,
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Comment` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -627,8 +644,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         privateTask: "Actor doesn\u2019t have `Edit` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Edit` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -681,8 +698,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },
@@ -733,8 +750,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },
@@ -785,8 +802,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Task was deleted",
                         privateDeletedTask: "Task was deleted",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },
@@ -891,8 +908,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         privateTask: "Actor doesn\u2019t have `Comment` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `Comment` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Comment` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -943,8 +960,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         privateTask: "Actor doesn\u2019t have `Edit` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Edit` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -1155,8 +1172,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Actor doesn\u2019t have `View` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `View` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -1207,8 +1224,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         privateTask: "Actor doesn\u2019t have `Comment` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `Comment` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Comment` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Comment` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -1259,8 +1276,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         privateTask: "Actor doesn\u2019t have `Edit` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `Edit` access level",
-                        urlPublicTask: null,
-                        urlPublicDeletedTask: null,
+                        urlPublicTask: "Actor doesn\u2019t have `Edit` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `Edit` access level",
                         personalTask: null,
                         personalDeletedTask: null,
                     },
@@ -1313,8 +1330,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Actor doesn\u2019t have `View` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `View` access level",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },
@@ -1365,8 +1382,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Actor doesn\u2019t have `View` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `View` access level",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },
@@ -1417,8 +1434,8 @@ const testCases: Record<
                         publicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         privateTask: "Actor doesn\u2019t have `View` access level",
                         privateDeletedTask: "Actor doesn\u2019t have `View` access level",
-                        urlPublicTask: "Task was deleted",
-                        urlPublicDeletedTask: "Task was deleted",
+                        urlPublicTask: "Actor doesn\u2019t have `View` access level",
+                        urlPublicDeletedTask: "Actor doesn\u2019t have `View` access level",
                         personalTask: "Task was deleted",
                         personalDeletedTask: "Task was deleted",
                     },

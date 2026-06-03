@@ -85,13 +85,13 @@ const emailTemplatePreviews: {
                     remainingEntryCount: 10,
                     digestEntries: [
                         {
-                            summary: [{type: "Account", name: "Bob"}, " sent you a message"],
+                            title: [{type: "Account", name: "Bob"}, " sent you a message"],
                             preview: "Bob: Did you see Alice\u2019s photos? They\u2019re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
                             url: new URL(`/s/1234/inbox?selected=3`, emailPreviewBaseUrl),
                             loudNotificationCount: 1,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob Test",
                                 version: 1,
@@ -115,7 +115,7 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            summary: [
+                            title: [
                                 "New comment thread on \u201CMy Important Document\u201D by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
@@ -124,7 +124,7 @@ const emailTemplatePreviews: {
                             time: new Date("2025-08-21T11:11Z"),
                             url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 100,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob",
                                 version: 1,
@@ -146,7 +146,7 @@ const emailTemplatePreviews: {
                                     role: "Member",
                                 },
                             },
-                            secondAccount: {
+                            otherAccount: {
                                 id: "3" as AccountId,
                                 name: "Caominhe",
                                 version: 1,
@@ -165,14 +165,14 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            summary: ["New post in General by ", {type: "Account", name: "Alice"}],
+                            title: ["New post in General by ", {type: "Account", name: "Alice"}],
                             preview:
                                 "Alice: Hey! I just got back from Colorado and have some photos to share.",
                             brandIconType: "Post",
                             time: new Date("2025-08-22T08:11Z"),
                             url: new URL(`/s/1234/inbox?selected=1`, emailPreviewBaseUrl),
                             loudNotificationCount: 10,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "2" as AccountId,
                                 name: "Alice Murphy",
                                 version: 1,
@@ -191,13 +191,13 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            summary: ["Your post in Weekly Recap has new comments"],
+                            title: ["Your post in Weekly Recap has new comments"],
                             preview: "Bob: OMG! 🤩 I\u2019m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
                             url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "1" as AccountId,
                                 name: "Bob",
                                 version: 1,
@@ -219,7 +219,7 @@ const emailTemplatePreviews: {
                                     role: "Member",
                                 },
                             },
-                            secondAccount: {
+                            otherAccount: {
                                 id: "5" as AccountId,
                                 name: "Kenji",
                                 version: 1,
@@ -244,7 +244,7 @@ const emailTemplatePreviews: {
                         },
 
                         {
-                            summary: [
+                            title: [
                                 "New post in Product & Design by ",
                                 {type: "Account", name: "Felicia"},
                             ],
@@ -254,7 +254,7 @@ const emailTemplatePreviews: {
                             time: new Date("2025-08-20T22:36:11Z"),
                             url: new URL(`/s/1234/inbox?selected=2`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "4" as AccountId,
                                 name: "Felicia",
                                 version: 1,
@@ -278,13 +278,13 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            summary: ["Your post in General has new comments"],
+                            title: ["Your post in General has new comments"],
                             preview: "Kenji: Wow! I love that idea!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T10:42:11Z"),
                             url: new URL(`/s/1234/inbox?selected=4`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "5" as AccountId,
                                 name: "Kenji",
                                 version: 1,
@@ -309,7 +309,7 @@ const emailTemplatePreviews: {
                         },
 
                         {
-                            summary: [
+                            title: [
                                 {type: "Account", name: "Kenji"},
                                 " mentioned you in a comment on their task",
                             ],
@@ -318,7 +318,7 @@ const emailTemplatePreviews: {
                             time: new Date("2025-08-20T22:36:11Z"),
                             url: new URL(`/s/1234/inbox?selected=6`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
-                            firstAccount: {
+                            featuredAccount: {
                                 id: "5" as AccountId,
                                 name: "Kenji",
                                 version: 1,

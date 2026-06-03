@@ -47,6 +47,7 @@ export function expectInboxPostCommentsEntryModel({
         latestComment: latestComment
             ? {
                   createdTime: latestComment.comment.createdTime,
+                  index: latestComment.comment.index,
                   author: expect.objectContaining({id: latestComment.comment.author.id}),
                   contentTextSnippet: latestComment.contentTextSnippet,
                   isStickyMention: latestComment.isStickyMention ?? false,

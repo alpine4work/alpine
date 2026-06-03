@@ -28,11 +28,12 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
-    filter: Schema.enum(["New", "Archive"]),
+    filter: InboxEntryStatusSchema,
     entriesResult: createRynamoIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
         spacePath: Schema.string,
@@ -50,7 +51,11 @@ export async function loader({params, context, request, serverRoutes: routes}: L
     const url = new URL(request.url);
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const selectedParam = url.searchParams.get("selected");
-    const filter = url.searchParams.get("tab") === "old" ? "Archive" : "New";
+    // TODO(rmtobin 05/26/2026): `old` is here for backwards compatibility.
+    const filter =
+        url.searchParams.get("tab") === "done" || url.searchParams.get("tab") === "old"
+            ? "Done"
+            : "New";
 
     assert(routes.length === 1);
     const rootRoute = routes[0]!;

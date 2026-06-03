@@ -46,6 +46,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
 export function InboxView({
@@ -54,7 +55,7 @@ export function InboxView({
     initialPeekData,
     onPeekChange,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     initialPeekData: {spacePath: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: PeekSwitcherStatePeekBase<{key: DynamoItemKey | null}> | null) => void;
@@ -320,7 +321,7 @@ function InboxViewEntries({
     selectEntry,
     isEntryTimeVisible,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,

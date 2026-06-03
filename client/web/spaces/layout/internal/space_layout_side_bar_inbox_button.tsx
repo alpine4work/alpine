@@ -38,6 +38,7 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxEntries,
@@ -84,7 +85,7 @@ export function SpaceLayoutSideBarInboxButton({
               isVisible: true;
               isPending: boolean;
               isAnimatingOut: boolean;
-              filter: "New" | "Archive";
+              filter: InboxEntryStatus;
               initialEntriesResultPromise: PromiseImmediate<
                   RynamoIndexQueryResult<InboxEntryModel>
               >;
@@ -271,7 +272,7 @@ export function SpaceLayoutSideBarInboxButton({
                             onArchivePress={async () => {
                                 const {entriesResult} = await getInboxEntries(context, {
                                     spaceId: space.id,
-                                    filter: "Archive",
+                                    filter: "Done",
                                     limit: initialEntriesLimit,
                                     afterCursor: null,
                                 });
@@ -283,7 +284,7 @@ export function SpaceLayoutSideBarInboxButton({
                                         ...overlayState,
                                         isVisible: true,
                                         isPending: false,
-                                        filter: "Archive",
+                                        filter: "Done",
                                         initialEntriesResultPromise:
                                             PromiseImmediate.resolve(entriesResult),
                                     };

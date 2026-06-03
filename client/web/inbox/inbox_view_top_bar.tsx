@@ -3,8 +3,9 @@ import {InboxViewTopBarModeToggleButton} from "~/client/web/inbox/inbox_view_top
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 
-export function InboxViewTopBar({filter}: {filter: "New" | "Archive"}) {
+export function InboxViewTopBar({filter}: {filter: InboxEntryStatus}) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -30,8 +31,8 @@ export function InboxViewTopBar({filter}: {filter: "New" | "Archive"}) {
                         await navigate(`/s/${space.id}/inbox`);
                     }}
                     onArchivePress={async () => {
-                        if (filter === "Archive") return;
-                        await navigate(`/s/${space.id}/inbox?tab=old`);
+                        if (filter === "Done") return;
+                        await navigate(`/s/${space.id}/inbox?tab=done`);
                     }}
                 />
             </Box>

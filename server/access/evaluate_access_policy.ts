@@ -149,6 +149,19 @@ export async function evaluateAccessPolicy(
             // `accessPolicy.defaultGrant` earlier then the bot can't read this private entity.
             if (botAccessPolicy.defaultGrant !== null) return false;
 
+            // If the scoped entity has a `urlGrant`, the bot may be used in URL-sharing or
+            // anonymous-adjacent flows. It must not read other private resources. We return
+            // false unconditionally here because:
+            //
+            // - URL grants only ever grant `View` access (enforced by the
+            //   `assertEqualTypes<AccessPolicyUrlGrant["level"], "View">()` above).
+            // - The early `accessPolicy.urlGrant` check above already returns `true` for any
+            //   case where the target's own URL grant satisfies `expectedAccessLevel`.
+            //
+            // So by the time we reach here, the bot's URL-grant scope can't legitimately
+            // unlock access at the requested level.
+            if (botAccessPolicy.urlGrant !== null) return false;
+
             let hasSomeAccountWithAccess = false;
             const accountIdsWithoutAccessBeforeMembershipCheck: Array<AccountId> = [];
 

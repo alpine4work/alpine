@@ -27,6 +27,7 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
@@ -98,7 +99,7 @@ function reduceInboxState(state: InboxState, action: InboxStateAction): InboxSta
  * - Provides a function to load more data based on what's rendered
  */
 export function useInboxState(props: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     withoutAnimation?: boolean;
 }) {

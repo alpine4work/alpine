@@ -211,6 +211,98 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/spaces/{id}/accounts/{accountId}/inbox": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["SpaceId"];
+                    readonly accountId: components["schemas"]["AccountId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["SpaceId"];
+                        readonly accountId: components["schemas"]["AccountId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly inbox: components["schemas"]["Inbox"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/spaces/{id}/accounts/{accountId}/inbox/entries": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["SpaceId"];
+                    readonly accountId: components["schemas"]["AccountId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: string;
+                        readonly status?: "New" | "Done";
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["SpaceId"];
+                        readonly accountId: components["schemas"]["AccountId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly inbox: components["schemas"]["Inbox"];
+                                readonly nextCursor: string | null;
+                                readonly entries: readonly components["schemas"]["InboxEntry"][];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/spaces/{id}/bots/{botId}/settings": {
             readonly parameters: {
                 readonly query?: never;
@@ -2719,6 +2811,183 @@ export namespace ApiSpecification {
                               /** @constant */
                               readonly type: "InvitePending";
                           };
+                };
+            };
+            readonly Inbox: {
+                readonly newEntryCount: number;
+                readonly loudNotificationCount: number;
+            };
+            readonly InboxEntryShared: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+            };
+            readonly InboxEntryTitleItem:
+                | components["schemas"]["InboxEntryTitleTextItem"]
+                | components["schemas"]["InboxEntryTitleAccountItem"];
+            readonly InboxEntryTitleTextItem: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Text";
+                readonly text: string;
+            };
+            readonly InboxEntryTitleAccountItem: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Account";
+                readonly account: components["schemas"]["Account"];
+            };
+            readonly InboxEntryAccountFeatured: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Account";
+                readonly account: components["schemas"]["Account"];
+            };
+            readonly InboxEntry:
+                | components["schemas"]["InboxChatEntry"]
+                | components["schemas"]["InboxCreatedChannelPostsEntry"]
+                | components["schemas"]["InboxPostEntry"]
+                | components["schemas"]["InboxCreatedDocumentThreadsEntry"]
+                | components["schemas"]["InboxDocumentThreadEntry"]
+                | components["schemas"]["InboxTaskMessagesEntry"];
+            readonly InboxChatEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Chat";
+                readonly chat: {
+                    readonly id: components["schemas"]["ChatId"];
+                };
+                readonly previewMessage: {
+                    readonly index: number;
+                };
+            };
+            readonly InboxCreatedChannelPostsEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CreatedChannelPosts";
+                readonly channel: {
+                    readonly id: components["schemas"]["ChannelId"];
+                };
+                readonly posts: readonly {
+                    readonly id: components["schemas"]["PostId"];
+                }[];
+            };
+            readonly InboxPostEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Post";
+                readonly post: {
+                    readonly id: components["schemas"]["PostId"];
+                };
+                readonly previewMessage?: {
+                    readonly index: number;
+                };
+            };
+            readonly InboxCreatedDocumentThreadsEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CreatedDocumentThreads";
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                };
+                readonly threads: readonly {
+                    readonly id: components["schemas"]["DocumentThreadId"];
+                }[];
+            };
+            readonly InboxDocumentThreadEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "DocumentThread";
+                readonly thread: {
+                    readonly id: components["schemas"]["DocumentThreadId"];
+                    readonly document: {
+                        readonly id: components["schemas"]["DocumentId"];
+                    };
+                };
+                readonly previewMessage: {
+                    readonly index: number;
+                };
+            };
+            readonly InboxTaskMessagesEntry: {
+                readonly title: readonly components["schemas"]["InboxEntryTitleItem"][];
+                readonly preview?: string;
+                readonly time: components["schemas"]["DateTime"];
+                readonly loudNotificationCount: number;
+                /** @enum {string} */
+                readonly status: "New" | "Done";
+                readonly featured: components["schemas"]["InboxEntryAccountFeatured"];
+                readonly otherAccount?: components["schemas"]["Account"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "TaskMessages";
+                readonly task: {
+                    readonly id: components["schemas"]["TaskId"];
+                };
+                readonly previewMessage: {
+                    readonly index: number;
                 };
             };
             readonly Chat: components["schemas"]["DirectChat"] | components["schemas"]["RoomChat"];

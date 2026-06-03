@@ -254,8 +254,8 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByRole("option", {name: "Siobahn sent you a message"})).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
-    await expect(page3.getByRole("button", {name: "Done"})).toBeEnabled();
-    await page3.getByRole("button", {name: "Done"}).click();
+    await expect(page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/)).toBeEnabled();
+    await page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
@@ -264,7 +264,7 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByRole("option", {name: "Siobahn sent you a message"})).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
-    await page3.getByRole("button", {name: "Old"}).click();
+    await page3.getByTestId("InboxViewEntries").getByRole("button", {name: "Done"}).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
@@ -280,8 +280,8 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByRole("option", {name: "Kendall sent you a message"})).toBeHidden();
     await expect(page3.getByRole("option", {name: "Siobahn sent you a message"})).toBeVisible();
 
-    await expect(page3.getByRole("button", {name: "Done"})).toBeEnabled();
-    await page3.getByRole("button", {name: "Done"}).click();
+    await expect(page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/)).toBeEnabled();
+    await page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/).click();
 
     await expect(page3.getByText("No new notifications")).toBeVisible();
 
@@ -291,9 +291,9 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByRole("option", {name: "Kendall sent you a message"})).toBeHidden();
     await expect(page3.getByRole("option", {name: "Siobahn sent you a message"})).toBeHidden();
 
-    await expect(page3.getByRole("button", {name: "Done"})).toBeHidden();
+    await expect(page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/)).toBeHidden();
 
-    await page3.getByRole("button", {name: "Old"}).click();
+    await page3.getByTestId("InboxViewEntries").getByRole("button", {name: "Done"}).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
@@ -301,7 +301,7 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByRole("option", {name: "Kendall sent you a message"})).toBeVisible();
     await expect(page3.getByRole("option", {name: "Siobahn sent you a message"})).toBeVisible();
 
-    await page3.getByRole("button", {name: "Done"}).click();
+    await page3.getByTestId(/^InboxBannerOutletContainerDoneButton:/).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();

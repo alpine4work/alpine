@@ -299,3 +299,31 @@ export type ApiGetDocumentResponse =
 
 export type ApiCreateDocumentRequestBody =
     ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ApiInboxEntryShared = ApiSpecification.components["schemas"]["InboxEntryShared"];
+
+export type ApiInboxEntryTitleItem = ApiSpecification.components["schemas"]["InboxEntryTitleItem"];
+
+export type ApiInboxEntryTitleTextItem =
+    ApiSpecification.components["schemas"]["InboxEntryTitleTextItem"];
+
+export type ApiInboxEntryTitleAccountItem =
+    ApiSpecification.components["schemas"]["InboxEntryTitleAccountItem"];
+
+export type ApiInboxEntry = ApiSpecification.components["schemas"]["InboxEntry"];
+
+export type ApiInboxChatEntry = ApiSpecification.components["schemas"]["InboxChatEntry"];
+
+export type ApiInboxCreatedChannelPostsEntry =
+    ApiSpecification.components["schemas"]["InboxCreatedChannelPostsEntry"];
+
+export type ApiInboxPostEntry = ApiSpecification.components["schemas"]["InboxPostEntry"];
+
+export type ApiInboxCreatedDocumentThreadsEntry =
+    ApiSpecification.components["schemas"]["InboxCreatedDocumentThreadsEntry"];
+
+export type ApiInboxDocumentThreadEntry =
+    ApiSpecification.components["schemas"]["InboxDocumentThreadEntry"];
+
+export type ApiInboxTaskMessagesEntry =
+    ApiSpecification.components["schemas"]["InboxTaskMessagesEntry"];

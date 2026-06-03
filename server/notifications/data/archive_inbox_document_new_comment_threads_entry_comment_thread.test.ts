@@ -49,7 +49,7 @@ test("can archive a single comment thread in a new comment threads entry with on
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -128,7 +128,7 @@ test("can archive two comment threads in a new comment threads entry with three 
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -188,7 +188,7 @@ test("can archive three comment threads in a new comment threads entry with thre
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -314,7 +314,7 @@ test("archiving single comment thread is idempotent when all but one comment thr
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
         expectInboxDocumentCommentThreadEntryModel({
             isArchived: true,
             session: session2,
@@ -386,7 +386,7 @@ test("noops when archiving individual comment thread in entry that doesn\u2019t 
 
     expect(await testGetInboxEntries(session)).toEqual([]);
 
-    expect(await testGetInboxEntries(session, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session, {filter: "Done"})).toEqual([]);
 });
 
 test("can\u2019t archive individual comment thread which doesn\u2019t exist in inbox entry", async () => {
@@ -431,7 +431,7 @@ test("can\u2019t archive individual comment thread which doesn\u2019t exist in i
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 // TODO(12/11/2025 #flaky-tests): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/sg5fz408r6xb5gycbshdxbybt4
@@ -508,7 +508,7 @@ test.skip("race condition: archiving comment thread commits after comment thread
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
     unpause1();
     await archivePromise;
@@ -533,7 +533,7 @@ test.skip("race condition: archiving comment thread commits after comment thread
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });
 
 // TODO(12/11/2025 #flaky-tests): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/sg5fz408r6xb5gycbshdxbybt4
@@ -618,7 +618,7 @@ test.skip("race condition: archiving comment thread commits after comment thread
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
     unpause1();
     await archivePromise;
@@ -643,5 +643,5 @@ test.skip("race condition: archiving comment thread commits after comment thread
         }),
     ]);
 
-    expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+    expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 });

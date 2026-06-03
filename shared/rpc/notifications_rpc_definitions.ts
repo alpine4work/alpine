@@ -13,6 +13,7 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
@@ -39,7 +40,7 @@ export const getInboxEntries = defineRpc({
     isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
-        filter: Schema.enum(["New", "Archive"]),
+        filter: InboxEntryStatusSchema,
         limit: Schema.integer,
         afterCursor: DynamoIndexCursorSchema.nullable(),
     },
