@@ -131,7 +131,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/tasks/{id}/mention": {
+    "/tasks/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -146,13 +146,11 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "Task",
-                            id: pathParameters.id,
-                            status: intoApiTaskStatus(media?.displayStatus),
-                        },
+                    reference: {
+                        type: "Task",
+                        id: pathParameters.id,
                         title,
+                        status: intoApiTaskStatus(media?.displayStatus),
                     },
                 },
             };
@@ -429,7 +427,7 @@ export const apiTasksPaths: Pick<
         },
     },
 
-    "/task-collections/{id}/mention": {
+    "/task-collections/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -442,11 +440,9 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "TaskCollection",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "TaskCollection",
+                        id: pathParameters.id,
                         title,
                     },
                 },

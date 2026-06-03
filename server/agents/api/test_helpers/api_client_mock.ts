@@ -4,7 +4,7 @@ import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {
     ApiContentResponse,
-    ApiDocumentCommentThreadResponse,
+    ApiDocumentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
     ApiTaskCollection,
@@ -473,7 +473,7 @@ export class ApiClientMock implements ApiClient {
         spaceId: SpaceId,
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
-        responseData: Partial<Omit<ApiDocumentCommentThreadResponse, "id">>,
+        responseData: Partial<Omit<ApiDocumentThreadResponse, "id">>,
     ): void {
         this.mockGet(
             "/documents/{id}/threads/{threadId}",

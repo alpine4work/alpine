@@ -3,7 +3,6 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printApiMentionReferenceToMentionUrl} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiPath,
     isApiMentionReferencePath,
@@ -21,8 +20,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-// NOCOMMIT: Delete this and replace with `AgentWebMarkdownStreamParser`
 
 export type AgentMessageStreamPart = {
     readonly index: number;

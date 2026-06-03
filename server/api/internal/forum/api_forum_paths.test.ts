@@ -112,7 +112,7 @@ test("can\u2019t read channel information for non-existent channel", async () =>
     });
 });
 
-describe("/channels/{id}/mention", () => {
+describe("/channels/{id}/reference", () => {
     test("can read channel mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -126,7 +126,7 @@ describe("/channels/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -134,11 +134,9 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    reference: {
-                        type: "Channel",
-                        id: channel.id,
-                    },
+                reference: {
+                    type: "Channel",
+                    id: channel.id,
                     title: "Test Channel Name",
                 },
             },
@@ -156,7 +154,7 @@ describe("/channels/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -180,7 +178,7 @@ describe("/channels/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/channels/${generateId<ChannelId>()}/mention`, {
+            await server.GET(`/channels/${generateId<ChannelId>()}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -240,6 +238,9 @@ test("can read post information", async () => {
                         }),
                     ]),
                 }),
+                reference: {
+                    title: "in Test Channel: This is a test post content",
+                },
             }),
         }),
     });
@@ -293,7 +294,7 @@ test("can\u2019t read post information for non-existent post", async () => {
     });
 });
 
-describe("/posts/{id}/mention", () => {
+describe("/posts/{id}/reference", () => {
     test("can read post mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob", role: "Admin"});
@@ -308,7 +309,7 @@ describe("/posts/{id}/mention", () => {
         const post = await channel.createPost(session, "This is post content for mention.");
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -316,11 +317,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    reference: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Test Channel: This is post content for mention",
                 },
             },
@@ -338,7 +337,7 @@ describe("/posts/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
         const post = await channel.createPost(session2, "Private post content");
 
-        const response = await server.GET(`/posts/${post.id}/mention`, {
+        const response = await server.GET(`/posts/${post.id}/reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -353,7 +352,7 @@ describe("/posts/{id}/mention", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
-        const response = await server.GET(`/posts/${generateId<PostId>()}/mention`, {
+        const response = await server.GET(`/posts/${generateId<PostId>()}/reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -374,7 +373,7 @@ describe("/posts/{id}/mention", () => {
         const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}/reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -382,11 +381,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    reference: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Scoped Channel: Scoped post content",
                 },
             },
@@ -507,7 +504,7 @@ describe("post creation", () => {
                             },
                         ],
                     },
-                    contentPreview: "in Test Channel: This is my new post!",
+                    reference: {title: "in Test Channel: This is my new post!"},
                 },
             },
         });
@@ -601,7 +598,7 @@ describe("post creation", () => {
                             },
                         ],
                     },
-                    contentPreview: "in Rich Content Channel: Important Announcement",
+                    reference: {title: "in Rich Content Channel: Important Announcement"},
                 },
             },
         });
@@ -764,7 +761,7 @@ describe("post creation", () => {
                             },
                         ],
                     },
-                    contentPreview: "in Test Channel:",
+                    reference: {title: "in Test Channel:"},
                     createdTime: expect.any(String),
                     createdTimeZone: defaultTimeZone,
                 },

@@ -211,7 +211,7 @@ async function actuallyCallBotWebhook(
         case "Chat":
             scope = {type: "Chat", chatId: room.id};
             break;
-        case "DocumentCommentThread":
+        case "DocumentThread":
             scope = {type: "Document", documentId: room.id};
             break;
         case "Post":

@@ -68,7 +68,7 @@ export const apiForumPaths: Pick<
         },
     },
 
-    "/channels/{id}/mention": {
+    "/channels/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -81,12 +81,10 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "Channel",
-                            id: pathParameters.id,
-                            title,
-                        },
+                    reference: {
+                        type: "Channel",
+                        id: pathParameters.id,
+                        title,
                     },
                 },
             };
@@ -137,11 +135,15 @@ export const apiForumPaths: Pick<
                         },
                         author,
                         content: contentWithReferences,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channelName,
-                            content,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                        ),
+                        reference: {
+                            title: createPostSearchEntityTitle(
+                                post.channelName,
+                                content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    references,
+                                ),
+                            ),
+                        },
                     },
                 },
             };
@@ -189,20 +191,22 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         content: post.content.content,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channel.name,
-                            post.content.originalContent,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(
-                                post.content.references,
+                        reference: {
+                            title: createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
                             ),
-                        ),
+                        },
                     },
                 },
             };
         },
     },
 
-    "/posts/{id}/mention": {
+    "/posts/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -215,12 +219,10 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "Post",
-                            id: pathParameters.id,
-                            title,
-                        },
+                    reference: {
+                        type: "Post",
+                        id: pathParameters.id,
+                        title,
                     },
                 },
             };

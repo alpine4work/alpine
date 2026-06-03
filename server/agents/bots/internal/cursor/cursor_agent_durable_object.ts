@@ -21,6 +21,7 @@ import {
     agentPaginationTokenLimitGrowthFactor,
     cursorAgentInitializeMessagesTokenLimit,
 } from "~/server/agents/bots/internal/agent_limits.js";
+import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {AgentConversationState} from "~/server/agents/bots/internal/conversation/agent_conversation_store.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
@@ -45,7 +46,6 @@ import {
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
     ApiMessageRoomPath,
     printApiMessageRoomPath,

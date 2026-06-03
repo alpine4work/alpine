@@ -504,11 +504,68 @@ function intoApiContentFileOrPreviewElement(
             throw new UnimplementedError("Site previews aren\u2019t supported yet");
         }
 
-        const reference = fileEntityIdObjectToPreviewReference(entityIdObject, options);
-
         const title =
             options.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
+
+        let reference: ApiPreviewReferenceResponse;
+
+        switch (entityIdObject.type) {
+            case "Channel": {
+                reference = {
+                    type: "Channel",
+                    id: entityIdObject.channelId,
+                    title,
+                };
+                break;
+            }
+            case "Chat": {
+                reference = {
+                    type: "Chat",
+                    id: entityIdObject.chatId,
+                    title,
+                };
+                break;
+            }
+            case "Document": {
+                reference = {
+                    type: "Document",
+                    id: entityIdObject.documentId,
+                    title,
+                };
+                break;
+            }
+            case "Post": {
+                reference = {
+                    type: "Post",
+                    id: entityIdObject.postId,
+                    title,
+                };
+                break;
+            }
+            case "Task": {
+                reference = {
+                    type: "Task",
+                    id: entityIdObject.taskId,
+                    title,
+                    status: intoApiTaskStatus(
+                        options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
+                            "Closed",
+                    ),
+                };
+                break;
+            }
+            case "TaskCollection": {
+                reference = {
+                    type: "TaskCollection",
+                    id: entityIdObject.collectionId,
+                    title,
+                };
+                break;
+            }
+            default:
+                throw exhaustive(entityIdObject);
+        }
 
         return {type: "Preview", reference};
     }
@@ -521,35 +578,6 @@ function intoApiContentFileOrPreviewElement(
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
     };
-}
-
-function fileEntityIdObjectToPreviewReference(
-    entityIdObject: Exclude<ReturnType<typeof parseFileEntityId>, {type: "Site"}>,
-    options: ApiContentMarkdownIntoOptions,
-): ApiPreviewReferenceResponse {
-    switch (entityIdObject.type) {
-        case "Channel":
-            return {type: "Channel", id: entityIdObject.channelId};
-        case "Chat":
-            return {type: "Chat", id: entityIdObject.chatId};
-        case "Document":
-            return {type: "Document", id: entityIdObject.documentId};
-        case "Post":
-            return {type: "Post", id: entityIdObject.postId};
-        case "Task":
-            return {
-                type: "Task",
-                id: entityIdObject.taskId,
-                status: intoApiTaskStatus(
-                    options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
-                        "Closed",
-                ),
-            };
-        case "TaskCollection":
-            return {type: "TaskCollection", id: entityIdObject.collectionId};
-        default:
-            throw exhaustive(entityIdObject);
-    }
 }
 
 /**
@@ -631,15 +659,21 @@ function intoApiContentInlineElement(
             const mention: ContentMention = node.attrs.mention;
 
             if (mention.type === "Account") {
+                const title =
+                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
+                    "Unknown";
+                const shortName =
+                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
+                    title;
+
                 return {
                     type: "Mention",
                     reference: {
                         type: "Account",
                         id: mention.accountId,
+                        title,
+                        shortName,
                     },
-                    title:
-                        options.getAccountMentionTitleIfExists(mention.accountId, mention) ??
-                        "Unknown",
                     isAccountShortName: mention.isShort,
                     marks:
                         node.marks.length > 0
@@ -649,6 +683,15 @@ function intoApiContentInlineElement(
             } else {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
+                if (entityIdObject.type === "Site") {
+                    // TODO(#sites): Implement site mentions.
+                    throw new UnimplementedError("Site mentions aren\u2019t implemented");
+                }
+
+                const title =
+                    options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
+                    `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
+
                 let reference: ApiMentionReferenceResponse;
 
                 switch (entityIdObject.type) {
@@ -656,6 +699,7 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "Document",
                             id: entityIdObject.documentId,
+                            title,
                         };
                         break;
                     }
@@ -663,6 +707,7 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "Channel",
                             id: entityIdObject.channelId,
+                            title,
                         };
                         break;
                     }
@@ -670,6 +715,7 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "Chat",
                             id: entityIdObject.chatId,
+                            title,
                         };
                         break;
                     }
@@ -677,6 +723,7 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "Task",
                             id: entityIdObject.taskId,
+                            title,
                             status: intoApiTaskStatus(
                                 options.getSearchTaskEntityDisplayStatusIfExists(
                                     entityIdObject.taskId,
@@ -690,6 +737,7 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "TaskCollection",
                             id: entityIdObject.collectionId,
+                            title,
                         };
                         break;
                     }
@@ -697,12 +745,9 @@ function intoApiContentInlineElement(
                         reference = {
                             type: "Post",
                             id: entityIdObject.postId,
+                            title,
                         };
                         break;
-                    }
-                    case "Site": {
-                        // TODO(#sites): Implement site mentions.
-                        throw new UnimplementedError("Site mentions aren\u2019t implemented");
                     }
                     default:
                         throw exhaustive(entityIdObject);
@@ -711,9 +756,6 @@ function intoApiContentInlineElement(
                 return {
                     type: "Mention",
                     reference,
-                    title:
-                        options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        `Unknown ${getApiMentionReferenceNoun(reference.type)}`,
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

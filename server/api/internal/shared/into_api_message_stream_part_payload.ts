@@ -53,7 +53,7 @@ export async function intoApiMessageStreamPartPayload(
                             // I would expect this to break any time we try to return this response via the
                             // API.
                             reference: payload.call
-                                .reference as ApiMessageStreamToolCallPartCreateCallReferenceResponse,
+                                .target as ApiMessageStreamToolCallPartCreateCallReferenceResponse,
                         },
                     };
                 }

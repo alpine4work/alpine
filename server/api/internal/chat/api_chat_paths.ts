@@ -21,6 +21,7 @@ import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {ApiDirectChat} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -77,7 +78,6 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                     const chat = {
                         type: "Direct" as const,
                         id: chatId,
-                        title,
                         members: await runAllPromises(
                             mapIterable(sortedAccountIds, async accountId => ({
                                 account: await getApiAccount(
@@ -88,6 +88,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                                 ),
                             })),
                         ),
+                        reference: {title},
                     };
 
                     return {
@@ -128,11 +129,9 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                         chatDefinition.definition.accountIds,
                     );
 
-                    const chat = {
+                    const chat: ApiDirectChat = {
                         type: "Direct",
                         id: pathParameters.id,
-                        // NOCOMMIT: Test!!
-                        title,
                         members: await runAllPromises(
                             mapIterable(sortedAccountIds, async accountId => ({
                                 account: await getApiAccount(
@@ -143,6 +142,8 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                                 ),
                             })),
                         ),
+                        // NOCOMMIT: Test!!
+                        reference: {title},
                     };
 
                     return {
@@ -170,7 +171,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
         },
     },
 
-    "/chats/{id}/mention": {
+    "/chats/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -183,12 +184,10 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "Chat",
-                            id: pathParameters.id,
-                            title,
-                        },
+                    reference: {
+                        type: "Chat",
+                        id: pathParameters.id,
+                        title,
                     },
                 },
             };

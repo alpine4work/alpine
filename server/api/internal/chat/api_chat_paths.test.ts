@@ -128,8 +128,8 @@ describe("POST /chats", () => {
                     chat: expect.objectContaining({
                         type: "Direct",
                         id: expect.stringMatching(idRegExp),
-                        title: expect.any(String),
                         members: expect.any(Array),
+                        reference: {title: expect.any(String)},
                     }),
                 }),
             },
@@ -174,8 +174,8 @@ describe("POST /chats", () => {
                     chat: expect.objectContaining({
                         type: "Direct",
                         id: expect.stringMatching(idRegExp),
-                        title: expect.any(String),
                         members: expect.any(Array),
+                        reference: {title: expect.any(String)},
                     }),
                 }),
             },
@@ -224,8 +224,8 @@ describe("POST /chats", () => {
                     chat: expect.objectContaining({
                         type: "Direct",
                         id: expect.stringMatching(idRegExp),
-                        title: expect.any(String),
                         members: expect.any(Array),
+                        reference: {title: expect.any(String)},
                     }),
                 }),
             },

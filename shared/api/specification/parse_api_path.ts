@@ -88,7 +88,7 @@ const apiMessageRoomTypes = new Set<string>(
         cast<Record<ApiMessageRoomReference["type"], true>>({
             Chat: true,
             Post: true,
-            DocumentCommentThread: true,
+            DocumentThread: true,
             Task: true,
         }),
     ),
@@ -122,7 +122,7 @@ type ApiPathsType = [
     {
         path: `/documents/${DocumentId}/threads/${DocumentCommentThreadId}`;
         pathObject: {
-            readonly type: "DocumentCommentThread";
+            readonly type: "DocumentThread";
             readonly id: DocumentId;
             readonly threadId: DocumentCommentThreadId;
         };
@@ -316,7 +316,7 @@ export function parseApiPath(path: string): ApiPathObject {
                 }
 
                 return {
-                    type: "DocumentCommentThread",
+                    type: "DocumentThread",
                     id: pathSegments[1],
                     threadId: pathSegments[3],
                 };
@@ -461,7 +461,7 @@ export function printApiPath(path: ApiPathObject): ApiPath {
             return `/chats/${path.id}/messages`;
         case "Document":
             return `/documents/${path.id}`;
-        case "DocumentCommentThread":
+        case "DocumentThread":
             return `/documents/${path.id}/threads/${path.threadId}`;
         case "DocumentComment":
             return `/documents/${path.id}/threads/${path.threadId}/messages/${path.index}`;
@@ -573,7 +573,7 @@ export function getApiMentionReferencePathIfExists(path: ApiPath): ApiMentionRef
     const pathObject = parseApiNotMentionReference(path);
 
     switch (pathObject.type) {
-        case "DocumentCommentThread":
+        case "DocumentThread":
         case "DocumentComment":
         case "DocumentCommentThreadComments": {
             return `/documents/${pathObject.id}`;

@@ -1,3 +1,4 @@
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {
     ApiSearchResult,
@@ -75,6 +76,13 @@ function actuallyIntoApiSearchResult({
             bodyMatch: null,
             type: "Account",
             id: model.id,
+            // NOCOMMIT: Test that `shortName` and `botId` is returned from:
+            //
+            // 1. `/accounts/{id}/reference`
+            // 2. Search for an account
+            // 3. In content reference
+            shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
+            botId: model.botId,
         };
     }
 
@@ -145,6 +153,7 @@ function actuallyIntoApiSearchResult({
                 "DocumentComment SearchEntityModel should have an account media object",
             );
             const author = intoApiAccount(model.initialData.media.account.initialData);
+            assert(bodyMatch !== null);
 
             return {
                 title: null,
@@ -179,6 +188,7 @@ function actuallyIntoApiSearchResult({
                 "PostComment SearchEntityModel should have an account media object",
             );
             const author = intoApiAccount(model.initialData.media.account.initialData);
+            assert(bodyMatch !== null);
 
             return {
                 title: null,
@@ -217,6 +227,7 @@ function actuallyIntoApiSearchResult({
                 "TaskComment SearchEntityModel should have an account media object",
             );
             const author = intoApiAccount(model.initialData.media.account.initialData);
+            assert(bodyMatch !== null);
 
             return {
                 title: null,

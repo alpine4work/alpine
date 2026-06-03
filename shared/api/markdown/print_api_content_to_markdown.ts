@@ -1279,7 +1279,9 @@ function* printApiContentInlineElementToMarkdown(
                     children: [
                         {
                             type: "text",
-                            value: printApiMentionReferenceToMentionLinkLabel(element.reference),
+                            value: printApiMentionReferenceToMentionLinkLabel(element.reference, {
+                                isAccountShortName: element.isAccountShortName,
+                            }),
                         },
                     ],
                     data: {mentionElement: element},
@@ -1326,7 +1328,14 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiMentionReferenceToMentionLinkLabel(reference: ApiMentionReference): string {
+export function printApiMentionReferenceToMentionLinkLabel(
+    reference: ApiMentionReference,
+    {isAccountShortName = false}: {isAccountShortName?: boolean} = {},
+): string {
+    if (reference.type === "Account" && isAccountShortName && reference.shortName !== undefined) {
+        return reference.shortName;
+    }
+
     const title =
         reference.title ??
         (reference.type === "Account"

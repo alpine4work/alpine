@@ -285,7 +285,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
     getBotWebhookEvent: (event, {accountId}) => ({
         type: "NewMessage",
         room: {
-            type: "DocumentCommentThread",
+            type: "DocumentThread",
             id: event.documentId,
             threadId: event.commentThreadId,
         },

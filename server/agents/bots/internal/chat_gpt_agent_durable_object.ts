@@ -13,6 +13,7 @@ import {
     AgentWebhookRequest,
 } from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/bots/internal/agent_limits.js";
+import {AgentMessageStream} from "~/server/agents/bots/internal/agent_message_stream.js";
 import {AgentMessageStreamSession} from "~/server/agents/bots/internal/agent_message_stream_session.js";
 import {
     AgentScheduleEvent,
@@ -69,7 +70,6 @@ import {
 } from "~/server/agents/bots/internal/supported_agent_models.js";
 import {searchAlpineForAgent} from "~/server/agents/bots/internal/tools/search_alpine_for_agent.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
-import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
     getApiMentionReferencePathIfExists,
     isApiMessageRoom,

@@ -194,7 +194,7 @@ export const apiDocumentsPaths: Pick<
         },
     },
 
-    "/documents/{id}/mention": {
+    "/documents/{id}/reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -207,11 +207,9 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        reference: {
-                            type: "Document",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Document",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -266,7 +264,7 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
-                    commentThread: {
+                    thread: {
                         id: commentThread.id,
                         createdTime: serializeDateString(commentThread.createdTime),
                         isResolved: commentThread.isResolved,
