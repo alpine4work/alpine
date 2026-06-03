@@ -695,11 +695,6 @@ const TracerEventDataSchema = {
             },
         },
     },
-    tracking: {
-        google: {
-            gclid: Schema.string,
-        },
-    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

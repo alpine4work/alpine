@@ -2010,14 +2010,6 @@ export type TracerEventData = {
             };
         };
     };
-
-    /** Information regarding third-party marketing and analytics tracking. */
-    readonly tracking?: {
-        readonly google?: {
-            /** Google Ads click ID (`gclid`) from the URL at the time of the request. */
-            readonly gclid?: string;
-        };
-    };
 };
 
 /**

@@ -138,15 +138,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                             method: "POST",
                             body: JSON.stringify(body),
                         },
-                        async (response, span) => {
-                            const gclid =
-                                typeof window !== "undefined"
-                                    ? new URL(window.location.href).searchParams.get("gclid")
-                                    : null;
-                            if (gclid) {
-                                span.addData({tracking: {google: {gclid}}});
-                            }
-
+                        async response => {
                             const output = AuthSignInOrSignUpOutputSchema.deserialize(
                                 await response.json(),
                             );

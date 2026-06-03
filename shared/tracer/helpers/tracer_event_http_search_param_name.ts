@@ -56,6 +56,9 @@ type TracerEventHttpSearchParamNameMap = {
     utm_campaign: true;
     utm_term: true;
     utm_content: true;
+
+    // Google Ads click ID. Set when the user lands on a page from a Google Ad.
+    gclid: true;
 };
 
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
@@ -80,6 +83,7 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     utm_campaign: true,
     utm_term: true,
     utm_content: true,
+    gclid: true,
 };
 
 /**
@@ -116,6 +120,7 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "utm_campaign",
         "utm_term",
         "utm_content",
+        "gclid",
     ]),
     EdgeService: new Set(["variant", "width"]),
     TaskRealtimeService: new Set(["consistency"]),
