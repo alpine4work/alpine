@@ -107,7 +107,7 @@ export async function readAgentWebPostPage(
                 const postReference: ApiPostReferenceResponse = {
                     type: "Post",
                     id,
-                    title,
+                    title: post.reference.title,
                 };
 
                 return {

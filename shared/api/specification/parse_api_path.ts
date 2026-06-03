@@ -1,3 +1,11 @@
+// TODO(calebmer, #api-path-destruction): We don't use this "API path" concept for
+// anything important anymore. What is now an `ApiReference` object used to be an
+// `ApiPath` string. `ApiPath` still exists here and there in our code but we
+// should work towards totally phasing it out and replacing it with `ApiReference`
+// or `ApiReferenceKey` objects.
+//
+// DO NOT USE THIS FOR NEW CODE.
+
 import {
     ApiBotWebhookEvent,
     ApiMentionReference,
