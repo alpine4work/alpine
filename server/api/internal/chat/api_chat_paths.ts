@@ -202,20 +202,19 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                 consistency: "StrongWithinCache",
             });
 
-            const content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> =
-                {
-                    spaceId: message.spaceId,
-                    message: await intoApiMessage(
+            let content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> = {
+                spaceId: message.spaceId,
+                message: await intoApiMessage(
+                    context,
+                    message.spaceId,
+                    message,
+                    createIntoApiChatMessageContentPayloadParent(
                         context,
                         message.spaceId,
-                        message,
-                        createIntoApiChatMessageContentPayloadParent(
-                            context,
-                            message.spaceId,
-                            pathParameters.id,
-                        ),
+                        pathParameters.id,
                     ),
-                };
+                ),
+            };
 
             // We want to test that response schemas are validated in a Jest unit test. So
             // allow adding a search param to trigger a response validation failure.
@@ -223,6 +222,61 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                 (content as any).additionalProperty = url.searchParams.get(
                     "test-additional-property",
                 );
+            }
+
+            // We also test that object key order is validated in a Jest unit test. So allow
+            // adding a search param to trigger order validation failures.
+            if (import.meta.jest) {
+                switch (url.searchParams.get("test-property-order")) {
+                    case null: {
+                        break;
+                    }
+                    case "top-level": {
+                        content = {
+                            message: content.message,
+                            spaceId: content.spaceId,
+                        } as any;
+                        break;
+                    }
+                    case "nested": {
+                        (content as any).message = {
+                            author: content.message.author,
+                            index: content.message.index,
+                            createdTime: content.message.createdTime,
+                            createdTimeZone: content.message.createdTimeZone,
+                            payload: content.message.payload,
+                        };
+                        break;
+                    }
+                    case "array": {
+                        if (content.message.payload.type === "Content") {
+                            const firstElement = content.message.payload.content.elements[0];
+
+                            if (firstElement) {
+                                (content.message.payload.content.elements as any)[0] = {
+                                    elements: (firstElement as any).elements,
+                                    type: firstElement.type,
+                                };
+                            }
+                        }
+                        break;
+                    }
+                    case "union": {
+                        if (content.message.payload.type === "Content") {
+                            const {payload} = content.message;
+
+                            (content as any).message.payload =
+                                payload.parent === undefined
+                                    ? {content: payload.content, type: payload.type}
+                                    : {
+                                          content: payload.content,
+                                          type: payload.type,
+                                          parent: payload.parent,
+                                      };
+                        }
+                        break;
+                    }
+                }
             }
 
             return {

@@ -28,8 +28,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
-const hiddenFromDocumentationOpenApiExtension = "x-internal";
-
 async function main() {
     /* ========================================================================== *\
      *                       Render YAML Mustache template                        *
@@ -61,7 +59,7 @@ async function main() {
         // Use `JSON.parse(JSON.stringify())` to get a deep copy of the schema so we don't
         // end up with YAML references like `&a2` + `*a2`. This improves readability for
         // the generated schema and makes the generated schema easier to code review.
-        JSON.parse(JSON.stringify(specialize(Yaml.parse(specificationContent)))),
+        JSON.parse(JSON.stringify(specialize(Yaml.parse(specificationContent, {merge: true})))),
         {indent: 4},
     );
 
@@ -341,6 +339,12 @@ main().catch(error => {
  * specialization for each schema that references `ContentMentionInlineElement`.
  */
 function specialize(specification: unknown) {
+    // Add any properties in `_Response` as optional properties to the base schema and
+    // `_Request` schema. This is needed to make sure we can accept a `_Response`
+    // object as request input. Otherwise a `_Response` object would be rejected by
+    // `additionalProperties: false`.
+    addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(specification);
+
     let iterationCount = 0;
     let specializationsBySchemaName = findSpecializations(specification);
 
@@ -360,8 +364,6 @@ function specialize(specification: unknown) {
             specification,
         );
     }
-
-    addSpecializedObjectPropertiesToBaseSchemas(specification);
 
     // Finally, replace any references in requests/responses with the corresponding
     // specialized schema.
@@ -475,56 +477,46 @@ function applySpecializationToSchema(
     }
 }
 
-function addSpecializedObjectPropertiesToBaseSchemas(specification: unknown) {
+function addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(specification: unknown) {
     assert(isObject(specification));
     assert(isObject(specification.components));
     assert(isObject(specification.components.schemas));
 
     const {schemas} = specification.components;
 
-    for (const [schemaName, schema] of Object.entries(schemas)) {
-        if (!schemaName.includes("_")) continue;
+    for (const [schemaName, responseSchema] of Object.entries(schemas)) {
+        if (!schemaName.endsWith("_Response")) continue;
 
-        const [baseSchemaName = ""] = schemaName.split("_", 2);
-        const baseSchema = schemas[baseSchemaName];
+        if (!isObject(responseSchema)) continue;
+        if (responseSchema.type !== "object") continue;
+        if (!isObject(responseSchema.properties)) continue;
 
-        if (!isObject(baseSchema) || !isObject(schema)) continue;
-        if (baseSchema.type !== "object" || schema.type !== "object") continue;
-        if (!isObject(schema.properties)) continue;
+        const responseSchemaProperties = responseSchema.properties;
 
-        const baseProperties = isObject(baseSchema.properties) ? baseSchema.properties : {};
-        const missingSpecializedProperties = Object.entries(schema.properties).filter(
-            ([propertyName]) => !hasOwnProperty(baseProperties, propertyName),
-        );
+        const add = (schema: Record<string, unknown>) => {
+            assert(isObject(schema.properties));
 
-        if (missingSpecializedProperties.length === 0) continue;
+            for (const [propertyKey, propertySchema] of Object.entries(responseSchemaProperties)) {
+                if (hasOwnProperty(schema.properties, propertyKey)) continue;
 
-        schemas[baseSchemaName] = produce(baseSchema, baseSchema => {
-            assert(isObject(baseSchema));
-
-            if (!isObject(baseSchema.properties)) baseSchema.properties = {};
-
-            const baseProperties = baseSchema.properties;
-            assert(isObject(baseProperties));
-
-            for (const [propertyName, propertySchema] of missingSpecializedProperties) {
-                baseProperties[propertyName] =
-                    cloneSchemaHiddenFromDocumentation(propertySchema);
+                // @ts-expect-error: TypeScript doesn't like the type narrowing from
+                // `hasOwnProperty()` above.
+                schema.properties[propertyKey] = JSON.parse(JSON.stringify(propertySchema));
             }
-        });
+        };
+
+        const baseSchemaName = schemaName.slice(0, -"_Response".length);
+        const baseSchema = schemas[baseSchemaName];
+        const requestSchema = schemas[`${baseSchemaName}_Request`];
+
+        if (isObject(baseSchema) && baseSchema.type === "object") {
+            add(baseSchema);
+        }
+
+        if (isObject(requestSchema) && requestSchema.type === "object") {
+            add(requestSchema);
+        }
     }
-}
-
-function cloneSchemaHiddenFromDocumentation(schema: unknown) {
-    const clonedSchema = JSON.parse(JSON.stringify(schema));
-
-    assert(isObject(clonedSchema));
-
-    // OpenAPI does not have a standard "hidden from docs" flag. Specification
-    // extensions are the standard extension point, and Redocly uses `x-internal`.
-    clonedSchema[hiddenFromDocumentationOpenApiExtension] = true;
-
-    return clonedSchema;
 }
 
 function specializeRequestBodiesAndResponses(specification: unknown) {

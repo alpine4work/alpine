@@ -1,4 +1,4 @@
-import {Ajv} from "ajv";
+import {Ajv, ErrorObject} from "ajv";
 import _addAjvFormats from "ajv-formats";
 import {parse as parseCookieHeader} from "cookie";
 import FindMyWay from "find-my-way";
@@ -282,40 +282,91 @@ export async function createApiServiceRequestListener(
         });
     });
 
-    const ajv = new Ajv({strict: false});
-
-    // Support formats like `date-time` from the OpenAPI specification.
-    addAjvFormats(ajv);
-
     const ajvSharedSchemaName = "shared.yaml";
+    const ajv = createAjv({validateObjectKeyOrder: false});
 
-    ajv.addSchema(
-        // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`. So
-        // remove `discriminator.mapping` from our schema. Ajv uses
-        // `discriminator.propertyName` purely as an optimization and expects discriminator
-        // schemas to have constant property names at `discriminator.propertyName`.
-        //
-        // `api_specification.test.ts` makes sure our usage of `discriminator` is
-        // consistent and compatible with Ajv.
-        removeDiscriminatorMappingForAjv(apiSpecification as any) as any,
-        ajvSharedSchemaName,
-    );
+    const debugResponseAjv =
+        process.env.NODE_ENV !== "production" ? createAjv({validateObjectKeyOrder: true}) : null;
 
-    function removeDiscriminatorMappingForAjv(value: JsonValue): JsonValue {
+    function createAjv({validateObjectKeyOrder}: {validateObjectKeyOrder: boolean}) {
+        const ajv = new Ajv({strict: false});
+
+        if (validateObjectKeyOrder) {
+            ajv.addKeyword({
+                keyword: objectPropertyOrderKeyword,
+                type: "object",
+                schemaType: "array",
+                errors: true,
+                validate: validateObjectPropertyOrderForAjv,
+            });
+        }
+
+        // Support formats like `date-time` from the OpenAPI specification.
+        addAjvFormats(ajv);
+
+        ajv.addSchema(
+            // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`. So
+            // remove `discriminator.mapping` from our schema. Ajv uses
+            // `discriminator.propertyName` purely as an optimization and expects discriminator
+            // schemas to have constant property names at `discriminator.propertyName`.
+            //
+            // `api_specification.test.ts` makes sure our usage of `discriminator` is
+            // consistent and compatible with Ajv.
+            prepareSchemaForAjv(apiSpecification as any, {validateObjectKeyOrder}) as any,
+            ajvSharedSchemaName,
+        );
+
+        return ajv;
+    }
+
+    function prepareSchemaForAjv(
+        value: JsonValue,
+        {validateObjectKeyOrder}: {validateObjectKeyOrder: boolean},
+    ): JsonValue {
         if (!isObject(value)) return value;
-        if (isReadonlyArray(value)) return value.map(removeDiscriminatorMappingForAjv);
 
-        return mapObjectValues(value, (keyValue, key) =>
+        if (isReadonlyArray(value)) {
+            return value.map(value => prepareSchemaForAjv(value, {validateObjectKeyOrder}));
+        }
+
+        let result = mapObjectValues(value, (keyValue, key) =>
             key !== "mapping" && keyValue !== undefined
-                ? removeDiscriminatorMappingForAjv(keyValue)
+                ? prepareSchemaForAjv(keyValue, {validateObjectKeyOrder})
                 : undefined,
         );
+
+        if (validateObjectKeyOrder && result.type === "object" && isObject(result.properties)) {
+            result = {
+                ...result,
+                [objectPropertyOrderKeyword]: Object.keys(result.properties),
+            };
+        }
+
+        return result;
     }
 
     function compileWithAjv(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject) {
-        schema = updateRefsForAjv(schema as JsonValue) as
-            | OpenAPIV3.SchemaObject
-            | OpenAPIV3.ReferenceObject;
+        return actuallyCompileWithAjv(ajv, schema, {validateObjectKeyOrder: false});
+    }
+
+    function compileDebugResponseWithAjv(
+        schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
+    ) {
+        assert(debugResponseAjv);
+
+        return actuallyCompileWithAjv(debugResponseAjv, schema, {
+            validateObjectKeyOrder: true,
+        });
+    }
+
+    function actuallyCompileWithAjv(
+        ajv: Ajv,
+        schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
+        {validateObjectKeyOrder}: {validateObjectKeyOrder: boolean},
+    ) {
+        schema = updateRefsForAjv(
+            prepareSchemaForAjv(schema as JsonValue, {validateObjectKeyOrder}),
+        ) as OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
 
         return ajv.compile(schema);
     }
@@ -518,7 +569,7 @@ export async function createApiServiceRequestListener(
                           return null;
                       }
 
-                      return compileWithAjv(jsonSchema);
+                      return compileDebugResponseWithAjv(jsonSchema);
                   })
                 : null;
 
@@ -1030,3 +1081,50 @@ function renderErrorDisplayMessage(displayMessage: ErrorDisplayMessage): string 
 
     return string;
 }
+
+const objectPropertyOrderKeyword = "x-propertyOrder";
+
+function validateObjectPropertyOrderForAjv(expectedPropertyOrder: unknown, data: unknown) {
+    assert(isReadonlyArray(expectedPropertyOrder));
+    assert(isObject(data));
+
+    const expectedPropertyIndexByName = new Map<string, number>();
+
+    for (let index = 0; index < expectedPropertyOrder.length; index++) {
+        const propertyName = expectedPropertyOrder[index];
+        assert(typeof propertyName === "string");
+        expectedPropertyIndexByName.set(propertyName, index);
+    }
+
+    let previousPropertyIndex = -1;
+    let previousPropertyName: string | undefined;
+
+    for (const propertyName of Object.keys(data)) {
+        const propertyIndex = expectedPropertyIndexByName.get(propertyName);
+        if (propertyIndex === undefined) continue;
+
+        if (propertyIndex < previousPropertyIndex) {
+            validateObjectPropertyOrderForAjv.errors = [
+                {
+                    keyword: objectPropertyOrderKeyword,
+                    params: {
+                        previousPropertyName,
+                        propertyName,
+                    },
+                    message: quote`must list ${propertyName} before ${previousPropertyName}`,
+                },
+            ];
+
+            return false;
+        }
+
+        previousPropertyIndex = propertyIndex;
+        previousPropertyName = propertyName;
+    }
+
+    validateObjectPropertyOrderForAjv.errors = undefined;
+
+    return true;
+}
+
+validateObjectPropertyOrderForAjv.errors = cast<Array<Partial<ErrorObject>> | undefined>(undefined);

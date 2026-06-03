@@ -423,8 +423,6 @@ paths:
                                         - content
                                     additionalProperties: false
                                     properties:
-                                        title:
-                                            type: string
                                         creator:
                                             type: object
                                             required:
@@ -433,6 +431,8 @@ paths:
                                             properties:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
+                                        title:
+                                            type: string
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -1293,8 +1293,8 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - tasks
                                     - nextCursor
+                                    - tasks
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -1439,8 +1439,8 @@ components:
                         type: object
                         required:
                             - spaceId
-                            - nextCursor
                             - totalMessageCount
+                            - nextCursor
                             - messages
                         additionalProperties: false
                         properties:
@@ -1533,14 +1533,14 @@ components:
                             - content
                         additionalProperties: false
                         properties:
-                            isStream:
-                                type: boolean
                             createdTimeZone:
                                 $ref: "#/components/schemas/TimeZone"
                             parent:
                                 $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
+                            isStream:
+                                type: boolean
         PutMessageStreamPart:
             required: true
             content:
@@ -1681,10 +1681,8 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
-                    x-internal: true
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                    x-internal: true
                 bot:
                     type: object
                     required:
@@ -1693,7 +1691,6 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/BotId"
-                    x-internal: true
         AccountReference_Response:
             type: object
             required:
@@ -2333,10 +2330,6 @@ components:
                 - element
             additionalProperties: false
             properties:
-                width:
-                    type: number
-                    minimum: 0
-                    maximum: 1
                 element:
                     oneOf:
                         - $ref: "#/components/schemas/ContentFileBlockElement"
@@ -2346,6 +2339,10 @@ components:
                         mapping:
                             File: "#/components/schemas/ContentFileBlockElement"
                             Preview: "#/components/schemas/ContentPreviewBlockElement"
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
         ContentFileGalleryBlockElementRowItem_Response:
             type: object
             required:
@@ -2536,8 +2533,14 @@ components:
             properties:
                 type:
                     const: Comment
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
+                thread:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
         ContentCodeBlockElementTextInlineElement:
             type: object
             required:
@@ -2629,38 +2632,40 @@ components:
                         id:
                             $ref: "#/components/schemas/BotId"
                 space:
-                    type: object
-                    required:
-                        - role
-                        - addedTime
-                    additionalProperties: false
-                    properties:
-                        role:
-                            type: string
-                            enum:
-                                - Owner
-                                - Admin
-                                - Member
-                        addedTime:
-                            $ref: "#/components/schemas/DateTime"
-                        inactive:
-                            oneOf:
-                                - type: object
-                                  required:
-                                      - type
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: Removed
-                                      removedTime:
-                                          $ref: "#/components/schemas/DateTime"
-                                - type: object
-                                  required:
-                                      - type
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: InvitePending
+                    $ref: "#/components/schemas/AccountSpace"
+        AccountSpace:
+            type: object
+            required:
+                - role
+                - addedTime
+            additionalProperties: false
+            properties:
+                role:
+                    type: string
+                    enum:
+                        - Owner
+                        - Admin
+                        - Member
+                addedTime:
+                    $ref: "#/components/schemas/DateTime"
+                inactive:
+                    oneOf:
+                        - type: object
+                          required:
+                              - type
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Removed
+                              removedTime:
+                                  $ref: "#/components/schemas/DateTime"
+                        - type: object
+                          required:
+                              - type
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: InvitePending
         Chat:
             oneOf:
                 - $ref: "#/components/schemas/DirectChat"
@@ -2754,7 +2759,7 @@ components:
                                     title:
                                         type: string
                                     shortName:
-                                        type: string
+                                        $ref: "#/components/schemas/LabelString"
                                     bot:
                                         type: object
                                         required:
@@ -2763,6 +2768,10 @@ components:
                                         properties:
                                             id:
                                                 $ref: "#/components/schemas/BotId"
+                                    name:
+                                        $ref: "#/components/schemas/LabelString"
+                                    space:
+                                        $ref: "#/components/schemas/AccountSpace"
         CreateChatRequestBodyRoomChat:
             type: object
             required:
@@ -3071,13 +3080,10 @@ components:
                 endIndex:
                     type: integer
                     minimum: 0
-                    x-internal: true
                 author:
                     $ref: "#/components/schemas/Account"
-                    x-internal: true
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
-                    x-internal: true
         MessageContentPayloadMessageParent_Response:
             type: object
             required:
@@ -3109,10 +3115,8 @@ components:
                     const: Post
                 author:
                     $ref: "#/components/schemas/Account"
-                    x-internal: true
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
-                    x-internal: true
         MessageContentPayloadPostParent_Response:
             type: object
             required:
@@ -3139,20 +3143,20 @@ components:
             type: object
             required:
                 - index
+                - createdTime
                 - version
                 - payload
-                - createdTime
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
-                version:
-                    type: integer
-                    minimum: 0
                 createdTime:
                     type: string
                     format: date-time
+                version:
+                    type: integer
+                    minimum: 0
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
         MessageStreamPartPayload:
@@ -3271,7 +3275,7 @@ components:
                 - type
                 - room
                 - index
-                - authorId
+                - author
                 - createdTimeZone
             additionalProperties: false
             properties:
@@ -3384,8 +3388,8 @@ components:
         MessageContentPayloadParentContentSnippet:
             type: object
             required:
-                - isTruncated
                 - elements
+                - isTruncated
             additionalProperties: false
             properties:
                 elements:
@@ -3510,23 +3514,23 @@ components:
         SearchAccountResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - shortName
             additionalProperties: false
             properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Account
-                id:
-                    $ref: "#/components/schemas/AccountId"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
                 bot:
@@ -3540,12 +3544,16 @@ components:
         SearchChannelResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
             additionalProperties: false
             properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
@@ -3554,48 +3562,44 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Channel
-                id:
-                    $ref: "#/components/schemas/ChannelId"
         SearchChatResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
             additionalProperties: false
             properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
         SearchChatMessageResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - index
                 - author
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: ChatMessage
                 id:
                     $ref: "#/components/schemas/ChatId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3606,12 +3610,16 @@ components:
         SearchDocumentResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
             additionalProperties: false
             properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
@@ -3620,30 +3628,26 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Document
-                id:
-                    $ref: "#/components/schemas/DocumentId"
         SearchDocumentMessageResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - threadId
                 - index
                 - author
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: DocumentMessage
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
                 index:
@@ -3656,23 +3660,23 @@ components:
         SearchPostResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - author
             additionalProperties: false
             properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -3680,22 +3684,22 @@ components:
         SearchPostMessageResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - index
                 - author
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: PostMessage
                 id:
                     $ref: "#/components/schemas/PostId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3706,23 +3710,23 @@ components:
         SearchTaskResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - status
             additionalProperties: false
             properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
@@ -3730,22 +3734,22 @@ components:
         SearchTaskMessageResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
                 - index
                 - author
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: TaskMessage
                 id:
                     $ref: "#/components/schemas/TaskId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3756,22 +3760,22 @@ components:
         SearchTaskCollectionResult:
             type: object
             required:
-                - title
-                - bodyMatch
                 - type
                 - id
+                - title
+                - bodyMatch
             additionalProperties: false
             properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: TaskCollection
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
         SearchResultBodyMatch:
             type: array
             items:
@@ -4042,7 +4046,7 @@ components:
                 - type
                 - room
                 - index
-                - authorId
+                - author
                 - createdTimeZone
             additionalProperties: false
             properties:
@@ -4436,20 +4440,20 @@ components:
             type: object
             required:
                 - index
+                - createdTime
                 - version
                 - payload
-                - createdTime
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
-                version:
-                    type: integer
-                    minimum: 0
                 createdTime:
                     type: string
                     format: date-time
+                version:
+                    type: integer
+                    minimum: 0
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload_Response"
         ContentUnorderedListBlockElement_Response:

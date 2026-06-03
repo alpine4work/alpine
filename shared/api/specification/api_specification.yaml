@@ -404,8 +404,6 @@ paths:
                                     required: [title, content]
                                     additionalProperties: false
                                     properties:
-                                        title:
-                                            type: string
                                         creator:
                                             type: object
                                             required: [id]
@@ -413,6 +411,8 @@ paths:
                                             properties:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
+                                        title:
+                                            type: string
                                         content:
                                             $ref: "#/components/schemas/Content"
             responses:
@@ -1181,7 +1181,7 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, tasks, nextCursor]
+                                required: [spaceId, nextCursor, tasks]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -1310,7 +1310,7 @@ components:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, nextCursor, totalMessageCount, messages]
+                        required: [spaceId, totalMessageCount, nextCursor, messages]
                         additionalProperties: false
                         properties:
                             spaceId:
@@ -1411,14 +1411,14 @@ components:
                         required: [content]
                         additionalProperties: false
                         properties:
-                            isStream:
-                                type: boolean
                             createdTimeZone:
                                 $ref: "#/components/schemas/TimeZone"
                             parent:
                                 $ref: "#/components/schemas/MessageContentPayloadParent"
                             content:
                                 $ref: "#/components/schemas/Content"
+                            isStream:
+                                type: boolean
 
         # TODO(ifitzsimmons, #public-api-blocking): Response bodies should be
         # assignable to request bodies for objects of the same type. So
@@ -1521,22 +1521,12 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-                shortName:
-                    $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
 
         AccountReference_Response:
             type: object
             required: [type, id, title, shortName]
             additionalProperties: false
-            properties:
+            properties: &accountReferenceResponseProperties
                 type:
                     const: Account
                 id:
@@ -1564,12 +1554,6 @@ components:
                     const: Channel
                 id:
                     $ref: "#/components/schemas/ChannelId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
 
         ChannelReference_Response:
             type: object
@@ -1592,12 +1576,6 @@ components:
                     const: Chat
                 id:
                     $ref: "#/components/schemas/ChatId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
 
         ChatReference_Response:
             type: object
@@ -1620,12 +1598,6 @@ components:
                     const: Document
                 id:
                     $ref: "#/components/schemas/DocumentId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
 
         DocumentReference_Response:
             type: object
@@ -1648,12 +1620,6 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
 
         PostReference_Response:
             type: object
@@ -1676,14 +1642,6 @@ components:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
 
         TaskReference_Response:
             type: object
@@ -1708,12 +1666,6 @@ components:
                     const: TaskCollection
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
-                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
-                # create content with a `title`. This property exists solely as a convenience
-                # for code that wants to operate on both `ContentMentionInlineElement` and
-                # `ContentMentionInlineElement_Response` (which will always have a title).
-                title:
-                    type: string
 
         TaskCollectionReference_Response:
             type: object
@@ -2075,13 +2027,6 @@ components:
                     const: File
                 id:
                     $ref: "#/components/schemas/FileId"
-                # Ignored on write but ensures ContentFileBlockElement_Response
-                # is compatible as input.
-                contentType:
-                    $ref: "#/components/schemas/FileContentType"
-                contentLength:
-                    type: integer
-                    minimum: 0
 
         ContentFileBlockElement_Response:
             type: object
@@ -2138,13 +2083,6 @@ components:
             required: [element]
             additionalProperties: false
             properties:
-                # Fractional width from 0 to 1 representing the item's share
-                # of the row width. Values in a row sum to 1. Ignored on
-                # write, populated on read.
-                width:
-                    type: number
-                    minimum: 0
-                    maximum: 1
                 element:
                     oneOf:
                         - $ref: "#/components/schemas/ContentFileBlockElement"
@@ -2342,8 +2280,13 @@ components:
             properties:
                 type:
                     const: Comment
-                threadId:
-                    $ref: "#/components/schemas/DocumentThreadId"
+                thread:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
 
         ContentCodeBlockElementTextInlineElement:
             type: object
@@ -2416,7 +2359,7 @@ components:
             type: object
             required: [id, name, shortName, space]
             additionalProperties: false
-            properties:
+            properties: &accountProperties
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
@@ -2431,33 +2374,36 @@ components:
                         id:
                             $ref: "#/components/schemas/BotId"
                 space:
-                    type: object
-                    required: [role, addedTime]
-                    additionalProperties: false
-                    properties:
-                        role:
-                            type: string
-                            enum: [Owner, Admin, Member]
-                        addedTime:
-                            $ref: "#/components/schemas/DateTime"
-                        # TODO(calebmer, #public-api-blocking): Switch this to `state` and add an
-                        # `Active` variant.
-                        inactive:
-                            oneOf:
-                                - type: object
-                                  required: [type]
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: Removed
-                                      removedTime:
-                                          $ref: "#/components/schemas/DateTime"
-                                - type: object
-                                  required: [type]
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: InvitePending
+                    $ref: "#/components/schemas/AccountSpace"
+
+        AccountSpace:
+            type: object
+            required: [role, addedTime]
+            additionalProperties: false
+            properties:
+                role:
+                    type: string
+                    enum: [Owner, Admin, Member]
+                addedTime:
+                    $ref: "#/components/schemas/DateTime"
+                # TODO(calebmer, #public-api-blocking): Switch this to `state` and add an
+                # `Active` variant.
+                inactive:
+                    oneOf:
+                        - type: object
+                          required: [type]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Removed
+                              removedTime:
+                                  $ref: "#/components/schemas/DateTime"
+                        - type: object
+                          required: [type]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: InvitePending
 
         Chat:
             oneOf:
@@ -2542,23 +2488,13 @@ components:
                                 properties:
                                     id:
                                         $ref: "#/components/schemas/AccountId"
-                                    # TODO(#public-api): Add additional properties from `Account` so you could pass
-                                    # in an `Account` object here and it would work. These are properties from
-                                    # `AccountReference_Response`. I reaaallly wish we had an API specification
-                                    # generator that did this automatically for us.
-                                    type:
-                                        const: Account
-                                    title:
-                                        type: string
-                                    shortName:
-                                        type: string
-                                    bot:
-                                        type: object
-                                        required: [id]
-                                        additionalProperties: false
-                                        properties:
-                                            id:
-                                                $ref: "#/components/schemas/BotId"
+                                    # Allow properties from `Account` or `AccountReference` when declaring this
+                                    # account. These properties are ignored but it allows you to pass an object
+                                    # from the API response in as input.
+                                    #
+                                    # TODO(#public-api): Make sure these properties are hidden in the
+                                    # documentation!
+                                    <<: [*accountProperties, *accountReferenceResponseProperties]
 
         CreateChatRequestBodyRoomChat:
             type: object
@@ -2904,18 +2840,18 @@ components:
 
         MessageStreamPart:
             type: object
-            required: [index, version, payload, createdTime]
+            required: [index, createdTime, version, payload]
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
-                version:
-                    type: integer
-                    minimum: 0
                 createdTime:
                     type: string
                     format: date-time
+                version:
+                    type: integer
+                    minimum: 0
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
 
@@ -3033,7 +2969,7 @@ components:
 
         BotWebhookCreatedMessageEvent:
             type: object
-            required: [type, room, index, authorId, createdTimeZone]
+            required: [type, room, index, author, createdTimeZone]
             additionalProperties: false
             properties:
                 type:
@@ -3134,7 +3070,7 @@ components:
 
         MessageContentPayloadParentContentSnippet:
             type: object
-            required: [isTruncated, elements]
+            required: [elements, isTruncated]
             additionalProperties: false
             properties:
                 elements:
@@ -3182,6 +3118,7 @@ components:
                     Post: "#/components/schemas/PostMessageRoomReference"
                     Task: "#/components/schemas/TaskMessageRoomReference"
 
+        # NOCOMMIT: Get rid of these? Replace with actual reference types.
         ChatMessageRoomReference:
             type: object
             required: [type, id]
@@ -3263,19 +3200,19 @@ components:
 
         SearchAccountResult:
             type: object
-            required: [title, bodyMatch, type, id, shortName]
+            required: [type, id, title, bodyMatch, shortName]
             additionalProperties: false
             properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Account
-                id:
-                    $ref: "#/components/schemas/AccountId"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
                 # NOCOMMIT: Make sure we return `botId` when returning an account target! Mentions + search results.
@@ -3289,9 +3226,13 @@ components:
 
         SearchChannelResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
@@ -3300,40 +3241,36 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Channel
-                id:
-                    $ref: "#/components/schemas/ChannelId"
 
         SearchChatResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
 
         SearchChatMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, title, bodyMatch, index, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: ChatMessage
                 id:
                     $ref: "#/components/schemas/ChatId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3344,9 +3281,13 @@ components:
 
         SearchDocumentResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
@@ -3355,24 +3296,20 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: Document
-                id:
-                    $ref: "#/components/schemas/DocumentId"
 
         SearchDocumentMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, threadId, index, author]
+            required: [type, id, title, bodyMatch, threadId, index, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: DocumentMessage
                 id:
                     $ref: "#/components/schemas/DocumentId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
                 index:
@@ -3385,19 +3322,19 @@ components:
 
         SearchPostResult:
             type: object
-            required: [title, bodyMatch, type, id, author]
+            required: [type, id, title, bodyMatch, author]
             additionalProperties: false
             properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Post
-                id:
-                    $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -3405,17 +3342,17 @@ components:
 
         SearchPostMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, title, bodyMatch, index, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: PostMessage
                 id:
                     $ref: "#/components/schemas/PostId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3426,19 +3363,19 @@ components:
 
         SearchTaskResult:
             type: object
-            required: [title, bodyMatch, type, id, status]
+            required: [type, id, title, bodyMatch, status]
             additionalProperties: false
             properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                type:
-                    const: Task
-                id:
-                    $ref: "#/components/schemas/TaskId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
@@ -3446,17 +3383,17 @@ components:
 
         SearchTaskMessageResult:
             type: object
-            required: [title, bodyMatch, type, id, index, author]
+            required: [type, id, title, bodyMatch, index, author]
             additionalProperties: false
             properties:
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 type:
                     const: TaskMessage
                 id:
                     $ref: "#/components/schemas/TaskId"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 index:
                     type: integer
                     minimum: 0
@@ -3467,19 +3404,19 @@ components:
 
         SearchTaskCollectionResult:
             type: object
-            required: [title, bodyMatch, type, id]
+            required: [type, id, title, bodyMatch]
             additionalProperties: false
             properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-                type:
-                    const: TaskCollection
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
 
         SearchResultBodyMatch:
             type: array
