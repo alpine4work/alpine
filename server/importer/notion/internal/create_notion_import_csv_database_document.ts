@@ -82,7 +82,7 @@ export async function createNotionImportCsvDatabaseDocument(
         type: "Paragraph",
         elements: [
             {type: "Text", text: "Parent document: "},
-            {type: "Mention", target: {type: "Document", id: parentId}},
+            {type: "Mention", reference: {type: "Document", id: parentId}},
         ],
     });
 

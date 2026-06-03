@@ -36,7 +36,7 @@ function createDocumentContentWithDocumentMention(
                 type: "Paragraph",
                 elements: [
                     {type: "Text", text: "See "},
-                    {type: "Mention", target: {type: "Document", id: documentId, title}},
+                    {type: "Mention", reference: {type: "Document", id: documentId, title}},
                     {type: "Text", text: " for context."},
                 ],
             },

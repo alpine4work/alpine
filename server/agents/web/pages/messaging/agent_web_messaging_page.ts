@@ -1,6 +1,6 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
 import {
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
@@ -26,7 +26,7 @@ export type AgentWebMessagingPagePagination = {
 
 export type AgentWebMessagingPagePaginationPageLink = Extract<
     AgentWebPageLink,
-    {type: "Chat" | "TaskMessageList"}
+    {type: "Chat" | "Post" | "TaskMessageList"}
 >;
 
 export type AgentWebMessagingPageMessageRange = {
@@ -48,7 +48,7 @@ export type AgentWebMessagingPageTimeBlock = {
 export type AgentWebMessagingPageMessageBlock = {
     readonly type: "Message";
     readonly idAttribute: AgentWebMessagingPageMessageRange | null;
-    readonly author: ApiAccountTargetResponse;
+    readonly author: ApiAccountReferenceResponse;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
     readonly parent: AgentWebMessagingPageMessageBlockParent | null;
@@ -57,7 +57,7 @@ export type AgentWebMessagingPageMessageBlock = {
 
 export type AgentWebMessagingPageMessageBlockParent = {
     readonly citeAttribute: AgentWebMessagingPageMessageRange;
-    readonly author: ApiAccountTargetResponse;
+    readonly author: ApiAccountReferenceResponse;
     readonly previewContent: ApiContentResponse;
 };
 

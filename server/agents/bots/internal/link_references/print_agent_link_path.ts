@@ -129,7 +129,7 @@ export function printAgentLinkPath(link: AgentLink) {
 
 // TODO(calebmer, #api-path-destruction): Why return a string here when we just
 // have to parse it back into an object when we use the path? Why not return an
-// `ApiTarget` object and avoid the print-to-string then parse-from-string
+// `ApiReference` object and avoid the print-to-string then parse-from-string
 // roundtrip? We may be able to get rid of `ApiPath` entirely (and related helpers)
 // after this.
 export function printApiPathForAgentLink(link: AgentLink): ApiPath {

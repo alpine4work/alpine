@@ -9,7 +9,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiContentResponse,
-    ApiTaskTargetResponse,
+    ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -29,14 +29,14 @@ const botApiAccount = createApiAccountMock({
     botId,
 });
 
-const taskTarget: ApiTaskTargetResponse = {
+const taskReference: ApiTaskReferenceResponse = {
     type: "Task",
     id: taskId,
     title: "Write Spec",
     status: {type: "Open", isActive: true},
 };
 
-const otherTaskTarget: ApiTaskTargetResponse = {
+const otherTaskReference: ApiTaskReferenceResponse = {
     type: "Task",
     id: otherTaskId,
     title: "Review Spec",
@@ -74,12 +74,12 @@ beforeEach(async () => {
     );
     assert(actualBotAccountPathname === context.botAccount.pathname);
 
-    const actualTaskPathname = await createAgentWebPageStoredLinkPathname(storage, taskTarget);
+    const actualTaskPathname = await createAgentWebPageStoredLinkPathname(storage, taskReference);
     assert(actualTaskPathname === taskPath);
 
     const actualOtherTaskPathname = await createAgentWebPageStoredLinkPathname(
         storage,
-        otherTaskTarget,
+        otherTaskReference,
     );
     assert(actualOtherTaskPathname === otherTaskPath);
 });
@@ -96,7 +96,7 @@ function mockApiGetTaskMention() {
         {
             data: {
                 spaceId,
-                mention: {target: taskTarget},
+                mention: {reference: taskReference},
             },
         },
         {path: {id: taskId}},

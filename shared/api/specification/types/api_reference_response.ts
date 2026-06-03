@@ -11,7 +11,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type ApiTargetResponse =
+export type ApiReferenceResponse =
     | {
           readonly type: "Account";
           readonly id: AccountId;

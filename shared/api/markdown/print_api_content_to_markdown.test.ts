@@ -6657,7 +6657,7 @@ Normal<code><br /></code>Also normal
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@alice",
@@ -6682,7 +6682,7 @@ Normal<code><br /></code>Also normal
                                     {type: "Text", text: "Ask "},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@bob",
@@ -6708,7 +6708,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "The user ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@charlie",
@@ -6734,7 +6734,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "CC: ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@eve",
@@ -6744,7 +6744,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: " and ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
                                             title: "@frank",
@@ -6774,7 +6774,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "User: ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@grace",
@@ -6801,7 +6801,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "Code before ", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@henry",
@@ -6825,7 +6825,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "iris",
@@ -6850,7 +6850,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: printTestFixtureTaskId},
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6872,7 +6872,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "getUserData(", marks: [{type: "Code"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                             title: "@jack",
@@ -6890,7 +6890,7 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${printTestFixtureAcco
                                     {type: "Text", text: "Author: "},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId2,
                                             title: "@kate",
@@ -7656,7 +7656,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -7680,7 +7680,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Task",
                                             id: printTestFixtureTaskId,
                                             title: "",
@@ -7745,7 +7745,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: printTestFixtureTaskId},
                                         title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
@@ -7770,7 +7770,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: printTestFixtureDocumentId,
                                         },
@@ -8026,7 +8026,7 @@ $\\*$&#x20;
                                 elements: [
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "TaskCollection",
                                             id: printTestFixtureTaskCollectionId,
                                             title: "",
@@ -8052,7 +8052,7 @@ $\\*$&#x20;
                                     {type: "Break", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -8078,7 +8078,7 @@ $\\*$&#x20;
                                     {type: "Break", marks: [{type: "Bold"}]},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Account",
                                             id: printTestFixtureAccountId1,
                                         },
@@ -8104,7 +8104,7 @@ $\\*$&#x20;
                                     {type: "Text", text: "$_", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: printTestFixtureDocumentId,
                                         },
@@ -8292,7 +8292,7 @@ $(ab)$
                                     {type: "Break", marks: []},
                                     {
                                         type: "Mention",
-                                        target: {
+                                        reference: {
                                             type: "Post",
                                             id: printTestFixturePostId,
                                             title: "",
@@ -10144,12 +10144,12 @@ a
 `,
                 },
                 {
-                    description: "preview with document target",
+                    description: "preview with document reference",
                     content: {
                         elements: [
                             {
                                 type: "Preview",
-                                target: {
+                                reference: {
                                     type: "Document",
                                     id: printTestFixtureDocumentId,
                                     title: "My Document",
@@ -10162,12 +10162,12 @@ a
 `,
                 },
                 {
-                    description: "preview with channel target",
+                    description: "preview with channel reference",
                     content: {
                         elements: [
                             {
                                 type: "Preview",
-                                target: {
+                                reference: {
                                     type: "Channel",
                                     id: printTestFixtureChannelId,
                                     title: "General",
@@ -10324,7 +10324,7 @@ a
                                             {
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
                                                         title: "My Document",
@@ -10412,7 +10412,7 @@ a
                                             {
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
                                                         title: "Design Spec",
@@ -10584,7 +10584,7 @@ caption
                                                 elements: [
                                                     {
                                                         type: "Preview",
-                                                        target: {
+                                                        reference: {
                                                             type: "Document",
                                                             id: printTestFixtureDocumentId,
                                                             title: "My Document",
@@ -10629,7 +10629,7 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
                                                         title: "My Document",
@@ -10801,7 +10801,7 @@ caption
                                                 width: 0.4,
                                                 element: {
                                                     type: "Preview",
-                                                    target: {
+                                                    reference: {
                                                         type: "Document",
                                                         id: printTestFixtureDocumentId,
                                                         title: "My Document",

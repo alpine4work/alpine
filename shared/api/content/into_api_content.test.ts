@@ -1342,7 +1342,7 @@ test("converts account mention into API content", () => {
                     {type: "Text", text: "Hello "},
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: false,
                     },
@@ -1369,7 +1369,7 @@ test("converts account mention with short name into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         title: "Unknown",
                         isAccountShortName: true,
                     },
@@ -1395,7 +1395,7 @@ test("converts document mention into API content", () => {
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                         title: "Unknown document",
                     },
                 ],
@@ -1419,7 +1419,7 @@ test("converts channel mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Channel", id: channelId},
+                        reference: {type: "Channel", id: channelId},
                         title: "Unknown channel",
                     },
                 ],
@@ -1443,7 +1443,7 @@ test("converts task mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Task", id: taskId, status: {type: "Closed"}},
+                        reference: {type: "Task", id: taskId, status: {type: "Closed"}},
                         title: "Unknown task",
                     },
                 ],
@@ -1467,7 +1467,7 @@ test("converts task collection mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "TaskCollection", id: taskCollectionId},
+                        reference: {type: "TaskCollection", id: taskCollectionId},
                         title: "Unknown task collection",
                     },
                 ],
@@ -1491,7 +1491,7 @@ test("converts post mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Post", id: postId},
+                        reference: {type: "Post", id: postId},
                         title: "Unknown post",
                     },
                 ],
@@ -1655,7 +1655,7 @@ test("converts marked mention into API content", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {type: "Account", id: accountId},
+                            reference: {type: "Account", id: accountId},
                             title: "Unknown",
                             isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
@@ -4311,7 +4311,7 @@ describe("file block elements", () => {
             elements: [
                 {
                     type: "Preview",
-                    target: {type: "Document", id: testDocumentId},
+                    reference: {type: "Document", id: testDocumentId},
                     title: "My Document",
                 },
             ],
@@ -4328,7 +4328,7 @@ describe("file block elements", () => {
                         side: "Left",
                         element: {
                             type: "Preview",
-                            target: {type: "Channel", id: testChannelId},
+                            reference: {type: "Channel", id: testChannelId},
                             title: "General",
                         },
                     },
@@ -4360,7 +4360,7 @@ describe("file block elements", () => {
                                         width: 0.662162,
                                         element: {
                                             type: "Preview",
-                                            target: {
+                                            reference: {
                                                 type: "Document",
                                                 id: testDocumentId,
                                             },

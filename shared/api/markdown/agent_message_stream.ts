@@ -3,13 +3,13 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {printApiMentionTargetToMentionUrl} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printApiMentionReferenceToMentionUrl} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiPath,
-    isApiMentionTargetPath,
-    isApiNotMentionTargetPath,
-    parseApiMentionTarget,
-    parseApiNotMentionTarget,
+    isApiMentionReferencePath,
+    isApiNotMentionReferencePath,
+    parseApiMentionReference,
+    parseApiNotMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
@@ -346,12 +346,12 @@ export class AgentMessageStream {
 
                         if (!targetPath) return null;
 
-                        if (isApiMentionTargetPath(targetPath)) {
-                            const mentionTarget = parseApiMentionTarget(targetPath);
+                        if (isApiMentionReferencePath(targetPath)) {
+                            const mentionTarget = parseApiMentionReference(targetPath);
 
                             node.children[index] = {
                                 type: "link",
-                                url: printApiMentionTargetToMentionUrl(mentionTarget, {
+                                url: printApiMentionReferenceToMentionUrl(mentionTarget, {
                                     spaceId: this._spaceId,
                                     isAccountShortName: undefined,
                                 }),
@@ -362,8 +362,8 @@ export class AgentMessageStream {
                             // If it's not mentionable, we'll create a direct link to the content. For exampe,
                             // the link to a chat message will look someting like
                             // `/chats/${chatId}?message=${messageIndex}
-                            assert(isApiNotMentionTargetPath(targetPath));
-                            const targetPathObject = parseApiNotMentionTarget(targetPath);
+                            assert(isApiNotMentionReferencePath(targetPath));
+                            const targetPathObject = parseApiNotMentionReference(targetPath);
 
                             node.children[index] = {
                                 type: "link",

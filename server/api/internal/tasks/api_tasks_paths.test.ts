@@ -344,7 +344,7 @@ describe("/tasks/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
                         status: {type: "Open", isActive: false},
@@ -377,7 +377,7 @@ describe("/tasks/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
                         status: {type: "Closed"},
@@ -411,7 +411,7 @@ describe("/tasks/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
                         status: {type: "Open", isActive: true},
@@ -493,7 +493,7 @@ describe("/tasks/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
                         status: {type: "Open", isActive: false},
@@ -614,7 +614,7 @@ describe("/task-collections/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "TaskCollection",
                         id: collection.id,
                     },

@@ -17,7 +17,7 @@ import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
-import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     ApiContent,
@@ -35,8 +35,8 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElement,
-    ApiMentionTarget,
-    ApiPreviewTarget,
+    ApiMentionReference,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -57,7 +57,7 @@ declare module "mdast" {
 
     export interface LinkData {
         mentionElement?: ApiContentMentionInlineElement;
-        mentionTarget?: ApiMentionTarget;
+        mentionReference?: ApiMentionReference;
     }
 
     export interface ImageData {
@@ -381,8 +381,11 @@ function* printApiContentBlockElementToMarkdown(
                 children: [
                     {
                         type: "image",
-                        url: printApiPreviewTargetToPreviewUrl(options.spaceId, element.target),
-                        alt: printApiMentionTargetToMentionLinkLabel(element.target),
+                        url: printApiPreviewReferenceToPreviewUrl(
+                            options.spaceId,
+                            element.reference,
+                        ),
+                        alt: printApiMentionReferenceToMentionLinkLabel(element.reference),
                         data: {previewElement: element},
                     },
                 ],
@@ -507,7 +510,7 @@ function printApiContentFileBlockElementToMarkdown(
 function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
         | {readonly type: "File"; readonly id: string; readonly contentType?: string}
-        | {readonly type: "Preview"; readonly target: ApiPreviewTarget},
+        | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
     spaceId: SpaceId,
     style?: string,
 ): string {
@@ -522,8 +525,8 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
             );
         }
         case "Preview": {
-            const previewUrl = printApiPreviewTargetToPreviewUrl(spaceId, element.target);
-            const title = element.target.title?.trim() ? element.target.title : "";
+            const previewUrl = printApiPreviewReferenceToPreviewUrl(spaceId, element.reference);
+            const title = element.reference.title?.trim() ? element.reference.title : "";
             return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr} />`;
         }
         default:
@@ -1269,14 +1272,14 @@ function* printApiContentInlineElementToMarkdown(
             const childContent: Array<PhrasingContent> = [
                 {
                     type: "link",
-                    url: printApiMentionTargetToMentionUrl(element.target, {
+                    url: printApiMentionReferenceToMentionUrl(element.reference, {
                         spaceId: options.spaceId,
                         isAccountShortName: element.isAccountShortName,
                     }),
                     children: [
                         {
                             type: "text",
-                            value: printApiMentionTargetToMentionLinkLabel(element.target),
+                            value: printApiMentionReferenceToMentionLinkLabel(element.reference),
                         },
                     ],
                     data: {mentionElement: element},
@@ -1323,38 +1326,40 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiMentionTargetToMentionLinkLabel(target: ApiMentionTarget): string {
+export function printApiMentionReferenceToMentionLinkLabel(reference: ApiMentionReference): string {
     const title =
-        target.title ??
-        (target.type === "Account" ? "Unknown" : `Unknown ${getApiMentionTargetNoun(target.type)}`);
+        reference.title ??
+        (reference.type === "Account"
+            ? "Unknown"
+            : `Unknown ${getApiMentionReferenceNoun(reference.type)}`);
 
     return title;
 }
 
-export function printApiMentionTargetToMentionUrl(
-    target: ApiMentionTarget,
+export function printApiMentionReferenceToMentionUrl(
+    reference: ApiMentionReference,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {
-    switch (target.type) {
+    switch (reference.type) {
         case "Account": {
-            return `https://alpine.inc/s/${spaceId}/accounts/${target.id}?mention${
+            return `https://alpine.inc/s/${spaceId}/accounts/${reference.id}?mention${
                 isAccountShortName ? "=short" : ""
             }`;
         }
         case "Channel":
-            return `https://alpine.inc/s/${spaceId}/channels/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/channels/${reference.id}?mention`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/chats/${reference.id}?mention`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/documents/${reference.id}?mention`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/posts/${reference.id}?mention`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/tasks/${reference.id}?mention`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}?mention`;
+            return `https://alpine.inc/s/${spaceId}/tasks/collections/${reference.id}?mention`;
         default:
-            throw exhaustive(target);
+            throw exhaustive(reference);
     }
 }
 
@@ -1366,28 +1371,28 @@ export function printApiFileContentUrl(spaceId: SpaceId, fileId: string): string
     return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
 }
 
-export function printApiPreviewTargetToPreviewUrl(
+export function printApiPreviewReferenceToPreviewUrl(
     spaceId: SpaceId,
-    target: ApiPreviewTarget,
+    reference: ApiPreviewReference,
 ): string {
     // TODO(#sites): Add Site to PreviewTarget.
-    switch (target.type) {
+    switch (reference.type) {
         case "Channel":
             // TODO: Implement /preview endpoints that generate a PNG or similar image for each
             // previewable entity. Can also serve as OpenGraph images.
-            return `https://alpine.inc/s/${spaceId}/channels/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/channels/${reference.id}/preview`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/chats/${reference.id}/preview`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/documents/${reference.id}/preview`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/posts/${reference.id}/preview`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/tasks/${reference.id}/preview`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}/preview`;
+            return `https://alpine.inc/s/${spaceId}/tasks/collections/${reference.id}/preview`;
         default:
-            throw exhaustive(target);
+            throw exhaustive(reference);
     }
 }
 

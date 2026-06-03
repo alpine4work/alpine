@@ -135,7 +135,7 @@ describe("/channels/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Channel",
                         id: channel.id,
                     },
@@ -317,7 +317,7 @@ describe("/posts/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Post",
                         id: post.id,
                     },
@@ -383,7 +383,7 @@ describe("/posts/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Post",
                         id: post.id,
                     },

@@ -1,5 +1,5 @@
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.js";
-import {ApiMentionTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
@@ -35,7 +35,7 @@ import {
  * see `AgentWebPageStoredLinkKey`.
  */
 export type AgentWebPageStoredLink =
-    | ApiMentionTargetResponse
+    | ApiMentionReferenceResponse
     | {
           readonly type: "ChatMessage";
           readonly id: ChatId;

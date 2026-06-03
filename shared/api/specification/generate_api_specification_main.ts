@@ -325,10 +325,10 @@ main().catch(error => {
  *
  * In our schema we have `ContentMentionInlineElement` and
  * `ContentMentionInlineElement_Response`. `ContentMentionInlineElement_Response`
- * contains data loaded from the mention target (e.g. `title` and eventually data
- * like the task status). However when creating a mention the user won't have this
- * data available so they'll simply use `ContentMentionInlineElement` which does
- * not include this data.
+ * contains data loaded from the mention reference (e.g. `title` and eventually
+ * data like the task status). However when creating a mention the user won't have
+ * this data available so they'll simply use `ContentMentionInlineElement` which
+ * does not include this data.
  *
  * So this distinction needs to bubble all the way up the JSON schema. Ultimately
  * we need both a `Content` schema and a `Content_Response` schema. Where `Content`

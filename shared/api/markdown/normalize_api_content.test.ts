@@ -37,7 +37,7 @@ test("FileGallery with single row and single Preview unwraps to standalone Previ
                             {
                                 element: {
                                     type: "Preview",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                     title: "Doc",
                                 },
                             },
@@ -49,7 +49,7 @@ test("FileGallery with single row and single Preview unwraps to standalone Previ
     };
 
     expect(normalizeApiContent(content)).toEqual({
-        elements: [{type: "Preview", target: {type: "Document", id: documentId}}],
+        elements: [{type: "Preview", reference: {type: "Document", id: documentId}}],
     });
 });
 
@@ -59,7 +59,7 @@ test("Preview title is stripped during normalization", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
+                reference: {type: "Document", id: documentId},
                 title: "My Document",
             },
         ],
@@ -67,14 +67,14 @@ test("Preview title is stripped during normalization", () => {
 
     const normalized = normalizeApiContent(content);
     expect(normalized).toEqual({
-        elements: [{type: "Preview", target: {type: "Document", id: documentId}}],
+        elements: [{type: "Preview", reference: {type: "Document", id: documentId}}],
     });
 });
 
 test("Preview without title is unchanged", () => {
     const documentId = generateId<DocumentId>();
     const content: ApiContent = {
-        elements: [{type: "Preview", target: {type: "Document", id: documentId}}],
+        elements: [{type: "Preview", reference: {type: "Document", id: documentId}}],
     };
 
     expect(normalizeApiContent(content)).toEqual(content);
@@ -474,7 +474,7 @@ test("FileFloat normalizes inner element", () => {
                 side: "Left",
                 element: {
                     type: "Preview",
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId},
                     title: "My Document",
                 },
             },
@@ -486,7 +486,7 @@ test("FileFloat normalizes inner element", () => {
             {
                 type: "FileFloat",
                 side: "Left",
-                element: {type: "Preview", target: {type: "Document", id: documentId}},
+                element: {type: "Preview", reference: {type: "Document", id: documentId}},
             },
         ],
     });
@@ -526,7 +526,7 @@ test("FileGallery normalizes Preview title inside items", () => {
                             {
                                 element: {
                                     type: "Preview",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                     title: "My Document",
                                 },
                             },
@@ -548,7 +548,7 @@ test("FileGallery normalizes Preview title inside items", () => {
                             {
                                 element: {
                                     type: "Preview",
-                                    target: {type: "Document", id: documentId},
+                                    reference: {type: "Document", id: documentId},
                                 },
                             },
                         ],

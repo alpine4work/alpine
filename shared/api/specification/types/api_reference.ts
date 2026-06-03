@@ -10,7 +10,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type ApiTarget =
+export type ApiReference =
     | {
           readonly type: "Account";
           readonly id: AccountId;

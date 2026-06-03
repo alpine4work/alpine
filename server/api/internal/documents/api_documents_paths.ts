@@ -208,7 +208,7 @@ export const apiDocumentsPaths: Pick<
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "Document",
                             id: pathParameters.id,
                         },

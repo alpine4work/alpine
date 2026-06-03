@@ -250,7 +250,7 @@ describe("visitApiContent", () => {
                     type: "Paragraph",
                     elements: [
                         {type: "Text", text: "See "},
-                        {type: "Mention", target: {type: "Document", id: "doc123" as any}},
+                        {type: "Mention", reference: {type: "Document", id: "doc123" as any}},
                         {type: "Text", text: " for details"},
                     ],
                 },

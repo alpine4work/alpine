@@ -1,7 +1,7 @@
 import {Mark, Node} from "prosemirror-model";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
@@ -15,9 +15,9 @@ import {
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
-    ApiMentionTargetResponse,
+    ApiMentionReferenceResponse,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
-    ApiPreviewTargetResponse,
+    ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     computeFileRowWidths,
@@ -504,13 +504,13 @@ function intoApiContentFileOrPreviewElement(
             throw new UnimplementedError("Site previews aren\u2019t supported yet");
         }
 
-        const target = fileEntityIdObjectToPreviewTarget(entityIdObject, options);
+        const reference = fileEntityIdObjectToPreviewReference(entityIdObject, options);
 
         const title =
             options.getSearchEntityMentionTitleIfExists(fileId) ??
-            `Unknown ${getApiMentionTargetNoun(entityIdObject.type)}`;
+            `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-        return {type: "Preview", target};
+        return {type: "Preview", reference};
     }
 
     assert(isId<FileId>(fileId));
@@ -523,10 +523,10 @@ function intoApiContentFileOrPreviewElement(
     };
 }
 
-function fileEntityIdObjectToPreviewTarget(
+function fileEntityIdObjectToPreviewReference(
     entityIdObject: Exclude<ReturnType<typeof parseFileEntityId>, {type: "Site"}>,
     options: ApiContentMarkdownIntoOptions,
-): ApiPreviewTargetResponse {
+): ApiPreviewReferenceResponse {
     switch (entityIdObject.type) {
         case "Channel":
             return {type: "Channel", id: entityIdObject.channelId};
@@ -633,7 +633,7 @@ function intoApiContentInlineElement(
             if (mention.type === "Account") {
                 return {
                     type: "Mention",
-                    target: {
+                    reference: {
                         type: "Account",
                         id: mention.accountId,
                     },
@@ -649,32 +649,32 @@ function intoApiContentInlineElement(
             } else {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
-                let target: ApiMentionTargetResponse;
+                let reference: ApiMentionReferenceResponse;
 
                 switch (entityIdObject.type) {
                     case "Document": {
-                        target = {
+                        reference = {
                             type: "Document",
                             id: entityIdObject.documentId,
                         };
                         break;
                     }
                     case "Channel": {
-                        target = {
+                        reference = {
                             type: "Channel",
                             id: entityIdObject.channelId,
                         };
                         break;
                     }
                     case "Chat": {
-                        target = {
+                        reference = {
                             type: "Chat",
                             id: entityIdObject.chatId,
                         };
                         break;
                     }
                     case "Task": {
-                        target = {
+                        reference = {
                             type: "Task",
                             id: entityIdObject.taskId,
                             status: intoApiTaskStatus(
@@ -687,14 +687,14 @@ function intoApiContentInlineElement(
                         break;
                     }
                     case "TaskCollection": {
-                        target = {
+                        reference = {
                             type: "TaskCollection",
                             id: entityIdObject.collectionId,
                         };
                         break;
                     }
                     case "Post": {
-                        target = {
+                        reference = {
                             type: "Post",
                             id: entityIdObject.postId,
                         };
@@ -710,10 +710,10 @@ function intoApiContentInlineElement(
 
                 return {
                     type: "Mention",
-                    target,
+                    reference,
                     title:
                         options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        `Unknown ${getApiMentionTargetNoun(target.type)}`,
+                        `Unknown ${getApiMentionReferenceNoun(reference.type)}`,
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

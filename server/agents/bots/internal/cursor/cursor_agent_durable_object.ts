@@ -53,7 +53,7 @@ import {
 import {
     ApiContentBlockElement,
     ApiContentTextInlineElement,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -113,7 +113,7 @@ type CursorCloudAgent = {
     readonly spaceId: SpaceId;
     readonly botId: BotId;
     readonly botAccountId: AccountId;
-    readonly room: ApiMessageRoomTarget;
+    readonly room: ApiMessageRoomReference;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
     readonly launchMessageIndex: number;

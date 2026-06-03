@@ -6,7 +6,7 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import type {
     ApiAccount,
     ApiContentResponse,
@@ -61,13 +61,13 @@ const context: AgentWebContext = {
 beforeEach(async () => {
     const actualAlicePathname = await createAgentWebPageStoredLinkPathname(
         storage,
-        intoApiAccountTarget(aliceAccount),
+        intoApiAccountReference(aliceAccount),
     );
     assert(actualAlicePathname === "/human/alice");
 
     const actualBobPathname = await createAgentWebPageStoredLinkPathname(
         storage,
-        intoApiAccountTarget(bobAccount),
+        intoApiAccountReference(bobAccount),
     );
     assert(actualBobPathname === "/human/bob");
 
@@ -264,8 +264,8 @@ End of messages.`,
                 chat: {
                     type: "Direct",
                     members: [
-                        {account: intoApiAccountTarget(aliceAccount)},
-                        {account: intoApiAccountTarget(bobAccount)},
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
                     ],
                 },
             },
@@ -312,8 +312,8 @@ End of messages.`,
                 chat: {
                     type: "Direct",
                     members: [
-                        {account: intoApiAccountTarget(aliceAccount)},
-                        {account: intoApiAccountTarget(bobAccount)},
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
                     ],
                 },
             },

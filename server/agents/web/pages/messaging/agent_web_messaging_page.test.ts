@@ -9,7 +9,7 @@ import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentParagraphBlockElementResponse,
@@ -27,7 +27,13 @@ const doubleQuote = String.fromCharCode(34);
 const paginationChatId = generateId<ChatId>();
 const duplicateFileId = generateChronologicalId<FileId>();
 
-function accountTarget({name, botId}: {name: string; botId?: BotId}): ApiAccountTargetResponse {
+function accountReference({
+    name,
+    botId,
+}: {
+    name: string;
+    botId?: BotId;
+}): ApiAccountReferenceResponse {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -37,13 +43,13 @@ function accountTarget({name, botId}: {name: string; botId?: BotId}): ApiAccount
     };
 }
 
-const aliceTarget = accountTarget({name: "Alice"});
-const bobTarget = accountTarget({name: "Bob"});
-const assistantTarget = accountTarget({name: "Assistant", botId: generateId<BotId>()});
-const escapedAliceBobTeamTarget = accountTarget({
+const aliceReference = accountReference({name: "Alice"});
+const bobReference = accountReference({name: "Bob"});
+const assistantReference = accountReference({name: "Assistant", botId: generateId<BotId>()});
+const escapedAliceBobTeamReference = accountReference({
     name: `Alice & Bob${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
 });
-const escapedCarolDanTeamTarget = accountTarget({
+const escapedCarolDanTeamReference = accountReference({
     name: `Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
 });
 
@@ -133,7 +139,7 @@ Hello there.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -166,7 +172,7 @@ Merged message block.
                     {
                         type: "Message",
                         idAttribute: {startMessageIndex: 42, endMessageIndex: 43},
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -175,7 +181,7 @@ Merged message block.
                     {
                         type: "Message",
                         idAttribute: {startMessageIndex: 4, endMessageIndex: 8},
-                        author: bobTarget,
+                        author: bobReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -204,7 +210,7 @@ End of messages.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -241,7 +247,7 @@ Hello there.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -278,7 +284,7 @@ Hello there.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -429,12 +435,12 @@ const done = true;
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: assistantTarget,
+                        author: assistantReference,
                         timeAttribute: "12 minutes later",
                         timeZoneAttribute: null,
                         parent: {
                             citeAttribute: {startMessageIndex: 4, endMessageIndex: 5},
-                            author: aliceTarget,
+                            author: aliceReference,
                             previewContent: content([
                                 paragraph([
                                     text("Can you review "),
@@ -500,12 +506,12 @@ Escaped attributes survive.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: escapedAliceBobTeamTarget,
+                        author: escapedAliceBobTeamReference,
                         timeAttribute: `5 < 10 & ${doubleQuote}later${doubleQuote}`,
                         timeZoneAttribute: "GMT+0 & east",
                         parent: {
                             citeAttribute: {startMessageIndex: 4, endMessageIndex: 8},
-                            author: escapedCarolDanTeamTarget,
+                            author: escapedCarolDanTeamReference,
                             previewContent: content([paragraph([text("Quoted reply.")])]),
                         },
                         content: content([paragraph([text("Escaped attributes survive.")])]),
@@ -535,7 +541,7 @@ After the empty paragraph.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -892,7 +898,7 @@ Hello.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -954,7 +960,7 @@ bar&#x20;
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -1055,12 +1061,12 @@ Hello there.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: {
                             citeAttribute: {startMessageIndex: 2, endMessageIndex: 3},
-                            author: bobTarget,
+                            author: bobReference,
                             previewContent: content([
                                 paragraph([text("foo")]),
                                 paragraph([text("bar")]),
@@ -1095,7 +1101,7 @@ Hello there.
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: assertId<AccountId>("00000000000000000000000000"),
                                 title: "",
@@ -1150,7 +1156,7 @@ Second render:
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,

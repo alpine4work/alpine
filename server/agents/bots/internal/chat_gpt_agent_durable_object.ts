@@ -4,7 +4,7 @@ import {Link, PhrasingContent} from "mdast";
 import OpenAi from "openai";
 import {
     createApiClient,
-    getApiMention,
+    getApiReference,
     getApiMessagesFromStart,
 } from "~/server/agents/api/api_client.js";
 import {
@@ -71,17 +71,17 @@ import {searchAlpineForAgent} from "~/server/agents/bots/internal/tools/search_a
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
-    getApiMentionTargetPathIfExists,
+    getApiMentionReferencePathIfExists,
     isApiMessageRoom,
     parseApiBotWebhookEventIntoMessageRoom,
-    parseApiMentionTarget,
+    parseApiMentionReference,
     parseApiPath,
     printApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiMentionResponse,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
@@ -365,7 +365,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     private async _authorizeFetchConversationState(
         span: TracerBase,
         accessToken: string,
-        room: ApiMessageRoomTarget,
+        room: ApiMessageRoomReference,
     ): Promise<void> {
         const apiClient = createApiClient({
             baseUrl: assertExists(
@@ -1047,7 +1047,7 @@ async function callChatGptAgentFunction({
             }
 
             const targetApiPath = printApiPathForAgentLink(link);
-            const mentionApiPath = getApiMentionTargetPathIfExists(targetApiPath);
+            const mentionApiPath = getApiMentionReferencePathIfExists(targetApiPath);
 
             // TODO(ifitzsimmons, #ai): Change the read tool call interface such that we pass
             // in the SearchEntityId. Then we can load the content for that entity when
@@ -1056,7 +1056,7 @@ async function callChatGptAgentFunction({
             if (mentionApiPath) {
                 session.pushToolCall(span, {
                     type: "Read",
-                    target: parseApiMentionTarget(mentionApiPath),
+                    reference: parseApiMentionReference(mentionApiPath),
                 });
             }
 
@@ -1141,7 +1141,7 @@ function checkChatGptFunctionCallOutputTokenCount(session: AgentMessageStreamSes
 // characters. Our IDs are 26 characters long, so we can't fit more than two IDs in
 // a prompt_cache_key. Document comment threads are uniquely identified by their
 // DocumentId x ThreadId combination, so we can drop the Space ID.
-function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarget): string {
+function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomReference): string {
     switch (room.type) {
         case "Chat":
         case "Post":
@@ -1335,7 +1335,7 @@ async function handleCreateDocumentFunctionCall(
 
     session.pushToolCall(span, {
         type: "Create",
-        target: {
+        reference: {
             type: "Document",
             id: document.id,
         },
@@ -1378,7 +1378,11 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
         request.event.viewingTarget &&
         !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
     ) {
-        const {data} = await getApiMention(tracer, request.apiClient, request.event.viewingTarget);
+        const {data} = await getApiReference(
+            tracer,
+            request.apiClient,
+            request.event.viewingTarget,
+        );
         newViewingTarget = data.mention;
     }
 

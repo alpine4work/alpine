@@ -1,7 +1,7 @@
 import {
     ApiContentFileBlockElement,
     ApiContentPreviewBlockElement,
-    ApiMentionTarget,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {isId} from "~/shared/id/id.js";
 import {
@@ -59,9 +59,9 @@ export function parseApiContentFileOrPreviewBlockElementFromUrl(
     // Preview URL: /s/{spaceId}/{entityType}/{entityId}/preview
     const lastSegment = pathSegments[pathSegments.length - 1];
     if (lastSegment === "preview") {
-        const target = parsePreviewTargetFromPathSegments(pathSegments.slice(0, -1));
-        if (target !== null) {
-            return {type: "Preview", target};
+        const reference = parsePreviewReferenceFromPathSegments(pathSegments.slice(0, -1));
+        if (reference !== null) {
+            return {type: "Preview", reference};
         }
     }
 
@@ -69,17 +69,17 @@ export function parseApiContentFileOrPreviewBlockElementFromUrl(
 }
 
 /**
- * Parse path segments into a preview target. Follows the same pattern as
- * `parseApiMentionTargetIfPossible` but without Account.
+ * Parse path segments into a preview reference. Follows the same pattern as
+ * `parseApiMentionReferenceIfPossible` but without Account.
  */
-function parsePreviewTargetFromPathSegments(
+function parsePreviewReferenceFromPathSegments(
     pathSegments: Array<string>,
-): Exclude<ApiMentionTarget, {type: "Account"}> | null {
+): Exclude<ApiMentionReference, {type: "Account"}> | null {
     if (pathSegments.length === 2) {
         const pathSegment1 = pathSegments[0]!;
         const pathSegment2 = pathSegments[1]!;
 
-        // TODO(#sites): Add Site to PreviewTarget.
+        // TODO(#sites): Add Site to PreviewReference.
         switch (pathSegment1) {
             case "channels": {
                 if (isId<ChannelId>(pathSegment2)) {

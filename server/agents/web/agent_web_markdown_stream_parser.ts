@@ -3,21 +3,21 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {BlockContent, DefinitionContent, Html, Root, RootContent} from "mdast";
 import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createAgentWebPageLinkApiMentionTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_target_if_possible.js";
-import {createAgentWebPageLinkApiPreviewTargetIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_target_if_possible.js";
+import {createAgentWebPageLinkApiMentionReferenceIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_mention_reference_if_possible.js";
+import {createAgentWebPageLinkApiPreviewReferenceIfPossible} from "~/server/agents/web/create_agent_web_page_link_api_preview_reference_if_possible.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {
     parseApiContentFromMarkdownTree,
-    parseApiMentionTargetIfPossible,
+    parseApiMentionReferenceIfPossible,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     printApiFileContentUrl,
-    printApiMentionTargetToMentionLinkLabel,
-    printApiMentionTargetToMentionUrl,
-    printApiPreviewTargetToPreviewUrl,
+    printApiMentionReferenceToMentionLinkLabel,
+    printApiMentionReferenceToMentionUrl,
+    printApiPreviewReferenceToPreviewUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiContentBlockElement,
@@ -502,7 +502,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     // `mention` search param! The LLM is only allowed to create mentions via the agent
                     // web markdown syntax. We can't allow the LLM to create mentions this way since we
                     // won't be able to create a response mention object with `title`.
-                    if (url && parseApiMentionTargetIfPossible(storage.spaceId, url)) {
+                    if (url && parseApiMentionReferenceIfPossible(storage.spaceId, url)) {
                         url.searchParams.delete("mention");
                         urlString = url.toString();
                     }
@@ -523,21 +523,22 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     if (!pageLinkResult) return node;
                     const {pageLink} = pageLinkResult;
 
-                    const mentionTargetResult = createAgentWebPageLinkApiMentionTargetIfPossible(
-                        storage.spaceId,
-                        pageLink,
-                    );
+                    const mentionReferenceResult =
+                        createAgentWebPageLinkApiMentionReferenceIfPossible(
+                            storage.spaceId,
+                            pageLink,
+                        );
 
-                    switch (mentionTargetResult.type) {
+                    switch (mentionReferenceResult.type) {
                         case "Url": {
                             return {
                                 type: "link",
-                                url: mentionTargetResult.url,
+                                url: mentionReferenceResult.url,
                                 children: node.children,
                                 position: node.position,
                             };
                         }
-                        case "MentionTarget": {
+                        case "MentionReference": {
                             const isAccountShortName =
                                 pageLink.type === "Account"
                                     ? node.url.endsWith("#short") ||
@@ -547,26 +548,29 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
 
                             return {
                                 type: "link",
-                                url: printApiMentionTargetToMentionUrl(mentionTargetResult.target, {
-                                    spaceId: storage.spaceId,
-                                    isAccountShortName,
-                                }),
+                                url: printApiMentionReferenceToMentionUrl(
+                                    mentionReferenceResult.reference,
+                                    {
+                                        spaceId: storage.spaceId,
+                                        isAccountShortName,
+                                    },
+                                ),
                                 children: [
                                     {
                                         type: "text",
-                                        value: printApiMentionTargetToMentionLinkLabel(
-                                            mentionTargetResult.target,
+                                        value: printApiMentionReferenceToMentionLinkLabel(
+                                            mentionReferenceResult.reference,
                                         ),
                                     },
                                 ],
                                 position: node.position,
                                 data: {
-                                    mentionTarget: mentionTargetResult.target,
+                                    mentionReference: mentionReferenceResult.reference,
                                 },
                             };
                         }
                         default:
-                            throw exhaustive(mentionTargetResult);
+                            throw exhaustive(mentionReferenceResult);
                     }
                 }
             }
@@ -596,18 +600,19 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     };
                 }
 
-                const previewTarget = createAgentWebPageLinkApiPreviewTargetIfPossible(pageLink);
-                if (!previewTarget) return node;
+                const previewReference =
+                    createAgentWebPageLinkApiPreviewReferenceIfPossible(pageLink);
+                if (!previewReference) return node;
 
                 return {
                     type: "image",
-                    url: printApiPreviewTargetToPreviewUrl(storage.spaceId, previewTarget),
-                    alt: printApiMentionTargetToMentionLinkLabel(previewTarget),
+                    url: printApiPreviewReferenceToPreviewUrl(storage.spaceId, previewReference),
+                    alt: printApiMentionReferenceToMentionLinkLabel(previewReference),
                     position: node.position,
                     data: {
                         previewElement: {
                             type: "Preview",
-                            target: previewTarget,
+                            reference: previewReference,
                         },
                     },
                 };
@@ -797,18 +802,18 @@ async function traverseMarkdownHtmlNode(
                             return replacedUrl;
                         }
 
-                        const previewTarget =
-                            createAgentWebPageLinkApiPreviewTargetIfPossible(pageLink);
-                        if (!previewTarget) return url;
+                        const previewReference =
+                            createAgentWebPageLinkApiPreviewReferenceIfPossible(pageLink);
+                        if (!previewReference) return url;
 
                         const previewElement: ApiContentPreviewBlockElementResponse = {
                             type: "Preview",
-                            target: previewTarget,
+                            reference: previewReference,
                         };
 
-                        const replacedUrl = printApiPreviewTargetToPreviewUrl(
+                        const replacedUrl = printApiPreviewReferenceToPreviewUrl(
                             storage.spaceId,
-                            previewTarget,
+                            previewReference,
                         );
 
                         fileOrPreviewElementByUrl ??= new Map();

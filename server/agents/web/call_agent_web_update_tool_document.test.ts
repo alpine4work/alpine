@@ -35,7 +35,7 @@ async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): 
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        target: {
+                        reference: {
                             type: "Document",
                             id: documentId,
                             title,

@@ -11,7 +11,7 @@ import {createNotificationEventProcessor} from "~/server/notifications/data/proc
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -244,8 +244,8 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
-        viewingTarget: event.currentlyViewedSearchEntityId
-            ? intoApiMentionTarget(event.currentlyViewedSearchEntityId)
+        viewingReference: event.currentlyViewedSearchEntityId
+            ? intoApiMentionReference(event.currentlyViewedSearchEntityId)
             : undefined,
     }),
     getAlertContent: async (context, event, {info: {definition}, entryItem, locale}) => {
@@ -317,7 +317,9 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
     },
 });
 
-function intoApiMentionTarget(searchMentionEntityId: SearchMentionEntityId): ApiMentionTarget {
+function intoApiMentionReference(
+    searchMentionEntityId: SearchMentionEntityId,
+): ApiMentionReference {
     const entityIdObject = parseSearchMentionEntityId(searchMentionEntityId);
 
     switch (entityIdObject.type) {

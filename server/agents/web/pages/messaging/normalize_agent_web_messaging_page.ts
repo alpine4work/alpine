@@ -20,9 +20,9 @@ export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPag
 
             if (page.pagination) {
                 if (page.pagination.pageLink.type === "TaskMessageList") {
-                    normalizer.normalizeTarget(page.pagination.pageLink.task);
+                    normalizer.normalizeReference(page.pagination.pageLink.task);
                 } else {
-                    normalizer.normalizeTarget(page.pagination.pageLink);
+                    normalizer.normalizeReference(page.pagination.pageLink);
                 }
             }
 
@@ -33,10 +33,10 @@ export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPag
                 // `createAgentWebPageStoredLinkPathname()` calls in
                 // `printAgentWebMessagingPage()`.
 
-                normalizer.normalizeTarget(block.author);
+                normalizer.normalizeReference(block.author);
 
                 if (block.parent) {
-                    normalizer.normalizeTarget(block.parent.author);
+                    normalizer.normalizeReference(block.parent.author);
                     normalizer.normalize(block.parent.previewContent);
                 }
 

@@ -11,10 +11,11 @@ import {
     ApiContent,
     ApiErrorResponseBody,
     ApiMentionResponse,
-    ApiMentionTarget,
+    ApiMentionReference,
     ApiMessageContentPayloadParent,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
+    ApiMentionReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -201,7 +202,7 @@ export function createApiClient({
 export function getApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     index: number,
 ) {
     switch (room.type) {
@@ -239,7 +240,7 @@ export function getApiMessage(
 export function getApiMessagesFromStart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -286,7 +287,7 @@ export function getApiMessagesFromStart(
 export function getApiMessagesFromEnd(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -333,7 +334,7 @@ export function getApiMessagesFromEnd(
 export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     body: {
         isStream?: boolean;
         parent?: ApiMessageContentPayloadParent;
@@ -374,7 +375,7 @@ export function createApiMessage(
 export function createApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
@@ -425,7 +426,7 @@ export const putApiMessageStreamPartBeforeFetchTestCheckpoint = new TestCheckpoi
 export async function putApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
     partIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
@@ -485,7 +486,7 @@ export async function putApiMessageStreamPart(
 export function completeApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -527,7 +528,7 @@ export function completeApiMessageStream(
 export function pingApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomTarget,
+    room: ApiMessageRoomReference,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -572,48 +573,48 @@ export function pingApiMessageStream(
     }
 }
 
-export function getApiMention(
+export function getApiReference(
     tracer: TracerBase,
     apiClient: ApiClient,
-    target: ApiMentionTarget,
-): Promise<{data: {mention: ApiMentionResponse}}> {
-    switch (target.type) {
+    reference: ApiMentionReference,
+): Promise<{data: {reference: ApiMentionReferenceResponse}}> {
+    switch (reference.type) {
         case "Account": {
-            return apiClient.get(tracer, "/accounts/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/accounts/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Document": {
-            return apiClient.get(tracer, "/documents/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/documents/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Channel": {
-            return apiClient.get(tracer, "/channels/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/channels/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Chat": {
-            return apiClient.get(tracer, "/chats/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/chats/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Task":
-            return apiClient.get(tracer, "/tasks/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/tasks/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         case "TaskCollection": {
-            return apiClient.get(tracer, "/task-collections/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/task-collections/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         case "Post": {
-            return apiClient.get(tracer, "/posts/{id}/mention", {
-                params: {path: {id: target.id}},
+            return apiClient.get(tracer, "/posts/{id}/reference", {
+                params: {path: {id: reference.id}},
             });
         }
         default: {
-            throw exhaustive(target);
+            throw exhaustive(reference);
         }
     }
 }

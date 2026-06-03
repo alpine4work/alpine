@@ -155,7 +155,7 @@ test("prints rich message content using agent web markdown links", async () => {
                     {type: "Text", text: " in "},
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId, title: "Release Plan"},
+                        reference: {type: "Document", id: documentId, title: "Release Plan"},
                     },
                     {type: "Text", text: " before running "},
                     {type: "Text", text: "deploy", marks: [{type: "Code"}]},

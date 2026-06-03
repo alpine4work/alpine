@@ -5,7 +5,7 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {searchAlpineForAgent} from "~/server/agents/bots/internal/tools/search_alpine_for_agent.js";
 import {
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -39,7 +39,7 @@ const request = {
     spaceId,
     apiClient,
     // Default room for tests that don't care about filtering
-    room: cast<ApiMessageRoomTarget>({type: "Chat", id: generateId()}),
+    room: cast<ApiMessageRoomReference>({type: "Chat", id: generateId()}),
 } as const;
 
 afterEach(async () => {
@@ -329,7 +329,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -378,7 +378,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -436,7 +436,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Post", id: currentPostId}),
+            room: cast<ApiMessageRoomReference>({type: "Post", id: currentPostId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -494,7 +494,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Task", id: currentTaskId}),
+            room: cast<ApiMessageRoomReference>({type: "Task", id: currentTaskId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -556,7 +556,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({
+            room: cast<ApiMessageRoomReference>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -611,7 +611,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>
@@ -705,7 +705,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({
+            room: cast<ApiMessageRoomReference>({
                 type: "DocumentCommentThread",
                 id: currentDocumentId,
                 threadId: currentThreadId,
@@ -765,7 +765,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomTarget>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(async transaction =>

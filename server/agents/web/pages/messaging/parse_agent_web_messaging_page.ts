@@ -26,7 +26,7 @@ import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
@@ -309,7 +309,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                             const block: Replace<
                                 AgentWebMessagingPageMessageBlock,
                                 {
-                                    author: Promise<ApiAccountTargetResponse>;
+                                    author: Promise<ApiAccountReferenceResponse>;
                                     content: Promise<ApiContentResponse>;
                                     parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
                                 }
@@ -1006,6 +1006,7 @@ async function parseAgentWebMessagingPagePaginationLink({
 
     switch (pageLink.type) {
         case "Chat":
+        case "Post":
         case "TaskMessageList": {
             // Ok!
             break;

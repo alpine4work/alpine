@@ -21,8 +21,8 @@ import {
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
-import {normalizeApiTarget} from "~/shared/api/markdown/normalize_api_content.js";
-import {ApiTaskTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {normalizeApiReference} from "~/shared/api/markdown/normalize_api_content.js";
+import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -34,7 +34,7 @@ export type AgentWebTaskMessageListPage =
     };
 
 export type AgentWebTaskMessageListPagePreamble = {
-    readonly task: ApiTaskTargetResponse;
+    readonly task: ApiTaskReferenceResponse;
 };
 
 export type AgentWebTaskMessageListPageWithMetadata = AgentWebTaskMessageListPage & {
@@ -128,19 +128,17 @@ async function getTaskRoomMetadata(
     preamble: AgentWebTaskMessageListPagePreamble;
 }> {
     const {
-        data: {
-            mention: {target},
-        },
-    } = await context.api.get(context.span, "/tasks/{id}/mention", {
+        data: {reference},
+    } = await context.api.get(context.span, "/tasks/{id}/reference", {
         params: {path: {id}},
     });
 
     return {
         pageLink: {
             type: "TaskMessageList",
-            task: target,
+            task: reference,
         },
-        preamble: {task: target},
+        preamble: {task: reference},
     };
 }
 
@@ -149,7 +147,7 @@ export function normalizeAgentWebTaskMessageListPage<Page extends AgentWebTaskMe
 ): Page {
     return normalizeAgentWebMessagingPage(page, {
         normalizePreamble: (normalizer, preamble) => {
-            normalizer.normalizeTarget(preamble.task);
+            normalizer.normalizeReference(preamble.task);
         },
     });
 }
@@ -163,8 +161,8 @@ export async function updateAgentWebTaskMessageListPage(
 ): Promise<AgentWebTaskMessageListPageMetadata> {
     if (
         !isDeepEqual(
-            normalizeApiTarget(oldPage.preamble.task),
-            normalizeApiTarget(newPage.preamble.task),
+            normalizeApiReference(oldPage.preamble.task),
+            normalizeApiReference(newPage.preamble.task),
         )
     ) {
         throw new InvalidArgumentError("Can\u2019t update task comments preamble", {
@@ -198,7 +196,7 @@ export async function printAgentWebTaskMessageListPage(
                         type: "Paragraph",
                         elements: [
                             {type: "Text", text: "Comments on "},
-                            {type: "Mention", target: preamble.task},
+                            {type: "Mention", reference: preamble.task},
                             {type: "Text", text: "."},
                         ],
                     },
@@ -255,11 +253,11 @@ export async function parseAgentWebTaskMessageListPage(
 
             const secondElement = elements[1]!;
 
-            if (secondElement.type !== "Mention" || secondElement.target.type !== "Task") {
+            if (secondElement.type !== "Mention" || secondElement.reference.type !== "Task") {
                 throw createError();
             }
 
-            return {task: secondElement.target};
+            return {task: secondElement.reference};
         },
     });
 

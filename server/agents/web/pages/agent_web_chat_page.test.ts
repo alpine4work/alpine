@@ -6,7 +6,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
     ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
@@ -18,7 +18,13 @@ import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.js";
 const chatId = generateId<ChatId>();
 const paginationChatId = generateId<ChatId>();
 
-function accountTarget({name, botId}: {name: string; botId?: BotId}): ApiAccountTargetResponse {
+function accountReference({
+    name,
+    botId,
+}: {
+    name: string;
+    botId?: BotId;
+}): ApiAccountReferenceResponse {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -28,12 +34,12 @@ function accountTarget({name, botId}: {name: string; botId?: BotId}): ApiAccount
     };
 }
 
-const aliceTarget = accountTarget({name: "Alice"});
-const bobTarget = accountTarget({name: "Bob"});
-const carolTarget = accountTarget({name: "Carol"});
-const danTarget = accountTarget({name: "Dan"});
-const assistantTarget = accountTarget({name: "Assistant", botId: generateId<BotId>()});
-const escapedTeamTarget = accountTarget({
+const aliceReference = accountReference({name: "Alice"});
+const bobReference = accountReference({name: "Bob"});
+const carolReference = accountReference({name: "Carol"});
+const danReference = accountReference({name: "Dan"});
+const assistantReference = accountReference({name: "Assistant", botId: generateId<BotId>()});
+const escapedTeamReference = accountReference({
     name: `Alice & Bob\u2019s \u201CTeam\u201D`,
 });
 
@@ -77,7 +83,7 @@ Chat with [Alice](/human/alice).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget]},
+                preamble: {type: "Direct", members: [aliceReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -94,7 +100,7 @@ Chat with [Alice](/human/alice).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget]},
+                preamble: {type: "Direct", members: [aliceReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -108,7 +114,7 @@ Chat with [Assistant](/bot/assistant).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [assistantTarget]},
+                preamble: {type: "Direct", members: [assistantReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -122,7 +128,7 @@ Chat with [Alice](/human/alice) and [Bob](/human/bob).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -139,7 +145,7 @@ Chat with [Alice](/human/alice) and [Bob](/human/bob).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -153,7 +159,7 @@ Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget, carolTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -170,7 +176,7 @@ Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget, carolTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -187,7 +193,7 @@ Chat with [Alice](/human/alice), [Bob](/human/bob), and [Carol](/human/carol).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget, carolTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference, carolReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -203,7 +209,7 @@ Chat with [Alice](/human/alice), [Bob](/human/bob), [Carol](/human/carol), and [
                 type: "Chat",
                 preamble: {
                     type: "Direct",
-                    members: [aliceTarget, bobTarget, carolTarget, danTarget],
+                    members: [aliceReference, bobReference, carolReference, danReference],
                 },
                 pagination: null,
                 isEndOfMessages: false,
@@ -218,7 +224,7 @@ Chat with [Alice & Bob\u2019s \u201CTeam\u201D](/human/alice-and-bobs-team).
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [escapedTeamTarget]},
+                preamble: {type: "Direct", members: [escapedTeamReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -238,14 +244,14 @@ Hello Bob.
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget, bobTarget]},
+                preamble: {type: "Direct", members: [aliceReference, bobReference]},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -262,7 +268,7 @@ Chat with [Alice](/human/alice). [Previous page »](/chat/alice?before=3)
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget]},
+                preamble: {type: "Direct", members: [aliceReference]},
                 pagination: {
                     pageLink: {
                         type: "Chat",
@@ -285,7 +291,7 @@ Chat with [Alice](/human/alice). [Next page »](/chat/alice?after=9)
 `,
             page: {
                 type: "Chat",
-                preamble: {type: "Direct", members: [aliceTarget]},
+                preamble: {type: "Direct", members: [aliceReference]},
                 pagination: {
                     pageLink: {
                         type: "Chat",
@@ -358,7 +364,7 @@ Room update.
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,

@@ -5,7 +5,7 @@ import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_c
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
-    printApiMentionTargetToMentionUrl,
+    printApiMentionReferenceToMentionUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
@@ -39,8 +39,8 @@ import {
     ApiContentTableBlockElementResponse,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElementResponse,
-    ApiMentionTargetResponse,
-    ApiPreviewTargetResponse,
+    ApiMentionReferenceResponse,
+    ApiPreviewReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -97,13 +97,13 @@ export const ApiContentTextArbitrary = fc.oneof(
     {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
 );
 
-export const ApiChatTargetArbitrary = fc.record({
+export const ApiChatReferenceArbitrary = fc.record({
     type: fc.constant("Chat"),
     id: createIdArbitrary<ChatId>(),
     title: ApiContentTextArbitrary,
 });
 
-export const ApiTaskTargetArbitrary = fc.record({
+export const ApiTaskReferenceArbitrary = fc.record({
     type: fc.constant("Task"),
     id: createIdArbitrary<TaskId>(),
     title: ApiContentTextArbitrary,
@@ -114,13 +114,13 @@ export const ApiTaskTargetArbitrary = fc.record({
     ),
 });
 
-const ApiPreviewTargetArbitraries = {
+const ApiPreviewReferenceArbitraries = {
     Channel: fc.record({
         type: fc.constant("Channel"),
         id: createIdArbitrary<ChannelId>(),
         title: ApiContentTextArbitrary,
     }),
-    Chat: ApiChatTargetArbitrary,
+    Chat: ApiChatReferenceArbitrary,
     Document: fc.record({
         type: fc.constant("Document"),
         id: createIdArbitrary<DocumentId>(),
@@ -131,7 +131,7 @@ const ApiPreviewTargetArbitraries = {
         id: createIdArbitrary<PostId>(),
         title: ApiContentTextArbitrary,
     }),
-    Task: ApiTaskTargetArbitrary,
+    Task: ApiTaskReferenceArbitrary,
     TaskCollection: fc.record({
         type: fc.constant("TaskCollection"),
         id: createIdArbitrary<TaskCollectionId>(),
@@ -139,7 +139,7 @@ const ApiPreviewTargetArbitraries = {
     }),
 };
 
-export const ApiAccountTargetArbitrary = fc.record({
+export const ApiAccountReferenceArbitrary = fc.record({
     type: fc.constant("Account"),
     id: createIdArbitrary<AccountId>(),
     title: ApiContentTextArbitrary,
@@ -150,9 +150,9 @@ export const ApiAccountTargetArbitrary = fc.record({
     ),
 });
 
-export const ApiMentionTargetArbitrary = createUnionArbitrary<ApiMentionTargetResponse>({
-    ...ApiPreviewTargetArbitraries,
-    Account: ApiAccountTargetArbitrary,
+export const ApiMentionReferenceArbitrary = createUnionArbitrary<ApiMentionReferenceResponse>({
+    ...ApiPreviewReferenceArbitraries,
+    Account: ApiAccountReferenceArbitrary,
 });
 
 const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
@@ -167,9 +167,9 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
             {
                 weight: 1,
                 arbitrary: fc
-                    .tuple(ApiMentionTargetArbitrary, fc.boolean())
-                    .map(([targetPathObject, isAccountShortName]) =>
-                        printApiMentionTargetToMentionUrl(targetPathObject, {
+                    .tuple(ApiMentionReferenceArbitrary, fc.boolean())
+                    .map(([referencePathObject, isAccountShortName]) =>
+                        printApiMentionReferenceToMentionUrl(referencePathObject, {
                             spaceId: apiContentArbitrarySpaceId,
                             isAccountShortName,
                         }),
@@ -246,14 +246,14 @@ const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementR
         contentLength: fc.integer({min: 0}),
     });
 
-const ApiPreviewTargetArbitrary = createUnionArbitrary<ApiPreviewTargetResponse>(
-    ApiPreviewTargetArbitraries,
+const ApiPreviewReferenceArbitrary = createUnionArbitrary<ApiPreviewReferenceResponse>(
+    ApiPreviewReferenceArbitraries,
 );
 
 const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
     fc.record({
         type: fc.constant("Preview"),
-        target: ApiPreviewTargetArbitrary,
+        reference: ApiPreviewReferenceArbitrary,
     });
 
 const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElementResponse> =
@@ -301,7 +301,7 @@ const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlo
 const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElementResponse> =
     fc.record({
         type: fc.constant("Mention"),
-        target: ApiMentionTargetArbitrary,
+        reference: ApiMentionReferenceArbitrary,
         isAccountShortName: fc.boolean(),
         marks: fc.oneof(
             {arbitrary: fc.constant([]), weight: 30},

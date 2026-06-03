@@ -1,14 +1,14 @@
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {
-    ApiMentionTargetResponse,
+    ApiMentionReferenceResponse,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-export function createApiTargetAgentWebPageStoredLink(
-    target: ApiMentionTargetResponse | ApiSearchResult,
+export function createApiReferenceAgentWebPageStoredLink(
+    reference: ApiMentionReferenceResponse | ApiSearchResult,
 ): AgentWebPageStoredLink {
-    switch (target.type) {
+    switch (reference.type) {
         case "Account":
         case "Chat":
         case "Channel":
@@ -16,47 +16,47 @@ export function createApiTargetAgentWebPageStoredLink(
         case "Post":
         case "Task":
         case "TaskCollection": {
-            return target;
+            return reference;
         }
         case "ChatMessage": {
             return {
                 type: "ChatMessage",
-                id: target.id,
-                index: target.index,
-                authorShortName: target.author.shortName,
-                bodySnippet: flatBodyMatch(target.bodyMatch),
+                id: reference.id,
+                index: reference.index,
+                authorShortName: reference.author.shortName,
+                bodySnippet: flatBodyMatch(reference.bodyMatch),
             };
         }
         case "DocumentMessage": {
             return {
                 type: "DocumentMessage",
-                id: target.id,
-                threadId: target.threadId,
-                index: target.index,
-                authorShortName: target.author.shortName,
-                bodySnippet: flatBodyMatch(target.bodyMatch),
+                id: reference.id,
+                threadId: reference.threadId,
+                index: reference.index,
+                authorShortName: reference.author.shortName,
+                bodySnippet: flatBodyMatch(reference.bodyMatch),
             };
         }
         case "PostMessage": {
             return {
                 type: "PostMessage",
-                id: target.id,
-                index: target.index,
-                authorShortName: target.author.shortName,
-                bodySnippet: flatBodyMatch(target.bodyMatch),
+                id: reference.id,
+                index: reference.index,
+                authorShortName: reference.author.shortName,
+                bodySnippet: flatBodyMatch(reference.bodyMatch),
             };
         }
         case "TaskMessage": {
             return {
                 type: "TaskMessage",
-                id: target.id,
-                index: target.index,
-                authorShortName: target.author.shortName,
-                bodySnippet: flatBodyMatch(target.bodyMatch),
+                id: reference.id,
+                index: reference.index,
+                authorShortName: reference.author.shortName,
+                bodySnippet: flatBodyMatch(reference.bodyMatch),
             };
         }
         default:
-            throw exhaustive(target);
+            throw exhaustive(reference);
     }
 }
 

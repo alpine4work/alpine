@@ -1,5 +1,8 @@
-import {parseApiTargetKey, printApiTargetKey} from "~/shared/api/specification/api_target_key.js";
-import type {ApiTarget} from "~/shared/api/specification/types/api_target.js";
+import {
+    parseApiReferenceKey,
+    printApiReferenceKey,
+} from "~/shared/api/specification/api_reference_key.js";
+import type {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -21,7 +24,7 @@ const postId = generateId<PostId>();
 const taskId = generateId<TaskId>();
 const taskCollectionId = generateId<TaskCollectionId>();
 
-const apiTargets: ReadonlyArray<ApiTarget> = [
+const ApiReferences: ReadonlyArray<ApiReference> = [
     {type: "Account", id: accountId},
     {type: "Channel", id: channelId},
     {type: "Chat", id: chatId},
@@ -40,8 +43,8 @@ const apiTargets: ReadonlyArray<ApiTarget> = [
     {type: "TaskCollection", id: taskCollectionId},
 ];
 
-describe("parseApiTargetKey", () => {
-    test.each(apiTargets)("parses $type target keys", apiTarget => {
-        expect(parseApiTargetKey(printApiTargetKey(apiTarget))).toEqual(apiTarget);
+describe("parseApiReferenceKey", () => {
+    test.each(ApiReferences)("parses $type target keys", ApiReference => {
+        expect(parseApiReferenceKey(printApiReferenceKey(ApiReference))).toEqual(ApiReference);
     });
 });

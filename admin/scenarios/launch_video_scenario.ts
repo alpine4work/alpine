@@ -562,7 +562,7 @@ field when they receive them. Comment on ideas you like!
                     type: "ToolCall",
                     call: {
                         type: "Read",
-                        target: {type: "Document", id: brainstormDocument.id},
+                        reference: {type: "Document", id: brainstormDocument.id},
                     },
                 },
             });

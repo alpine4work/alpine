@@ -1,5 +1,5 @@
-import {parseApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,
@@ -137,19 +137,19 @@ function collectContentReferencesForToolCall(
 ) {
     switch (toolCall.type) {
         case "Read": {
-            const targetObject = parseApiMentionTarget(toolCall.targetPath);
+            const targetObject = parseApiMentionReference(toolCall.targetPath);
             if (targetObject.type === "Account") {
                 referencedIds.accountIds.add(targetObject.id);
             } else {
                 referencedIds.searchEntityIds.add(
-                    intoSearchEntityIdFromApiMentionTarget(targetObject),
+                    intoSearchEntityIdFromApiMentionReference(targetObject),
                 );
             }
             return;
         }
         case "Create": {
             referencedIds.searchEntityIds.add(
-                intoSearchEntityIdFromApiMentionTarget(toolCall.target),
+                intoSearchEntityIdFromApiMentionReference(toolCall.target),
             );
             return;
         }
@@ -163,8 +163,8 @@ function collectContentReferencesForToolCall(
     }
 }
 
-function intoSearchEntityIdFromApiMentionTarget(
-    target: Exclude<ApiMentionTarget, {readonly type: "Account"}>,
+function intoSearchEntityIdFromApiMentionReference(
+    target: Exclude<ApiMentionReference, {readonly type: "Account"}>,
 ): SearchMentionEntityId {
     switch (target.type) {
         case "Channel":

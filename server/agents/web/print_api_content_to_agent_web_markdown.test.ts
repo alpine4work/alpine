@@ -103,7 +103,7 @@ const testCases: Array<{
                         {type: "Text", text: "Review "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 title: "Fix auth",
@@ -129,7 +129,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
                         {type: "Text", text: "Review ", marks: [{type: "Italic"}]},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 title: "Fix auth",
@@ -156,7 +156,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
                         {type: "Text", text: "Review ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 title: "Fix auth",
@@ -187,7 +187,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
                         },
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 title: "Fix auth",
@@ -218,7 +218,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
                                 title: "Product Spec",
@@ -227,7 +227,7 @@ Review [Fix auth (Open)](/task/fix-auth) today
                         {type: "Text", text: " and "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: otherDocumentId,
                                 title: "Product Spec",
@@ -251,7 +251,7 @@ See [Product Spec](/document/product-spec) and [Product Spec](/document/product-
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: calebAccountId,
                                 title: "Caleb Meredith",
@@ -277,7 +277,7 @@ Hello [Caleb Meredith](/human/caleb-meredith)!
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: calebAccountId,
                                 title: "Caleb Meredith",
@@ -304,7 +304,7 @@ Hello [Caleb](/human/caleb-meredith)!
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: chatGptAccountId,
                                 title: "ChatGPT",
@@ -331,7 +331,7 @@ Hello [ChatGPT](/bot/chatgpt)!
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: chatGptAccountId,
                                 title: "ChatGPT",
@@ -1589,7 +1589,7 @@ Test: <comment id="5">five</comment>
                 },
                 {
                     type: "Preview",
-                    target: {
+                    reference: {
                         type: "Task",
                         id: taskId,
                         title: "Fix auth",
@@ -1721,7 +1721,7 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Task",
                                             id: taskId,
                                             title: "Fix auth",
@@ -1733,7 +1733,7 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Document",
                                             id: documentId,
                                             title: "My Document",
@@ -2003,7 +2003,7 @@ Review this today:
                     side: "Left",
                     element: {
                         type: "Preview",
-                        target: {
+                        reference: {
                             type: "Task",
                             id: taskId,
                             title: "Fix auth",
@@ -2032,7 +2032,7 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Post",
                                             id: assertId<PostId>("036btbmcmnnpqfjnnf42zmft3g"),
                                             // eslint-disable-next-line cyberworlds/string-quotes
@@ -2071,7 +2071,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: assertId<AccountId>("9cc1wj4he4p7eka2qjgjpf4hsg"),
                                 title: "Caleb",
@@ -2087,7 +2087,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Account",
                                 id: assertId<AccountId>("9cc1wj4he4p7eka2qjgjpf4hsg"),
                                 title: "Caleb Meredith",
@@ -2115,7 +2115,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Channel",
                                 id: assertId<ChannelId>("a3en105tcat68mbgnkdnj9w7t0"),
                                 title: "aaaaaaaa",
@@ -2128,7 +2128,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Channel",
                                 id: assertId<ChannelId>("a3en105tcat68mbgnkdnj9w7t0"),
                                 title: "bbbbbbbb",
@@ -2153,7 +2153,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: assertId<TaskId>("q44py4538q3gyt63ykgz44q9ew"),
                                 title: "aaaaaaaa",
@@ -2173,7 +2173,7 @@ Review this today:
                                     width: 1,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Task",
                                             id: assertId<TaskId>("q44py4538q3gyt63ykgz44q9ew"),
                                             title: "aaaaaaaa",
@@ -2206,7 +2206,7 @@ Review this today:
                                     width: 0.5,
                                     element: {
                                         type: "Preview",
-                                        target: {
+                                        reference: {
                                             type: "Post",
                                             id: assertId<PostId>("k9f12ww1stzwy3bcgctwfhrpxw"),
                                             title: "aaaaaaaa",
@@ -2231,7 +2231,7 @@ Review this today:
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Post",
                                 id: assertId<PostId>("k9f12ww1stzwy3bcgctwfhrpxw"),
                                 title: "bbbbbbbb",

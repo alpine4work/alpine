@@ -8,16 +8,16 @@ test("titles should be updated to last value", () => {
     expect(
         normalizeApiContentForAgentWebMarkdown({
             elements: [
-                {type: "Preview", target: {type: "Chat", id: chatId, title: "aaaaaaaa"}},
+                {type: "Preview", reference: {type: "Chat", id: chatId, title: "aaaaaaaa"}},
                 {type: "Divider"},
-                {type: "Preview", target: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
+                {type: "Preview", reference: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
             ],
         }),
     ).toEqual({
         elements: [
-            {type: "Preview", target: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
+            {type: "Preview", reference: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
             {type: "Divider"},
-            {type: "Preview", target: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
+            {type: "Preview", reference: {type: "Chat", id: chatId, title: "bbbbbbbb"}},
         ],
     });
 });

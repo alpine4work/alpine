@@ -6,12 +6,12 @@ import {
     printAgentWebPageStoredLinkLabel,
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
-import {createApiTargetAgentWebPageStoredLink} from "~/server/agents/web/create_api_target_agent_web_page_stored_link.js";
+import {createApiReferenceAgentWebPageStoredLink} from "~/server/agents/web/create_api_reference_agent_web_page_stored_link.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     printApiContentToMarkdownTree,
     printApiFileContentUrl,
-    printApiPreviewTargetToPreviewUrl,
+    printApiPreviewReferenceToPreviewUrl,
     printMarkdownTree,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {
@@ -133,7 +133,7 @@ async function traverseApiContentMarkdownNode(
                 let pageLink: AgentWebPageStoredLink;
 
                 if (element.type === "Preview") {
-                    pageLink = createApiTargetAgentWebPageStoredLink(element.target);
+                    pageLink = createApiReferenceAgentWebPageStoredLink(element.reference);
                 } else {
                     pageLink = {
                         type: "File",
@@ -182,11 +182,13 @@ async function traverseApiContentMarkdownNode(
                         let url: string;
 
                         if (item.element.type === "Preview") {
-                            pageLink = createApiTargetAgentWebPageStoredLink(item.element.target);
+                            pageLink = createApiReferenceAgentWebPageStoredLink(
+                                item.element.reference,
+                            );
 
-                            url = printApiPreviewTargetToPreviewUrl(
+                            url = printApiPreviewReferenceToPreviewUrl(
                                 storage.spaceId,
-                                item.element.target,
+                                item.element.reference,
                             );
                         } else {
                             pageLink = {
@@ -256,7 +258,7 @@ async function traverseApiContentMarkdownNode(
             const mentionElement = node.data
                 .mentionElement as ApiContentMentionInlineElementResponse;
 
-            const pageLink = createApiTargetAgentWebPageStoredLink(mentionElement.target);
+            const pageLink = createApiReferenceAgentWebPageStoredLink(mentionElement.reference);
             const pageLinkPathname = await createAgentWebPageStoredLinkPathname(storage, pageLink);
 
             const originalPageLinkLabel = printAgentWebPageStoredLinkLabel(pageLink);
@@ -264,8 +266,8 @@ async function traverseApiContentMarkdownNode(
             // We encode the fact that this is a short account mention by using a label that's
             // different from what you'd expect when printing `pageLink`.
             const pageLinkLabel =
-                mentionElement.target.type === "Account" && mentionElement.isAccountShortName
-                    ? mentionElement.target.shortName
+                mentionElement.reference.type === "Account" && mentionElement.isAccountShortName
+                    ? mentionElement.reference.shortName
                     : originalPageLinkLabel;
 
             let pageLinkPath = pageLinkPathname;
@@ -279,9 +281,9 @@ async function traverseApiContentMarkdownNode(
             // We shouldn't see this much in practice because the client shouldn't set
             // `isAccountShortName` if the short name is identical to the long name.
             if (
-                mentionElement.target.type === "Account" &&
+                mentionElement.reference.type === "Account" &&
                 mentionElement.isAccountShortName &&
-                mentionElement.target.shortName === originalPageLinkLabel
+                mentionElement.reference.shortName === originalPageLinkLabel
             ) {
                 pageLinkPath += "#short";
             }
@@ -323,7 +325,7 @@ async function traverseApiContentMarkdownNode(
                 const previewElement = node.data
                     .previewElement as ApiContentPreviewBlockElementResponse;
 
-                const pageLink = createApiTargetAgentWebPageStoredLink(previewElement.target);
+                const pageLink = createApiReferenceAgentWebPageStoredLink(previewElement.reference);
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
                     storage,
                     pageLink,

@@ -1632,7 +1632,7 @@ test("mention with short name format", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Account", id: accountId},
+                        reference: {type: "Account", id: accountId},
                         isAccountShortName: true,
                     },
                 ],
@@ -1655,7 +1655,7 @@ test("channel mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Channel", id: channelId},
+                        reference: {type: "Channel", id: channelId},
                     },
                 ],
             },
@@ -1679,7 +1679,7 @@ test("document mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1703,7 +1703,7 @@ test("document mention with autolink syntax", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1728,7 +1728,7 @@ test("parses mention from alpine.inc", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Document", id: documentId},
+                        reference: {type: "Document", id: documentId},
                     },
                 ],
             },
@@ -1785,7 +1785,7 @@ test("post mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Post", id: postId},
+                        reference: {type: "Post", id: postId},
                     },
                 ],
             },
@@ -1807,7 +1807,7 @@ test("task mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Task", id: taskId},
+                        reference: {type: "Task", id: taskId},
                     },
                 ],
             },
@@ -1829,7 +1829,7 @@ test("task collection mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "TaskCollection", id: collectionId},
+                        reference: {type: "TaskCollection", id: collectionId},
                     },
                 ],
             },
@@ -4103,7 +4103,7 @@ test("link to document preview URL parses as Preview", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
+                reference: {type: "Document", id: documentId},
             },
         ],
     });
@@ -4120,7 +4120,7 @@ test("link to channel preview URL parses as Preview", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Channel", id: channelId},
+                reference: {type: "Channel", id: channelId},
             },
         ],
     });
@@ -4137,7 +4137,7 @@ test("HTML <a> tag inside <div> with preview URL parses as Preview", () => {
         elements: [
             {
                 type: "Preview",
-                target: {type: "Document", id: documentId},
+                reference: {type: "Document", id: documentId},
             },
         ],
     });
@@ -4165,7 +4165,7 @@ test("Preview throws when used in quote blocks", () => {
         Array.from(
             intoApiContentParagraphBlockElement({
                 type: "Preview",
-                target: {type: "Document", id: generateId<DocumentId>()},
+                reference: {type: "Document", id: generateId<DocumentId>()},
             }),
         ),
     ).toThrow("Previews aren\u2019t supported in quote blocks");

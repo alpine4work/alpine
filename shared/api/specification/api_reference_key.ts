@@ -1,4 +1,4 @@
-import type {ApiTarget} from "~/shared/api/specification/types/api_target.js";
+import type {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
@@ -13,7 +13,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type ApiTargetKey =
+export type ApiReferenceKey =
     | `Account:${AccountId}`
     | `Channel:${ChannelId}`
     | `Chat:${ChatId}`
@@ -26,7 +26,7 @@ export type ApiTargetKey =
     | `TaskMessage:${TaskId}-${number}`
     | `TaskCollection:${TaskCollectionId}`;
 
-export function printApiTargetKey(key: ApiTarget): ApiTargetKey {
+export function printApiReferenceKey(key: ApiReference): ApiReferenceKey {
     switch (key.type) {
         case "Account":
             return `Account:${key.id}`;
@@ -55,7 +55,7 @@ export function printApiTargetKey(key: ApiTarget): ApiTargetKey {
     }
 }
 
-export function parseApiTargetKey(key: ApiTargetKey): ApiTarget {
+export function parseApiReferenceKey(key: ApiReferenceKey): ApiReference {
     const [type = "", data = ""] = key.split(":", 2);
 
     switch (type) {
@@ -119,6 +119,6 @@ export function parseApiTargetKey(key: ApiTargetKey): ApiTarget {
             return {type: "TaskCollection", id: assertId<TaskCollectionId>(data)};
 
         default:
-            throw new InvalidArgumentError("Unrecognized `ApiTargetKey` type");
+            throw new InvalidArgumentError("Unrecognized `ApiReferenceKey` type");
     }
 }

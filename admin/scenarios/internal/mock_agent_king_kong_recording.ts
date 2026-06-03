@@ -12,7 +12,7 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
-    ApiMentionTarget,
+    ApiMentionReference,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
@@ -60,8 +60,8 @@ function text(
     return {type: "Text", text, marks};
 }
 
-function mention(target: ApiMentionTarget): ApiContentMentionInlineElement {
-    return {type: "Mention", target};
+function mention(reference: ApiMentionReference): ApiContentMentionInlineElement {
+    return {type: "Mention", reference};
 }
 
 const bold: ApiContentInlineElementMark = {type: "Bold"};
@@ -133,7 +133,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {type: "Document", id: documentIds.universalVsNintendo},
+            reference: {type: "Document", id: documentIds.universalVsNintendo},
         },
     });
 
@@ -141,7 +141,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {type: "Document", id: documentIds.universalVsNintendo},
+            reference: {type: "Document", id: documentIds.universalVsNintendo},
         },
     });
 
@@ -190,7 +190,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {type: "Document", id: documentIds.kingKongVsGodzilla},
+            reference: {type: "Document", id: documentIds.kingKongVsGodzilla},
         },
     });
 
@@ -198,7 +198,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {type: "Document", id: documentIds.kingKongVsGodzilla},
+            reference: {type: "Document", id: documentIds.kingKongVsGodzilla},
         },
     });
 
@@ -206,7 +206,7 @@ export function createMockAgentKingKongRecording(
         type: "ToolCall",
         call: {
             type: "Read",
-            target: {type: "Document", id: documentIds.kingKong2005Film},
+            reference: {type: "Document", id: documentIds.kingKong2005Film},
         },
     });
 

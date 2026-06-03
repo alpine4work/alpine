@@ -11,8 +11,8 @@ import {
     ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
-import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -30,8 +30,8 @@ export type ApiContentVisitor = {
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
-    readonly visitTarget?: (
-        target: ApiTarget,
+    readonly visitReference?: (
+        reference: ApiReference,
         context: {element: ApiContentMentionInlineElement | ApiContentPreviewBlockElement},
     ) => void;
 };
@@ -49,8 +49,8 @@ export type ApiContentResponseVisitor = {
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
-    readonly visitTarget?: (
-        target: ApiTargetResponse,
+    readonly visitReference?: (
+        reference: ApiReferenceResponse,
         context: {
             element: ApiContentMentionInlineElementResponse | ApiContentPreviewBlockElementResponse;
         },
@@ -132,7 +132,7 @@ export function visitApiContentBlockElement(
             break;
         }
         case "Preview": {
-            visitor.visitTarget?.(element.target, {element});
+            visitor.visitReference?.(element.reference, {element});
             break;
         }
         case "FileGallery": {
@@ -215,7 +215,7 @@ function visitApiContentInlineElement(
             break;
         }
         case "Mention": {
-            visitor.visitTarget?.(element.target, {element});
+            visitor.visitReference?.(element.reference, {element});
             break;
         }
         default:

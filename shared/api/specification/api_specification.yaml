@@ -63,7 +63,8 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/AccountWithoutSpace"
 
-    /accounts/{id}/mention:
+    # NOCOMMIT: Make this `/reference` now.
+    /accounts/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -77,16 +78,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/AccountTarget"
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    reference:
+                                        $ref: "#/components/schemas/AccountReference"
 
     /spaces/{id}:
         parameters:
@@ -234,7 +232,8 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetChat"}
 
-    /chats/{id}/mention:
+    # NOCOMMIT: Make this `/reference` now.
+    /chats/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -248,18 +247,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/ChatTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/ChatReference"
 
     # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
     # endpoints that deal with content. This variant should return a string for
@@ -462,7 +456,8 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetDocument"}
 
-    /documents/{id}/mention:
+    # NOCOMMIT: Make this `/reference` now.
+    /documents/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -476,18 +471,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/DocumentTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/DocumentReference"
 
     /documents/{id}/threads/{threadId}:
         parameters:
@@ -690,7 +680,7 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
-    /channels/{id}/mention:
+    /channels/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -704,18 +694,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/ChannelTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/ChannelReference"
 
     /posts:
         post:
@@ -758,7 +743,7 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
 
-    /posts/{id}/mention:
+    /posts/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -772,18 +757,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/PostTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/PostReference"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -974,7 +954,7 @@ paths:
                                     task:
                                         $ref: "#/components/schemas/Task"
 
-    /tasks/{id}/mention:
+    /tasks/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -988,18 +968,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/TaskTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/TaskReference"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -1152,7 +1127,7 @@ paths:
                                     taskCollection:
                                         $ref: "#/components/schemas/TaskCollection"
 
-    /task-collections/{id}/mention:
+    /task-collections/{id}/reference:
         parameters:
             - name: id
               in: path
@@ -1166,18 +1141,13 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, mention]
+                                required: [spaceId, reference]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    mention:
-                                        type: object
-                                        required: [target]
-                                        additionalProperties: false
-                                        properties:
-                                            target:
-                                                $ref: "#/components/schemas/TaskCollectionTarget"
+                                    reference:
+                                        $ref: "#/components/schemas/TaskCollectionReference"
 
     /task-collections/{id}/tasks:
         parameters:
@@ -1537,10 +1507,10 @@ components:
             pattern: ^{{idRegExp}}$
 
         # =========================================================================== #
-        #                                   Targets                                   #
+        #                                 References                                  #
         # =========================================================================== #
 
-        AccountTarget:
+        AccountReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1560,7 +1530,7 @@ components:
                 botId:
                     $ref: "#/components/schemas/BotId"
 
-        AccountTarget_Response:
+        AccountReference_Response:
             type: object
             required: [type, id, title, shortName]
             additionalProperties: false
@@ -1578,7 +1548,7 @@ components:
                 botId:
                     $ref: "#/components/schemas/BotId"
 
-        ChannelTarget:
+        ChannelReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1594,7 +1564,7 @@ components:
                 title:
                     type: string
 
-        ChannelTarget_Response:
+        ChannelReference_Response:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -1606,7 +1576,7 @@ components:
                 title:
                     type: string
 
-        ChatTarget:
+        ChatReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1622,7 +1592,7 @@ components:
                 title:
                     type: string
 
-        ChatTarget_Response:
+        ChatReference_Response:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -1634,7 +1604,7 @@ components:
                 title:
                     type: string
 
-        DocumentTarget:
+        DocumentReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1650,7 +1620,7 @@ components:
                 title:
                     type: string
 
-        DocumentTarget_Response:
+        DocumentReference_Response:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -1662,7 +1632,7 @@ components:
                 title:
                     type: string
 
-        PostTarget:
+        PostReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1678,7 +1648,7 @@ components:
                 title:
                     type: string
 
-        PostTarget_Response:
+        PostReference_Response:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -1690,7 +1660,7 @@ components:
                 title:
                     type: string
 
-        TaskTarget:
+        TaskReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1708,7 +1678,7 @@ components:
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
-        TaskTarget_Response:
+        TaskReference_Response:
             type: object
             required: [type, id, title, status]
             additionalProperties: false
@@ -1722,7 +1692,7 @@ components:
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
-        TaskCollectionTarget:
+        TaskCollectionReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -1738,7 +1708,7 @@ components:
                 title:
                     type: string
 
-        TaskCollectionTarget_Response:
+        TaskCollectionReference_Response:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -1750,43 +1720,43 @@ components:
                 title:
                     type: string
 
-        MentionTarget:
+        MentionReference:
             oneOf:
-                - $ref: "#/components/schemas/AccountTarget"
-                - $ref: "#/components/schemas/ChannelTarget"
-                - $ref: "#/components/schemas/ChatTarget"
-                - $ref: "#/components/schemas/DocumentTarget"
-                - $ref: "#/components/schemas/PostTarget"
-                - $ref: "#/components/schemas/TaskTarget"
-                - $ref: "#/components/schemas/TaskCollectionTarget"
+                - $ref: "#/components/schemas/AccountReference"
+                - $ref: "#/components/schemas/ChannelReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountTarget"
-                    Channel: "#/components/schemas/ChannelTarget"
-                    Chat: "#/components/schemas/ChatTarget"
-                    Document: "#/components/schemas/DocumentTarget"
-                    Post: "#/components/schemas/PostTarget"
-                    Task: "#/components/schemas/TaskTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
+                    Account: "#/components/schemas/AccountReference"
+                    Channel: "#/components/schemas/ChannelReference"
+                    Chat: "#/components/schemas/ChatReference"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
 
-        PreviewTarget:
+        PreviewReference:
             oneOf:
-                - $ref: "#/components/schemas/ChannelTarget"
-                - $ref: "#/components/schemas/ChatTarget"
-                - $ref: "#/components/schemas/DocumentTarget"
-                - $ref: "#/components/schemas/PostTarget"
-                - $ref: "#/components/schemas/TaskTarget"
-                - $ref: "#/components/schemas/TaskCollectionTarget"
+                - $ref: "#/components/schemas/ChannelReference"
+                - $ref: "#/components/schemas/ChatReference"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Channel: "#/components/schemas/ChannelTarget"
-                    Chat: "#/components/schemas/ChatTarget"
-                    Document: "#/components/schemas/DocumentTarget"
-                    Post: "#/components/schemas/PostTarget"
-                    Task: "#/components/schemas/TaskTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
+                    Channel: "#/components/schemas/ChannelReference"
+                    Chat: "#/components/schemas/ChatReference"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
 
         # =========================================================================== #
         #                                   Content                                   #
@@ -2123,13 +2093,13 @@ components:
 
         ContentPreviewBlockElement:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Preview
-                target:
-                    $ref: "#/components/schemas/PreviewTarget"
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
 
         ContentFileGalleryBlockElement:
             type: object
@@ -2260,7 +2230,7 @@ components:
 
         ContentMentionInlineElement:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
@@ -2268,24 +2238,14 @@ components:
                 # TODO(calebmer, #public-api): Document that `title` is loaded using the search
                 # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
                 # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
+                reference:
+                    $ref: "#/components/schemas/MentionReference"
                 isAccountShortName:
                     type: boolean
                 marks:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
-
-        # Simpler mention type that's compatible with `ContentMentionInlineElement` but
-        # without extra element properties like `type` and `marks`.
-        Mention:
-            type: object
-            required: [target]
-            additionalProperties: false
-            properties:
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
 
         ContentInlineElementMark:
             oneOf:
@@ -2503,6 +2463,12 @@ components:
                     $ref: "#/components/schemas/ChatId"
                 # TODO(#public-api): Document how this is the same as the chat's `title` when
                 # displayed as a mention.
+                #
+                # NOCOMMIT: Can I remove this by being more clever in `server/agents/web` code?
+                #
+                # NOCOMMIT: Actually, maybe what I do here is include the `target` object in
+                # the `GetChat` endpoint. This is a nice pattern since we're not forced to
+                # include the `title` when you're listing chats/posts/whatever.
                 title:
                     type: string
                 members:
@@ -2562,7 +2528,7 @@ components:
                                         $ref: "#/components/schemas/AccountId"
                                     # TODO(#public-api): Add additional properties from `Account` so you could pass
                                     # in an `Account` object here and it would work. These are properties from
-                                    # `AccountTarget_Response`. I reaaallly wish we had an API specification
+                                    # `AccountReference_Response`. I reaaallly wish we had an API specification
                                     # generator that did this automatically for us.
                                     type:
                                         const: Account
@@ -2689,12 +2655,15 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
+                # NOCOMMIT: Rename this to `title`?
                 contentPreview:
                     type: string
 
         # TODO(ifitzsimmons, #ai): Add a `/posts/{id}/preview` endpoint that returns a
         # a `PostPreview`
         # https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
+        #
+        # NOCOMMIT: Delete this? We have the `/mention` endpoint now.
         PostPreview:
             type: object
             required: [id, author, contentPreview]
@@ -2998,13 +2967,13 @@ components:
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Read
-                target:
-                    $ref: "#/components/schemas/MentionTarget"
+                reference:
+                    $ref: "#/components/schemas/MentionReference"
 
         MessageStreamToolCallPartPayloadSearchCall:
             type: object
@@ -3018,27 +2987,27 @@ components:
 
         MessageStreamToolCallPartPayloadCreateCall:
             type: object
-            required: [type, target]
+            required: [type, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Create
-                target:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
+                reference:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference"
 
-        MessageStreamToolCallPartCreateCallTarget:
+        MessageStreamToolCallPartCreateCallReference:
             oneOf:
-                - $ref: "#/components/schemas/DocumentTarget"
-                - $ref: "#/components/schemas/PostTarget"
-                - $ref: "#/components/schemas/TaskTarget"
-                - $ref: "#/components/schemas/TaskCollectionTarget"
+                - $ref: "#/components/schemas/DocumentReference"
+                - $ref: "#/components/schemas/PostReference"
+                - $ref: "#/components/schemas/TaskReference"
+                - $ref: "#/components/schemas/TaskCollectionReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Document: "#/components/schemas/DocumentTarget"
-                    Post: "#/components/schemas/PostTarget"
-                    Task: "#/components/schemas/TaskTarget"
-                    TaskCollection: "#/components/schemas/TaskCollectionTarget"
+                    Document: "#/components/schemas/DocumentReference"
+                    Post: "#/components/schemas/PostReference"
+                    Task: "#/components/schemas/TaskReference"
+                    TaskCollection: "#/components/schemas/TaskCollectionReference"
 
         # =========================================================================== #
         #                                  Webhooks                                   #
@@ -3054,6 +3023,8 @@ components:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
 
+        # TODO(#public-api-blocking): Rename to "Created Message" and "Created Post" to
+        # align with CRUD names and to align with inbox names.
         BotWebhookNewMessageEvent:
             type: object
             required: [type, room, index, authorId, createdTimeZone]
@@ -3062,7 +3033,7 @@ components:
                 type:
                     const: NewMessage
                 room:
-                    $ref: "#/components/schemas/MessageRoomTarget"
+                    $ref: "#/components/schemas/MessageRoomReference"
                 index:
                     type: integer
                     minimum: 0
@@ -3072,8 +3043,13 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
-                viewingTarget:
-                    $ref: "#/components/schemas/MentionTarget"
+                viewing:
+                    type: object
+                    required: [reference]
+                    additionalProperties: false
+                    properties:
+                        reference:
+                            $ref: "#/components/schemas/MentionReference"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
 
@@ -3171,21 +3147,21 @@ components:
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
 
-        MessageRoomTarget:
+        MessageRoomReference:
             oneOf:
-                - $ref: "#/components/schemas/ChatMessageRoomTarget"
-                - $ref: "#/components/schemas/DocumentThreadMessageRoomTarget"
-                - $ref: "#/components/schemas/PostMessageRoomTarget"
-                - $ref: "#/components/schemas/TaskMessageRoomTarget"
+                - $ref: "#/components/schemas/ChatMessageRoomReference"
+                - $ref: "#/components/schemas/DocumentThreadMessageRoomReference"
+                - $ref: "#/components/schemas/PostMessageRoomReference"
+                - $ref: "#/components/schemas/TaskMessageRoomReference"
             discriminator:
                 propertyName: type
                 mapping:
-                    Chat: "#/components/schemas/ChatMessageRoomTarget"
-                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomTarget"
-                    Post: "#/components/schemas/PostMessageRoomTarget"
-                    Task: "#/components/schemas/TaskMessageRoomTarget"
+                    Chat: "#/components/schemas/ChatMessageRoomReference"
+                    DocumentThread: "#/components/schemas/DocumentThreadMessageRoomReference"
+                    Post: "#/components/schemas/PostMessageRoomReference"
+                    Task: "#/components/schemas/TaskMessageRoomReference"
 
-        ChatMessageRoomTarget:
+        ChatMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -3195,7 +3171,7 @@ components:
                 id:
                     $ref: "#/components/schemas/ChatId"
 
-        DocumentThreadMessageRoomTarget:
+        DocumentThreadMessageRoomReference:
             type: object
             required: [type, id, threadId]
             additionalProperties: false
@@ -3207,7 +3183,7 @@ components:
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
 
-        PostMessageRoomTarget:
+        PostMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false
@@ -3217,7 +3193,7 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
-        TaskMessageRoomTarget:
+        TaskMessageRoomReference:
             type: object
             required: [type, id]
             additionalProperties: false

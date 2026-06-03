@@ -82,7 +82,7 @@ export const apiForumPaths: Pick<
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "Channel",
                             id: pathParameters.id,
                             title,
@@ -216,7 +216,7 @@ export const apiForumPaths: Pick<
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "Post",
                             id: pathParameters.id,
                             title,

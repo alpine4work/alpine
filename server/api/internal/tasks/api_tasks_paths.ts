@@ -147,7 +147,7 @@ export const apiTasksPaths: Pick<
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "Task",
                             id: pathParameters.id,
                             status: intoApiTaskStatus(media?.displayStatus),
@@ -443,7 +443,7 @@ export const apiTasksPaths: Pick<
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "TaskCollection",
                             id: pathParameters.id,
                         },

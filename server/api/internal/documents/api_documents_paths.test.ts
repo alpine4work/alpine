@@ -470,7 +470,7 @@ describe("/documents/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Document",
                         id: document.id,
                     },
@@ -550,7 +550,7 @@ describe("/documents/{id}/mention", () => {
             body: {
                 spaceId: space.id,
                 mention: {
-                    target: {
+                    reference: {
                         type: "Document",
                         id: document.id,
                     },

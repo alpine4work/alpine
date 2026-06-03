@@ -9,7 +9,7 @@ import {
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {createAgentWebMessagingPageArbitrary} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
 import {
-    ApiAccountTargetArbitrary,
+    ApiAccountReferenceArbitrary,
     ApiContentTextArbitrary,
     createIdArbitrary,
     createUnionArbitrary,
@@ -21,7 +21,7 @@ const AgentWebChatPagePreambleArbitrary = createUnionArbitrary<AgentWebChatPageP
     Direct: fc.record({
         type: fc.constant("Direct"),
         members: fc
-            .array(ApiAccountTargetArbitrary, {minLength: 1, maxLength: 7})
+            .array(ApiAccountReferenceArbitrary, {minLength: 1, maxLength: 7})
             .map(assertNonEmptyReadonlyArray),
     }),
     Room: fc.record({

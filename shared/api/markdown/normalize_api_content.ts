@@ -1,6 +1,9 @@
 import {Draft, castDraft, produce} from "immer";
 import {assertApiChecklistBlockElementItem} from "~/shared/api/markdown/assert_api_checklist_block_element_item.js";
-import {ApiTargetKey, printApiTargetKey} from "~/shared/api/specification/api_target_key.js";
+import {
+    ApiReferenceKey,
+    printApiReferenceKey,
+} from "~/shared/api/specification/api_reference_key.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -8,10 +11,10 @@ import {
     ApiContentFileGalleryBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiMentionTarget,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
-import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -57,10 +60,10 @@ export function normalizeApiContentInlineElements(
     });
 }
 
-export function normalizeApiTarget(target: ApiMentionTarget): ApiMentionTarget {
-    return produce(target, target => {
+export function normalizeApiReference(reference: ApiMentionReference): ApiMentionReference {
+    return produce(reference, reference => {
         ApiContentNormalizer.with(normalizer => {
-            normalizer.normalizeTarget(target);
+            normalizer.normalizeReference(reference);
         });
     });
 }
@@ -69,7 +72,7 @@ export class ApiContentNormalizer {
     #isDestroyed = false;
 
     #response: {
-        targetsByKey: DefaultMap<ApiTargetKey, Array<Draft<ApiTargetResponse>>>;
+        referencesByKey: DefaultMap<ApiReferenceKey, Array<Draft<ApiReferenceResponse>>>;
         fileElementsById: DefaultMap<FileId, Array<Draft<ApiContentFileBlockElementResponse>>>;
     } | null;
 
@@ -85,7 +88,7 @@ export class ApiContentNormalizer {
     }) {
         this.#response = isResponse
             ? {
-                  targetsByKey: new DefaultMap(() => []),
+                  referencesByKey: new DefaultMap(() => []),
                   fileElementsById: new DefaultMap(() => []),
               }
             : null;
@@ -443,7 +446,7 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Preview": {
-                this.normalizeTarget(element.target);
+                this.normalizeReference(element.reference);
                 break;
             }
             case "FileFloat": {
@@ -501,13 +504,13 @@ export class ApiContentNormalizer {
             }
 
             if (element.type === "Mention") {
-                this.normalizeTarget(element.target);
+                this.normalizeReference(element.reference);
 
                 // `isAccountShortName` can only be true for account targets. Otherwise set to
                 // undefined.
                 if (
                     element.isAccountShortName === false ||
-                    (element.isAccountShortName && element.target.type !== "Account")
+                    (element.isAccountShortName && element.reference.type !== "Account")
                 ) {
                     element.isAccountShortName = undefined;
                 }
@@ -533,44 +536,44 @@ export class ApiContentNormalizer {
         }
     }
 
-    normalizeTarget(target: Draft<ApiTarget>) {
+    normalizeReference(reference: Draft<ApiReference>) {
         if (!this.#response) {
             // Cleanup response properties that aren't compared when determining content
             // equality.
-            if (hasOwnProperty(target, "title")) delete target.title;
-            if (hasOwnProperty(target, "shortName")) delete target.shortName;
-            if (hasOwnProperty(target, "botId")) delete target.botId;
-            if (hasOwnProperty(target, "status")) delete target.status;
+            if (hasOwnProperty(reference, "title")) delete reference.title;
+            if (hasOwnProperty(reference, "shortName")) delete reference.shortName;
+            if (hasOwnProperty(reference, "botId")) delete reference.botId;
+            if (hasOwnProperty(reference, "status")) delete reference.status;
         } else {
             // Don't allow updating old response properties after the normalizer is destroyed.
             assert(!this.#isDestroyed);
 
             // If `response` is non-null that means we're normalizing response content.
             //
-            // All targets with the same key should have identical data.
-            const actualTarget = target as ApiTargetResponse;
+            // All references with the same key should have identical data.
+            const actualReference = reference as ApiReferenceResponse;
 
-            const otherTargets = this.#response.targetsByKey.getOrSetDefault(
-                printApiTargetKey(target),
+            const otherReferences = this.#response.referencesByKey.getOrSetDefault(
+                printApiReferenceKey(reference),
             );
 
-            for (const otherTarget of otherTargets) {
-                otherTarget.title = actualTarget.title;
+            for (const otherReference of otherReferences) {
+                otherReference.title = actualReference.title;
 
-                if (hasOwnProperty(actualTarget, "shortName"))
-                    (otherTarget as any).shortName = actualTarget.shortName;
-                else delete (otherTarget as any).shortName;
+                if (hasOwnProperty(actualReference, "shortName"))
+                    (otherReference as any).shortName = actualReference.shortName;
+                else delete (otherReference as any).shortName;
 
-                if (hasOwnProperty(actualTarget, "botId"))
-                    (otherTarget as any).botId = actualTarget.botId;
-                else delete (otherTarget as any).botId;
+                if (hasOwnProperty(actualReference, "botId"))
+                    (otherReference as any).botId = actualReference.botId;
+                else delete (otherReference as any).botId;
 
-                if (hasOwnProperty(actualTarget, "status"))
-                    (otherTarget as any).status = actualTarget.status;
-                else delete (otherTarget as any).status;
+                if (hasOwnProperty(actualReference, "status"))
+                    (otherReference as any).status = actualReference.status;
+                else delete (otherReference as any).status;
             }
 
-            otherTargets.push(actualTarget);
+            otherReferences.push(actualReference);
         }
     }
 }

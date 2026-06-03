@@ -6,19 +6,19 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
     ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
     ApiContentTextInlineElement,
-    ApiTaskTargetResponse,
+    ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 
 const taskId = generateId<TaskId>();
 
-function accountTarget({name}: {name: string}): ApiAccountTargetResponse {
+function accountReference({name}: {name: string}): ApiAccountReferenceResponse {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -27,14 +27,14 @@ function accountTarget({name}: {name: string}): ApiAccountTargetResponse {
     };
 }
 
-const taskTarget: ApiTaskTargetResponse = {
+const taskReference: ApiTaskReferenceResponse = {
     type: "Task",
     id: taskId,
     title: "Write Spec",
     status: {type: "Open", isActive: true},
 };
 
-const aliceTarget = accountTarget({name: "Alice"});
+const aliceReference = accountReference({name: "Alice"});
 
 function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
     return {elements};
@@ -63,7 +63,7 @@ Comments on [Write Spec (Open)](/task/write-spec).
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -80,7 +80,7 @@ Comments on [Write Spec (Open)](/task/write-spec).
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [],
@@ -100,14 +100,14 @@ Looks good.
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -132,14 +132,14 @@ End of comments.
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: null,
                 isEndOfMessages: true,
                 blocks: [
                     {
                         type: "Message",
                         idAttribute: null,
-                        author: aliceTarget,
+                        author: aliceReference,
                         timeAttribute: null,
                         timeZoneAttribute: null,
                         parent: null,
@@ -156,9 +156,9 @@ Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task-comm
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: {
-                    pageLink: {type: "TaskMessageList", task: taskTarget},
+                    pageLink: {type: "TaskMessageList", task: taskReference},
                     previousLink: {beforeMessageIndex: 3},
                     nextLink: null,
                 },
@@ -177,9 +177,9 @@ Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task-comments
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: {
-                    pageLink: {type: "TaskMessageList", task: taskTarget},
+                    pageLink: {type: "TaskMessageList", task: taskReference},
                     previousLink: null,
                     nextLink: {afterMessageIndex: 9},
                 },
@@ -198,9 +198,9 @@ Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task-comm
 `,
             page: {
                 type: "TaskMessageList",
-                preamble: {task: taskTarget},
+                preamble: {task: taskReference},
                 pagination: {
-                    pageLink: {type: "TaskMessageList", task: taskTarget},
+                    pageLink: {type: "TaskMessageList", task: taskReference},
                     previousLink: {beforeMessageIndex: 3},
                     nextLink: {afterMessageIndex: 9},
                 },

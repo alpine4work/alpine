@@ -4,34 +4,32 @@ import {
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
     ApiGetDocumentResponse,
-    ApiMention,
-    ApiMentionResponse,
-    ApiMentionTarget,
-    ApiMentionTargetResponse,
+    ApiMentionReference,
+    ApiMentionReferenceResponse,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageContentPayloadParentResponse,
-    ApiMessageStreamToolCallPartCreateCallTarget,
+    ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {ApiTarget} from "~/shared/api/specification/types/api_target.js";
-import {ApiTargetResponse} from "~/shared/api/specification/types/api_target_response.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 
-test("all `ApiTargetResponse` are assignable to `ApiTarget`", () => {
-    assertAssignableTypes<ApiTargetResponse, ApiTarget>();
+test("all `ApiReferenceResponse` are assignable to `ApiReference`", () => {
+    assertAssignableTypes<ApiReferenceResponse, ApiReference>();
 });
 
-test("all search results are assignable to `ApiTargetResponse`", () => {
-    assertAssignableTypes<ApiSearchResult, ApiTargetResponse>();
+test("all search results are assignable to `ApiReferenceResponse`", () => {
+    assertAssignableTypes<ApiSearchResult, ApiReferenceResponse>();
 });
 
-test("all mention targets are assignable to `ApiTargetResponse`", () => {
-    assertAssignableTypes<ApiMentionTargetResponse, ApiTargetResponse>();
+test("all mention targets are assignable to `ApiReferenceResponse`", () => {
+    assertAssignableTypes<ApiMentionReferenceResponse, ApiReferenceResponse>();
 });
 
-test("create tool call target is assignable to ApiMentionTarget", () => {
-    assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallTarget, ApiMentionTarget>();
+test("create tool call target is assignable to ApiMentionReference", () => {
+    assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallReference, ApiMentionReference>();
 });
 
 test("`ApiContentMentionInlineElement` is assignable to `ApiMention`", () => {
@@ -46,12 +44,12 @@ test("`/mention` paths are assignable to `ApiMentionResponse`", () => {
     assertAssignableTypes<Left, ApiMentionResponse>();
 });
 
-test("all mention targets are assignable to `ApiTarget`", () => {
-    assertAssignableTypes<ApiMentionTarget, ApiTarget>();
+test("all mention targets are assignable to `ApiReference`", () => {
+    assertAssignableTypes<ApiMentionReference, ApiReference>();
 });
 
-test("`ApiMentionTargetResponse` is assignable to `ApiMentionTarget`", () => {
-    assertAssignableTypes<ApiMentionTargetResponse, ApiMentionTarget>();
+test("`ApiMentionReferenceResponse` is assignable to `ApiMentionReference`", () => {
+    assertAssignableTypes<ApiMentionReferenceResponse, ApiMentionReference>();
 });
 
 test("ApiGetDocumentResponse is assignable to ApiCreateDocumentRequestBody", () => {

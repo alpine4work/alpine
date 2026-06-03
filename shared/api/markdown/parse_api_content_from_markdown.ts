@@ -28,7 +28,7 @@ import {
 import {
     normalizeApiContentBlockElement,
     normalizeApiContentInlineElementMarks,
-    normalizeApiTarget,
+    normalizeApiReference,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
@@ -48,7 +48,7 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
-    ApiMentionTarget,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -411,8 +411,8 @@ function* parseApiContentBlockElementFromMarkdown(
 
                 if (firstChild.data?.previewElement) {
                     // If we were provided a `previewElement` then use it. Since it may have response
-                    // properties like `target.title`. Though make sure it matches the parsed preview
-                    // element first.
+                    // properties like `reference.title`. Though make sure it matches the parsed
+                    // preview element first.
                     assert(
                         isDeepEqual(
                             fileOrPreviewElement,
@@ -2411,20 +2411,25 @@ function* parseApiContentInlineElementFromMarkdown(
                 // Noop
             }
 
-            let mentionTarget =
+            let mentionReference =
                 url !== undefined && options.spaceId !== null
-                    ? parseApiMentionTargetIfPossible(options.spaceId, url)
+                    ? parseApiMentionReferenceIfPossible(options.spaceId, url)
                     : null;
 
-            // If a mention target was already parsed for us then let's use that instead. It
+            // If a mention reference was already parsed for us then let's use that instead. It
             // may be a response specialization and contain additional properties like `title`.
-            if (content.data?.mentionTarget) {
-                assert(isDeepEqual(mentionTarget, normalizeApiTarget(content.data.mentionTarget)));
+            if (content.data?.mentionReference) {
+                assert(
+                    isDeepEqual(
+                        mentionReference,
+                        normalizeApiReference(content.data.mentionReference),
+                    ),
+                );
 
-                mentionTarget = content.data.mentionTarget;
+                mentionReference = content.data.mentionReference;
             }
 
-            if (mentionTarget === null) {
+            if (mentionReference === null) {
                 markStack.push({type: "Link", url: content.url});
 
                 yield* parseApiContentInlineElementsFromMarkdown(
@@ -2437,12 +2442,12 @@ function* parseApiContentInlineElementFromMarkdown(
                 markStack.pop();
             } else {
                 const isAccountShortName =
-                    mentionTarget.type === "Account" &&
+                    mentionReference.type === "Account" &&
                     url?.searchParams.get("mention") === "short";
 
                 yield {
                     type: "Mention",
-                    target: mentionTarget,
+                    reference: mentionReference,
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };
@@ -2808,10 +2813,10 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-export function parseApiMentionTargetIfPossible(
+export function parseApiMentionReferenceIfPossible(
     spaceId: SpaceId,
     url: URL,
-): ApiMentionTarget | null {
+): ApiMentionReference | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&

@@ -53,7 +53,7 @@ export const apiSpacesPaths: Pick<
             return {
                 content: {
                     mention: {
-                        target: {
+                        reference: {
                             type: "Account",
                             id: pathParameters.id,
                         },

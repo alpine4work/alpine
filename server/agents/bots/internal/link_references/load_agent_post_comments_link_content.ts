@@ -17,7 +17,7 @@ import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/bots/
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/bots/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
     ApiPostResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -375,7 +375,7 @@ async function getMarkdownContentForPageFromMiddle({
     };
 }
 
-function getMessageRoom(link: AgentPostCommentsLink): ApiMessageRoomTarget {
+function getMessageRoom(link: AgentPostCommentsLink): ApiMessageRoomReference {
     return {type: "Post", id: link.postId};
 }
 

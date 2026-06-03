@@ -29,10 +29,10 @@ import {
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
-import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
-    ApiAccountTargetResponse,
-    ApiChatTargetResponse,
+    ApiAccountReferenceResponse,
+    ApiChatReferenceResponse,
     ApiContentInlineElementResponse,
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -72,7 +72,7 @@ export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble> &
 export type AgentWebChatPagePreamble =
     | {
           readonly type: "Direct";
-          readonly members: NonEmptyReadonlyArray<ApiAccountTargetResponse>;
+          readonly members: NonEmptyReadonlyArray<ApiAccountReferenceResponse>;
       }
     | {
           readonly type: "Room";
@@ -166,7 +166,7 @@ async function getChatRoomMetadata(
     context: AgentWebContextWithoutStorage,
     id: ChatId,
 ): Promise<{
-    pageLink: ApiChatTargetResponse;
+    pageLink: ApiChatReferenceResponse;
     preamble: AgentWebChatPagePreamble;
 }> {
     const {
@@ -182,7 +182,7 @@ async function getChatRoomMetadata(
                 preamble: {
                     type: "Direct",
                     members: assertNonEmptyReadonlyArray(
-                        chat.members.map(member => intoApiAccountTarget(member.account)),
+                        chat.members.map(member => intoApiAccountReference(member.account)),
                     ),
                 },
             };
@@ -406,7 +406,7 @@ export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: P
         normalizePreamble: (normalizer, preamble) => {
             switch (preamble.type) {
                 case "Direct": {
-                    for (const member of preamble.members) normalizer.normalizeTarget(member);
+                    for (const member of preamble.members) normalizer.normalizeReference(member);
                     break;
                 }
                 case "Room": {
@@ -430,7 +430,7 @@ export async function printAgentWebChatPage(
             switch (preamble.type) {
                 case "Direct": {
                     const mentions: Array<ApiContentInlineElementResponse> = preamble.members.map(
-                        member => ({type: "Mention", target: member}),
+                        member => ({type: "Mention", reference: member}),
                     );
 
                     let mentionsPrettyConjunctionList: Array<ApiContentInlineElementResponse>;
@@ -557,11 +557,14 @@ export async function parseAgentWebChatPage(
 
             if (actualElements.length === 1) {
                 const mentionElement = actualElements[0]!;
-                if (mentionElement.type !== "Mention" || mentionElement.target.type !== "Account") {
+                if (
+                    mentionElement.type !== "Mention" ||
+                    mentionElement.reference.type !== "Account"
+                ) {
                     throw createError();
                 }
 
-                return {type: "Direct", members: [mentionElement.target]};
+                return {type: "Direct", members: [mentionElement.reference]};
             }
 
             if (actualElements.length === 3) {
@@ -580,26 +583,29 @@ export async function parseAgentWebChatPage(
 
                 if (
                     mention1Element.type !== "Mention" ||
-                    mention1Element.target.type !== "Account" ||
+                    mention1Element.reference.type !== "Account" ||
                     mention2Element.type !== "Mention" ||
-                    mention2Element.target.type !== "Account"
+                    mention2Element.reference.type !== "Account"
                 ) {
                     throw createError();
                 }
 
-                return {type: "Direct", members: [mention1Element.target, mention2Element.target]};
+                return {
+                    type: "Direct",
+                    members: [mention1Element.reference, mention2Element.reference],
+                };
             }
 
             const firstMentionElement = actualElements[0]!;
 
             if (
                 firstMentionElement.type !== "Mention" ||
-                firstMentionElement.target.type !== "Account"
+                firstMentionElement.reference.type !== "Account"
             ) {
                 throw createError();
             }
 
-            const members: Array<ApiAccountTargetResponse> = [firstMentionElement.target];
+            const members: Array<ApiAccountReferenceResponse> = [firstMentionElement.reference];
 
             if ((actualElements.length - 1) % 2 !== 0) {
                 throw createError();
@@ -620,11 +626,14 @@ export async function parseAgentWebChatPage(
                     throw createError();
                 }
 
-                if (mentionElement.type !== "Mention" || mentionElement.target.type !== "Account") {
+                if (
+                    mentionElement.type !== "Mention" ||
+                    mentionElement.reference.type !== "Account"
+                ) {
                     throw createError();
                 }
 
-                members.push(mentionElement.target);
+                members.push(mentionElement.reference);
             }
 
             return {type: "Direct", members: assertNonEmptyReadonlyArray(members)};

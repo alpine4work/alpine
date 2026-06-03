@@ -2887,7 +2887,7 @@ test("streams link formatting correctly (with reference)", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
                                 title: "Brown Fox Jumps Over The",
@@ -2995,7 +2995,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Document",
                                         id: documentId,
                                         title: "Brown Fox Jumps Over The",
@@ -3027,7 +3027,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Document",
                                         id: documentId,
                                         title: "Brown Fox Jumps Over The",
@@ -3058,7 +3058,7 @@ test("streams link formatting correctly (with active task reference)", async () 
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Task",
                                 id: taskId,
                                 title: "Brown Fox Jumps Over The",
@@ -3167,7 +3167,7 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Task",
                                         id: taskId,
                                         title: "Brown Fox Jumps Over The",
@@ -3200,7 +3200,7 @@ test("streams link formatting correctly (with active task reference)", async () 
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Task",
                                         id: taskId,
                                         title: "Brown Fox Jumps Over The",
@@ -3708,7 +3708,7 @@ test("streams link formatting correctly character by character (with reference)"
                     elements: [
                         {
                             type: "Mention",
-                            target: {
+                            reference: {
                                 type: "Document",
                                 id: documentId,
                                 title: "Brown Fox Jumps Over The",
@@ -3852,7 +3852,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Document",
                                         id: documentId,
                                         title: "Brown Fox Jumps Over The",
@@ -3884,7 +3884,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    target: {
+                                    reference: {
                                         type: "Document",
                                         id: documentId,
                                         title: "Brown Fox Jumps Over The",

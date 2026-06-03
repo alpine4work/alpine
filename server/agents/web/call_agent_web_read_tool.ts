@@ -28,6 +28,13 @@ import {
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
+    normalizeAgentWebPostPage,
+    parseAgentWebPostPage,
+    printAgentWebPostPage,
+    readAgentWebPostMessagePage,
+    readAgentWebPostPage,
+} from "~/server/agents/web/pages/agent_web_post_page.js";
+import {
     normalizeAgentWebTaskMessageListPage,
     parseAgentWebTaskMessageListPage,
     printAgentWebTaskMessageListPage,
@@ -229,8 +236,19 @@ function readAgentWebPageLink(
                 options,
             );
         }
+        case "PostMessage": {
+            return readAgentWebPostMessagePage(
+                context,
+                pageLink.id,
+                pageLink.index,
+                options,
+            );
+        }
         case "TaskMessageList": {
             return readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
+        }
+        case "Post": {
+            return readAgentWebPostPage(context, pageLink.id, options);
         }
         default:
             throw exhaustive(pageLink);
@@ -247,6 +265,9 @@ function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWith
         }
         case "TaskMessageList": {
             return normalizeAgentWebTaskMessageListPage(page);
+        }
+        case "Post": {
+            return normalizeAgentWebPostPage(page);
         }
         default:
             throw exhaustive(page);
@@ -266,6 +287,9 @@ function printAgentWebPage(
         }
         case "TaskMessageList": {
             return printAgentWebTaskMessageListPage(storage, page.metadata.id, page);
+        }
+        case "Post": {
+            return printAgentWebPostPage(storage, page.metadata.id, page);
         }
         default:
             throw exhaustive(page);
@@ -288,6 +312,9 @@ async function parseAgentWebPageForTest(
         }
         case "TaskMessageList": {
             return await parseAgentWebTaskMessageListPage(storage, pageMetadata.id, response);
+        }
+        case "Post": {
+            return await parseAgentWebPostPage(storage, pageMetadata.id, response);
         }
         default:
             throw exhaustive(pageMetadata);

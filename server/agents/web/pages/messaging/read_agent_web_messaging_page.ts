@@ -16,14 +16,14 @@ import {
     truncateAgentWebMessagingPage,
     truncateAgentWebMessagingPageAroundMessage,
 } from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
-import {intoApiAccountTarget} from "~/shared/api/specification/into_api_account_target.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentInlineElementResponse,
     ApiContentResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
-    ApiMessageRoomTarget,
+    ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
@@ -37,7 +37,7 @@ import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-const agentWebMessagingPageApiMessagesBatchCount = 30;
+export const agentWebMessagingPageApiMessagesBatchCount = 30;
 
 export async function readAgentWebMessagingPage<Preamble>(
     context: AgentWebContext,
@@ -51,7 +51,7 @@ export async function readAgentWebMessagingPage<Preamble>(
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
-        room: ApiMessageRoomTarget;
+        room: ApiMessageRoomReference;
         roomMetadataPromise: Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
@@ -68,6 +68,59 @@ export async function readAgentWebMessagingPage<Preamble>(
     // Ignore any errors thrown by this promise. Don't crash the process.
     roomMetadataPromise.catch(() => {});
 
+    const parsedSearchParams = parseAgentWebMessagingPageSearchParams({
+        messageNouns,
+        defaultDirection,
+        searchParams,
+    });
+
+    switch (parsedSearchParams.type) {
+        case "Direction": {
+            return await readAgentWebMessagingPageInDirection(context, {
+                messageNouns,
+                room,
+                roomMetadataPromise,
+                direction: parsedSearchParams.direction,
+                startCursor: parsedSearchParams.startCursor,
+                limitLength,
+                printPage,
+            });
+        }
+        case "Around": {
+            return await readAgentWebMessagingPageAroundMessage(context, {
+                messageNouns,
+                room,
+                roomMetadataPromise,
+                around: parsedSearchParams.around,
+                limitLength,
+                printPage,
+            });
+        }
+        default:
+            throw exhaustive(parsedSearchParams);
+    }
+}
+
+export type AgentWebMessagingPageSearchParams =
+    | {
+          readonly type: "Direction";
+          readonly direction: "Start" | "End";
+          readonly startCursor: number | null;
+      }
+    | {
+          readonly type: "Around";
+          readonly around: AgentWebMessagingPageMessageRange;
+      };
+
+export function parseAgentWebMessagingPageSearchParams({
+    messageNouns,
+    defaultDirection,
+    searchParams,
+}: {
+    messageNouns: AgentWebMessagingPageNouns;
+    defaultDirection: "Start" | "End";
+    searchParams: URLSearchParams;
+}): AgentWebMessagingPageSearchParams {
     const beforeMessageIndexSearchParam = searchParams.get("before");
     const afterMessageIndexSearchParam = searchParams.get("after");
     const aroundMessageRangeSearchParam = searchParams.get(messageNouns.noun);
@@ -155,14 +208,7 @@ export async function readAgentWebMessagingPage<Preamble>(
     // If the agent passes in a specific message/comment link then we have a different
     // code path for reading messages around some index. Bail and call that code path.
     if (around !== null) {
-        return readAgentWebMessagingPageAroundMessage(context, {
-            messageNouns,
-            room,
-            roomMetadataPromise,
-            around,
-            limitLength,
-            printPage,
-        });
+        return {type: "Around", around};
     }
 
     const direction: "Start" | "End" =
@@ -172,7 +218,43 @@ export async function readAgentWebMessagingPage<Preamble>(
               ? "End"
               : defaultDirection;
 
-    let cursor: number | null = direction === "Start" ? afterMessageIndex : beforeMessageIndex;
+    return {
+        type: "Direction",
+        direction,
+        startCursor: direction === "Start" ? afterMessageIndex : beforeMessageIndex,
+    };
+}
+
+export async function readAgentWebMessagingPageInDirection<Preamble>(
+    context: AgentWebContext,
+    {
+        messageNouns,
+        room,
+        roomMetadataPromise,
+        direction,
+        startCursor,
+        limitLength,
+        printPage,
+    }: {
+        messageNouns: AgentWebMessagingPageNouns;
+        room: ApiMessageRoomReference;
+        roomMetadataPromise: Promise<{
+            pageLink: AgentWebMessagingPagePaginationPageLink;
+            preamble: Preamble;
+        }>;
+        direction: "Start" | "End";
+        startCursor: number | null;
+        limitLength: number;
+        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
+    },
+): Promise<{
+    response: string;
+    metadata: AgentWebMessagingPageMetadata;
+}> {
+    // Ignore any errors thrown by this promise. Don't crash the process.
+    roomMetadataPromise.catch(() => {});
+
+    let cursor = startCursor;
     let messages: Array<ApiMessageResponse> = [];
 
     while (true) {
@@ -208,10 +290,8 @@ export async function readAgentWebMessagingPage<Preamble>(
                 direction,
                 roomMetadata,
                 messages,
-                isStartOfMessages:
-                    direction === "End" ? cursor === null : afterMessageIndex === null,
-                isEndOfMessages:
-                    direction === "Start" ? cursor === null : beforeMessageIndex === null,
+                isStartOfMessages: direction === "End" ? cursor === null : startCursor === null,
+                isEndOfMessages: direction === "Start" ? cursor === null : startCursor === null,
             });
 
         const response = await printPage(page);
@@ -244,6 +324,18 @@ export async function readAgentWebMessagingPage<Preamble>(
     }
 }
 
+export function getReadAgentWebMessagingPageAroundMessageStartCursor(
+    around: AgentWebMessagingPageMessageRange,
+) {
+    return (
+        Math.floor(
+            (agentWebMessagingPageApiMessagesBatchCount -
+                (around.endMessageIndex - around.startMessageIndex)) /
+                2,
+        ) - 1
+    );
+}
+
 export async function readAgentWebMessagingPageAroundMessage<Preamble>(
     context: AgentWebContext,
     {
@@ -255,7 +347,7 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
-        room: ApiMessageRoomTarget;
+        room: ApiMessageRoomReference;
         roomMetadataPromise: Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
@@ -283,14 +375,7 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         data: {messages: initialMessages, nextCursor: initialNextCursor},
     } = await getApiMessagesFromStart(context.span, context.api, room, {
         limit: agentWebMessagingPageApiMessagesBatchCount,
-        cursor:
-            around.startMessageIndex -
-            Math.floor(
-                (agentWebMessagingPageApiMessagesBatchCount -
-                    (around.endMessageIndex - around.startMessageIndex)) /
-                    2,
-            ) -
-            1,
+        cursor: getReadAgentWebMessagingPageAroundMessageStartCursor(around),
     });
 
     // We expect at least one message in `around` to exist.
@@ -621,7 +706,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
                                     ? messageParent.endIndex + 1
                                     : messageParent.index + 1,
                         },
-                        author: intoApiAccountTarget(messageParent.author),
+                        author: intoApiAccountReference(messageParent.author),
                         previewContent:
                             convertApiMessageContentPayloadParentContentSnippetToContent(
                                 messageParent.contentSnippet,
@@ -667,7 +752,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
                 startMessageIndex: firstMessage.index,
                 endMessageIndex: lastMessage.index + 1,
             },
-            author: intoApiAccountTarget(firstMessage.author),
+            author: intoApiAccountReference(firstMessage.author),
             timeAttribute,
             timeZoneAttribute,
             parent,

@@ -184,7 +184,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                 content: {
                     spaceId,
                     mention: {
-                        target: {
+                        reference: {
                             type: "Chat",
                             id: pathParameters.id,
                             title,

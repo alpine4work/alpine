@@ -1,4 +1,4 @@
-import {ApiTaskTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 /**
  * A link with some routing logic to determine what `AgentWebPage` to respond to a
@@ -9,5 +9,5 @@ import {ApiTaskTargetResponse} from "~/shared/api/specification/types/api_specif
  */
 export type AgentWebPageRoutedLink = {
     readonly type: "TaskMessageList";
-    readonly task: ApiTaskTargetResponse;
+    readonly task: ApiTaskReferenceResponse;
 };

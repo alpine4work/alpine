@@ -8,13 +8,15 @@ import {
     AgentWebMessagingPageTimeBlock,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {
-    ApiAccountTargetArbitrary,
-    ApiChatTargetArbitrary,
+    ApiAccountReferenceArbitrary,
+    ApiChatReferenceArbitrary,
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
-    ApiTaskTargetArbitrary,
+    ApiTaskReferenceArbitrary,
+    createIdArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 
 const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({
@@ -37,7 +39,7 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
                     })),
             },
         ),
-        author: ApiAccountTargetArbitrary,
+        author: ApiAccountReferenceArbitrary,
         timeAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         timeZoneAttribute: fc.oneof(ApiContentTextArbitrary, fc.constant(null)),
         parent: fc.oneof(
@@ -51,7 +53,7 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
                             startMessageIndex,
                             endMessageIndex: startMessageIndex + length,
                         })),
-                    author: ApiAccountTargetArbitrary,
+                    author: ApiAccountReferenceArbitrary,
                     previewContent: ApiContentWithoutCommentMarkArbitrary,
                 }),
             },
@@ -66,10 +68,15 @@ const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagi
 
 const AgentWebMessagingPagePaginationPageLinkArbitrary =
     createUnionArbitrary<AgentWebMessagingPagePaginationPageLink>({
-        Chat: ApiChatTargetArbitrary,
+        Chat: ApiChatReferenceArbitrary,
+        Post: fc.record({
+            type: fc.constant("Post"),
+            id: createIdArbitrary<PostId>(),
+            title: ApiContentTextArbitrary,
+        }),
         TaskMessageList: fc.record({
             type: fc.constant("TaskMessageList"),
-            task: ApiTaskTargetArbitrary,
+            task: ApiTaskReferenceArbitrary,
         }),
     });
 

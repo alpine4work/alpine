@@ -1,12 +1,12 @@
 import {
     ApiAccount,
-    ApiAccountTargetResponse,
+    ApiAccountReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 /**
- * Convert an `ApiAccount` into a `ApiAccountTarget` (response specialization).
+ * Convert an `ApiAccount` into a `ApiAccountReference` (response specialization).
  */
-export function intoApiAccountTarget(account: ApiAccount): ApiAccountTargetResponse {
+export function intoApiAccountReference(account: ApiAccount): ApiAccountReferenceResponse {
     return {
         type: "Account",
         id: account.id,

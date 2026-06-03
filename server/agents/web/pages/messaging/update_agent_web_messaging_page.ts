@@ -12,10 +12,10 @@ import {
 import {printAgentWebMessagingPageMessageIndexRange} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
 import {
     normalizeApiContent,
-    normalizeApiTarget,
+    normalizeApiReference,
 } from "~/shared/api/markdown/normalize_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiMessageRoomTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -50,7 +50,7 @@ export async function updateAgentWebMessagingPage<Preamble>(
         pathname: MaybeThunk<MaybePromise<string>>;
         // Will only run the thunk right before messages are created. Validation always
         // runs before we call this thunk.
-        room: MaybeThunk<MaybePromise<ApiMessageRoomTarget>>;
+        room: MaybeThunk<MaybePromise<ApiMessageRoomReference>>;
         // Will only run the thunk right before messages are created. Validation always
         // runs before we call this thunk.
         oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
@@ -71,8 +71,11 @@ export async function updateAgentWebMessagingPage<Preamble>(
             ...pagination,
             pageLink:
                 pagination.pageLink.type === "TaskMessageList"
-                    ? {...pagination.pageLink, task: normalizeApiTarget(pagination.pageLink.task)}
-                    : normalizeApiTarget(pagination.pageLink),
+                    ? {
+                          ...pagination.pageLink,
+                          task: normalizeApiReference(pagination.pageLink.task),
+                      }
+                    : normalizeApiReference(pagination.pageLink),
         };
     };
 
@@ -104,21 +107,21 @@ export async function updateAgentWebMessagingPage<Preamble>(
         }
 
         // Strip response properties from the block before comparing for equality. We don't
-        // care if `target.title`s aren't equal. The `title` might have changed between the
-        // old page load time and new page generation time.
+        // care if `reference.title`s aren't equal. The `title` might have changed between
+        // the old page load time and new page generation time.
         const normalizeBlock = (block: AgentWebMessagingPageBlock) => {
             if (block.type === "Time") return block;
 
             return {
                 type: "Message",
                 idAttribute: block.idAttribute,
-                author: normalizeApiTarget(block.author),
+                author: normalizeApiReference(block.author),
                 timeAttribute: block.timeAttribute,
                 timeZoneAttribute: block.timeZoneAttribute,
                 parent: block.parent
                     ? {
                           citeAttribute: block.parent.citeAttribute,
-                          author: normalizeApiTarget(block.parent.author),
+                          author: normalizeApiReference(block.parent.author),
                           previewContent: normalizeApiContent(block.parent.previewContent),
                       }
                     : null,

@@ -1,12 +1,12 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.js";
-import {ApiMentionTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-export function createAgentWebPageLinkApiMentionTargetIfPossible(
+export function createAgentWebPageLinkApiMentionReferenceIfPossible(
     spaceId: SpaceId,
     link: AgentWebPageLink,
-): {type: "MentionTarget"; target: ApiMentionTargetResponse} | {type: "Url"; url: string} {
+): {type: "MentionReference"; reference: ApiMentionReferenceResponse} | {type: "Url"; url: string} {
     switch (link.type) {
         case "Account":
         case "Channel":
@@ -15,7 +15,7 @@ export function createAgentWebPageLinkApiMentionTargetIfPossible(
         case "Post":
         case "Task":
         case "TaskCollection": {
-            return {type: "MentionTarget", target: link};
+            return {type: "MentionReference", reference: link};
         }
         case "ChatMessage": {
             return {
@@ -48,7 +48,7 @@ export function createAgentWebPageLinkApiMentionTargetIfPossible(
             };
         }
         case "TaskMessageList": {
-            return {type: "MentionTarget", target: link.task};
+            return {type: "MentionReference", reference: link.task};
         }
         default:
             throw exhaustive(link);

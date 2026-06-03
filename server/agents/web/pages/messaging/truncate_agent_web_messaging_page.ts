@@ -79,12 +79,12 @@ export async function truncateAgentWebMessagingPage<Preamble>(
 
             let truncateLength = limitLengthDifference;
 
-            let roomTargetPathname: string | null = null;
+            let roomReferencePathname: string | null = null;
 
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.nextLink) {
-                roomTargetPathname = await createAgentWebPageLinkPathname(
+                roomReferencePathname = await createAgentWebPageLinkPathname(
                     storage,
                     roomMetadataPageLink,
                 );
@@ -96,7 +96,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                     "\n\n[".length +
                     agentWebMessagingNextPageLinkText.length +
                     "](".length +
-                    roomTargetPathname.length +
+                    roomReferencePathname.length +
                     "?after=".length +
                     // Max length of an index we'd include after `?after`.
                     messages[messages.length - 1]!.index.toString().length +
@@ -200,14 +200,14 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                         .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
                     truncatedResponse.slice(linkEndOffset);
             } else {
-                assert(roomTargetPathname !== null);
+                assert(roomReferencePathname !== null);
 
                 const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
                 truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
                     responseTree,
                     truncatedResponse,
-                    `[${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+                    `[${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterMessageIndex})`,
                 ).truncatedResponse;
             }
 
@@ -236,12 +236,12 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                     messages[0]!.index.toString().length;
             }
 
-            let roomTargetPathname: string | null = null;
+            let roomReferencePathname: string | null = null;
 
             // Edge case: if we need to add a pagination link then expect more to be truncated
             // so we can add the pagination link while still fitting into `limitLength`.
             if (!page.pagination?.previousLink) {
-                roomTargetPathname = await createAgentWebPageLinkPathname(
+                roomReferencePathname = await createAgentWebPageLinkPathname(
                     storage,
                     roomMetadataPageLink,
                 );
@@ -253,7 +253,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                     "\n\n[".length +
                     agentWebMessagingPreviousPageLinkTextWithEndArrow.length +
                     "](".length +
-                    roomTargetPathname.length +
+                    roomReferencePathname.length +
                     "?before=".length +
                     // Max length of an index we'd include after `?before`.
                     messages[messages.length - 1]!.index.toString().length +
@@ -456,14 +456,14 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                         .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
                     truncatedResponse.slice(linkEndOffset);
             } else {
-                assert(roomTargetPathname !== null);
+                assert(roomReferencePathname !== null);
 
                 const beforeMessageIndex = truncatedMessages[0]!.index;
 
                 truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
                     responseTree,
                     truncatedResponse,
-                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})`,
+                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomReferencePathname}?before=${beforeMessageIndex})`,
                 ).truncatedResponse;
             }
 
@@ -555,12 +555,15 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
             messages[0]!.index.toString().length;
     }
 
-    let roomTargetPathname: string | null = null;
+    let roomReferencePathname: string | null = null;
 
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.previousLink) {
-        roomTargetPathname ??= await createAgentWebPageLinkPathname(storage, roomMetadataPageLink);
+        roomReferencePathname ??= await createAgentWebPageLinkPathname(
+            storage,
+            roomMetadataPageLink,
+        );
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when
@@ -569,7 +572,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
             "\n\n[".length +
             agentWebMessagingPreviousPageLinkTextWithEndArrow.length +
             "](".length +
-            roomTargetPathname.length +
+            roomReferencePathname.length +
             "?before=".length +
             // Max length of an index we'd include after `?before`.
             messages[messages.length - 1]!.index.toString().length +
@@ -579,7 +582,10 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // Edge case: if we need to add a pagination link then expect more to be truncated
     // so we can add the pagination link while still fitting into `limitLength`.
     if (!page.pagination?.nextLink) {
-        roomTargetPathname ??= await createAgentWebPageLinkPathname(storage, roomMetadataPageLink);
+        roomReferencePathname ??= await createAgentWebPageLinkPathname(
+            storage,
+            roomMetadataPageLink,
+        );
 
         truncateLength +=
             // We need double newlines when adding after a heading and a single space when
@@ -588,7 +594,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
             "\n\n[".length +
             agentWebMessagingNextPageLinkText.length +
             "](".length +
-            roomTargetPathname.length +
+            roomReferencePathname.length +
             "?after=".length +
             // Max length of an index we'd include after `?after`.
             messages[messages.length - 1]!.index.toString().length +
@@ -950,7 +956,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         !page.pagination?.nextLink &&
         !page.pagination?.previousLink
     ) {
-        assert(roomTargetPathname !== null);
+        assert(roomReferencePathname !== null);
 
         const beforeMessageIndex = truncatedMessages[0]!.index;
         const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
@@ -958,7 +964,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
             responseTree,
             truncatedResponse,
-            `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomTargetPathname}?before=${beforeMessageIndex}) | [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+            `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomReferencePathname}?before=${beforeMessageIndex}) | [${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterMessageIndex})`,
         ).truncatedResponse;
     }
 
@@ -982,7 +988,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                     .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
                 truncatedResponse.slice(linkEndOffset);
         } else if (page.pagination?.previousLink || !didTruncateFromStart) {
-            assert(roomTargetPathname !== null);
+            assert(roomReferencePathname !== null);
 
             const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
 
@@ -990,7 +996,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                 const insertResult = insertAgentWebMessagingPagePreamblePaginationLink(
                     responseTree,
                     truncatedResponse,
-                    `[${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})`,
+                    `[${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterMessageIndex})`,
                 );
                 truncatedResponse = insertResult.truncatedResponse;
             } else {
@@ -1009,7 +1015,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                             agentWebMessagingPreviousPageLinkTextWithEndArrow,
                             agentWebMessagingPreviousPageLinkTextWithStartArrow,
                         ) +
-                    ` | [${agentWebMessagingNextPageLinkText}](${roomTargetPathname}?after=${afterMessageIndex})` +
+                    ` | [${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterMessageIndex})` +
                     truncatedResponse.slice(paragraphEndOffset);
             }
         }
@@ -1046,7 +1052,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                     .replace(/\?before=(0|[1-9][0-9]*)/, `?before=${beforeMessageIndex}`) +
                 truncatedResponse.slice(linkEndOffset);
         } else if (page.pagination?.nextLink || !didTruncateFromEnd) {
-            assert(roomTargetPathname !== null);
+            assert(roomReferencePathname !== null);
 
             const beforeMessageIndex = truncatedMessages[0]!.index;
 
@@ -1054,7 +1060,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                 const insertResult = insertAgentWebMessagingPagePreamblePaginationLink(
                     responseTree,
                     truncatedResponse,
-                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomTargetPathname}?before=${beforeMessageIndex})`,
+                    `[${agentWebMessagingPreviousPageLinkTextWithEndArrow}](${roomReferencePathname}?before=${beforeMessageIndex})`,
                 );
                 truncatedResponse = insertResult.truncatedResponse;
             } else {
@@ -1066,7 +1072,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
 
                 truncatedResponse =
                     truncatedResponse.slice(0, linkStartOffset) +
-                    `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomTargetPathname}?before=${beforeMessageIndex}) | ` +
+                    `[${agentWebMessagingPreviousPageLinkTextWithStartArrow}](${roomReferencePathname}?before=${beforeMessageIndex}) | ` +
                     truncatedResponse.slice(linkStartOffset);
             }
         }

@@ -95,7 +95,7 @@ test("parses document preview URL", () => {
             spaceId,
             `https://alpine.inc/s/${spaceId}/documents/${documentId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Document", id: documentId}});
+    ).toEqual({type: "Preview", reference: {type: "Document", id: documentId}});
 });
 
 test("parses channel preview URL", () => {
@@ -105,7 +105,7 @@ test("parses channel preview URL", () => {
             spaceId,
             `https://alpine.inc/s/${spaceId}/channels/${channelId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Channel", id: channelId}});
+    ).toEqual({type: "Preview", reference: {type: "Channel", id: channelId}});
 });
 
 test("parses chat preview URL", () => {
@@ -115,7 +115,7 @@ test("parses chat preview URL", () => {
             spaceId,
             `https://alpine.inc/s/${spaceId}/chats/${chatId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Chat", id: chatId}});
+    ).toEqual({type: "Preview", reference: {type: "Chat", id: chatId}});
 });
 
 test("parses post preview URL", () => {
@@ -125,7 +125,7 @@ test("parses post preview URL", () => {
             spaceId,
             `https://alpine.inc/s/${spaceId}/posts/${postId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Post", id: postId}});
+    ).toEqual({type: "Preview", reference: {type: "Post", id: postId}});
 });
 
 test("parses task preview URL", () => {
@@ -135,7 +135,7 @@ test("parses task preview URL", () => {
             spaceId,
             `https://alpine.inc/s/${spaceId}/tasks/${taskId}/preview`,
         ),
-    ).toEqual({type: "Preview", target: {type: "Task", id: taskId}});
+    ).toEqual({type: "Preview", reference: {type: "Task", id: taskId}});
 });
 
 test("parses task collection preview URL", () => {
@@ -147,7 +147,7 @@ test("parses task collection preview URL", () => {
         ),
     ).toEqual({
         type: "Preview",
-        target: {type: "TaskCollection", id: taskCollectionId},
+        reference: {type: "TaskCollection", id: taskCollectionId},
     });
 });
 

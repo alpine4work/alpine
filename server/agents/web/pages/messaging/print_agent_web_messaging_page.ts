@@ -13,7 +13,7 @@ import {isAgentWebMessagingPageEndOfMessagesParagraph} from "~/server/agents/web
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiAccountTargetResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -315,7 +315,7 @@ function printAgentWebMessagingPageParentCiteAttribute(
 }
 
 function printAgentWebMessagingPageParentPreviewContentTree(parent: {
-    author: ApiAccountTargetResponse;
+    author: ApiAccountReferenceResponse;
     authorPathname: string;
     previewContentTree: Root;
 }): ReadonlyArray<RootContent> {
