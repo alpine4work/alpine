@@ -236,7 +236,7 @@ export async function createAgentWebChatPage(
         const pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}> = {
             type: "Chat",
             id: chat.id,
-            title: chat.type === "Direct" ? chat.title : chat.name,
+            title: chat.type === "Direct" ? chat.reference.title : chat.name,
         };
 
         return {

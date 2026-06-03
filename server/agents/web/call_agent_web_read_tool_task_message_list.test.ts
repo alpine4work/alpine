@@ -61,21 +61,16 @@ beforeEach(async () => {
     assert(actualTaskPathname === taskPath);
 });
 
-function mockApiGetTaskMention() {
+function mockApiGetTaskReference() {
     api.mockGet(
-        "/tasks/{id}/mention",
-        {
-            data: {
-                spaceId,
-                mention: {reference: taskReference},
-            },
-        },
+        "/tasks/{id}/reference",
+        {data: {spaceId, reference: taskReference}},
         {path: {id: taskId}},
     );
 }
 
 test("reads a task message list with one human comment", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,
@@ -100,7 +95,7 @@ End of comments.`);
 });
 
 test("adds next page link to task message list", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,
@@ -139,7 +134,7 @@ Test message 2
 });
 
 test("adds previous page link to task message list", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,
@@ -181,7 +176,7 @@ End of comments.`);
 });
 
 test("reads a task message list around a comment", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,
@@ -206,7 +201,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](${taskComm
 });
 
 test("reads a task message list page before a comment", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,
@@ -247,7 +242,7 @@ Test message 2
 });
 
 test("reads a task message list page after a comment", async () => {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,

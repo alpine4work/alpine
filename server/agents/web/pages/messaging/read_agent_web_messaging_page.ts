@@ -328,11 +328,13 @@ export function getReadAgentWebMessagingPageAroundMessageStartCursor(
     around: AgentWebMessagingPageMessageRange,
 ) {
     return (
+        around.startMessageIndex -
         Math.floor(
             (agentWebMessagingPageApiMessagesBatchCount -
                 (around.endMessageIndex - around.startMessageIndex)) /
                 2,
-        ) - 1
+        ) -
+        1
     );
 }
 

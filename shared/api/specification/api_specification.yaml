@@ -63,7 +63,6 @@ paths:
                                     account:
                                         $ref: "#/components/schemas/AccountWithoutSpace"
 
-    # NOCOMMIT: Make this `/reference` now.
     /accounts/{id}/reference:
         parameters:
             - name: id
@@ -232,7 +231,6 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetChat"}
 
-    # NOCOMMIT: Make this `/reference` now.
     /chats/{id}/reference:
         parameters:
             - name: id
@@ -456,7 +454,6 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetDocument"}
 
-    # NOCOMMIT: Make this `/reference` now.
     /documents/{id}/reference:
         parameters:
             - name: id
@@ -2454,23 +2451,13 @@ components:
 
         DirectChat:
             type: object
-            required: [type, id, title, members]
+            required: [type, id, members, reference]
             additionalProperties: false
             properties:
                 type:
                     const: Direct
                 id:
                     $ref: "#/components/schemas/ChatId"
-                # TODO(#public-api): Document how this is the same as the chat's `title` when
-                # displayed as a mention.
-                #
-                # NOCOMMIT: Can I remove this by being more clever in `server/agents/web` code?
-                #
-                # NOCOMMIT: Actually, maybe what I do here is include the `target` object in
-                # the `GetChat` endpoint. This is a nice pattern since we're not forced to
-                # include the `title` when you're listing chats/posts/whatever.
-                title:
-                    type: string
                 members:
                     type: array
                     items:
@@ -2480,6 +2467,15 @@ components:
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
 
         RoomChat:
             type: object
@@ -2638,7 +2634,7 @@ components:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
             # that aren't in a channel in the future.
-            required: [id, author, createdTime, createdTimeZone, content, contentPreview]
+            required: [id, author, createdTime, createdTimeZone, content, reference]
             additionalProperties: false
             properties:
                 id:
@@ -2655,28 +2651,15 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
-                # NOCOMMIT: Rename this to `title`?
-                contentPreview:
-                    type: string
-
-        # TODO(ifitzsimmons, #ai): Add a `/posts/{id}/preview` endpoint that returns a
-        # a `PostPreview`
-        # https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
-        #
-        # NOCOMMIT: Delete this? We have the `/mention` endpoint now.
-        PostPreview:
-            type: object
-            required: [id, author, contentPreview]
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
-                channel:
-                    $ref: "#/components/schemas/ChannelPreview"
-                contentPreview:
-                    type: string
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
 
         Task:
             type: object

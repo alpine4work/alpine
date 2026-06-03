@@ -90,21 +90,16 @@ function createTextContent(text: string): ApiContentResponse {
     };
 }
 
-function mockApiGetTaskMention() {
+function mockApiGetTaskReference() {
     api.mockGet(
-        "/tasks/{id}/mention",
-        {
-            data: {
-                spaceId,
-                mention: {reference: taskReference},
-            },
-        },
+        "/tasks/{id}/reference",
+        {data: {spaceId, reference: taskReference}},
         {path: {id: taskId}},
     );
 }
 
 async function readTaskComments() {
-    mockApiGetTaskMention();
+    mockApiGetTaskReference();
     mockApiGetTaskMessages(api, {
         spaceId,
         taskId,

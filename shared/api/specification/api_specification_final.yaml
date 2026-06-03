@@ -2638,16 +2638,14 @@ components:
             required:
                 - type
                 - id
-                - title
                 - members
+                - reference
             additionalProperties: false
             properties:
                 type:
                     const: Direct
                 id:
                     $ref: "#/components/schemas/ChatId"
-                title:
-                    type: string
                 members:
                     type: array
                     items:
@@ -2658,6 +2656,14 @@ components:
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
         RoomChat:
             type: object
             required:
@@ -2821,7 +2827,7 @@ components:
                 - createdTime
                 - createdTimeZone
                 - content
-                - contentPreview
+                - reference
             additionalProperties: false
             properties:
                 id:
@@ -2836,24 +2842,14 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
-                contentPreview:
-                    type: string
-        PostPreview:
-            type: object
-            required:
-                - id
-                - author
-                - contentPreview
-            additionalProperties: false
-            properties:
-                id:
-                    $ref: "#/components/schemas/PostId"
-                author:
-                    $ref: "#/components/schemas/Account"
-                channel:
-                    $ref: "#/components/schemas/ChannelPreview"
-                contentPreview:
-                    type: string
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
         Task:
             type: object
             required:
@@ -4088,7 +4084,7 @@ components:
                 - createdTime
                 - createdTimeZone
                 - content
-                - contentPreview
+                - reference
             additionalProperties: false
             properties:
                 id:
@@ -4103,8 +4099,14 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content_Response"
-                contentPreview:
-                    type: string
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
         Task_Response:
             type: object
             required:

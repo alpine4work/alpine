@@ -2625,10 +2625,12 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Direct";
                 readonly id: components["schemas"]["ChatId"];
-                readonly title: string;
                 readonly members: readonly {
                     readonly account: components["schemas"]["Account"];
                 }[];
+                readonly reference: {
+                    readonly title: string;
+                };
             };
             readonly RoomChat: {
                 /**
@@ -2704,13 +2706,9 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content"];
-                readonly contentPreview: string;
-            };
-            readonly PostPreview: {
-                readonly id: components["schemas"]["PostId"];
-                readonly author: components["schemas"]["Account"];
-                readonly channel?: components["schemas"]["ChannelPreview"];
-                readonly contentPreview: string;
+                readonly reference: {
+                    readonly title: string;
+                };
             };
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
@@ -3324,7 +3322,9 @@ export namespace ApiSpecification {
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content_Response"];
-                readonly contentPreview: string;
+                readonly reference: {
+                    readonly title: string;
+                };
             };
             readonly Task_Response: {
                 readonly id: components["schemas"]["TaskId"];
