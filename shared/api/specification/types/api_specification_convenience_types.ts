@@ -294,17 +294,17 @@ export type ApiBotWebhookRequestBody =
 
 export type ApiBotWebhookEvent = ApiBotWebhookRequestBody["event"];
 
-export type ApiBotWebhookNewMessageEvent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEvent"];
+export type ApiBotWebhookCreatedMessageEvent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEvent"];
 
-export type ApiBotWebhookNewMessageEventParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventParent"];
+export type ApiBotWebhookCreatedMessageEventParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventParent"];
 
-export type ApiBotWebhookNewMessageEventMessageParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventMessageParent"];
+export type ApiBotWebhookCreatedMessageEventMessageParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventMessageParent"];
 
-export type ApiBotWebhookNewMessageEventPostParent =
-    ApiSpecification.components["schemas"]["BotWebhookNewMessageEventPostParent"];
+export type ApiBotWebhookCreatedMessageEventPostParent =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEventPostParent"];
 
 export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
 

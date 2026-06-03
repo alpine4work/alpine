@@ -508,11 +508,11 @@ export function parseApiBotWebhookEventIntoMessageRoom(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomReference {
     switch (event.type) {
-        case "NewMessage": {
+        case "CreatedMessage": {
             return event.room;
         }
-        case "NewPost": {
-            return {type: "Post", id: event.postId};
+        case "CreatedPost": {
+            return {type: "Post", id: event.post.id};
         }
         default: {
             throw exhaustive(event);
@@ -524,11 +524,11 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     event: ApiBotWebhookEvent,
 ): ApiMessageRoomPath {
     switch (event.type) {
-        case "NewMessage": {
+        case "CreatedMessage": {
             return printApiMessageRoomPath(event.room);
         }
-        case "NewPost": {
-            return `/posts/${event.postId}`;
+        case "CreatedPost": {
+            return `/posts/${event.post.id}`;
         }
         default: {
             throw exhaustive(event);

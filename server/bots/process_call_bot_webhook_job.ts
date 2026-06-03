@@ -235,11 +235,10 @@ async function actuallyCallBotWebhook(
 
     const requestBody: ApiBotWebhookRequestBody = {
         spaceId: job.spaceId,
-        botId: job.botId,
-        botAccountId: job.botAccountId,
-        // TODO(calebmer, #public-api-blocking): Remove `accountId` after this commit
-        // deploys. It's only here for backwards compatibility purposes.
-        accountId: job.botAccountId,
+        botAccount: {
+            id: job.botAccountId,
+            bot: {id: job.botId},
+        },
         accessToken,
         attempt: attemptNumber,
         eventId: job.eventId,

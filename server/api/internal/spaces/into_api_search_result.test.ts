@@ -86,7 +86,7 @@ describe("intoApiSearchResult", () => {
                 type: "Account",
                 id: accountId,
                 shortName: "Test",
-                botId: accountModel.botId,
+                bot: {id: accountModel.botId},
             });
         });
     });

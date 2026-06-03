@@ -12,6 +12,6 @@ export function intoApiAccountReference(account: ApiAccount): ApiAccountReferenc
         id: account.id,
         title: account.name,
         shortName: account.shortName,
-        botId: account.botId,
+        bot: account.bot,
     };
 }

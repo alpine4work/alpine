@@ -1320,8 +1320,7 @@ webhooks:
                             type: object
                             required:
                                 - spaceId
-                                - botId
-                                - botAccountId
+                                - botAccount
                                 - attempt
                                 - accessToken
                                 - eventId
@@ -1330,12 +1329,23 @@ webhooks:
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
-                                botId:
-                                    $ref: "#/components/schemas/BotId"
-                                botAccountId:
-                                    $ref: "#/components/schemas/AccountId"
-                                accountId:
-                                    $ref: "#/components/schemas/AccountId"
+                                botAccount:
+                                    type: object
+                                    required:
+                                        - id
+                                        - bot
+                                    additionalProperties: false
+                                    properties:
+                                        id:
+                                            $ref: "#/components/schemas/AccountId"
+                                        bot:
+                                            type: object
+                                            required:
+                                                - id
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/BotId"
                                 attempt:
                                     type: integer
                                     minimum: 1
@@ -1671,10 +1681,19 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
+                    x-internal: true
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                    x-internal: true
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
+                    x-internal: true
         AccountReference_Response:
             type: object
             required:
@@ -1692,8 +1711,14 @@ components:
                     type: string
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
         ChannelReference:
             type: object
             required:
@@ -2561,8 +2586,14 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
         Space:
             type: object
             required:
@@ -2589,8 +2620,14 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
                 space:
                     type: object
                     required:
@@ -2718,8 +2755,14 @@ components:
                                         type: string
                                     shortName:
                                         type: string
-                                    botId:
-                                        $ref: "#/components/schemas/BotId"
+                                    bot:
+                                        type: object
+                                        required:
+                                            - id
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/BotId"
         CreateChatRequestBodyRoomChat:
             type: object
             required:
@@ -3025,6 +3068,16 @@ components:
                 index:
                     type: integer
                     minimum: 0
+                endIndex:
+                    type: integer
+                    minimum: 0
+                    x-internal: true
+                author:
+                    $ref: "#/components/schemas/Account"
+                    x-internal: true
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+                    x-internal: true
         MessageContentPayloadMessageParent_Response:
             type: object
             required:
@@ -3050,12 +3103,16 @@ components:
             type: object
             required:
                 - type
-                - author
-                - contentSnippet
             additionalProperties: false
             properties:
                 type:
                     const: Post
+                author:
+                    $ref: "#/components/schemas/Account"
+                    x-internal: true
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+                    x-internal: true
         MessageContentPayloadPostParent_Response:
             type: object
             required:
@@ -3201,14 +3258,14 @@ components:
                     TaskCollection: "#/components/schemas/TaskCollectionReference"
         BotWebhookEvent:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
-                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent"
+                - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
             discriminator:
                 propertyName: type
                 mapping:
-                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
-                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
-        BotWebhookNewMessageEvent:
+                    CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent"
+                    CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
+        BotWebhookCreatedMessageEvent:
             type: object
             required:
                 - type
@@ -3219,16 +3276,24 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: NewMessage
+                    const: CreatedMessage
                 room:
                     $ref: "#/components/schemas/MessageRoomReference"
                 index:
                     type: integer
                     minimum: 0
-                authorId:
-                    $ref: "#/components/schemas/AccountId"
+                author:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 createdTimeZone:
                     $ref: "#/components/schemas/TimeZone"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookCreatedMessageEventParent"
                 wasMentioned:
                     type: boolean
                 viewing:
@@ -3239,18 +3304,16 @@ components:
                     properties:
                         reference:
                             $ref: "#/components/schemas/MentionReference"
-                parent:
-                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
-        BotWebhookNewMessageEventParent:
+        BotWebhookCreatedMessageEventParent:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
-                - $ref: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEventMessageParent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEventPostParent"
             discriminator:
                 propertyName: type
                 mapping:
-                    Message: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
-                    Post: "#/components/schemas/BotWebhookNewMessageEventPostParent"
-        BotWebhookNewMessageEventMessageParent:
+                    Message: "#/components/schemas/BotWebhookCreatedMessageEventMessageParent"
+                    Post: "#/components/schemas/BotWebhookCreatedMessageEventPostParent"
+        BotWebhookCreatedMessageEventMessageParent:
             type: object
             required:
                 - type
@@ -3270,7 +3333,7 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
-        BotWebhookNewMessageEventPostParent:
+        BotWebhookCreatedMessageEventPostParent:
             type: object
             required:
                 - type
@@ -3287,21 +3350,33 @@ components:
                     properties:
                         id:
                             $ref: "#/components/schemas/AccountId"
-        BotWebhookNewPostEvent:
+        BotWebhookCreatedPostEvent:
             type: object
             required:
                 - type
-                - postId
-                - authorId
+                - post
+                - author
                 - createdTimeZone
             additionalProperties: false
             properties:
                 type:
-                    const: NewPost
-                postId:
-                    $ref: "#/components/schemas/PostId"
-                authorId:
-                    $ref: "#/components/schemas/AccountId"
+                    const: CreatedPost
+                post:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                author:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 createdTimeZone:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
@@ -3454,8 +3529,14 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 shortName:
                     $ref: "#/components/schemas/LabelString"
-                botId:
-                    $ref: "#/components/schemas/BotId"
+                bot:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/BotId"
         SearchChannelResult:
             type: object
             required:
@@ -3955,7 +4036,7 @@ components:
                 reference:
                     $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference_Respon\
                         se"
-        BotWebhookNewMessageEvent_Response:
+        BotWebhookCreatedMessageEvent_Response:
             type: object
             required:
                 - type
@@ -3966,16 +4047,24 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    const: NewMessage
+                    const: CreatedMessage
                 room:
                     $ref: "#/components/schemas/MessageRoomReference"
                 index:
                     type: integer
                     minimum: 0
-                authorId:
-                    $ref: "#/components/schemas/AccountId"
+                author:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 createdTimeZone:
                     $ref: "#/components/schemas/TimeZone"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookCreatedMessageEventParent"
                 wasMentioned:
                     type: boolean
                 viewing:
@@ -3986,8 +4075,6 @@ components:
                     properties:
                         reference:
                             $ref: "#/components/schemas/MentionReference_Response"
-                parent:
-                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
         ContentTableBlockElementRow_Response:
             type: object
             required:
@@ -4187,13 +4274,13 @@ components:
                         se"
         BotWebhookEvent_Response:
             oneOf:
-                - $ref: "#/components/schemas/BotWebhookNewMessageEvent_Response"
-                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+                - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
+                - $ref: "#/components/schemas/BotWebhookCreatedPostEvent"
             discriminator:
                 propertyName: type
                 mapping:
-                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
-                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+                    CreatedMessage: "#/components/schemas/BotWebhookCreatedMessageEvent_Response"
+                    CreatedPost: "#/components/schemas/BotWebhookCreatedPostEvent"
         ContentParagraphBlockElement_Response:
             type: object
             required:

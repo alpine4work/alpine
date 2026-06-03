@@ -81,7 +81,7 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValues,
@@ -4980,7 +4980,7 @@ export async function createDocumentComment(
                 commentThreadId,
                 consistency,
             }),
-            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+            (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
                 if (!parent) return null;
 
                 switch (parent.type) {

@@ -1,5 +1,5 @@
 import {
-    ApiBotWebhookNewMessageEventParent,
+    ApiBotWebhookCreatedMessageEventParent,
     ApiContentMentionInlineElement,
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
@@ -91,6 +91,6 @@ test("all `_Response` schemas are assignable to the corresponding base schema", 
 test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookNewMessageEventParent`", () => {
     assertAssignableTypes<
         ApiMessageContentPayloadParentResponse,
-        ApiBotWebhookNewMessageEventParent
+        ApiBotWebhookCreatedMessageEventParent
     >();
 });

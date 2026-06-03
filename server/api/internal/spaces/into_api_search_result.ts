@@ -82,7 +82,7 @@ function actuallyIntoApiSearchResult({
             // 2. Search for an account
             // 3. In content reference
             shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
-            botId: model.botId,
+            bot: model.botId !== undefined ? {id: model.botId} : undefined,
         };
     }
 

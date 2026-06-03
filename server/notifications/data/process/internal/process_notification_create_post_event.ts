@@ -194,9 +194,9 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
         if (!wasMentionedInPost) return null;
 
         return {
-            type: "NewPost",
-            postId: event.postId,
-            authorId: event.authorId,
+            type: "CreatedPost",
+            post: {id: event.postId},
+            author: {id: event.authorId},
             createdTimeZone: event.createdTimeZone,
             wasMentioned: wasMentionedInPost,
         };

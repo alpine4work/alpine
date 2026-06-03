@@ -1,7 +1,7 @@
 import {
-    ApiBotWebhookNewMessageEventMessageParent,
-    ApiBotWebhookNewMessageEventParent,
-    ApiBotWebhookNewMessageEventPostParent,
+    ApiBotWebhookCreatedMessageEventMessageParent,
+    ApiBotWebhookCreatedMessageEventParent,
+    ApiBotWebhookCreatedMessageEventPostParent,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
@@ -21,7 +21,7 @@ import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
-const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMessageEventMessageParent> =
+const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookCreatedMessageEventMessageParent> =
     Schema.object({
         type: Schema.value("Message"),
         index: Schema.integer,
@@ -30,7 +30,7 @@ const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMe
         }),
     });
 
-const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessageEventPostParent> =
+const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookCreatedMessageEventPostParent> =
     Schema.object({
         type: Schema.value("Post"),
         author: Schema.object({
@@ -38,7 +38,7 @@ const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessa
         }),
     });
 
-export const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookNewMessageEventParent> =
+export const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookCreatedMessageEventParent> =
     Schema.union({
         Message: ApiBotWebhookNewMessageEventMessageParentSchema,
         Post: ApiBotWebhookNewMessageEventPostParentSchema,

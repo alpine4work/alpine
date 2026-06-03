@@ -234,19 +234,20 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({
-        type: "NewMessage",
+        type: "CreatedMessage",
         room: {
             type: "Chat",
             id: event.chatId,
         },
         index: event.messageIndex,
-        authorId: event.authorId,
+        author: {id: event.authorId},
         createdTimeZone: event.createdTimeZone,
-        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
-        viewingReference: event.currentlyViewedSearchEntityId
-            ? intoApiMentionReference(event.currentlyViewedSearchEntityId)
-            : undefined,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+        viewing:
+            event.currentlyViewedSearchEntityId !== undefined
+                ? {reference: intoApiMentionReference(event.currentlyViewedSearchEntityId)}
+                : undefined,
     }),
     getAlertContent: async (context, event, {info: {definition}, entryItem, locale}) => {
         assert(entryItem.sortRangeType === "ChatEntry");

@@ -476,8 +476,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -564,8 +564,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -740,8 +740,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {

@@ -582,7 +582,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -753,7 +753,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -822,7 +822,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -2629,7 +2629,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                         }),
                     },
                 });
@@ -3872,7 +3874,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                         }),
                     },
                 });
@@ -4223,7 +4227,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                             stack: expect.stringContaining("PermissionDeniedError"),
                         }),
                     },

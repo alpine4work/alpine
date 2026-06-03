@@ -28,6 +28,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
+const hiddenFromDocumentationOpenApiExtension = "x-internal";
+
 async function main() {
     /* ========================================================================== *\
      *                       Render YAML Mustache template                        *
@@ -359,6 +361,8 @@ function specialize(specification: unknown) {
         );
     }
 
+    addSpecializedObjectPropertiesToBaseSchemas(specification);
+
     // Finally, replace any references in requests/responses with the corresponding
     // specialized schema.
     specializeRequestBodiesAndResponses(specification);
@@ -469,6 +473,58 @@ function applySpecializationToSchema(
 
         applySpecializationToSchema(specialization, schemaNames, keyValue);
     }
+}
+
+function addSpecializedObjectPropertiesToBaseSchemas(specification: unknown) {
+    assert(isObject(specification));
+    assert(isObject(specification.components));
+    assert(isObject(specification.components.schemas));
+
+    const {schemas} = specification.components;
+
+    for (const [schemaName, schema] of Object.entries(schemas)) {
+        if (!schemaName.includes("_")) continue;
+
+        const [baseSchemaName = ""] = schemaName.split("_", 2);
+        const baseSchema = schemas[baseSchemaName];
+
+        if (!isObject(baseSchema) || !isObject(schema)) continue;
+        if (baseSchema.type !== "object" || schema.type !== "object") continue;
+        if (!isObject(schema.properties)) continue;
+
+        const baseProperties = isObject(baseSchema.properties) ? baseSchema.properties : {};
+        const missingSpecializedProperties = Object.entries(schema.properties).filter(
+            ([propertyName]) => !hasOwnProperty(baseProperties, propertyName),
+        );
+
+        if (missingSpecializedProperties.length === 0) continue;
+
+        schemas[baseSchemaName] = produce(baseSchema, baseSchema => {
+            assert(isObject(baseSchema));
+
+            if (!isObject(baseSchema.properties)) baseSchema.properties = {};
+
+            const baseProperties = baseSchema.properties;
+            assert(isObject(baseProperties));
+
+            for (const [propertyName, propertySchema] of missingSpecializedProperties) {
+                baseProperties[propertyName] =
+                    cloneSchemaHiddenFromDocumentation(propertySchema);
+            }
+        });
+    }
+}
+
+function cloneSchemaHiddenFromDocumentation(schema: unknown) {
+    const clonedSchema = JSON.parse(JSON.stringify(schema));
+
+    assert(isObject(clonedSchema));
+
+    // OpenAPI does not have a standard "hidden from docs" flag. Specification
+    // extensions are the standard extension point, and Redocly uses `x-internal`.
+    clonedSchema[hiddenFromDocumentationOpenApiExtension] = true;
+
+    return clonedSchema;
 }
 
 function specializeRequestBodiesAndResponses(specification: unknown) {
