@@ -12,7 +12,7 @@ runs:
         - if: env.ALPINE_RUNNER_TAG == 'aws-test-asg'
           id: legacy-cache
           name: Restore legacy Bazel repositories cache
-          uses: actions/cache/restore@v3
+          uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   /tmp/alpine-legacy-bazel-cache/bazelisk
@@ -27,7 +27,10 @@ runs:
           name: Initialize shared Bazel repositories cache
           shell: bash
           env:
-              BAZEL_CACHE_KEY: bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+              BAZEL_CACHE_KEY:
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion',
+                  'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch',
+                  'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
               BAZEL_CACHE_PREFIX: bazel-${{ runner.os }}-${{ runner.arch }}-
               LEGACY_CACHE_DIRECTORY: /tmp/alpine-legacy-bazel-cache
           run: |
@@ -123,9 +126,11 @@ runs:
 
         # Only the legacy GitHub cache artifact is restricted to `main`. The shared
         # runner-volume cache above is updated for exact-key misses on every branch.
-        - if: env.ALPINE_RUNNER_TAG == 'aws-test-asg' && steps.shared-cache.outputs.cache-updated == 'true' && github.ref == 'refs/heads/main'
+        - if:
+              env.ALPINE_RUNNER_TAG == 'aws-test-asg' && steps.shared-cache.outputs.cache-updated ==
+              'true' && github.ref == 'refs/heads/main'
           name: Save legacy Bazel repositories cache
-          uses: actions/cache/save@v3
+          uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   /tmp/alpine-legacy-bazel-cache/bazelisk
@@ -150,7 +155,7 @@ runs:
         - if: env.ALPINE_RUNNER_TAG != 'aws-test-asg'
           id: cache
           name: Restore Bazel repositories cache
-          uses: actions/cache/restore@v3
+          uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   ~/.cache/bazelisk
@@ -187,9 +192,11 @@ runs:
         #
         # We only save new cache entries on the `main` branch. So if you're iterating
         # on a PR we don't save a bunch of cache entries that'll never be used again.
-        - if: env.ALPINE_RUNNER_TAG != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        - if:
+              env.ALPINE_RUNNER_TAG != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true' &&
+              github.ref == 'refs/heads/main'
           name: Save Bazel repositories cache
-          uses: actions/cache/save@v3
+          uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   ~/.cache/bazelisk

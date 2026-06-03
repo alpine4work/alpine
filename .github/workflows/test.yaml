@@ -26,7 +26,7 @@ jobs:
 
             - if: startsWith(github.ref_name, 'CI-ASG/')
               name: Checkout repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Check for “[SKIP CI]”
               if: startsWith(github.ref_name, 'CI-ASG/') && github.ref != 'refs/heads/main'
@@ -53,7 +53,7 @@ jobs:
                     - 2
         steps:
             - name: Checkout repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
@@ -93,7 +93,7 @@ jobs:
 
             - if: failure()
               name: Upload Bazel test logs
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 7.0.1
               with:
                   name: bazel_unit_${{ matrix.bucket }}_testlogs
                   path: bazel-testlogs
@@ -115,7 +115,7 @@ jobs:
                     - "3"
         steps:
             - name: Checkout repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
@@ -157,7 +157,7 @@ jobs:
 
             - if: failure()
               name: Upload Bazel test logs
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 7.0.1
               with:
                   name: bazel_integration_${{ matrix.bucket }}_testlogs
                   path: bazel-testlogs
@@ -173,7 +173,7 @@ jobs:
             ]
         steps:
             - name: Checkout repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Check for "[SKIP CI]"
               if: github.ref != 'refs/heads/main'
@@ -202,7 +202,7 @@ jobs:
 
             - if: failure()
               name: Upload Bazel test logs
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 7.0.1
               with:
                   name: bazel_screenshot_testlogs
                   path: bazel-testlogs
