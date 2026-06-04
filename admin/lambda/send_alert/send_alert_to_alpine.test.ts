@@ -1,8 +1,12 @@
-import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
+import {
+    GitHubActionsEventPayload,
+    GitHubPushEventPayload,
+} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
     sendGitHubActionsAlertToAlpine,
+    sendGitHubAlertToAlpine,
     sendHoneycombAlertToAlpine,
     sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
@@ -944,6 +948,64 @@ describe("sendAlertToAlpine", () => {
             ...overrides,
         });
 
+        const createGitHubPushCommitFixture = (
+            overrides: Partial<GitHubPushEventPayload["commits"][number]> = {},
+        ): GitHubPushEventPayload["commits"][number] => ({
+            id: "def456abc789",
+            tree_id: "tree987654",
+            distinct: true,
+            message: "Ship GitHub commit alert (#812)",
+            timestamp: "2023-11-10T09:55:00Z",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/def456abc789",
+            author: {
+                name: "Josh Johnson",
+                email: "josh@example.com",
+                username: "imjoshin",
+            },
+            committer: {
+                name: "GitHub",
+                email: "noreply@github.com",
+                username: "web-flow",
+            },
+            added: [],
+            removed: [],
+            modified: ["admin/lambda/send_alert/send_alert_to_alpine.ts"],
+            ...overrides,
+        });
+
+        const createGitHubPushFixture = (
+            overrides: Partial<GitHubPushEventPayload> = {},
+        ): GitHubPushEventPayload => {
+            const workflowRunFixture = createGitHubFixture();
+            const commit = createGitHubPushCommitFixture();
+
+            return {
+                type: "push",
+                after: commit.id,
+                base_ref: null,
+                before: "abc123def456",
+                commits: [commit],
+                compare:
+                    "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...def456abc789",
+                created: false,
+                deleted: false,
+                forced: false,
+                head_commit: commit,
+                pusher: {
+                    name: "imjoshin",
+                    email: "josh@example.com",
+                },
+                ref: "refs/heads/main",
+                repository: workflowRunFixture.repository,
+                sender: {
+                    ...workflowRunFixture.sender,
+                    login: "imjoshin",
+                    html_url: "https://github.com/imjoshin",
+                },
+                ...overrides,
+            };
+        };
+
         test("build failure", async () => {
             const payload = createGitHubFixture({
                 workflow_run: {
@@ -1026,6 +1088,115 @@ describe("sendAlertToAlpine", () => {
 
             expect(mockFetchCalls).toHaveLength(1);
             expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        });
+
+        test("push to main with multiple commits", async () => {
+            const firstCommit = createGitHubPushCommitFixture();
+            const secondCommit = createGitHubPushCommitFixture({
+                id: "fed321cba987",
+                tree_id: "tree654321",
+                message: "Follow-up alert polish",
+                timestamp: "2023-11-10T09:57:00Z",
+                url: "https://github.com/cyberworlds/cyberworlds/commit/fed321cba987",
+                author: {
+                    name: "Mona Lisa",
+                    email: "mona@example.com",
+                    username: null,
+                },
+                modified: ["admin/lambda/send_alert/send_alert_github_actions.ts"],
+            });
+            const payload = createGitHubPushFixture({
+                after: secondCommit.id,
+                commits: [firstCommit, secondCommit],
+                head_commit: secondCommit,
+                compare:
+                    "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987",
+            });
+
+            await sendGitHubAlertToAlpine(payload);
+
+            expect(mockFetchCalls).toHaveLength(1);
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        });
+
+        test("push to main with one commit", async () => {
+            const payload = createGitHubPushFixture();
+
+            await sendGitHubAlertToAlpine(payload);
+
+            expect(mockFetchCalls).toHaveLength(1);
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        });
+
+        test("push maps real GitHub usernames to first names", async () => {
+            const firstCommit = createGitHubPushCommitFixture({
+                id: "1111111aaaaaa",
+                message: "Add support for GitHub push alerts",
+                url: "https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa",
+                author: {
+                    name: "i-fitz",
+                    email: "ian@example.com",
+                    username: "ifitzsimmons",
+                },
+            });
+            const secondCommit = createGitHubPushCommitFixture({
+                id: "2222222bbbbbb",
+                message: "Polish push alert copy",
+                url: "https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb",
+                author: {
+                    name: "rmt",
+                    email: "rachel@example.com",
+                    username: "rmtobin",
+                },
+            });
+            const thirdCommit = createGitHubPushCommitFixture({
+                id: "3333333cccccc",
+                message: "Wire push alert channel",
+                url: "https://github.com/cyberworlds/cyberworlds/commit/3333333cccccc",
+                author: {
+                    name: "jj",
+                    email: "josh@example.com",
+                    username: "imjoshin",
+                },
+            });
+            const payload = createGitHubPushFixture({
+                after: thirdCommit.id,
+                commits: [firstCommit, secondCommit, thirdCommit],
+                head_commit: thirdCommit,
+                compare:
+                    "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc",
+                sender: {
+                    ...createGitHubFixture().sender,
+                    login: "calebmer",
+                    html_url: "https://github.com/calebmer",
+                },
+            });
+
+            await sendGitHubAlertToAlpine(payload);
+
+            expect(mockFetchCalls).toHaveLength(1);
+            expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        });
+
+        test("ignores push to another branch", async () => {
+            const payload = createGitHubPushFixture({
+                ref: "refs/heads/some-feature-branch",
+            });
+
+            await sendGitHubAlertToAlpine(payload);
+
+            expect(mockFetchCalls).toHaveLength(0);
+        });
+
+        test("ignores push with no commits", async () => {
+            const payload = createGitHubPushFixture({
+                commits: [],
+                head_commit: null,
+            });
+
+            await sendGitHubAlertToAlpine(payload);
+
+            expect(mockFetchCalls).toHaveLength(0);
         });
     });
 

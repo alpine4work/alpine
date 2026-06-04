@@ -1,5 +1,6 @@
-// Type definitions for GitHub Actions event payloads
+// Type definitions for GitHub event payloads
 // https://docs.github.com/en/webhooks/webhook-events-and-payloads#workflow_run
+// https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
 
 type GitHubActionsActor = {
     login: string;
@@ -213,4 +214,61 @@ type GitHubActionsWorkflowRunEventPayload = {
     };
 };
 
+type GitHubPushCommit = {
+    id: string;
+    tree_id: string;
+    distinct: boolean;
+    message: string;
+    timestamp: string;
+    url: string;
+    author: {
+        name: string;
+        email: string;
+        username: string | null;
+    };
+    committer: {
+        name: string;
+        email: string;
+        username: string | null;
+    };
+    added: Array<string>;
+    removed: Array<string>;
+    modified: Array<string>;
+};
+
+export type GitHubPushEventPayload = {
+    type: "push";
+    after: string;
+    base_ref: string | null;
+    before: string;
+    commits: Array<GitHubPushCommit>;
+    compare: string;
+    created: boolean;
+    deleted: boolean;
+    forced: boolean;
+    head_commit: GitHubPushCommit | null;
+    pusher: {
+        name: string;
+        email: string;
+    };
+    ref: string;
+    repository: GitHubActionsRepository;
+    sender: GitHubActionsActor;
+    organization?: {
+        login: string;
+        id: number;
+        node_id: string;
+        url: string;
+        repos_url: string;
+        events_url: string;
+        hooks_url: string;
+        issues_url: string;
+        members_url: string;
+        public_members_url: string;
+        avatar_url: string;
+        description: string;
+    };
+};
+
 export type GitHubActionsEventPayload = GitHubActionsWorkflowRunEventPayload;
+export type GitHubEventPayload = GitHubActionsWorkflowRunEventPayload | GitHubPushEventPayload;

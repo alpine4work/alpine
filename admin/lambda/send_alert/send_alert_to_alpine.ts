@@ -5,7 +5,11 @@ import {
     SendAlertAvailableChannel,
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/send_alert_available_channels.js";
-import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
+import {
+    GitHubActionsEventPayload,
+    GitHubEventPayload,
+    GitHubPushEventPayload,
+} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
@@ -15,6 +19,7 @@ import {
 } from "~/admin/lambda/send_alert/send_alert_user_mappings.js";
 import {
     ApiContent,
+    ApiContentCodeBlockElementTextInlineElement,
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -22,19 +27,39 @@ import {ApiSpecification} from "~/shared/api/specification/types/api_specificati
 
 type ApiContentElement = ApiContent["elements"][number];
 type SendAlertResult = {ok: true} | {ok: false; error: string; statusCode?: number};
+type CreateUserElementOptions = {
+    tagUser?: boolean;
+};
 
 // Create a user mention or link element based on available mappings
 function createUserElement(
     displayName: string,
     url: string,
     id: string,
+    options: CreateUserElementOptions = {},
 ): ApiSpecification.components["schemas"]["ContentInlineElement"] {
+    const {tagUser = true} = options;
     const alpineId =
         pagerDutyIdToAlpineId[id.toLowerCase()] ||
         gitHubUsernameToAlpineId[id.toLowerCase()] ||
         nameToAlpineId[displayName.toLowerCase()];
 
     if (alpineId) {
+        if (!tagUser) {
+            const nameForAlpineId =
+                Object.entries(nameToAlpineId).find(
+                    ([, mappedAlpineId]) => mappedAlpineId === alpineId,
+                )?.[0] || displayName;
+            const firstName = nameForAlpineId.trim().split(/\s+/, 1)[0];
+
+            return {
+                type: "Text",
+                text: firstName
+                    ? firstName.charAt(0).toUpperCase() + firstName.substring(1).toLowerCase()
+                    : nameForAlpineId,
+            };
+        }
+
         const mention: ApiContentMentionInlineElement = {
             type: "Mention",
             target: {type: "Account", id: alpineId},
@@ -60,8 +85,8 @@ function createUserElement(
 function createCommitMessageElements(
     commitMessage: string,
     repositoryFullName: string,
-): Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> {
-    const elements: Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> = [];
+): Array<ApiContentCodeBlockElementTextInlineElement> {
+    const elements: Array<ApiContentCodeBlockElementTextInlineElement> = [];
 
     // Regex to match PR references like (#123)
     const prRegex = /\(#(\d+)\)/g;
@@ -809,4 +834,168 @@ export async function sendGitHubActionsAlertToAlpine(
     ];
 
     return await sendAlertToAlpine(channel, channelId, {elements});
+}
+
+async function sendGitHubPushAlertToAlpine(data: GitHubPushEventPayload): Promise<SendAlertResult> {
+    const channel: SendAlertAvailableChannel = "github";
+    const channelId = sendAlertAvailableChannels[channel];
+
+    console.log("Received GitHub push event");
+    console.log(JSON.stringify(data, null, 2));
+
+    if (data.ref !== "refs/heads/main") {
+        console.debug(`Ignoring GitHub push event on ref '${data.ref}'`);
+        return {ok: true};
+    }
+
+    if (data.deleted) {
+        console.debug("Ignoring GitHub push event that deleted main");
+        return {ok: true};
+    }
+
+    if (data.commits.length === 0) {
+        console.debug("Ignoring GitHub push event with no commits");
+        return {ok: true};
+    }
+
+    const commitsElements: ApiContentParagraphBlockElement["elements"] =
+        data.commits.length === 1
+            ? [
+                  {
+                      type: "Text",
+                      text: "1 commit pushed to ",
+                  },
+                  {
+                      type: "Text",
+                      text: "main",
+                      marks: [
+                          {
+                              type: "Code",
+                          },
+                      ],
+                  },
+              ]
+            : [
+                  {
+                      type: "Text",
+                      text: `${data.commits.length} commits`,
+                      marks: [
+                          {
+                              type: "Link",
+                              url: data.compare,
+                          },
+                      ],
+                  },
+                  {
+                      type: "Text",
+                      text: " pushed to ",
+                  },
+                  {
+                      type: "Text",
+                      text: "main",
+                      marks: [
+                          {
+                              type: "Code",
+                          },
+                      ],
+                  },
+              ];
+
+    const commitLines: Array<Array<ApiContentCodeBlockElementTextInlineElement>> = data.commits.map(
+        commit => {
+            const commitMessageTitle = commit.message.split("\n", 1)[0] || commit.message;
+            const commitAuthorElement: ApiSpecification.components["schemas"]["ContentInlineElement"] =
+                commit.author.username
+                    ? createUserElement(
+                          commit.author.name,
+                          `https://github.com/${commit.author.username}`,
+                          commit.author.username,
+                          {tagUser: false},
+                      )
+                    : {
+                          type: "Text",
+                          text: commit.author.name,
+                      };
+            const commitAuthorName =
+                commitAuthorElement.type === "Text" ? commitAuthorElement.text : commit.author.name;
+
+            return [
+                {
+                    type: "Text",
+                    text: commit.id.substring(0, 7),
+                    marks: [
+                        {
+                            type: "Link",
+                            url: commit.url,
+                        },
+                    ],
+                },
+                {
+                    type: "Text",
+                    text: " ",
+                },
+                ...createCommitMessageElements(commitMessageTitle, data.repository.full_name),
+                {
+                    type: "Text",
+                    text: ` by ${commitAuthorName}`,
+                },
+            ];
+        },
+    );
+
+    const elements: Array<ApiContentElement> = [
+        {
+            type: "Paragraph",
+            elements: commitsElements,
+        },
+        {
+            type: "Paragraph",
+            elements: [
+                {
+                    type: "Text",
+                    text: "Repository: ",
+                },
+                {
+                    type: "Text",
+                    text: data.repository.name,
+                    marks: [
+                        {
+                            type: "Link",
+                            url: data.repository.html_url,
+                        },
+                    ],
+                },
+                {
+                    type: "Text",
+                    text: " • Pushed by ",
+                },
+                createUserElement(data.sender.login, data.sender.html_url, data.sender.login, {
+                    tagUser: false,
+                }),
+            ],
+        },
+        {
+            type: "Code",
+            language: "text",
+            lines: commitLines.map(commitLine => ({
+                elements: commitLine,
+            })),
+        },
+    ];
+
+    return await sendAlertToAlpine(channel, channelId, {elements});
+}
+
+export async function sendGitHubAlertToAlpine(data: GitHubEventPayload): Promise<SendAlertResult> {
+    const eventType = data.type;
+
+    switch (data.type) {
+        case "workflow_run":
+            return await sendGitHubActionsAlertToAlpine(data);
+        case "push":
+            return await sendGitHubPushAlertToAlpine(data);
+        default:
+            console.debug(`Ignoring GitHub event of type '${eventType}'`);
+            return {ok: true};
+    }
 }

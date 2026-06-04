@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 import {Handler} from "aws-lambda";
 import {createHmac, timingSafeEqual} from "crypto";
-import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
+import {GitHubEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
-    sendGitHubActionsAlertToAlpine,
+    sendGitHubAlertToAlpine,
     sendHoneycombAlertToAlpine,
     sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
@@ -233,10 +233,10 @@ export const handler: Handler<LambdaFunctionUrlEvent, LambdaFunctionUrlResult> =
         } else if (validation.source === "github_actions") {
             const eventType = event.headers["x-github-event"];
             if (eventType) {
-                result = await sendGitHubActionsAlertToAlpine({
+                result = await sendGitHubAlertToAlpine({
                     type: eventType,
                     ...alertEvent,
-                } as GitHubActionsEventPayload);
+                } as GitHubEventPayload);
             } else {
                 result = {
                     ok: false,
