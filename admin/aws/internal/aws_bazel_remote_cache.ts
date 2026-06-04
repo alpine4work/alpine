@@ -182,8 +182,8 @@ export class AwsBazelRemoteCache extends Construct {
             allowAllOutbound: true,
         });
 
-        // Allow only the GitHub runner providers (test, test-ASG, and deploy) to reach the
-        // cache (HTTP and gRPC), rather than the whole VPC.
+        // Allow only the GitHub runner providers to reach the cache (HTTP and gRPC),
+        // rather than the whole VPC.
         for (const runnerConnectable of runnerConnectables) {
             for (const port of [bazelRemoteCachePort, bazelRemoteCacheGrpcPort]) {
                 loadBalancerSecurityGroup.connections.allowFrom(

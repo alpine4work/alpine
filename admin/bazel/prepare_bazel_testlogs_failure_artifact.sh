@@ -4,7 +4,15 @@ set -eo pipefail
 
 if [ -z "$1" ]; then
     this=$(realpath "$0")
-    testlogs=$(readlink -f "$(dirname "$0")/../../bazel-testlogs")
+    workspace_root=$(readlink -f "$(dirname "$0")/../..")
+    testlogs_link="$workspace_root/bazel-testlogs"
+
+    if [ -e "$testlogs_link" ]; then
+        testlogs=$(readlink -f "$testlogs_link")
+    else
+        testlogs="$testlogs_link"
+        mkdir -p "$testlogs"
+    fi
 
     # 1. Make sure all `testlogs` files are writable. Bazel creates some `testlogs`
     #    files without the write permissions.

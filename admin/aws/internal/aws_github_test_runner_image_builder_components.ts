@@ -1,9 +1,19 @@
+import {RunnerImageComponent} from "@cloudsnorkel/cdk-github-runners";
 import {awsGithubRunnerImageBuilderComponents} from "~/admin/aws/internal/aws_github_runner_image_builder_components.js";
 
 export function awsGithubTestRunnerImageBuilderComponents(
     extraAptDependencies: Array<string> = [],
+    {
+        amiSourceBundleBucketName,
+        amiSourceBundleKeyParameterName,
+        bazelCacheKeyParameterName,
+    }: {
+        amiSourceBundleBucketName?: string;
+        amiSourceBundleKeyParameterName?: string;
+        bazelCacheKeyParameterName?: string;
+    } = {},
 ) {
-    return awsGithubRunnerImageBuilderComponents({
+    const components = awsGithubRunnerImageBuilderComponents({
         extraAptDependencies: [
             // Dependencies required by Playwright for running Chromium:
             // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
@@ -118,4 +128,54 @@ export function awsGithubTestRunnerImageBuilderComponents(
         // the `libreoffice` CLI and we'll only use it in tests.
         noInstallRecommends: ["libreoffice"],
     });
+
+    if (
+        amiSourceBundleBucketName === undefined ||
+        amiSourceBundleKeyParameterName === undefined ||
+        bazelCacheKeyParameterName === undefined
+    ) {
+        return components;
+    }
+
+    /* eslint-disable cyberworlds/string-quotes */
+    return [
+        ...components,
+
+        // Populate the AMI image cache with a `main` checkout and the Bazel dependency
+        // cache so most CI jobs can start from a warm local filesystem instead of spending
+        // several minutes hydrating Bazel before they do any useful work.
+        RunnerImageComponent.custom({
+            name: "PopulateCyberworldsImageCache",
+            commands: [
+                [
+                    "set -euo pipefail",
+                    "rm -rf /tmp/alpine-runner-image",
+                    "mkdir -p /tmp/alpine-runner-image /opt/alpine-runner-image",
+                    `source_bundle_key="$(aws ssm get-parameter --name '${amiSourceBundleKeyParameterName}' --query 'Parameter.Value' --output text)"`,
+                    `bazel_cache_key="$(aws ssm get-parameter --name '${bazelCacheKeyParameterName}' --query 'Parameter.Value' --output text)"`,
+                    `printf '%s\\n' "$bazel_cache_key" > /opt/alpine-runner-image/bazel-cache-key`,
+                    "chown -R runner:runner /opt/alpine-runner-image",
+                    `if [ -z "$source_bundle_key" ] || [ "$source_bundle_key" = "uninitialized" ] || [ -z "$bazel_cache_key" ] || [ "$bazel_cache_key" = "uninitialized" ]; then`,
+                    "    echo 'No published AMI image cache is available yet; leaving this runner image cache cold.'",
+                    "    exit 0",
+                    "fi",
+                    `aws s3 cp "s3://${amiSourceBundleBucketName}/$source_bundle_key" /tmp/alpine-runner-image/cyberworlds-main.tar.gz`,
+                    "rm -rf /home/runner/_work/cyberworlds",
+                    "mkdir -p /home/runner/_work/cyberworlds/cyberworlds",
+                    "tar -xzf /tmp/alpine-runner-image/cyberworlds-main.tar.gz -C /home/runner/_work/cyberworlds/cyberworlds",
+                    "chown -R runner:runner /home/runner/_work",
+                    "sudo -Hu runner bash -lc 'if git -C /home/runner/_work/cyberworlds/cyberworlds remote get-url origin >/dev/null 2>&1; then git -C /home/runner/_work/cyberworlds/cyberworlds remote set-url origin https://github.com/cyberworlds/cyberworlds.git; else git -C /home/runner/_work/cyberworlds/cyberworlds remote add origin https://github.com/cyberworlds/cyberworlds.git; fi'",
+                    "sudo -Hu runner git -C /home/runner/_work/cyberworlds/cyberworlds checkout -B main HEAD",
+                    "sudo -Hu runner git -C /home/runner/_work/cyberworlds/cyberworlds reset --hard HEAD",
+                    [
+                        "sudo -Hu runner bash -lc",
+                        `'cd /home/runner/_work/cyberworlds/cyberworlds`,
+                        "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos",
+                        "&& admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache='",
+                    ].join(" "),
+                ].join("\n"),
+            ],
+        }),
+    ];
+    /* eslint-enable cyberworlds/string-quotes */
 }
