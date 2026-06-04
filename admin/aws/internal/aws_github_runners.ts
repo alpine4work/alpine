@@ -240,7 +240,18 @@ export class AwsGithubRunners extends Construct {
                 '"}',
             ]),
             /* eslint-enable cyberworlds/string-quotes */
-            extraTags: [{key: "CloudWatchAgent", value: "true"}],
+
+            // The stock EC2 runner bootstrap calls
+            // `amazon-cloudwatch-agent-ctl -a fetch-config` for `/var/log/runner.log`. When
+            // the global CloudWatch Agent SSM association also configures the instance, the
+            // agent tries to merge the runner log config with `AmazonCloudWatch-linux-config`,
+            // fails on conflicting metrics settings, and cloud-init exits before the runner
+            // registers with GitHub.
+            //
+            // TODO: Re-enable managed CloudWatch Agent config for AMI builder runners once the
+            // runner bootstrap appends its log config instead of fetching/replacing the agent
+            // config. \
+            // extraTags: [{key: "CloudWatchAgent", value: "true"}],
         });
 
         const amiBuilderRunnerProviderRole: unknown = (amiBuilderRunnerProvider as any).role;

@@ -6324,7 +6324,7 @@ Resources:
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersAmiBuilderRunnerProviderAMIRootDevice6746CD69
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
                         subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-ami-builder
                         subnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -6371,7 +6371,7 @@ Resources:
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersAmiBuilderRunnerProviderAMIRootDevice6746CD69
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
                         subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-ami-builder
                         subnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
@@ -6418,7 +6418,7 @@ Resources:
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersAmiBuilderRunnerProviderAMIRootDevice6746CD69
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
                         subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-ami-builder
                         subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
@@ -6465,7 +6465,7 @@ Resources:
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersAmiBuilderRunnerProviderAMIRootDevice6746CD69
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
                         subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-ami-builder
                         subnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
@@ -6512,7 +6512,7 @@ Resources:
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersAmiBuilderRunnerProviderAMIRootDevice6746CD69
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"},{"Key":"CloudWatchAgent","Value":"true"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider"}]}]}},"aws-ami-builder
                         subnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
@@ -6561,10 +6561,9 @@ Resources:
                       - "\",\"Ebs\":{\"DeleteOnTermination\":true,\"VolumeSize\":40}}],\"TagSpecifi\
                         cations\":[{\"ResourceType\":\"instance\",\"Tags\":[{\"Key\":\"GitHubRunner\
                         s:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/AmiBuilder\
-                        RunnerProvider\"},{\"Key\":\"CloudWatchAgent\",\"Value\":\"true\"}]},{\"Res\
-                        ourceType\":\"volume\",\"Tags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\
-                        \":\"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider\"}]}]\
-                        }},\"aws-deploy
+                        RunnerProvider\"}]},{\"ResourceType\":\"volume\",\"Tags\":[{\"Key\":\"GitHu\
+                        bRunners:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/Ami\
+                        BuilderRunnerProvider\"}]}]}},\"aws-deploy
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
                         taTemplate\":\"#!/bin/bash
                         -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
