@@ -6481,6 +6481,573 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/Setup Log/Resource
+    LifecycleClusterF5A59493:
+        Type: AWS::ECS::Cluster
+        Properties:
+            ClusterName: CyberworldsLifecycleCluster
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/LifecycleCluster/Resource
+    BazelRemoteCacheBucketC892FF4D:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: cyberworlds-bazel-remote-cache
+            LifecycleConfiguration:
+                Rules:
+                    - ExpirationInDays: 14
+                      Status: Enabled
+            PublicAccessBlockConfiguration:
+                BlockPublicAcls: true
+                BlockPublicPolicy: true
+                IgnorePublicAcls: true
+                RestrictPublicBuckets: true
+            Tags:
+                - Key: aws-cdk:auto-delete-objects
+                  Value: "true"
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/Bucket/Resource
+    BazelRemoteCacheBucketPolicy27C115B7:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+            Bucket:
+                Ref: BazelRemoteCacheBucketC892FF4D
+            PolicyDocument:
+                Statement:
+                    - Action: s3:*
+                      Condition:
+                          Bool:
+                              aws:SecureTransport: "false"
+                      Effect: Deny
+                      Principal:
+                          AWS: "*"
+                      Resource:
+                          - Fn::GetAtt:
+                                - BazelRemoteCacheBucketC892FF4D
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BazelRemoteCacheBucketC892FF4D
+                                        - Arn
+                                  - /*
+                    - Action: s3:*
+                      Condition:
+                          NumericLessThan:
+                              s3:TlsVersion: 1.2
+                      Effect: Deny
+                      Principal:
+                          AWS: "*"
+                      Resource:
+                          - Fn::GetAtt:
+                                - BazelRemoteCacheBucketC892FF4D
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BazelRemoteCacheBucketC892FF4D
+                                        - Arn
+                                  - /*
+                    - Action:
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:List*
+                          - s3:PutBucketPolicy
+                      Effect: Allow
+                      Principal:
+                          AWS:
+                              Fn::GetAtt:
+                                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                                  - Arn
+                      Resource:
+                          - Fn::GetAtt:
+                                - BazelRemoteCacheBucketC892FF4D
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BazelRemoteCacheBucketC892FF4D
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/Bucket/Policy/Resource
+    BazelRemoteCacheBucketAutoDeleteObjectsCustomResource1C808B62:
+        Type: Custom::S3AutoDeleteObjects
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+                    - Arn
+            BucketName:
+                Ref: BazelRemoteCacheBucketC892FF4D
+        DependsOn:
+            - BazelRemoteCacheBucketPolicy27C115B7
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/Bucket/AutoDeleteObjectsCustomResource/Default
+    BazelRemoteCacheTaskDefinitionTaskRoleC7AD0FD7:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/TaskRole/Resource
+    BazelRemoteCacheTaskDefinitionTaskRoleDefaultPolicy335ED749:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - BazelRemoteCacheBucketC892FF4D
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BazelRemoteCacheBucketC892FF4D
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: BazelRemoteCacheTaskDefinitionTaskRoleDefaultPolicy335ED749
+            Roles:
+                - Ref: BazelRemoteCacheTaskDefinitionTaskRoleC7AD0FD7
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    BazelRemoteCacheTaskDefinitionCE1CE5EE:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - --max_size=80
+                      - --grpc_address=0.0.0.0:9092
+                      - --profile_address=none
+                      - --s3.auth_method=iam_role
+                      - Fn::Join:
+                            - ""
+                            - - --s3.bucket=
+                              - Ref: BazelRemoteCacheBucketC892FF4D
+                      - --s3.region=us-east-1
+                      - --s3.endpoint=s3.us-east-1.amazonaws.com
+                      - --s3.update_timestamps=true
+                  Essential: true
+                  Image: buchgr/bazel-remote-cache@sha256:d9b104d02bea731f5a8ce6d3c518f814953ef54c2e0218744ce7643ff9d85ca8
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: BazelRemoteCacheTaskDefinitionContainerLogGroup10FDDFEE
+                          awslogs-stream-prefix: CyberworldsLifecycleStack
+                          awslogs-region: us-east-1
+                  Name: Container
+                  PortMappings:
+                      - ContainerPort: 8080
+                        Protocol: tcp
+                      - ContainerPort: 9092
+                        Protocol: tcp
+            Cpu: "2048"
+            EphemeralStorage:
+                SizeInGiB: 100
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - BazelRemoteCacheTaskDefinitionExecutionRoleD10E5D4A
+                    - Arn
+            Family: CyberworldsLifecycleStackBazelRemoteCacheTaskDefinitionE8A9DA75
+            Memory: "8192"
+            NetworkMode: awsvpc
+            RequiresCompatibilities:
+                - FARGATE
+            RuntimePlatform:
+                CpuArchitecture: X86_64
+                OperatingSystemFamily: LINUX
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - BazelRemoteCacheTaskDefinitionTaskRoleC7AD0FD7
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/Resource
+    BazelRemoteCacheTaskDefinitionContainerLogGroup10FDDFEE:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/Container/LogGroup/Resource
+    BazelRemoteCacheTaskDefinitionExecutionRoleD10E5D4A:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/ExecutionRole/Resource
+    BazelRemoteCacheTaskDefinitionExecutionRoleDefaultPolicy2D6C5BCE:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - BazelRemoteCacheTaskDefinitionContainerLogGroup10FDDFEE
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: BazelRemoteCacheTaskDefinitionExecutionRoleDefaultPolicy2D6C5BCE
+            Roles:
+                - Ref: BazelRemoteCacheTaskDefinitionExecutionRoleD10E5D4A
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    BazelRemoteCacheServiceSecurityGroup81A3EDBC:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsLifecycleStack/BazelRemoteCache/ServiceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/ServiceSecurityGroup/Resource
+    BazelRemoteCacheServiceSecurityGroupfromCyberworldsLifecycleStackBazelRemoteCacheLoadBalancerSecurityGroup31524C84808050179E18:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow the internal load balancer to reach bazel-remote
+            FromPort: 8080
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheServiceSecurityGroup81A3EDBC
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            ToPort: 8080
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/ServiceSecurityGroup/from
+                CyberworldsLifecycleStackBazelRemoteCacheLoadBalancerSecurityGroup31524C84:8080
+    BazelRemoteCacheServiceSecurityGroupfromCyberworldsLifecycleStackBazelRemoteCacheLoadBalancerSecurityGroup31524C849092B978FDDC:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow the internal load balancer to reach bazel-remote
+            FromPort: 9092
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheServiceSecurityGroup81A3EDBC
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            ToPort: 9092
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/ServiceSecurityGroup/from
+                CyberworldsLifecycleStackBazelRemoteCacheLoadBalancerSecurityGroup31524C84:9092
+    BazelRemoteCacheService131CAD71:
+        Type: AWS::ECS::Service
+        Properties:
+            Cluster:
+                Ref: LifecycleClusterF5A59493
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                MaximumPercent: 200
+                MinimumHealthyPercent: 50
+            DesiredCount: 1
+            EnableECSManagedTags: false
+            HealthCheckGracePeriodSeconds: 60
+            LaunchType: FARGATE
+            LoadBalancers:
+                - ContainerName: Container
+                  ContainerPort: 8080
+                  TargetGroupArn:
+                      Ref: BazelRemoteCacheLoadBalancerListenerTargetGroupBF6550D8
+                - ContainerName: Container
+                  ContainerPort: 9092
+                  TargetGroupArn:
+                      Ref: BazelRemoteCacheLoadBalancerGrpcListenerGrpcTargetGroupFCDC5EAD
+            NetworkConfiguration:
+                AwsvpcConfiguration:
+                    AssignPublicIp: ENABLED
+                    SecurityGroups:
+                        - Fn::GetAtt:
+                              - BazelRemoteCacheServiceSecurityGroup81A3EDBC
+                              - GroupId
+                    Subnets:
+                        - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                        - Ref: VpcPublicSubnet2Subnet691E08A3
+                        - Ref: VpcPublicSubnet3SubnetBE12F0B6
+                        - Ref: VpcPublicSubnet4SubnetD274F391
+                        - Ref: VpcPublicSubnet5Subnet9D29380E
+                        - Ref: VpcPublicSubnet6Subnet86A826C5
+            TaskDefinition:
+                Ref: BazelRemoteCacheTaskDefinitionCE1CE5EE
+        DependsOn:
+            - BazelRemoteCacheLoadBalancerGrpcListenerGrpcTargetGroupFCDC5EAD
+            - BazelRemoteCacheLoadBalancerGrpcListener463C4D8E
+            - BazelRemoteCacheLoadBalancerListener9C6DEF71
+            - BazelRemoteCacheLoadBalancerListenerTargetGroupBF6550D8
+            - BazelRemoteCacheTaskDefinitionTaskRoleDefaultPolicy335ED749
+            - BazelRemoteCacheTaskDefinitionTaskRoleC7AD0FD7
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/Service/Service
+    BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/Resource
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersTestRunnerProviderSG76ACC62280800D8B4F3D:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 8080
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersTestRunnerProviderSGC459F644
+                    - GroupId
+            ToPort: 8080
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersTestRunnerProviderSG76ACC622:8080
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersTestRunnerProviderSG76ACC62290929DE04BAF:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 9092
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersTestRunnerProviderSGC459F644
+                    - GroupId
+            ToPort: 9092
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersTestRunnerProviderSG76ACC622:9092
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersTestRunnerAsgProviderRunnerSecurityGroup04BE6733808052B7460D:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 8080
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersTestRunnerAsgProviderRunnerSecurityGroup98BC766C
+                    - GroupId
+            ToPort: 8080
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersTestRunnerAsgProviderRunnerSecurityGroup04BE6733:8080
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersTestRunnerAsgProviderRunnerSecurityGroup04BE673390927105FEC5:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 9092
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersTestRunnerAsgProviderRunnerSecurityGroup98BC766C
+                    - GroupId
+            ToPort: 9092
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersTestRunnerAsgProviderRunnerSecurityGroup04BE6733:9092
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersDeployRunnerProviderSG0A19B0DA8080F2C2A53F:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 8080
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                    - GroupId
+            ToPort: 8080
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersDeployRunnerProviderSG0A19B0DA:8080
+    BazelRemoteCacheLoadBalancerSecurityGroupfromCyberworldsLifecycleStackGithubRunnersDeployRunnerProviderSG0A19B0DA90927B44E6C0:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: Allow a GitHub runner to reach the Bazel remote cache
+            FromPort: 9092
+            GroupId:
+                Fn::GetAtt:
+                    - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                    - GroupId
+            ToPort: 9092
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancerSecurityGroup/from
+                CyberworldsLifecycleStackGithubRunnersDeployRunnerProviderSG0A19B0DA:9092
+    BazelRemoteCacheLoadBalancerAD11A99C:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            LoadBalancerAttributes:
+                - Key: deletion_protection.enabled
+                  Value: "false"
+                - Key: load_balancing.cross_zone.enabled
+                  Value: "true"
+            Scheme: internal
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - BazelRemoteCacheLoadBalancerSecurityGroupF88EF4C9
+                      - GroupId
+            Subnets:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+                - Ref: VpcPublicSubnet3SubnetBE12F0B6
+                - Ref: VpcPublicSubnet4SubnetD274F391
+                - Ref: VpcPublicSubnet5Subnet9D29380E
+                - Ref: VpcPublicSubnet6Subnet86A826C5
+            Type: network
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancer/Resource
+    BazelRemoteCacheLoadBalancerListener9C6DEF71:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: BazelRemoteCacheLoadBalancerListenerTargetGroupBF6550D8
+                  Type: forward
+            LoadBalancerArn:
+                Ref: BazelRemoteCacheLoadBalancerAD11A99C
+            Port: 8080
+            Protocol: TCP
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancer/Listener/Resource
+    BazelRemoteCacheLoadBalancerListenerTargetGroupBF6550D8:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckPath: /status
+            HealthCheckProtocol: HTTP
+            Port: 8080
+            Protocol: TCP
+            TargetType: ip
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancer/Listener/TargetGroup/Resource
+    BazelRemoteCacheLoadBalancerGrpcListener463C4D8E:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: BazelRemoteCacheLoadBalancerGrpcListenerGrpcTargetGroupFCDC5EAD
+                  Type: forward
+            LoadBalancerArn:
+                Ref: BazelRemoteCacheLoadBalancerAD11A99C
+            Port: 9092
+            Protocol: TCP
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancer/GrpcListener/Resource
+    BazelRemoteCacheLoadBalancerGrpcListenerGrpcTargetGroupFCDC5EAD:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckPath: /status
+            HealthCheckPort: "8080"
+            HealthCheckProtocol: HTTP
+            Port: 9092
+            Protocol: TCP
+            TargetType: ip
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/LoadBalancer/GrpcListener/GrpcTargetGroup/Resource
+    BazelRemoteCacheHostedZoneA0E410E1:
+        Type: AWS::Route53::HostedZone
+        Properties:
+            HostedZoneConfig:
+                Comment: Private DNS for services in the Cyberworlds lifecycle VPC
+            Name: cyberworlds.internal.
+            VPCs:
+                - VPCId:
+                      Ref: Vpc8378EB38
+                  VPCRegion: us-east-1
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/HostedZone/Resource
+    BazelRemoteCacheDnsRecord03712D9F:
+        Type: AWS::Route53::RecordSet
+        Properties:
+            AliasTarget:
+                DNSName:
+                    Fn::Join:
+                        - ""
+                        - - dualstack.
+                          - Fn::GetAtt:
+                                - BazelRemoteCacheLoadBalancerAD11A99C
+                                - DNSName
+                HostedZoneId:
+                    Fn::GetAtt:
+                        - BazelRemoteCacheLoadBalancerAD11A99C
+                        - CanonicalHostedZoneID
+            HostedZoneId:
+                Ref: BazelRemoteCacheHostedZoneA0E410E1
+            Name: bazel-remote-cache.cyberworlds.internal.
+            Type: A
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/BazelRemoteCache/DnsRecord/Resource
     SendAlertExecutionRole4F4916B1:
         Type: AWS::IAM::Role
         Properties:
