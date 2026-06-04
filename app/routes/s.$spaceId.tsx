@@ -15,6 +15,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuContextProvider} from "~/client/web/design/context_menu.js";
 import {RootOverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {useReporter} from "~/client/web/design/reporter.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/web/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {toggleHintSuppressionForDev} from "~/client/web/design/use_hint_oracle.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
@@ -45,6 +46,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {SearchModal} from "~/client/web/search/search_modal.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
 import {SiteProvider} from "~/client/web/sites/context/site_context.js";
+import {getGlobalSavingIndicatorPromise} from "~/client/web/spaces/get_global_saving_indicator_promise.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
@@ -57,6 +59,7 @@ import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layou
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
 import {SpaceThemeColorManager} from "~/client/web/spaces/space_theme_color_manager.js";
+import {ToastGlobalSavingIndicatorMessage} from "~/client/web/spaces/toast_global_saving_indicator_message.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
 import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -87,6 +90,7 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -402,6 +406,7 @@ export default function SpaceLayoutRoute() {
     const clientInfo = useClientInfo();
     const platform = usePlatform();
     const browserId = useBrowserId();
+    const reporter = useReporter();
     const spaceId = params.spaceId as SpaceId;
 
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
@@ -764,6 +769,41 @@ export default function SpaceLayoutRoute() {
                         ) {
                             event.preventDefault();
                             event.stopPropagation();
+                        }
+                        break;
+                    }
+
+                    case "s": {
+                        if (
+                            platform !== "mobile" &&
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const key = "global-saving-indicator";
+
+                            if (!reporter.hasInfoToastWithKey(key)) {
+                                const savingPromise = runAllPromises([
+                                    // Show the saving indicator for at least one second when we open this toast.
+                                    wait(1000),
+                                    getGlobalSavingIndicatorPromise(),
+                                ]);
+
+                                reporter.showInfoToast(
+                                    <ToastGlobalSavingIndicatorMessage
+                                        savingPromise={savingPromise}
+                                    />,
+                                    {
+                                        key,
+                                        // Fully control visibility of this toast via `pendingPromise`.
+                                        durationSeconds: 2,
+                                        // Once we've finished saving, keep the toast open for three more seconds before
+                                        // closing.
+                                        pendingPromise: savingPromise.then(() => wait(1500)),
+                                    },
+                                );
+                            }
                         }
                         break;
                     }

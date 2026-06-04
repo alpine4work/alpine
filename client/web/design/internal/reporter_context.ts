@@ -67,7 +67,16 @@ export type Reporter = Memo<{
      * Useful if you need to provide further context about an action the user just
      * took.
      */
-    showInfoToast(message: ReactNode, options?: {durationSeconds?: number}): void;
+    showInfoToast(
+        message: ReactNode,
+        options?: {key?: unknown; durationSeconds?: number; pendingPromise?: Promise<unknown>},
+    ): void;
+
+    /**
+     * Are we showing a toast with the provided key? Returns true if we have an active
+     * toast with the provided key or if we have a toast queued with the provided key.
+     */
+    hasInfoToastWithKey(key: unknown): boolean;
 }>;
 
 // A `ReporterWithoutContext` object needs to be provided an `AppContext` since it
@@ -87,8 +96,9 @@ export type ReporterWithoutContext = {
     readonly showInfoToast: (
         context: AppContext,
         message: ReactNode,
-        options?: {durationSeconds?: number},
+        options?: {key?: unknown; durationSeconds?: number; pendingPromise?: Promise<unknown>},
     ) => void;
+    readonly hasInfoToastWithKey: (key: unknown) => boolean;
 };
 
 export const ReporterContext = createContext<ReporterWithoutContext | null>(null);

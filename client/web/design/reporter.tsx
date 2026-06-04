@@ -31,6 +31,9 @@ const reporterForTest: Reporter | null = import.meta.jest
           showInfoToast: () => {
               throw new UnimplementedError("Can\u2019t show toast in test");
           },
+          hasInfoToastWithKey: () => {
+              return false;
+          },
       })
     : null;
 

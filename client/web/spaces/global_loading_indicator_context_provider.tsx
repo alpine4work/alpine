@@ -9,6 +9,7 @@ import {
     mergeManyGlobalLoadingIndicators,
 } from "~/client/web/spaces/global_loading_indicator_types.js";
 import {GlobalLoadingIndicatorContext} from "~/client/web/spaces/internal/global_loading_indicator_context.js";
+import {addGlobalSavingIndicatorPromise} from "~/client/web/spaces/internal/global_saving_indicator_context.js";
 import {spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -111,6 +112,9 @@ export function GlobalLoadingIndicatorContextProvider({
         // It's expected that the caller of this function will deal with rejections from
         // the provided promise.
         promise.then(remove, remove);
+
+        // Keep track of all saving indicators on the page.
+        if (indicator.type === "Saving") addGlobalSavingIndicatorPromise(promise);
     }, []);
 
     const indicator = indicatorState.mergedIndicator;
