@@ -89,6 +89,7 @@ import {
     ErrorBase,
     FailedPreconditionError,
     InvalidArgumentError,
+    NotFoundError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
@@ -1391,8 +1392,20 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
         request.event.viewingTarget &&
         !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
     ) {
-        const {data} = await getApiMention(tracer, request.apiClient, request.event.viewingTarget);
-        newViewingTarget = data.mention;
+        const mentionResult = await captureResultPromise(
+            getApiMention(tracer, request.apiClient, request.event.viewingTarget),
+        );
+
+        // Some `viewingTarget`s can't be resolved by `/{type}/{id}/mention` (most notably
+        // 1:1 chats, including the user's chat with the agent itself), which the API
+        // returns as a 404. Context injection is best-effort, so skip it rather than
+        // failing the whole webhook.
+        if (!mentionResult.ok) {
+            if (mentionResult.error instanceof NotFoundError) return;
+            throw mentionResult.error;
+        }
+
+        newViewingTarget = mentionResult.value.data.mention;
     }
 
     const previousEntity = currentlyViewingTargetState?.target ?? null;

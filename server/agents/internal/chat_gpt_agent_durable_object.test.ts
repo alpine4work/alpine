@@ -23,7 +23,7 @@ import {
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -3674,6 +3674,41 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
                 },
                 previousTarget: previousTarget,
             });
+        });
+    });
+
+    test("skips injection without throwing when the mention API returns 404", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const unresolvableChatId = generateId<ChatId>();
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Chat", id: unresolvableChatId},
+            },
+        });
+
+        jest.spyOn(apiClient, "get").mockRejectedValueOnce(new NotFoundError("API request failed"));
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
         });
     });
 });
