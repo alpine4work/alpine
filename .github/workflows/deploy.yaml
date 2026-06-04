@@ -94,10 +94,12 @@ jobs:
 
             # We build `//server/deploy/script` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
+            # We manually re-enable building runfile links here because we directly invoke
+            # the output binary which requires runfiles symlinks.
             - name: Build artifacts
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch --build_runfile_links
 
             - name: Collect sourcemaps
               continue-on-error: true
