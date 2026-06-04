@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/immer",
+        "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
         "//shared/api/markdown",
         "//shared/api/specification",
