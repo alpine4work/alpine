@@ -213,10 +213,10 @@ export class Database {
 
         capi.sqlite3_set_authorizer(
             this.db.pointer!,
-            (_cbArg: WasmPointer, actionCode: number, arg3: string | null) => {
+            (_cbArg: WasmPointer, actionCode: number, actionArg: string | null) => {
                 const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) return capi.SQLITE_DENY;
-                return isSqliteActionAllowed(action, arg3, this.writeLevel)
+                return isSqliteActionAllowed(action, actionArg, this.writeLevel)
                     ? capi.SQLITE_OK
                     : capi.SQLITE_DENY;
             },
