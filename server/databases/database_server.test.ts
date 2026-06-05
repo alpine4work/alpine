@@ -2,11 +2,9 @@
 
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import type {DatabaseBufferedWrites} from "~/shared/databases/database.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -152,46 +150,6 @@ describe("DatabaseServer — storage failure recovery", () => {
         expect(() =>
             server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"}),
         ).not.toThrow();
-    });
-});
-
-describe("DatabaseServer — truncate-only changed pages", () => {
-    test("changedPages includes a table whose only buffered change is a truncate", async () => {
-        const storage = new InMemoryStorage();
-        const server = await DatabaseServer.create(storage);
-        openServers.push(server);
-        server.execute("CREATE TABLE items (id INTEGER PRIMARY KEY)", {
-            allowWrites: "schema+data",
-        });
-
-        // A truncate-only table (buffered truncate, zero
-        // buffered page writes) is unreachable via SQL today —
-        // SQLite always rewrites the header page alongside any
-        // shrink — so inject one into the buffer to exercise
-        // the contract `_persistAndBuildResult` documents:
-        // "touched tables = ... plus every table with a
-        // buffered truncate (which can change file size
-        // without buffered pages)".
-        const {database} = server as unknown as {
-            database: {getBufferedWrites(): DatabaseBufferedWrites | null};
-        };
-        const realGetBufferedWrites = database.getBufferedWrites.bind(database);
-        const truncateOnlyTableId = generateChronologicalId<DatabaseTableId>();
-        import.meta.jest.spyOn(database, "getBufferedWrites").mockImplementation(() => {
-            const buffered = realGetBufferedWrites();
-            if (buffered === null) return null;
-            const truncates = new Map(buffered.truncates);
-            const fileSizesInPages = new Map(buffered.fileSizesInPages);
-            truncates.set(truncateOnlyTableId, 0);
-            fileSizesInPages.set(truncateOnlyTableId, 0);
-            return {pages: buffered.pages, truncates, fileSizesInPages};
-        });
-
-        const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
-
-        // The truncate-only table's shrunk size must be
-        // surfaced so the realtime layer can broadcast it.
-        expect(result.changedPages.get(truncateOnlyTableId)?.fileSizeInPages).toBe(0);
     });
 });
 

@@ -209,11 +209,27 @@ export class DatabaseServer {
 
         // Capture the pre-mutation `before` image for every
         // buffered page from storage *before* draining.
-        // Touched tables = every table with a buffered page
-        // write, plus every table with a buffered truncate
-        // (which can change file size without buffered pages).
+        //
+        // `changedPages` is built from `buffered.pages` only,
+        // so a table with a buffered truncate but no buffered
+        // page write would be dropped from the realtime
+        // broadcast (its shrunk `fileSizeInPages` never sent).
+        // That can't happen today: SQLite rewrites a low page
+        // (the header / change counter) on every transaction
+        // that also truncates, so every truncated table also
+        // has a buffered page write. Assert that invariant
+        // rather than handle a truncate-only table that no SQL
+        // path can currently produce — if this ever fires, the
+        // build-from-`pages`-only logic below needs to fold in
+        // `buffered.truncates` too.
         const changedPages: DatabaseServerChangedPages = new Map();
         if (buffered !== null) {
+            for (const tableId of buffered.truncates.keys()) {
+                assert(
+                    buffered.pages.has(tableId),
+                    `truncate-only table ${tableId} would be dropped from changedPages`,
+                );
+            }
             for (const [tableId, tablePages] of buffered.pages) {
                 const pages = new Map<number, DatabaseServerPageChange>();
                 for (const [pageIndex, after] of tablePages) {
