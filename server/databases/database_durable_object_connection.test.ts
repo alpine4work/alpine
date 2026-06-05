@@ -322,6 +322,22 @@ describe("per-browser page tracking", () => {
         expect(tracker.clientMightHavePage(browserId, bogusTableId, 0)).toBe(false);
     });
 
+    test("acknowledgePages ignores page indexes the server never sent", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // The server sent only page 0. A client acks page 0
+        // plus a never-sent index; the unsent page must not be
+        // tracked — otherwise an untrusted client can grow the
+        // per-browser page map with out-of-range indexes.
+        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0]]]));
+        await acknowledgePages(conn, [0, 999]);
+
+        expect(tracker.clientMightHavePage(browserId, databaseMainTableId, 999)).toBe(false);
+    });
+
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         writePagesFor(

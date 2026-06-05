@@ -89,17 +89,19 @@ export class BrowserPageTracker {
 
     /**
      * Mark pages as confirmed. Called when the client
-     * acknowledges receiving pages. If a page was
-     * pending, it is promoted to confirmed.
+     * acknowledges receiving pages. A pending page is
+     * promoted to confirmed.
      *
-     * The `pagesByTable` keys come from untrusted client
-     * input, so this only confirms pages for tables the
-     * server has already tracked for this browser (via
-     * {@link setPages} / {@link addPendingPages}). Tables
-     * with no existing entry are ignored — a client can't
-     * acknowledge pages it was never sent, and must not be
-     * able to grow the per-browser page map with fabricated
-     * table ids.
+     * Both the table ids and page indexes come from
+     * untrusted client input, so an acknowledgement can
+     * only confirm pages the server has *already sent* this
+     * browser — i.e. pages already present (pending or
+     * confirmed) under a table the tracker knows (seeded by
+     * {@link setPages} / {@link addPendingPages}). Unknown
+     * tables and never-sent page indexes are ignored: a
+     * client can't acknowledge pages it was never sent, and
+     * must not be able to grow the per-browser page map with
+     * fabricated table ids or out-of-range indexes.
      */
     addPages(
         browserId: BrowserId,
@@ -111,7 +113,9 @@ export class BrowserPageTracker {
             const tablePages = entry.pages.get(tableId);
             if (tablePages === undefined) continue;
             for (const idx of indexes) {
-                tablePages.set(idx, "confirmed");
+                if (tablePages.has(idx)) {
+                    tablePages.set(idx, "confirmed");
+                }
             }
         }
     }

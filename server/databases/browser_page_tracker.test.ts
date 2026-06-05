@@ -192,6 +192,9 @@ describe("BrowserPageTracker", () => {
         tracker.registerConnection(b, cid());
 
         tracker.setPages(b, singleTableIndexes(t, [0]));
+        // The server sends pages 1 and 2 before the client
+        // can acknowledge them.
+        tracker.addPendingPages(b, singleTableIndexes(t, [1, 2]));
         tracker.addPages(b, singleTableArray(t, [1, 2]));
 
         const pages = singleTable(t, [
@@ -204,6 +207,21 @@ describe("BrowserPageTracker", () => {
 
         expect(filtered.get(t)?.size).toBe(1);
         expect(filtered.get(t)?.has(3)).toBe(true);
+    });
+
+    test("addPages ignores page indexes that were never sent", () => {
+        const tracker = new BrowserPageTracker();
+        const b = bid();
+        const t = tid();
+        tracker.registerConnection(b, cid());
+
+        // Only page 0 was ever sent (pending). A client that
+        // acknowledges an unsent index must not add it — that
+        // would let untrusted input grow the page map.
+        tracker.addPendingPages(b, singleTableIndexes(t, [0]));
+        tracker.addPages(b, singleTableArray(t, [0, 999]));
+
+        expect(tracker.clientMightHavePage(b, t, 999)).toBe(false);
     });
 
     test("addPages promotes pending pages to confirmed", () => {
