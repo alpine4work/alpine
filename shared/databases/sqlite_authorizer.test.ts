@@ -30,10 +30,11 @@ beforeEach(() => {
     // code path rather than the pure function in isolation.
     sqlite3.capi.sqlite3_set_authorizer(
         db.pointer!,
-        (_cbArg: WasmPointer, actionCode: number) => {
+        (_cbArg: WasmPointer, actionCode: number, actionArg: string | 0) => {
             const action = sqliteAuthorizerActionName(actionCode);
             if (action === undefined) return sqlite3.capi.SQLITE_DENY;
-            return isSqliteActionAllowed(action, writeLevel)
+            const arg = typeof actionArg === "string" ? actionArg : null;
+            return isSqliteActionAllowed(action, arg, writeLevel)
                 ? sqlite3.capi.SQLITE_OK
                 : sqlite3.capi.SQLITE_DENY;
         },

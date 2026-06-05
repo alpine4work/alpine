@@ -213,10 +213,14 @@ export class Database {
 
         capi.sqlite3_set_authorizer(
             this.db.pointer!,
-            (_cbArg: WasmPointer, actionCode: number, actionArg: string | null) => {
+            (_cbArg: WasmPointer, actionCode: number, actionArg: string | 0) => {
                 const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) return capi.SQLITE_DENY;
-                return isSqliteActionAllowed(action, actionArg, this.writeLevel)
+                // SQLite passes the C null pointer (`0`) when an
+                // action has no string argument; normalize to
+                // `null` for the authorizer.
+                const arg = typeof actionArg === "string" ? actionArg : null;
+                return isSqliteActionAllowed(action, arg, this.writeLevel)
                     ? capi.SQLITE_OK
                     : capi.SQLITE_DENY;
             },
