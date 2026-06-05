@@ -7,6 +7,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
     EDGE_SERVICE_URL: "https://test.cyberworlds.com",
+    HONEYCOMB_WEBHOOK_SECRET: "test-honeycomb-secret",
 };
 
 const originalEnv = process.env;
@@ -102,6 +103,58 @@ describe("HoneycombAlertSource", () => {
         ...overrides,
     });
 
+    describe("authorization", () => {
+        test("returns an error when the webhook secret is not configured", () => {
+            delete process.env.HONEYCOMB_WEBHOOK_SECRET;
+
+            const authorization = new HoneycombAlertSource({
+                body: "{}",
+                headers: {"x-honeycomb-webhook-token": "test-honeycomb-secret"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 500,
+                error: "HONEYCOMB_WEBHOOK_SECRET environment variable is not set",
+            });
+        });
+
+        test("returns an error when the token does not match", () => {
+            const authorization = new HoneycombAlertSource({
+                body: "{}",
+                headers: {"x-honeycomb-webhook-token": "wrong-secret"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid token",
+            });
+        });
+
+        test("returns an error when the token is missing", () => {
+            const authorization = new HoneycombAlertSource({
+                body: "{}",
+                headers: {},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid token",
+            });
+        });
+
+        test("validates a matching token", () => {
+            const authorization = new HoneycombAlertSource({
+                body: "{}",
+                headers: {"x-honeycomb-webhook-token": "test-honeycomb-secret"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({ok: true});
+        });
+    });
+
     test("triggered alert", async () => {
         const payload = createHoneycombFixture({
             alert: {
@@ -185,6 +238,71 @@ describe("HoneycombAlertSource", () => {
                 description: "Staging environment issue",
                 status: "triggered",
                 summary: "Error in staging",
+                isTest: false,
+            },
+        });
+
+        await handleHoneycombPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("ignores resolved event alert", async () => {
+        const payload = createHoneycombFixture({
+            isEvent: "TRUE",
+            alert: {
+                instanceId: "event-instance-ok",
+                description: "Resolved event alert",
+                status: "OK",
+                summary: "Event alert returned to normal",
+                isTest: false,
+            },
+        });
+
+        await handleHoneycombPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("treats numeric isEvent as an event alert", async () => {
+        const payload = createHoneycombFixture({
+            name: "Deploy Marker",
+            isEvent: "1",
+            description: "Deploy marker detected",
+            alert: {
+                instanceId: "event-instance-numeric",
+                description: "Deploy marker event triggered",
+                status: "triggered",
+                summary: "Deploy marker fired",
+                isTest: false,
+            },
+        });
+
+        await handleHoneycombPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("falls back to the Honeycomb channel for unsupported channel names", async () => {
+        const payload = createHoneycombFixture({
+            channel: "unknown-channel",
+        });
+
+        await handleHoneycombPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("uses the neutral emoji for unknown trigger statuses", async () => {
+        const payload = createHoneycombFixture({
+            alert: {
+                instanceId: "alert-instance-weird-status",
+                description: "Database status is neither triggered nor ok",
+                status: "degraded",
+                summary: "Database status is degraded",
                 isTest: false,
             },
         });

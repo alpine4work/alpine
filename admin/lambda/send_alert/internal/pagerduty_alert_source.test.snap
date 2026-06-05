@@ -22,6 +22,26 @@ Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng
 "
 `;
 
+exports[`PagerDutyAlertSource renders unknown incident status with missing optional fields 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## ℹ️ Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`escalated\`</mark>
+
+Service: Unknown
+
+Priority: \`Unknown\` • Urgency: \`high\`
+
+Incident Type: \`Unknown\`
+
+Created: \`2023-11-10T10:00:00Z\`
+"
+`;
+
 exports[`PagerDutyAlertSource resolved incident 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: qt3xsqhh2fed7t8fyqnbfw0m3g

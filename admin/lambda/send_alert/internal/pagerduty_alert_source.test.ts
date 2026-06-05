@@ -1,3 +1,4 @@
+import {createHmac} from "crypto";
 import {PagerDutyAlertSource} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source_types.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
@@ -7,6 +8,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
     EDGE_SERVICE_URL: "https://test.cyberworlds.com",
+    PAGERDUTY_WEBHOOK_SECRET: "test-pagerduty-secret",
 };
 
 const originalEnv = process.env;
@@ -49,6 +51,12 @@ function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): st
 Channel: ${body.channelId}
 
 ${markdown}`;
+}
+
+function createPagerDutySignature(body: string, webhookSecret = "test-pagerduty-secret"): string {
+    const hmac = createHmac("sha256", webhookSecret);
+    hmac.update(body);
+    return `v1=${hmac.digest("hex")}`;
 }
 
 async function handlePagerDutyPayload(data: PagerDutyEventPayload): Promise<void> {
@@ -139,6 +147,86 @@ describe("PagerDutyAlertSource", () => {
         ...overrides,
     });
 
+    describe("authorization", () => {
+        test("returns an error when the webhook secret is not configured", () => {
+            delete process.env.PAGERDUTY_WEBHOOK_SECRET;
+
+            const authorization = new PagerDutyAlertSource({
+                body: "{}",
+                headers: {"x-pagerduty-signature": createPagerDutySignature("{}")},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 500,
+                error: "PAGERDUTY_WEBHOOK_SECRET environment variable is not set",
+            });
+        });
+
+        test("returns an error when no v1 signature is present", () => {
+            const authorization = new PagerDutyAlertSource({
+                body: "{}",
+                headers: {"x-pagerduty-signature": "v2=signature"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the signature is missing", () => {
+            const authorization = new PagerDutyAlertSource({
+                body: "{}",
+                headers: {},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the body is missing", () => {
+            const authorization = new PagerDutyAlertSource({
+                headers: {"x-pagerduty-signature": createPagerDutySignature("{}")},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the signature length does not match", () => {
+            const authorization = new PagerDutyAlertSource({
+                body: "{}",
+                headers: {"x-pagerduty-signature": "v1=short"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("validates a matching signature after an invalid signature", () => {
+            const body = "{}";
+            const authorization = new PagerDutyAlertSource({
+                body,
+                headers: {
+                    "x-pagerduty-signature": `v1=${"0".repeat(64)}, ${createPagerDutySignature(body)}`,
+                },
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({ok: true});
+        });
+    });
+
     test("triggered incident", async () => {
         const payload = createPagerDutyFixture();
 
@@ -176,6 +264,52 @@ describe("PagerDutyAlertSource", () => {
                     // force it for this test
                     status: "resolved",
                     resolve_reason: "Database connection pool was restarted and issue resolved",
+                },
+            },
+        });
+
+        await handlePagerDutyPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("ignores non-incident event data", async () => {
+        const payload = createPagerDutyFixture({
+            event: {
+                ...createPagerDutyFixture().event,
+                event_type: "service.updated",
+                resource_type: "service",
+                data: {
+                    html_url: "https://cyberworlds.pagerduty.com/services/database-service",
+                    id: "service-db-123",
+                    self: "https://api.pagerduty.com/services/service-db-123",
+                    summary: "Database Service",
+                    alert_creation: "create_alerts_and_incidents",
+                    teams: [],
+                    type: "service",
+                },
+            },
+        });
+
+        await handlePagerDutyPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("renders unknown incident status with missing optional fields", async () => {
+        const payload = createPagerDutyFixture({
+            event: {
+                ...createPagerDutyFixture().event,
+                event_type: "incident.escalated",
+                data: {
+                    ...createPagerDutyFixture().event.data,
+                    // @ts-expect-error: Status only exists on incident data.
+                    status: "escalated",
+                    service: null,
+                    priority: null,
+                    incident_type: null,
+                    assignees: [],
                 },
             },
         });

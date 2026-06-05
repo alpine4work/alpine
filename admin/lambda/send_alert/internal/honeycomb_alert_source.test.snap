@@ -24,6 +24,18 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 "
 `;
 
+exports[`HoneycombAlertSource falls back to the Honeycomb channel for unsupported channel names 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+"
+`;
+
 exports[`HoneycombAlertSource resolved alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
@@ -52,11 +64,35 @@ Environment: staging
 "
 `;
 
+exports[`HoneycombAlertSource treats numeric isEvent as an event alert 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ℹ️ Event: Deploy Marker
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*Deploy marker detected*
+"
+`;
+
 exports[`HoneycombAlertSource triggered alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 
 ## 🚨 Trigger: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+"
+`;
+
+exports[`HoneycombAlertSource uses the neutral emoji for unknown trigger statuses 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ℹ️ Trigger: Database Connection Error
 
 [View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
 

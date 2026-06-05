@@ -21,6 +21,66 @@ function createRequest(headers: Record<string, string>): AlertSourceRequest {
     };
 }
 
+const emptyKnownHeaderCases: Array<{
+    name: string;
+    headers: Record<string, string>;
+    sourceClass:
+        | typeof PagerDutyAlertSource
+        | typeof HoneycombAlertSource
+        | typeof GitHubAlertSource;
+}> = [
+    {
+        name: "PagerDuty",
+        headers: {"x-pagerduty-signature": ""},
+        sourceClass: PagerDutyAlertSource,
+    },
+    {
+        name: "Honeycomb",
+        headers: {"x-honeycomb-webhook-token": ""},
+        sourceClass: HoneycombAlertSource,
+    },
+    {
+        name: "GitHub",
+        headers: {"x-hub-signature-256": ""},
+        sourceClass: GitHubAlertSource,
+    },
+];
+
+const multipleSourceHeaderCases: Array<{
+    name: string;
+    headers: Record<string, string>;
+}> = [
+    {
+        name: "PagerDuty and Honeycomb headers",
+        headers: {
+            "x-pagerduty-signature": "v1=signature",
+            "x-honeycomb-webhook-token": "token",
+        },
+    },
+    {
+        name: "PagerDuty and GitHub headers",
+        headers: {
+            "x-pagerduty-signature": "v1=signature",
+            "x-hub-signature-256": "sha256=signature",
+        },
+    },
+    {
+        name: "Honeycomb and GitHub headers",
+        headers: {
+            "x-honeycomb-webhook-token": "token",
+            "x-hub-signature-256": "sha256=signature",
+        },
+    },
+    {
+        name: "all source headers",
+        headers: {
+            "x-pagerduty-signature": "v1=signature",
+            "x-honeycomb-webhook-token": "token",
+            "x-hub-signature-256": "sha256=signature",
+        },
+    },
+];
+
 describe("AlertSourceFactory", () => {
     test("creates PagerDuty alert source", () => {
         const alertSource = AlertSourceFactory.create(
@@ -46,21 +106,27 @@ describe("AlertSourceFactory", () => {
         expect(alertSource).toBeInstanceOf(GitHubAlertSource);
     });
 
+    test.each(emptyKnownHeaderCases)(
+        "creates $name source for empty known header value",
+        ({headers, sourceClass}) => {
+            const alertSource = AlertSourceFactory.create(createRequest(headers));
+
+            expect(alertSource).toBeInstanceOf(sourceClass);
+        },
+    );
+
     test("creates unsupported alert source for unknown headers", () => {
         const alertSource = AlertSourceFactory.create(createRequest({}));
 
         expect(alertSource).toBeInstanceOf(UnsupportedAlertSource);
     });
 
-    test("creates unsupported alert source for multiple source headers", () => {
-        const alertSource = AlertSourceFactory.create(
-            createRequest({
-                "x-pagerduty-signature": "v1=signature",
-                "x-honeycomb-webhook-token": "token",
-                "x-hub-signature-256": "sha256=signature",
-            }),
-        );
+    test.each(multipleSourceHeaderCases)(
+        "creates unsupported alert source for $name",
+        ({headers}) => {
+            const alertSource = AlertSourceFactory.create(createRequest(headers));
 
-        expect(alertSource).toBeInstanceOf(UnsupportedAlertSource);
-    });
+            expect(alertSource).toBeInstanceOf(UnsupportedAlertSource);
+        },
+    );
 });

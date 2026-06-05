@@ -1,3 +1,4 @@
+import {createHmac} from "crypto";
 import {GitHubAlertSource} from "~/admin/lambda/send_alert/internal/github_alert_source.js";
 import {
     GitHubEventPayload,
@@ -11,6 +12,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
     EDGE_SERVICE_URL: "https://test.cyberworlds.com",
+    GITHUB_ACTIONS_WEBHOOK_SECRET: "test-github-secret",
 };
 
 const originalEnv = process.env;
@@ -53,6 +55,12 @@ function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): st
 Channel: ${body.channelId}
 
 ${markdown}`;
+}
+
+function createGitHubSignature(body: string, webhookSecret = "test-github-secret"): string {
+    const hmac = createHmac("sha256", webhookSecret);
+    hmac.update(body);
+    return `sha256=${hmac.digest("hex")}`;
 }
 
 async function handleGitHubPayload(data: GitHubEventPayload): Promise<void> {
@@ -660,6 +668,84 @@ describe("GitHubAlertSource", () => {
         };
     };
 
+    describe("authorization", () => {
+        test("returns an error when the webhook secret is not configured", () => {
+            delete process.env.GITHUB_ACTIONS_WEBHOOK_SECRET;
+
+            const authorization = new GitHubAlertSource({
+                body: "{}",
+                headers: {"x-hub-signature-256": createGitHubSignature("{}")},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 500,
+                error: "GITHUB_ACTIONS_WEBHOOK_SECRET environment variable is not set",
+            });
+        });
+
+        test("returns an error when the signature is missing", () => {
+            const authorization = new GitHubAlertSource({
+                body: "{}",
+                headers: {},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the body is missing", () => {
+            const authorization = new GitHubAlertSource({
+                headers: {"x-hub-signature-256": createGitHubSignature("{}")},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the signature length does not match", () => {
+            const authorization = new GitHubAlertSource({
+                body: "{}",
+                headers: {"x-hub-signature-256": "sha256=short"},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("returns an error when the signature value does not match", () => {
+            const authorization = new GitHubAlertSource({
+                body: "{}",
+                headers: {"x-hub-signature-256": `sha256=${"0".repeat(64)}`},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({
+                ok: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            });
+        });
+
+        test("validates a matching signature", () => {
+            const body = "{}";
+            const authorization = new GitHubAlertSource({
+                body,
+                headers: {"x-hub-signature-256": createGitHubSignature(body)},
+            }).validateAuthorization();
+
+            expect(authorization).toEqual({ok: true});
+        });
+    });
+
     test("build failure", async () => {
         const payload = createGitHubFixture({
             workflow_run: {
@@ -742,6 +828,42 @@ describe("GitHubAlertSource", () => {
 
         expect(mockFetchCalls).toHaveLength(1);
         expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("ignores workflow run from another branch", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                head_branch: "some-feature-branch",
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("ignores workflow run action that is not completed", async () => {
+        const payload = createGitHubFixture({
+            action: "requested",
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("ignores workflow run conclusion that is not failure", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "success",
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
     });
 
     test("push to main with multiple commits", async () => {
@@ -832,9 +954,34 @@ describe("GitHubAlertSource", () => {
         expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
     });
 
+    test("push uses the first line of a multiline commit message", async () => {
+        const payload = createGitHubPushFixture({
+            commits: [
+                createGitHubPushCommitFixture({
+                    message: "Add source edge tests\n\nKeep the body out of the alert.",
+                }),
+            ],
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
     test("ignores push to another branch", async () => {
         const payload = createGitHubPushFixture({
             ref: "refs/heads/some-feature-branch",
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("ignores deleted push to main", async () => {
+        const payload = createGitHubPushFixture({
+            deleted: true,
         });
 
         await handleGitHubPayload(payload);
@@ -851,5 +998,17 @@ describe("GitHubAlertSource", () => {
         await handleGitHubPayload(payload);
 
         expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("ignores unsupported GitHub event type", async () => {
+        const result = await new GitHubAlertSource({
+            body: "{}",
+            headers: {"x-github-event": "issues"},
+        }).handlePayload({});
+
+        expect({result, fetchCalls: mockFetchCalls.length}).toEqual({
+            result: {ok: true},
+            fetchCalls: 0,
+        });
     });
 });

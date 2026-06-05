@@ -98,3 +98,19 @@ Repository: [app](https://github.com/cyberworlds/cyberworlds) • Pushed by Josh
 </pre>
 "
 `;
+
+exports[`GitHubAlertSource push uses the first line of a multiline commit message 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+1 commit pushed to \`main\`
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Pushed by Josh
+
+<pre>
+<code class="language-text">
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> Add source edge tests by Josh
+</code>
+</pre>
+"
+`;

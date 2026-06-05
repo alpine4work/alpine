@@ -18,18 +18,16 @@ export class AlertSourceFactory {
             return new UnsupportedAlertSource(request);
         }
 
-        if (headers["x-pagerduty-signature"]) {
-            return new PagerDutyAlertSource(request);
+        const sourceHeader = sourceHeaders[0]!;
+        switch (sourceHeader) {
+            case "x-pagerduty-signature":
+                return new PagerDutyAlertSource(request);
+            case "x-honeycomb-webhook-token":
+                return new HoneycombAlertSource(request);
+            case "x-hub-signature-256":
+                return new GitHubAlertSource(request);
+            default:
+                return new UnsupportedAlertSource(request);
         }
-
-        if (headers["x-honeycomb-webhook-token"]) {
-            return new HoneycombAlertSource(request);
-        }
-
-        if (headers["x-hub-signature-256"]) {
-            return new GitHubAlertSource(request);
-        }
-
-        return new UnsupportedAlertSource(request);
     }
 }
