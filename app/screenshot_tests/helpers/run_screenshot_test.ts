@@ -103,6 +103,25 @@ class ScreenshotRunner {
         return this.#services;
     }
 
+    /**
+     * Drain all background processing (e.g. inbox notification processing) to a fixed
+     * point so subsequent reads (loaders, the inbox badge, etc.) see a deterministic
+     * state.
+     *
+     * A single `waitForTestTasks()` + `waitForSqsProcessJobs()` pass isn't enough:
+     * `waitForSqsProcessJobs()` only watches the job queue, but processing a job can
+     * register `waitUntil()` tasks that enqueue follow-up jobs _after_ the queue
+     * momentarily empties — so the job drain can return before everything settles. We
+     * alternate the two drains until a job-queue drain leaves no pending tasks, which
+     * means no further jobs can be enqueued.
+     */
+    async drainBackgroundWork(): Promise<void> {
+        do {
+            await ProcessContextModule.waitForTestTasks();
+            await this.#services.waitForSqsProcessJobs();
+        } while (ProcessContextModule.hasPendingTestTasks());
+    }
+
     createDemoSpace(context: TestContext) {
         // Can only create one demo space because we use `stableRandom` to generate stable
         // `Id`s across screenshot test runs. The means there's only one possible `SpaceId`
@@ -335,12 +354,10 @@ class ScreenshotRunner {
 
         const page = this.#requirePage();
 
-        // Make sure we wait for any background processing (e.g. inbox notification
-        // processing) before taking the screenshot.
-        await ProcessContextModule.waitForTestTasks();
-
-        // Wait for `JobQueueService` to process all pending jobs from the SQS job queue.
-        await this.#services.waitForSqsProcessJobs();
+        // Make sure we drain all background processing (e.g. inbox notification
+        // processing) to a fixed point before taking the screenshot so the captured state
+        // is deterministic.
+        await this.drainBackgroundWork();
 
         for (const colorScheme of ["light", "dark"]) {
             // MacOS file systems are case insensitive so encode our order key in binary then
@@ -515,12 +532,10 @@ class ScreenshotRunner {
             "Must call `runner.goto(...)` with `allowPauseNetwork: true` before pausing the network",
         );
 
-        // Make sure we wait for any background processing (e.g. inbox notification
-        // processing) before taking the screenshot.
-        await ProcessContextModule.waitForTestTasks();
-
-        // Wait for `JobQueueService` to process all pending jobs from the SQS job queue.
-        await this.#services.waitForSqsProcessJobs();
+        // Make sure we drain all background processing (e.g. inbox notification
+        // processing) to a fixed point before taking the screenshot so the captured state
+        // is deterministic.
+        await this.drainBackgroundWork();
 
         // Wait for any images on the page to load before we pause all network requests.
         await pageState.page.evaluate("dev.files && dev.files.waitForImagePreviewContentsToLoad()");
@@ -551,6 +566,7 @@ export type ScreenshotTestRunner = Pick<
     | "testName"
     | "services"
     | "stableRandom"
+    | "drainBackgroundWork"
     | "createDemoSpace"
     | "page"
     | "mouse"

@@ -11,6 +11,7 @@ import {
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -642,5 +643,62 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
             peekPath: `/s/${space.id}/documents/${duplicateDocument.id}/duplicate?${duplicateSearchParams.toString()}`,
         });
         await runner.screenshot("aA", "duplicate");
+    }
+
+    {
+        const oldDocumentAccessPolicy = await document.access.get();
+        assert(oldDocumentAccessPolicy.type === "Local");
+
+        // Open the peek against `/dev/empty` so the background is plain and the screenshot
+        // focuses on the document peek under test rather than whatever's happening on the
+        // surrounding space route.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: `/s/${space.id}/documents/${document.id}`,
+        });
+        await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aB", "document-peek");
+
+        // Same peek, scrolled — the nav bar reveals the entity title once the user moves
+        // past the in-content header. With a site present that's also when the supratitle
+        // / chip in the nav bar starts carrying the site context.
+        await runner.getByTestId("DocumentContentEditorMain").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aC", "document-peek-scrolled");
+
+        const peekSite = await TestSite.create(accounts.cassCade, {
+            name: "FY2026 H2 Planning",
+            access: "Public",
+        });
+
+        await peekSite.addEntity(accounts.cassCade, {
+            entityId: `Document:${document.id}`,
+            parentId: peekSite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: `/s/${space.id}/documents/${document.id}`,
+        });
+        await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aD", "document-peek-in-site");
+
+        // Same peek, scrolled — the nav bar reveals the entity title once the user moves
+        // past the in-content header. With a site present that's also when the supratitle
+        // / chip in the nav bar starts carrying the site context.
+        await runner.getByTestId("DocumentContentEditorMain").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aE", "document-peek-in-site-scrolled");
+
+        await peekSite.removeEntity(accounts.cassCade, `Document:${document.id}`);
+        await document.access.set(accounts.cassCade, oldDocumentAccessPolicy);
     }
 }

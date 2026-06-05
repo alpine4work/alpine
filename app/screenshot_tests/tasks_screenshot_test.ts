@@ -184,7 +184,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     });
     await runner.screenshot("a6", "task");
 
-    await createSprintTasksAndBugTasks(accounts, collections);
+    const {featuredBugTask} = await createSprintTasksAndBugTasks(accounts, collections);
     await waitForTaskIndex();
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/view`, {
@@ -448,6 +448,294 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                 },
             },
         );
+    }
+
+    {
+        // Task peek previews (project task)
+        const projectTaskOldAccessPolicy = await projectTask.access.get();
+        assert(projectTaskOldAccessPolicy.type === "Local");
+
+        // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
+        // screenshot focuses on the entity peek under test rather than whatever's on the
+        // inbox page.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/${projectTask.id}`,
+        });
+        await runner.getByText("Tables").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b00", "project-task-peek");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b00S", "project-task-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "FY2026 Q3 Projects",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `Task:${projectTask.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/${projectTask.id}`,
+        });
+        await runner.getByText("Tables").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b01", "project-task-peek-in-site");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b01S", "project-task-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `Task:${projectTask.id}`);
+        await projectTask.access.set(accounts.cassCade, projectTaskOldAccessPolicy);
+    }
+
+    {
+        // Task peek previews (regular task)
+        const featuredBugTaskOldAccessPolicy = await featuredBugTask.access.get();
+        assert(featuredBugTaskOldAccessPolicy.type === "Local");
+
+        // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
+        // screenshot focuses on the entity peek under test rather than whatever's on the
+        // inbox page.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/${featuredBugTask.id}`,
+        });
+        await runner
+            .getByText("App crashes if user has deleted a previously-favorited task")
+            .first()
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b02", "regular-task-peek");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b02S", "regular-task-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "Incidents and Corrections of Error (COE)",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `Task:${featuredBugTask.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/${featuredBugTask.id}`,
+        });
+        await runner
+            .getByText("App crashes if user has deleted a previously-favorited task")
+            .first()
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b03", "regular-task-peek-in-site");
+
+        // Same peek, scrolled — once the in-page header scrolls out the nav bar takes over
+        // the entity title (and the supratitle / chip carries the site).
+        await runner.getByTestId("TaskDetailScrollView").evaluate(element => {
+            element.scrollTop = 400;
+        });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b03S", "regular-task-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `Task:${featuredBugTask.id}`);
+        await featuredBugTask.access.set(accounts.cassCade, featuredBugTaskOldAccessPolicy);
+    }
+
+    {
+        // Collections peek
+        const oldBugsCollectionAccessPolicy = await collections.bugs.access.get();
+        assert(oldBugsCollectionAccessPolicy.type === "Local");
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04", "task-collection-peek");
+
+        // Double click the collection name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        await runner.getByPlaceholder("Bugs").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E1", "task-collection-peek-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E2", "task-collection-peek-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E3", "task-collection-peek-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Bugs")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E4", "task-collection-peek-name-editor-filled-long-name");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04E5", "task-collection-peek-name-editor-confirm-save-long-name");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip + name + actions) stays
+        // anchored at the top while the task list scrolls beneath it.
+        await runner
+            .getByTestId("TaskCollectionScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 300;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b04S", "task-collection-peek-scrolled");
+
+        const site = await TestSite.create(accounts.cassCade, {
+            name: "Operational Excellence",
+            access: "Public",
+        });
+
+        await site.addEntity(accounts.cassCade, {
+            entityId: `TaskCollection:${collections.bugs.id}`,
+            parentId: site.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: sprintScreenshotTime,
+            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+        });
+        await runner.getByText("Bugs").first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05", "task-collection-peek-in-site");
+
+        // Double click the collection name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        await runner.getByPlaceholder("Bugs").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05E1", "task-collection-peek-in-site-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05E2", "task-collection-peek-in-site-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05E3", "task-collection-peek-in-site-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        await runner
+            .getByTestId("PeekStackOverlay")
+            .getByRole("heading", {name: "Bugs"})
+            .dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Bugs")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot(
+            "b05E4",
+            "task-collection-peek-in-site-name-editor-filled-long-name",
+        );
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("TaskCollectionScrollView").first().click();
+        await runner.getByText("Save collection name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot(
+            "b05E5",
+            "task-collection-peek-in-site-name-editor-confirm-save-long-name",
+        );
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip + name + actions) stays
+        // anchored at the top while the task list scrolls beneath it.
+        await runner
+            .getByTestId("TaskCollectionScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 300;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("b05S", "task-collection-peek-in-site-scrolled");
+
+        await site.removeEntity(accounts.cassCade, `TaskCollection:${collections.bugs.id}`);
+        await collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy);
     }
 }
 
@@ -1132,6 +1420,88 @@ async function createSprintTasksAndBugTasks(
         collections: bugs,
         priority: "Low",
     });
+    const featuredBugTask = await TestTask.create(accounts.cassCade, {
+        title: "App crashes if user has deleted a previously-favorited task",
+        collections: bugs,
+        priority: "Urgent",
+        dueDate: new CalendarDate(2025, 10, 10),
+        assignee: accounts.elleKappaTan,
+        notes: markdown`
+We noticed a significant rise in app crashes after refactoring our search logic. This is blocking a
+large number of users from using the App.
+        `,
+        status: "Open",
+        assigneeStatus: "Active",
+    });
+
+    {
+        await TestTask.create(accounts.cassCade, {
+            title: "Triage / Root Cause",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "Hot Fix",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "Schedule COE",
+            parent: featuredBugTask,
+            assignee: accounts.cassCade,
+            status: "Closed",
+        });
+
+        await TestTask.create(accounts.cassCade, {
+            title: "5 Why\u2019s",
+            parent: featuredBugTask,
+            assignee: accounts.elleKappaTan,
+            assigneeStatus: "Active",
+        });
+    }
+
+    await featuredBugTask.createComment(
+        accounts.cassCade,
+        markdown`
+I split this into the incident lane: triage, hot fix, COE, then 5 Why\u2019s. Let\u2019s keep the
+root cause tight and avoid turning the COE into a whole second project.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T09:16:00-04:00")},
+    );
+
+    await featuredBugTask.createComment(
+        accounts.elleKappaTan,
+        markdown`
+root cause is a bad assumption that all tasks in the index have a title.
+
+the search refactor asserted that assumption to make \u201Cimpossible cases actually
+impossible\u201D, but we missed that a null title is a valid state.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T09:31:00-04:00")},
+    );
+
+    const featuredBugTaskComment = await featuredBugTask.createComment(
+        accounts.hollyEvergreen,
+        markdown`
+Once the hot fix is out, send me the support-facing wording. I can fold it into the help center note
+so affected teams know refresh + retry is enough.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T10:04:00-04:00")},
+    );
+    await featuredBugTaskComment.setReaction(accounts.cassCade, "Yes");
+
+    await featuredBugTask.createComment(
+        accounts.cassCade,
+        markdown`
+Hot fix is live and the COE is on the calendar. Leaving 5 Why\u2019s active until we have the
+customer-impact count and know why the deleted-task fixture missed favorites.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T14:22:00-04:00")},
+    );
 
     await TestTask.create(accounts.cassCade, {
         title: "Slash menu opens on every keystroke after backslash",
@@ -1219,4 +1589,6 @@ async function createSprintTasksAndBugTasks(
         collections: bugs,
         priority: "Medium",
     });
+
+    return {featuredBugTask};
 }

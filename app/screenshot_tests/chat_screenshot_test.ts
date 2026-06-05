@@ -7,6 +7,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
@@ -111,27 +112,26 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.screenshot("a7", "message-reactions");
     }
 
+    const incidentResponseRoomChat = await TestChat.createRoom(accounts.cassCade, {
+        id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "roomChat"),
+        name: "Incident Response",
+        access: "Public",
+    });
     {
-        const roomChat = await TestChat.createRoom(accounts.cassCade, {
-            id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, "roomChat"),
-            name: "Incident Response",
-            access: "Public",
-        });
+        await createRoomChatMessages(incidentResponseRoomChat, accounts, runner);
 
-        await createRoomChatMessages(roomChat, accounts, runner);
-
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${roomChat.id}`, {
+        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${incidentResponseRoomChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a8", "room");
 
-        await roomChat.roomAccess.grantUrl(accounts.cassCade);
-        await runner.goto(null, `/s/${space.id}/chat/${roomChat.id}`);
+        await incidentResponseRoomChat.roomAccess.grantUrl(accounts.cassCade);
+        await runner.goto(null, `/s/${space.id}/chat/${incidentResponseRoomChat.id}`);
         await runner.getByRole("heading", {name: "Incident Response"}).waitFor();
         await runner.getByText("No, the doc is doing its job").waitFor();
         await runner.screenshot("a9", "room-url-grant");
 
-        const oldRoomAccessPolicy = await roomChat.roomAccess.get();
+        const oldRoomAccessPolicy = await incidentResponseRoomChat.roomAccess.get();
         assert(oldRoomAccessPolicy.type === "Local");
 
         // Screenshot the room standalone and inside a site (showing the site breadcrumb).
@@ -141,13 +141,23 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             name: "Realtime Reliability",
             access: "Public",
         });
-        await screenshotFileEntity(runner, accounts.cassCade, "a9", "aA", `Chat:${roomChat.id}`, {
-            siteOptions: {
-                site: reliabilitySite,
-                revertAccessPolicy: () =>
-                    roomChat.roomAccess.set(accounts.cassCade, oldRoomAccessPolicy),
+        await screenshotFileEntity(
+            runner,
+            accounts.cassCade,
+            "a9",
+            "aA",
+            `Chat:${incidentResponseRoomChat.id}`,
+            {
+                siteOptions: {
+                    site: reliabilitySite,
+                    revertAccessPolicy: () =>
+                        incidentResponseRoomChat.roomAccess.set(
+                            accounts.cassCade,
+                            oldRoomAccessPolicy,
+                        ),
+                },
             },
-        });
+        );
     }
 
     await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
@@ -174,6 +184,155 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             element.scrollTop = 0;
         });
         await runner.screenshot("aC", "chat-loading");
+    }
+
+    {
+        const oldIncidentResponseRoomChatAccessPolicy =
+            await incidentResponseRoomChat.roomAccess.get();
+
+        // Open the peek against `/dev/empty` so the background is plain and the screenshot
+        // focuses on the chat peek under test.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: new Date("2025-10-02T21:00:00Z"),
+            peekPath: `/s/${space.id}/chat/${incidentResponseRoomChat.id}`,
+        });
+        await runner.getByRole("heading", {name: "Incident Response"}).first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aD", "chat-peek");
+
+        // Double click the room name to open the inline name editor. Wait for the editor
+        // input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
+        await runner
+            .getByPlaceholder("Incident Response")
+            .and(runner.page.locator(":focus"))
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDE1", "chat-peek-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Incident Response").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDE2", "chat-peek-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("MessagingScrollView").first().click();
+        await runner.getByText("Save chat name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDE3", "chat-peek-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
+
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Incident Response")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDE4", "chat-peek-name-editor-filled-long-name");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("MessagingScrollView").first().click();
+        await runner.getByText("Save chat name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDE5", "chat-peek-name-editor-confirm-save-name");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
+
+        await runner
+            .getByTestId("MessagingScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 200;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aDS", "chat-peek-scrolled");
+
+        const surveySite = await TestSite.create(accounts.cassCade, {
+            name: "Operational Excellence",
+            access: "Public",
+        });
+        await surveySite.addEntity(accounts.cassCade, {
+            entityId: `Chat:${incidentResponseRoomChat.id}`,
+            parentId: surveySite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await runner.services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            fixedTime: new Date("2025-10-02T21:00:00Z"),
+            peekPath: `/s/${space.id}/chat/${incidentResponseRoomChat.id}`,
+        });
+        await runner.getByRole("heading", {name: "Incident Response"}).first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aE", "chat-peek-in-site");
+
+        // Double click the room name to open the inline name editor. Wait for the editor
+        // input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
+        await runner
+            .getByPlaceholder("Incident Response")
+            .and(runner.page.locator(":focus"))
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aEE1", "chat-peek-in-site-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Incident Response").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aEE2", "chat-peek-in-site-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("MessagingScrollView").first().click();
+        await runner.getByText("Save chat name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aEE3", "chat-peek-in-site-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
+
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Incident Response")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aEE4", "chat-peek-in-site-name-editor-filled-long-name");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("MessagingScrollView").first().click();
+        await runner.getByText("Save chat name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aEE5", "chat-peek-in-site-name-editor-confirm-save-name");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip + name + actions) stays
+        // anchored at the top while the message list scrolls beneath it.
+        await runner
+            .getByTestId("MessagingScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 200;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aF", "chat-peek-in-site-scrolled");
+
+        await surveySite.removeEntity(accounts.cassCade, `Chat:${incidentResponseRoomChat.id}`);
+        assert(oldIncidentResponseRoomChatAccessPolicy.type === "Local");
+        await incidentResponseRoomChat.roomAccess.set(
+            accounts.cassCade,
+            oldIncidentResponseRoomChatAccessPolicy,
+        );
     }
 }
 

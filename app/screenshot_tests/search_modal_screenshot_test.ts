@@ -18,20 +18,31 @@ import {ChatId} from "~/shared/id/types/id_types.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
+// TODO(#sites-not-blocking): Change this suite to be less focused on peek views
+// for every entity type and more focused on the search product.
 /**
- * Screenshots the search modal showing a result of every entity type. The standout
- * case is the `Site` entity: a site's preview is determined by its "first entity",
- * so we seed six sites — one per possible first entity (`null`, a project task, a
- * task, a channel, a document, and a task collection) — and capture how each one
- * renders.
+ * Screenshots the search modal showing each result type in two states:
+ *
+ * 1. **Without a site** — each entity exists standalone, so its peek preview reads
+ *    the way it always has (no site breadcrumb chip above the title).
+ * 2. **In a site** — we then add each entity to a site, re-index, and reshoot the
+ *    same queries so the peek preview shows the `[Site name] ›` chip above the
+ *    title.
+ *
+ * The standout case is the `Site` entity itself: a site's preview is determined by
+ * its "first entity", so the second pass also captures one site per possible first
+ * entity (`null`, a project task, a task, a channel, a chat, a document, and a
+ * task collection). Since every result entity becomes the first entity of its
+ * newly-attached site, those site previews are a natural by-product of the second
+ * pass.
  *
  * Each screenshot is a single search: we type a query, then tab down through the
  * results with `ArrowDown` until the intended entity is selected so its preview
  * renders in the peek pane on the right. We use a distinct query per result so the
  * content can be realistic instead of sharing one artificial keyword.
  *
- * Site-contained entities are created as Cass (the demo perspective and the site
- * owner); assignees and message authors carry the real ownership.
+ * Entities are created as Cass (the demo perspective and the site owner);
+ * assignees and message authors carry the real ownership.
  */
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);
@@ -48,48 +59,20 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await context.jobs.sendAndWait({type: "IndexSearchEntity", spaceId: space.id, update});
     }
 
-    // --- Sites (one per possible "first entity") ----------------------------
+    // ========================================================================
+    // Standalone entities (no site membership yet).
+    //
+    // Everything below is created without a site so the first screenshot pass shows
+    // the peek preview without a breadcrumb chip. Pass 2 below adds each entity to a
+    // site via `addEntityToSite`, which also flips the access policy of documents,
+    // channels, and chats to `type: "Site"` along the way.
+    // ========================================================================
 
-    const documentSite = await TestSite.create(accounts.cassCade, {
-        name: "Realtime Reliability",
-        access: "Public",
-    });
-    const taskSite = await TestSite.create(accounts.cassCade, {
-        name: "Enterprise SSO",
-        access: "Public",
-    });
-    const projectTaskSite = await TestSite.create(accounts.cassCade, {
-        name: "Editor Roadmap",
-        access: "Public",
-    });
-    const channelSite = await TestSite.create(accounts.cassCade, {
-        name: "Launches",
-        access: "Public",
-    });
-    const collectionSite = await TestSite.create(accounts.cassCade, {
-        name: "Hiring",
-        access: "Public",
-    });
-    // First entity stays `null` — a hub Matt just spun up for his next editor project
-    // before adding any pages.
-    const emptySite = await TestSite.create(accounts.cassCade, {
-        name: "Image Galleries",
-        access: "Public",
-    });
-
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    // --- Document (first entity of `documentSite`) --------------------------
+    // --- Document ------------------------------------------------------------
 
     const document = await TestDocument.create(accounts.cassCade, {
         title: "Reconnection backoff design notes",
-        access: {type: "Site", siteId: documentSite.id},
-        sitePosition: {
-            siteId: documentSite.id,
-            parentId: documentSite.initialRootContainerId,
-            orderKey: initialOrderKey,
-        },
+        access: "Public",
         body: markdown`
 Goal: stop the reconnect storm after a deploy. When an instance restarts every client reconnects at
 the same instant and knocks it over before it has warmed up.
@@ -107,7 +90,7 @@ instance over 70% CPU during a rolling deploy.
         `,
     });
 
-    // --- Task (first entity of `taskSite`) ----------------------------------
+    // --- Task ----------------------------------------------------------------
 
     const task = await TestTask.create(accounts.cassCade, {
         title: "Acme Corp blocked on SSO. Need an ETA",
@@ -119,13 +102,8 @@ Acme won\u2019t expand past the pilot without SAML. They asked for a rough quart
 ETA I can take back to them without overpromising.
         `,
     });
-    await taskSite.addEntity(accounts.cassCade, {
-        entityId: `Task:${task.id}`,
-        parentId: taskSite.initialRootContainerId,
-        orderKey: initialOrderKey,
-    });
 
-    // --- Project task (first entity of `projectTaskSite`) -------------------
+    // --- Project task --------------------------------------------------------
 
     const projectTask = await TestTask.create(accounts.cassCade, {
         title: "Tables in the rich text editor",
@@ -163,28 +141,16 @@ a column resizing story the whole team can live with. Targeting the October 15 s
         assignee: accounts.mattRHorn,
         status: "Closed",
     });
-    await projectTaskSite.addEntity(accounts.cassCade, {
-        entityId: `Task:${projectTask.id}`,
-        parentId: projectTaskSite.initialRootContainerId,
-        orderKey: initialOrderKey,
-    });
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    // --- Channel (first entity of `channelSite`) ----------------------------
+    // --- Channel + posts -----------------------------------------------------
 
     const channel = await TestChannel.create(accounts.cassCade, {
         name: "Tables launch",
+        access: "Public",
         description: markdown`
 Coordination for shipping tables: release notes, the forum announcement, the help doc, and demo
 updates. **Target ship is October 15**. Keep everything customer-facing in here.
         `,
-        access: {
-            type: "Site",
-            siteId: channelSite.id,
-            position: {parentId: channelSite.initialRootContainerId, orderKey: initialOrderKey},
-        },
     });
     await channel.createPost(
         accounts.hollyEvergreen,
@@ -217,10 +183,7 @@ who asked for tables. Good excuse to check back in.
         {overrideCreatedTime: new Date("2025-10-16T09:15:00-06:00")},
     );
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    // --- Task collection (first entity of `collectionSite`) -----------------
+    // --- Task collection -----------------------------------------------------
 
     const collection = await TestTaskCollection.create(accounts.cassCade, {
         name: "Senior backend hire",
@@ -279,16 +242,8 @@ who asked for tables. Good excuse to check back in.
         assignee: accounts.elleKappaTan,
         collections: collection,
     });
-    await collectionSite.addEntity(accounts.cassCade, {
-        entityId: `TaskCollection:${collection.id}`,
-        parentId: collectionSite.initialRootContainerId,
-        orderKey: initialOrderKey,
-    });
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    // --- Chat (standalone room) ---------------------------------------------
+    // --- Chat room -----------------------------------------------------------
 
     const chat = await TestChat.createRoom(accounts.cassCade, {
         // Pin the chat ID so the account-pile preview (seeded by `Chat:${chatId}`) is
@@ -343,10 +298,7 @@ yeah I can live with that
         {overrideCreatedTime: new Date("2025-10-06T10:24:00-05:00")},
     );
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    // --- Post (standalone, in a channel we don't index) ---------------------
+    // --- Post (in a channel we don't index — posts can't be added to sites) --
 
     const engineeringChannel = await TestChannel.create(accounts.cassCade, {
         name: "Engineering",
@@ -369,11 +321,10 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
-    // --- Index everything we want to surface, then refresh ------------------
+    // --- Index the standalone entities --------------------------------------
     //
-    // Sites are indexed last so each one's `firstEntityId` reflects the entity we just
-    // added. The `Engineering` channel is intentionally left out so the only result
-    // for the post is the post itself.
+    // The `Engineering` channel is intentionally left unindexed so the only result for
+    // the post is the post itself.
 
     await index({type: "Document", documentId: document.id, updatedTraits: {type: "None"}});
     await index({type: "Task", taskId: task.id, updatedTraits: {type: "None"}});
@@ -387,17 +338,6 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
     await index({type: "Chat", chatId: chat.id, updatedTraits: {type: "None"}});
     await index({type: "Post", postId: post.id, updatedTraits: {type: "None"}});
 
-    for (const site of [
-        documentSite,
-        taskSite,
-        projectTaskSite,
-        channelSite,
-        collectionSite,
-        emptySite,
-    ]) {
-        await index({type: "Site", siteId: site.id, updatedTraits: {type: "None"}});
-    }
-
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
@@ -410,17 +350,23 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
-    // --- Open the search modal and walk through the results -----------------
+    // ======================================================================== Pass 1:
+    // each result, without a site.
     //
-    // Each search reopens the modal from a fresh page. A freshly opened modal has no
-    // selected result, so pressing `ArrowDown` once reliably selects the first result.
-    // (Reusing one modal across searches lets a previous selection carry over and land
-    // `ArrowDown` on the wrong result.)
+    // A freshly opened modal has no selected result, so pressing `ArrowDown` once
+    // reliably selects the first result. Reusing one modal across searches lets a
+    // previous selection carry over and land `ArrowDown` on the wrong result, so
+    // `searchAndScreenshot` reopens the modal every time.
+    // ========================================================================
 
+    // Empty: a fresh modal with no query typed yet — sidebar shows recent / suggested
+    // results and the peek pane is blank.
     await openSearchModal(runner, accounts.cassCade, space.id);
     await runner.screenshot("a0", "empty");
 
-    // One of each entity type.
+    // One rich-result shot: a typed query, several matches in the sidebar, and a long
+    // document peek that fills the right-hand pane so the search-modal layout
+    // (sidebar + peek + chrome) reads in context.
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "reconnection backoff",
         resultText: "Reconnection backoff design notes",
@@ -428,96 +374,206 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
         orderKey: "a1",
         name: "result-document",
     });
-    await searchAndScreenshot(runner, accounts.cassCade, space.id, {
-        query: "Acme Corp",
-        resultText: "Acme Corp blocked on SSO. Need an ETA",
-        peekText: "Acme Corp blocked on SSO. Need an ETA",
-        orderKey: "a2",
-        name: "result-task",
-    });
-    await searchAndScreenshot(runner, accounts.cassCade, space.id, {
-        query: "Tables launch",
-        resultText: "Tables launch",
-        peekText: "Tables launch",
-        orderKey: "a3",
-        name: "result-channel",
-    });
-    await searchAndScreenshot(runner, accounts.cassCade, space.id, {
-        query: "Column resizing",
-        resultText: "Column resizing",
-        peekText: "hold Alt for smooth",
-        orderKey: "a4",
-        name: "result-chat",
-    });
-    await searchAndScreenshot(runner, accounts.cassCade, space.id, {
-        query: "Senior backend hire",
-        resultText: "Senior backend hire",
-        peekText: "Senior backend hire",
-        orderKey: "a5",
-        name: "result-task-collection",
-    });
+
+    // Posts only appear in search results — they can't be added to a site, so a
+    // dedicated `posts_screenshot_test` would have nothing else to show. Keep one here
+    // so the post preview UX still has visual coverage.
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Reconnection storms",
         resultText: "Reconnection storms after every deploy",
         peekText: "thundering herd",
-        orderKey: "a6",
+        orderKey: "a2",
         name: "result-post",
     });
 
-    // The six site previews, by first entity.
+    // ======================================================================== Add
+    // each entity to a site.
+    //
+    // `TestSite.addEntity` invokes the canonical `addEntityToSite` action, which also
+    // updates the access policy of documents, channels, and chats to `type: "Site"`
+    // along the way. Each site is named after the universe theme its first entity
+    // belongs to; `emptySite` (Image Galleries) intentionally stays empty for the
+    // "first entity = null" preview below.
+    // ========================================================================
+
+    const documentSite = await TestSite.create(accounts.cassCade, {
+        name: "Realtime Reliability",
+        access: "Public",
+    });
+    const taskSite = await TestSite.create(accounts.cassCade, {
+        name: "Enterprise SSO",
+        access: "Public",
+    });
+    const projectTaskSite = await TestSite.create(accounts.cassCade, {
+        name: "Editor Roadmap",
+        access: "Public",
+    });
+    const channelSite = await TestSite.create(accounts.cassCade, {
+        name: "Launches",
+        access: "Public",
+    });
+    const chatSite = await TestSite.create(accounts.cassCade, {
+        name: "Editor interaction audit",
+        access: "Public",
+    });
+    const collectionSite = await TestSite.create(accounts.cassCade, {
+        name: "Hiring initiatives",
+        access: "Public",
+    });
+    // First entity stays `null` — a hub Matt just spun up for his next editor project
+    // before adding any pages.
+    const emptySite = await TestSite.create(accounts.cassCade, {
+        name: "Image Galleries",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
+    await documentSite.addEntity(accounts.cassCade, {
+        entityId: `Document:${document.id}`,
+        parentId: documentSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+    await taskSite.addEntity(accounts.cassCade, {
+        entityId: `Task:${task.id}`,
+        parentId: taskSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+    await projectTaskSite.addEntity(accounts.cassCade, {
+        entityId: `Task:${projectTask.id}`,
+        parentId: projectTaskSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+    await channelSite.addEntity(accounts.cassCade, {
+        entityId: `Channel:${channel.id}`,
+        parentId: channelSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+    await chatSite.addEntity(accounts.cassCade, {
+        entityId: `Chat:${chat.id}`,
+        parentId: chatSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+    await collectionSite.addEntity(accounts.cassCade, {
+        entityId: `TaskCollection:${collection.id}`,
+        parentId: collectionSite.initialRootContainerId,
+        orderKey: initialOrderKey,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
+    // --- Re-index each entity (its `siteId` changed) and the sites ----------
+    //
+    // Sites are indexed last so each one's `firstEntityId` reflects the entity we just
+    // added.
+
+    await index({type: "Document", documentId: document.id, updatedTraits: {type: "None"}});
+    await index({type: "Task", taskId: task.id, updatedTraits: {type: "None"}});
+    await index({type: "Task", taskId: projectTask.id, updatedTraits: {type: "None"}});
+    await index({type: "Channel", channelId: channel.id, updatedTraits: {type: "None"}});
+    await index({type: "Chat", chatId: chat.id, updatedTraits: {type: "None"}});
+    await index({
+        type: "TaskCollection",
+        collectionId: collection.id,
+        updatedTraits: {type: "None"},
+    });
+
+    for (const site of [
+        documentSite,
+        taskSite,
+        projectTaskSite,
+        channelSite,
+        chatSite,
+        collectionSite,
+        emptySite,
+    ]) {
+        await index({type: "Site", siteId: site.id, updatedTraits: {type: "None"}});
+    }
+
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // The site-add actions can land their own loud notifications in Cass's inbox.
+    // Clear them so the nav-rail badge stays deterministically absent.
+    await clearAccountInbox(accounts.cassCade);
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
+    // ======================================================================== Pass 2:
+    // Site results (`Site` is unique to the search modal — its preview is whatever its
+    // `firstEntityId` resolves to, so each variation tests the picker path).
+    //
+    // The seven site previews, by first entity — first entity = none, document, task,
+    // project task, channel, chat, task collection.
+    // ========================================================================
+
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Image Galleries",
         resultText: "Image Galleries",
         peekText: "Start building Image Galleries",
-        orderKey: "a7",
+        orderKey: "aE",
         name: "site-first-entity-none",
     });
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Realtime Reliability",
         resultText: "Realtime Reliability",
         peekText: "Reconnection backoff design notes",
-        orderKey: "a8",
+        orderKey: "aF",
         name: "site-first-entity-document",
     });
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Enterprise SSO",
         resultText: "Enterprise SSO",
         peekText: "Acme Corp blocked on SSO. Need an ETA",
-        orderKey: "a9",
+        orderKey: "aG",
         name: "site-first-entity-task",
     });
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Editor Roadmap",
         resultText: "Editor Roadmap",
         peekText: "Tables in the rich text editor",
-        orderKey: "aA",
+        orderKey: "aH",
         name: "site-first-entity-project-task",
     });
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
         query: "Launches",
         resultText: "Launches",
         peekText: "Tables launch",
-        orderKey: "aB",
+        orderKey: "aI",
         name: "site-first-entity-channel",
     });
     await searchAndScreenshot(runner, accounts.cassCade, space.id, {
-        query: "Hiring",
-        resultText: "Hiring",
+        query: "Editor interaction audit",
+        resultText: "Editor interaction audit",
+        peekText: "Column resizing",
+        orderKey: "aJ",
+        name: "site-first-entity-chat",
+    });
+    await searchAndScreenshot(runner, accounts.cassCade, space.id, {
+        query: "Hiring initiatives",
+        resultText: "Hiring initiatives",
         peekText: "Senior backend hire",
-        orderKey: "aC",
+        orderKey: "aK",
         name: "site-first-entity-task-collection",
     });
 }
 
 /**
  * Navigate to a fresh page and open the search modal via the sidebar button.
+ *
+ * Lands on `/dev/empty` so the page behind the modal is plain — the screenshot is
+ * about the search experience itself (sidebar of results + peek), not whatever
+ * happens to be on the inbox today.
  */
 async function openSearchModal(
     runner: ScreenshotTestRunner,
     session: Parameters<ScreenshotTestRunner["goto"]>[0],
     spaceId: string,
 ) {
-    await runner.goto(session, `/s/${spaceId}/inbox`);
+    await runner.goto(session, `/s/${spaceId}/dev/empty`);
     await runner.getByLabel("Search").first().click();
     await runner.getByTestId("SearchModal").waitFor();
 }

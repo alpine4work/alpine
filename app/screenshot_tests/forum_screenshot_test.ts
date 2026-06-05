@@ -8,6 +8,7 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
@@ -302,6 +303,147 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
             withExpectedScrollHeightChange: true,
         });
         await runner.screenshot("a7", "channel-loading");
+    }
+
+    // Screenshot a desktop peek of a channel both standalone and as part of a site, so
+    // we can compare the site breadcrumb chip directly. Uses a dedicated channel
+    // (separate from the "Craft" channel above) so the site framing doesn't affect
+    // earlier screenshots.
+    {
+        const oldChannelAccessPolicy = await channel.access.get();
+        assert(oldChannelAccessPolicy.type === "Local");
+
+        // Open the peek against `/dev/empty` so the background is plain and the screenshot
+        // focuses on the channel peek under test.
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: channelPath,
+        });
+        await runner.getByText("Craft").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8", "channel-peek");
+
+        // Double click the channel name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        await runner.getByPlaceholder("Craft").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E1", "channel-peek-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E2", "channel-peek-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E3", "channel-peek-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Craft")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E4", "channel-peek-name-editor-filled-long-name");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8E5", "channel-peek-name-editor-confirm-save-long-name");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        await runner
+            .getByTestId("PostListScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 400;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a8S", "channel-peek-scrolled");
+
+        const goToMarketSite = await TestSite.create(accounts.mattRHorn, {
+            name: "Design",
+            access: "Public",
+        });
+        await goToMarketSite.addEntity(accounts.mattRHorn, {
+            entityId: `Channel:${channel.id}`,
+            parentId: goToMarketSite.initialRootContainerId,
+            orderKey: initialOrderKey,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+        await services.waitForSqsProcessJobs();
+
+        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+            peekPath: channelPath,
+        });
+        await runner.getByText("Craft").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9", "channel-peek-in-site");
+
+        // Double click the channel name to open the inline name editor. Wait for the
+        // editor input to take focus so the focus ring and text selection are visible.
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        await runner.getByPlaceholder("Craft").and(runner.page.locator(":focus")).waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E1", "channel-peek-in-site-name-editor");
+
+        // Replace the name.
+        await runner.getByPlaceholder("Craft").fill("Lorem ipsum");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E2", "channel-peek-in-site-name-editor-filled");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E3", "channel-peek-in-site-name-editor-confirm-save");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").dblclick();
+        // Replace the name.
+        await runner
+            .getByPlaceholder("Craft")
+            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E4", "channel-peek-in-site-name-editor-filled-long-name");
+
+        // Click away. Losing focus asks for confirmation instead of saving silently.
+        await runner.getByTestId("PostListScrollView").first().click();
+        await runner.getByText("Save channel name").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("a9E5", "channel-peek-in-site-name-editor-confirm-save-long-name");
+
+        // Discard the new name so the rest of the screenshots see the original name.
+        await runner.getByRole("button", {name: "Discard name"}).click();
+        await runner.getByTestId("PeekStackOverlay").getByText("Craft").waitFor();
+
+        // Same peek, scrolled — verifies the grown nav bar (chip stacked above the channel
+        // name + bottom-aligned Subscribe / ⋮) holds while posts scroll past.
+        await runner
+            .getByTestId("PostListScrollView")
+            .first()
+            .evaluate(element => {
+                element.scrollTop = 400;
+            });
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA", "channel-peek-in-site-scrolled");
+
+        await goToMarketSite.removeEntity(accounts.mattRHorn, `Channel:${channel.id}`);
+        await channel.access.set(accounts.mattRHorn, oldChannelAccessPolicy);
     }
 }
 
