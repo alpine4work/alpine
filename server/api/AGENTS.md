@@ -71,3 +71,17 @@ serializer/parser pair that owns it.
 - Keep the API expressive enough that an external developer can rebuild Alpine's core product
   surfaces against it.
 - Treat response/write compatibility as a product requirement, not just an implementation detail.
+
+## Consistency
+
+Our API requires strong consistency. Data returned from the API should never be stale when compared
+to the writes the API just accepted.
+
+### Tasks and Task Collections
+
+When an API endpoint commits task or task collection actions through
+`commitTaskActionTransaction()`, pass `waitForProcessing: true`.
+
+This matters because the API path may read the task or collection back before the commit has fully
+finished. Without `waitForProcessing`, that follow-up read may hit `TaskRealtimeService` before it
+has observed the action transaction, which breaks the read-after-write behavior the API expects.

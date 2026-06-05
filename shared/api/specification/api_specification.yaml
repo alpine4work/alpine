@@ -1313,6 +1313,35 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskCollectionPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
@@ -3252,6 +3281,38 @@ components:
                     const: RemoveCollection
                 collectionId:
                     $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
+                - $ref: "#/components/schemas/TaskCollectionSetColorPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/TaskCollectionSetNamePatch"
+                    SetColor: "#/components/schemas/TaskCollectionSetColorPatch"
+
+        TaskCollectionSetNamePatch:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetName
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        TaskCollectionSetColorPatch:
+            type: object
+            required: [type, color]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetColor
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
 
         TaskStatus:
             oneOf:

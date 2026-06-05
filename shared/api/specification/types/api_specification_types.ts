@@ -2056,7 +2056,37 @@ export namespace ApiSpecification {
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
-            readonly patch?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskCollectionId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly patches: readonly components["schemas"]["TaskCollectionPatch"][];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly collection: components["schemas"]["TaskCollection"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly trace?: never;
         };
         readonly "/task-collections/{id}/mention": {
@@ -3275,6 +3305,25 @@ export namespace ApiSpecification {
                  */
                 readonly type: "RemoveCollection";
                 readonly collectionId: components["schemas"]["TaskCollectionId"];
+            };
+            readonly TaskCollectionPatch:
+                | components["schemas"]["TaskCollectionSetNamePatch"]
+                | components["schemas"]["TaskCollectionSetColorPatch"];
+            readonly TaskCollectionSetNamePatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetName";
+                readonly name: components["schemas"]["LabelString"];
+            };
+            readonly TaskCollectionSetColorPatch: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "SetColor";
+                readonly color: components["schemas"]["TaskCollectionColor"] | null;
             };
             readonly TaskStatus:
                 | components["schemas"]["TaskOpenStatus"]

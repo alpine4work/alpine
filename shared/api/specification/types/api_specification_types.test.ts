@@ -3,8 +3,10 @@ import {
     ApiContentMentionInlineElement,
     ApiContentTextInlineElement,
     ApiCreateDocumentRequestBody,
+    ApiCreateTaskCollectionRequestBody,
     ApiCreateTaskRequestBody,
     ApiGetDocumentResponse,
+    ApiGetTaskCollectionResponse,
     ApiGetTaskResponse,
     ApiMention,
     ApiMentionResponse,
@@ -54,6 +56,10 @@ test("ApiGetDocumentResponse is assignable to ApiCreateDocumentRequestBody", () 
 
 test("ApiGetTaskResponse is assignable to ApiCreateTaskRequestBody", () => {
     assertAssignableTypes<ApiGetTaskResponse, ApiCreateTaskRequestBody>();
+});
+
+test("ApiGetTaskCollectionResponse is assignable to ApiCreateTaskCollectionRequestBody", () => {
+    assertAssignableTypes<ApiGetTaskCollectionResponse, ApiCreateTaskCollectionRequestBody>();
 });
 
 test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable to `ContentTextInlineElement`", () => {

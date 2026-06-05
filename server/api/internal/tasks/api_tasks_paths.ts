@@ -14,6 +14,7 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
 import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
+import {updateTaskCollectionFromApi} from "~/server/api/internal/tasks/internal/update_task_collection_from_api.js";
 import {updateTaskFromApi} from "~/server/api/internal/tasks/internal/update_task_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {
@@ -584,6 +585,28 @@ export const apiTasksPaths: Pick<
     },
 
     "/task-collections/{id}": {
+        patch: async (context, {pathParameters, requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+            const collection = await updateTaskCollectionFromApi(context, {
+                spaceId,
+                collectionId: pathParameters.id,
+                patches: requestBody.patches,
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    collection: {
+                        id: collection.id,
+                        name: collection.getName(),
+                        color: collection.getColor()
+                            ? intoApiThemeColor(collection.getColor()!)
+                            : undefined,
+                    },
+                },
+            };
+        },
+
         get: async (context, {pathParameters}) => {
             const collection = await context.tasks.getCollection(
                 context.actor.getSpaceId(),

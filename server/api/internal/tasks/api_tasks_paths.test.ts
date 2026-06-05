@@ -1316,6 +1316,108 @@ test("can create a task collection with creator", async () => {
     });
 });
 
+test("can update a task collection name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Original Name",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/task-collections/${collection.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetName", name: "Updated Name"}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            collection: expect.objectContaining({
+                id: collection.id,
+                name: "Updated Name",
+            }),
+        }),
+    });
+});
+
+test("can update multiple task collection fields at once", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Original Name",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/task-collections/${collection.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [
+                {type: "SetName", name: "Updated Name"},
+                {type: "SetColor", color: "Purple"},
+            ],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            collection: expect.objectContaining({
+                id: collection.id,
+                name: "Updated Name",
+                color: "Purple",
+            }),
+        }),
+    });
+});
+
+test("can clear task collection color with null", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Colorful Collection",
+        access: "Public",
+        color: "blue",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/task-collections/${collection.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            patches: [{type: "SetColor", color: null}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            collection: expect.objectContaining({
+                id: collection.id,
+                name: "Colorful Collection",
+            }),
+        }),
+    });
+
+    expect(response.body.collection.color).toBeUndefined();
+});
 test("can read task collection information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});

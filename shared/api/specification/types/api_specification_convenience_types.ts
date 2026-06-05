@@ -333,3 +333,9 @@ export type ApiGetTaskResponse =
 
 export type ApiCreateTaskRequestBody =
     ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ApiGetTaskCollectionResponse =
+    ApiSpecification.paths["/task-collections/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+
+export type ApiCreateTaskCollectionRequestBody =
+    ApiSpecification.paths["/task-collections"]["post"]["requestBody"]["content"]["application/json"];
