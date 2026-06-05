@@ -16,11 +16,7 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
-import {
-    cacheUpdateStalePageLimit,
-    databaseMainTableId,
-    sqlitePageSize,
-} from "~/shared/databases/sqlite_constants.js";
+import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
@@ -128,78 +124,90 @@ export class DatabaseDurableObjectConnection {
             });
         },
         ensureCacheIsUpToDate: async (_context, input) => {
-            const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
-            const stalePageIndexes: Array<number> = [];
-            let overLimit = false;
-
-            const tableVersions =
-                input.pageVersionsByIndex.get(databaseMainTableId) ?? new Map<number, number>();
-
-            for (const [pageIndex, clientVersion] of tableVersions) {
-                const page = this._durableObjectStorage.readPage(databaseMainTableId, pageIndex);
-
-                // Page matches — skip.
-                if (page !== null && page.version === clientVersion) continue;
-
-                // Over limit, or page is gone — stale index.
-                if (overLimit || page === null) {
-                    stalePageIndexes.push(pageIndex);
-                    continue;
+            const tables = new Map<
+                DatabaseTableId,
+                {
+                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
+                    stalePageIndexes: Array<number>;
+                    fileSizeInPages: number;
                 }
+            >();
 
-                updatedPages.set(pageIndex, {version: page.version, data: page.data});
-                if (updatedPages.size >= cacheUpdateStalePageLimit) {
-                    // Too many stale pages to inline — dump
-                    // everything collected so far into
-                    // stalePageIndexes and stop reading data.
-                    for (const idx of updatedPages.keys()) {
-                        stalePageIndexes.push(idx);
+            // The tracker is partitioned by table, so validate
+            // every table the client sent — not just the main
+            // table — otherwise setPages below would wipe tracker
+            // state for any attached table omitted from the map.
+            const matchingPagesByTable = new Map<DatabaseTableId, Array<number>>();
+            const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
+
+            for (const [tableId, tableVersions] of input.pageVersionsByIndex) {
+                const updatedPages = new Map<number, {version: number; data: Uint8Array}>();
+                const stalePageIndexes: Array<number> = [];
+                let overLimit = false;
+
+                for (const [pageIndex, clientVersion] of tableVersions) {
+                    const page = this._durableObjectStorage.readPage(tableId, pageIndex);
+
+                    // Page matches — skip.
+                    if (page !== null && page.version === clientVersion) continue;
+
+                    // Over limit, or page is gone — stale index.
+                    if (overLimit || page === null) {
+                        stalePageIndexes.push(pageIndex);
+                        continue;
                     }
-                    updatedPages.clear();
-                    overLimit = true;
-                }
-            }
 
-            // Always include page 0 so the client has the schema.
-            if (!updatedPages.has(0)) {
-                const page0 = this._durableObjectStorage.readPage(databaseMainTableId, 0);
-                if (page0 !== null) {
-                    const clientVersion = tableVersions.get(0);
-                    if (clientVersion === undefined || clientVersion !== page0.version) {
-                        updatedPages.set(0, {version: page0.version, data: page0.data});
+                    updatedPages.set(pageIndex, {version: page.version, data: page.data});
+                    if (updatedPages.size >= cacheUpdateStalePageLimit) {
+                        // Too many stale pages to inline — dump
+                        // everything collected so far into
+                        // stalePageIndexes and stop reading data.
+                        for (const idx of updatedPages.keys()) {
+                            stalePageIndexes.push(idx);
+                        }
+                        updatedPages.clear();
+                        overLimit = true;
                     }
                 }
-            }
 
-            // Tell the tracker which pages the client
-            // already has valid copies of: all client pages
-            // minus those we're updating or marking stale.
-            const staleSet = new Set(stalePageIndexes);
-            const matchingPages: Array<number> = [];
-            for (const pageIndex of tableVersions.keys()) {
-                if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
-                    matchingPages.push(pageIndex);
+                // Always include page 0 so the client has the schema.
+                if (!updatedPages.has(0)) {
+                    const page0 = this._durableObjectStorage.readPage(tableId, 0);
+                    if (page0 !== null) {
+                        const clientVersion = tableVersions.get(0);
+                        if (clientVersion === undefined || clientVersion !== page0.version) {
+                            updatedPages.set(0, {version: page0.version, data: page0.data});
+                        }
+                    }
                 }
-            }
-            this._browserPageTracker.setPages(
-                this._browserId,
-                new Map([[databaseMainTableId, matchingPages]]),
-            );
 
-            if (updatedPages.size > 0) {
-                this._browserPageTracker.addPendingPages(
-                    this._browserId,
-                    new Map([[databaseMainTableId, updatedPages.keys()]]),
-                );
+                // Tell the tracker which pages the client
+                // already has valid copies of: all client pages
+                // minus those we're updating or marking stale.
+                const staleSet = new Set(stalePageIndexes);
+                const matchingPages: Array<number> = [];
+                for (const pageIndex of tableVersions.keys()) {
+                    if (!updatedPages.has(pageIndex) && !staleSet.has(pageIndex)) {
+                        matchingPages.push(pageIndex);
+                    }
+                }
+                matchingPagesByTable.set(tableId, matchingPages);
+
+                if (updatedPages.size > 0) {
+                    pendingPagesByTable.set(tableId, updatedPages.keys());
+                }
+
+                const fileSizeInPages =
+                    this._durableObjectStorage.getFileSize(tableId) / sqlitePageSize;
+                tables.set(tableId, {updatedPages, stalePageIndexes, fileSizeInPages});
             }
 
-            const fileSizeInPages =
-                this._durableObjectStorage.getFileSize(databaseMainTableId) / sqlitePageSize;
-            return {
-                tables: new Map([
-                    [databaseMainTableId, {updatedPages, stalePageIndexes, fileSizeInPages}],
-                ]),
-            };
+            this._browserPageTracker.setPages(this._browserId, matchingPagesByTable);
+            if (pendingPagesByTable.size > 0) {
+                this._browserPageTracker.addPendingPages(this._browserId, pendingPagesByTable);
+            }
+
+            return {tables};
         },
         acknowledgePages: async (_context, input) => {
             this._browserPageTracker.addPages(this._browserId, input.pageIndexes);

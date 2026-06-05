@@ -454,6 +454,41 @@ describe("per-browser page tracking", () => {
         expect(filtered.get(databaseMainTableId)?.has(8)).toBe(true);
     });
 
+    test("ensureCacheIsUpToDate confirms pages for every client table, not just the main table", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const attachedTableId = generateChronologicalId<DatabaseTableId>();
+        writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
+        writePagesFor(doStorage, attachedTableId, new Map([[0, makePage(0xbb)]]));
+        const mainVersion0 = doStorage.readPage(databaseMainTableId, 0)!.version;
+        const attachedVersion0 = doStorage.readPage(attachedTableId, 0)!.version;
+
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // The client validates pages for both its main table and
+        // an attached table in a single call. Both tables' matching
+        // pages must be confirmed in the tracker — validating the
+        // main table must not wipe the attached table's state.
+        await conn.procedures.ensureCacheIsUpToDate(
+            null as any,
+            {
+                pageVersionsByIndex: new Map([
+                    [databaseMainTableId, new Map([[0, mainVersion0]])],
+                    [attachedTableId, new Map([[0, attachedVersion0]])],
+                ]),
+            },
+            null as any,
+        );
+
+        // The attached table's matching page is confirmed, so
+        // filterReadPages skips it (returns nothing for that table).
+        const allPages = new Map([
+            [attachedTableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])],
+        ]);
+        expect(tracker.filterReadPages(browserId, allPages).size).toBe(0);
+    });
+
     test("handleClose unregisters connection from tracker", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
