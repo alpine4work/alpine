@@ -4,7 +4,10 @@ import {seedScreenshotTestBots} from "~/app/screenshot_tests/helpers/seed_screen
 import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/create/attempt_one_time_password_sign_up_then_create_space.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -26,13 +29,80 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     });
     const signUpEmailAddress = await signUpAccount.createEmailAddress("anthony.mose@example.com");
 
+    const inviteAcceptAccount = await TestAccount.create(context, {
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "inviteAcceptAccount"),
+        name: "alice@example.com",
+    });
+    const inviteAcceptEmailAddress =
+        await inviteAcceptAccount.createEmailAddress("alice@example.com");
     const {session: inviteAcceptSession} = await space.inviteEmailAddressAndCreateSession(
         accounts.cassCade,
-        "alice@example.com",
+        inviteAcceptEmailAddress,
     );
-    const {session: inviteRejectSession} = await space.inviteEmailAddressAndCreateSession(
-        accounts.cassCade,
-        "bob@example.com",
+
+    const minInviteSpace = await TestSpace.create(context, {
+        id: unsafelyGenerateStableId<SpaceId>(runner.stableRandom, "minInviteSpace"),
+        name: "Lorem Ipsum",
+    });
+    const minInviteInviterSession = await minInviteSpace.createSession({
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "minInviteInviter"),
+        name: "Dolor",
+        role: "Admin",
+    });
+    const minInviteAccount = await TestAccount.create(context, {
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "minInviteAccount"),
+        name: "Amet",
+    });
+    const minInviteEmailAddress = await minInviteAccount.createEmailAddress("amet+min@example.com");
+    const {session: minInviteSession} = await minInviteSpace.inviteEmailAddressAndCreateSession(
+        minInviteInviterSession,
+        minInviteEmailAddress,
+    );
+
+    const maxInviteSpace = await TestSpace.create(context, {
+        id: unsafelyGenerateStableId<SpaceId>(runner.stableRandom, "maxInviteSpace"),
+        name: "Lorem Ipsum",
+    });
+    const maxInviteInviterSession = await maxInviteSpace.createSession({
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "maxInviteInviter"),
+        name: "Dolor",
+        overrideCreatedTime: new Date("2026-01-01T00:00:00.000Z"),
+        role: "Admin",
+    });
+    const maxInviteMemberNames = [
+        "Test Account 1",
+        "Test Account 2",
+        "Test Account 3",
+        "Test Account 4",
+        "Test Account 5",
+        "Test Account 6",
+        "Test Account 7",
+        "Test Account 8",
+    ];
+
+    await runAllPromises(
+        maxInviteMemberNames.map((name, index) =>
+            maxInviteSpace.createSession({
+                id: unsafelyGenerateStableId<AccountId>(
+                    runner.stableRandom,
+                    `maxInviteMember${index}`,
+                ),
+                name,
+                overrideCreatedTime: new Date(
+                    `2026-01-${String(index + 2).padStart(2, "0")}T00:00:00.000Z`,
+                ),
+            }),
+        ),
+    );
+
+    const maxInviteAccount = await TestAccount.create(context, {
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "maxInviteAccount"),
+        name: "Amet",
+    });
+    const maxInviteEmailAddress = await maxInviteAccount.createEmailAddress("amet+max@example.com");
+    const {session: maxInviteSession} = await maxInviteSpace.inviteEmailAddressAndCreateSession(
+        maxInviteInviterSession,
+        maxInviteEmailAddress,
     );
 
     await runner.goto(null, `/auth/sign-in`);
@@ -74,7 +144,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         return oneTimePassword;
     });
 
-    const {sessionId, openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+    const {sessionId, open} = await attemptOneTimePasswordSignUpThenCreateSpace(
         context.unknownAnonymousAction(),
         {
             emailAddress: signUpEmailAddress,
@@ -93,11 +163,35 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     const signUpSession = await TestSession.get(context, sessionId);
 
-    await runner.goto(signUpSession, `/s/${openSpaceId}`);
+    assert(open.type === "ActiveSpace");
+    await runner.goto(signUpSession, `/s/${open.spaceId}`);
     await runner.screenshot("a7", "sign-up-space");
 
     await runner.goto(inviteAcceptSession, `/s/${space.id}/invite`);
     await runner.screenshot("a8", "invite");
+    await runner.getByRole("link", {name: "Report"}).click();
+    await runner.getByRole("alertdialog", {name: "Report spam?"}).waitFor();
+    await runner.screenshot("a8I", "invite-report-as-spam-modal");
+
+    await runner.goto(minInviteSession, `/s/${minInviteSpace.id}/invite`);
+    await runner.screenshot("a8a", "invite-min-accounts");
+
+    await runner.goto(maxInviteSession, `/s/${maxInviteSpace.id}/invite`);
+    await runner.screenshot("a8b", "invite-max-accounts");
+
+    await runner.goto(inviteAcceptSession, `/s/${space.id}/invite/accept?redirect=no`);
+    await runner.screenshot("a8c", "invite-accept");
+
+    const inviteRejectAccount = await TestAccount.create(context, {
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "inviteRejectAccount"),
+        name: "bob@example.com",
+    });
+    const inviteRejectEmailAddress =
+        await inviteRejectAccount.createEmailAddress("bob@example.com");
+    const {session: inviteRejectSession} = await space.inviteEmailAddressAndCreateSession(
+        accounts.cassCade,
+        inviteRejectEmailAddress,
+    );
 
     await runner.goto(inviteRejectSession, `/s/${space.id}/invite/reject-and-mark-as-spam`);
     await runner.screenshot("a9", "invite-reject-and-spam");

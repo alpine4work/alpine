@@ -254,6 +254,47 @@ test("can accept space invites via redirect", async ({browser, context: browserC
     await memberBrowser.close();
 });
 
+test("invite page switch spaces link opens switch space", async ({
+    browser,
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const ownerSession = await space.createSession({role: "Owner"});
+    const otherSpace = await TestSpace.create(context, {name: "Other Space"});
+
+    const memberAccount = await TestAccount.create(context);
+    const memberSession = await TestSession.create(memberAccount);
+    const memberEmailAddress = await memberAccount.createEmailAddress();
+    await otherSpace.addAccount(memberAccount);
+
+    await services.signIn(browserContext, ownerSession);
+    await page.goto(`/s/${space.id}/settings/people`);
+
+    const result = await inviteEmailAddressesAndGetResults(page, {
+        emailAddresses: [memberEmailAddress],
+        expectErrors: false,
+    });
+
+    expect(result.invitePendingEmails).toEqual([
+        // We truncate emails to 50 characters for account names
+        memberEmailAddress.substring(0, 50),
+    ]);
+
+    const memberBrowser = await browser.newContext();
+    await services.signIn(memberBrowser, memberSession);
+    const memberPage = await memberBrowser.newPage();
+    await memberPage.goto(`/s/${space.id}/invite`);
+
+    await memberPage.getByRole("link", {name: "Switch spaces"}).click();
+
+    await memberPage.waitForURL("**/switch-space");
+    await expect(memberPage.getByText("Switch space")).toBeVisible();
+    await expect(memberPage.getByText("Other Space")).toBeVisible();
+
+    await memberBrowser.close();
+});
+
 test("can reject space invites via email link", async ({
     browser,
     context: browserContext,
@@ -304,6 +345,50 @@ test("can reject space invites via email link", async ({
     await memberBrowser.close();
 });
 
+test("rejected invite page different space link opens switch space", async ({
+    browser,
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const ownerSession = await space.createSession({role: "Owner"});
+    const otherSpace = await TestSpace.create(context, {name: "Other Space"});
+
+    const memberAccount = await TestAccount.create(context);
+    const memberSession = await TestSession.create(memberAccount);
+    const memberEmailAddress = await memberAccount.createEmailAddress();
+    await otherSpace.addAccount(memberAccount);
+
+    await services.signIn(browserContext, ownerSession);
+    await page.goto(`/s/${space.id}/settings/people`);
+
+    const result = await inviteEmailAddressesAndGetResults(page, {
+        emailAddresses: [memberEmailAddress],
+        expectErrors: false,
+    });
+
+    expect(result.invitePendingEmails).toEqual([
+        // We truncate emails to 50 characters for account names
+        memberEmailAddress.substring(0, 50),
+    ]);
+
+    const memberBrowser = await browser.newContext();
+    await services.signIn(memberBrowser, memberSession);
+    const memberPage = await memberBrowser.newPage();
+    await memberPage.goto(`/s/${space.id}/invite/reject-and-mark-as-spam`);
+    await memberPage.waitForSelector(`[data-testid="RejectSpaceAccountInviteAsSpamCompleted"]`, {
+        state: "attached",
+    });
+
+    await memberPage.getByRole("link", {name: "different space"}).click();
+
+    await memberPage.waitForURL("**/switch-space");
+    await expect(memberPage.getByText("Switch space")).toBeVisible();
+    await expect(memberPage.getByText("Other Space")).toBeVisible();
+
+    await memberBrowser.close();
+});
+
 test("can reject space invites via redirect", async ({browser, context: browserContext, page}) => {
     const space = await TestSpace.create(context, {name: "Test Space"});
     const ownerSession = await space.createSession({role: "Owner"});
@@ -338,7 +423,9 @@ test("can reject space invites via redirect", async ({browser, context: browserC
 
     // Redirect to invite
     await memberPage.waitForURL(`**/s/${space.id}/invite?to=%2Fdocuments%2F${document.id}`);
-    await memberPage.getByRole("button", {name: `Report this invitation as spam`}).click();
+    await memberPage.getByRole("link", {name: "Report"}).click();
+    await expect(memberPage.getByRole("alertdialog", {name: "Report spam?"})).toBeVisible();
+    await memberPage.getByRole("button", {name: "Report"}).click();
     await memberPage.waitForSelector(`[data-testid="RejectSpaceAccountInviteAsSpamCompleted"]`, {
         state: "attached",
     });

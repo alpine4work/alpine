@@ -4,10 +4,13 @@ import {useEffect, useRef} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {FeedRouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
@@ -54,8 +57,10 @@ export default function InviteAcceptRoute() {
     const navigate = useNavigate();
     const appContext = useAppContext();
     const context = useSpaceContext();
+    const platform = usePlatform();
 
     const hasInitiallyMountedRef = useRef(false);
+    const hasSpaceLayoutSideBar = platform !== "mobile";
 
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -81,9 +86,39 @@ export default function InviteAcceptRoute() {
             //
             // Use strong consistency to make sure we don't error saying you're not authorized
             // because of eventual consistency lag right after accepting the invite
-            navigate(`/s/${context.space.id}?from=invite`);
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get("redirect") !== "no") {
+                navigate(`/s/${context.space.id}?from=invite`);
+            }
         });
     }, [appContext, context.space.id, navigate]);
 
-    return <FeedRouteShimmer />;
+    return (
+        <Box
+            width="full"
+            height="full"
+            overflow="hidden"
+            backgroundColor={
+                hasSpaceLayoutSideBar ? {light: "grey-1", dark: "grey-100-lowered"} : undefined
+            }
+            display="flex"
+            flexDirection="row"
+        >
+            {hasSpaceLayoutSideBar && (
+                <Box flexShrink="0" style={{width: spaceLayoutStyles.sideBarWidth}} />
+            )}
+            <Box
+                flexGrow="1"
+                overflow="hidden"
+                marginTop={hasSpaceLayoutSideBar ? "2" : undefined}
+                marginBottom={hasSpaceLayoutSideBar ? "2" : undefined}
+                marginRight={hasSpaceLayoutSideBar ? "2" : undefined}
+                backgroundColor="grey-0"
+                borderRadius={hasSpaceLayoutSideBar ? "1.5" : undefined}
+                boxShadow={hasSpaceLayoutSideBar ? "elevation-5" : undefined}
+            >
+                <FeedRouteShimmer />
+            </Box>
+        </Box>
+    );
 }

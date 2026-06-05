@@ -120,9 +120,10 @@ export class SpaceAccountsCache {
     public async getData(
         context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
+        {allowInvitePending}: {allowInvitePending?: boolean} = {},
     ): Promise<SpaceAccountsCacheData> {
         // Make sure we're allowed to read data from the space.
-        await authorizeSpaceAccess(context, spaceId);
+        await authorizeSpaceAccess(context, spaceId, undefined, {allowInvitePending});
 
         return await this.dangerouslyGetDataWithoutAuthorizing(context, spaceId);
     }

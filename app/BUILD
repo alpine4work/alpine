@@ -150,6 +150,7 @@ ts_project(
         "//shared/rpc",
         "//shared/schema",
         "//shared/spaces",
+        "//shared/store",
         "//shared/tracer",
     ],
 )

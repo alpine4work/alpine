@@ -24,6 +24,7 @@ ts_project(
         "//server/forum/data",
         "//server/spaces",
         "//server/tasks/data",
+        "//shared/auth",
         "//shared/error:error_core",
         "//shared/helpers",
         "//shared/id",

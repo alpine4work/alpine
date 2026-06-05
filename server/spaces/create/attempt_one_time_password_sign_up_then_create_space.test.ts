@@ -26,6 +26,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     FailedPreconditionError,
@@ -120,22 +121,27 @@ async function testSignUp(options: {name?: string; emailAddress: string}) {
             testSignUpUntilAttemptOneTimePasswordSignUp(options),
         ]);
 
-    const {sessionId, openSpaceId} = await withChatGptBotIdForTest(chatGptBot.id, () => {
-        return withCursorBotIdForTest(cursorBot.id, () => {
-            return attemptOneTimePasswordSignUpThenCreateSpace(context.unknownAnonymousAction(), {
-                emailAddress: emailAddress,
-                oneTimePassword: oneTimePassword,
-                inviteEmailAddresses: [],
-                ipAddress: null,
-                userAgent: null,
+    const {sessionId, personalSpaceId, autoAddToEmailDomainSpaceId} = await withChatGptBotIdForTest(
+        chatGptBot.id,
+        () => {
+            return withCursorBotIdForTest(cursorBot.id, () => {
+                return attemptOneTimePasswordSignUpThenCreateSpace(
+                    context.unknownAnonymousAction(),
+                    {
+                        emailAddress: emailAddress,
+                        oneTimePassword: oneTimePassword,
+                        inviteEmailAddresses: [],
+                        ipAddress: null,
+                        userAgent: null,
+                    },
+                );
             });
-        });
-    });
-    assert(openSpaceId);
+        },
+    );
 
     const [session, space] = await runAllPromises([
         TestSession.get(context, sessionId),
-        TestSpace.get(context, openSpaceId),
+        TestSpace.get(context, autoAddToEmailDomainSpaceId ?? personalSpaceId),
     ]);
 
     assert(session.account.id === accountId);
@@ -200,6 +206,15 @@ async function expectSpaceAccountWithInvitePendingState(emailAddress: string, sp
         role: "Member",
         state: expect.objectContaining({type: "InvitePending"}),
     });
+}
+
+function expectActiveOpen(open: AuthSignInOrSignUpOpen, spaceId: SpaceId) {
+    expect(open).toEqual({type: "ActiveSpace", spaceId});
+}
+
+function getActiveOpenSpaceId(open: AuthSignInOrSignUpOpen) {
+    expect(open.type).toEqual("ActiveSpace");
+    return open.spaceId;
 }
 
 async function expectMissingSpaceAccount(emailAddress: string, spaceId: SpaceId) {
@@ -927,6 +942,53 @@ test("invited account to space that would be auto-added to space can\u2019t acce
     );
 });
 
+test("sign up with pending invite opens invite pending space", async () => {
+    const inviteSpace = await TestSpace.create(context);
+    const inviterSession = await inviteSpace.createSession({role: "Admin"});
+    const {emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
+
+    await inviterSession.inviteEmailAddress(emailAddress);
+
+    const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        context.unknownAnonymousAction(),
+        {
+            emailAddress,
+            oneTimePassword,
+            inviteEmailAddresses: [],
+            ipAddress: null,
+            userAgent: null,
+        },
+    );
+
+    expect(open).toEqual({type: "InvitePendingSpace", spaceId: inviteSpace.id});
+});
+
+test("sign up with multiple pending invites opens the last pending invite", async () => {
+    const firstInviteSpace = await TestSpace.create(context);
+    const firstInviterSession = await firstInviteSpace.createSession({role: "Admin"});
+    const secondInviteSpace = await TestSpace.create(context);
+    const secondInviterSession = await secondInviteSpace.createSession({role: "Admin"});
+    const {emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
+
+    await firstInviterSession.inviteEmailAddress(emailAddress);
+    await secondInviterSession.inviteEmailAddress(emailAddress);
+
+    const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        context.unknownAnonymousAction(),
+        {
+            emailAddress,
+            oneTimePassword,
+            inviteEmailAddresses: [],
+            ipAddress: null,
+            userAgent: null,
+        },
+    );
+
+    expect(open).toEqual({type: "InvitePendingSpace", spaceId: secondInviteSpace.id});
+});
+
 describe("Invite email addresses after sign up", () => {
     test("when account is not auto-added invites are sent to personal space", async () => {
         const {accountId, emailAddress, oneTimePassword} =
@@ -936,7 +998,7 @@ describe("Invite email addresses after sign up", () => {
             generateWorkTestEmailDomain(),
         );
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -956,7 +1018,7 @@ describe("Invite email addresses after sign up", () => {
         expect(spaceIds.size).toEqual(1);
 
         const personalSpaceId = assertExists(Array.from(spaceIds)[0]);
-        expect(openSpaceId).toEqual(personalSpaceId);
+        expect(open.spaceId).toEqual(personalSpaceId);
         await expectSpaceAccountWithInvitePendingState(
             inviteEmailAddressFromGenericDomain,
             personalSpaceId,
@@ -975,7 +1037,7 @@ describe("Invite email addresses after sign up", () => {
             });
         const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -991,7 +1053,7 @@ describe("Invite email addresses after sign up", () => {
         const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
         expect(spaceIds.size).toEqual(2);
 
-        const autoAddSpaceId = openSpaceId;
+        const autoAddSpaceId = open.spaceId;
         expect(spaceIds.has(autoAddSpaceId)).toEqual(true);
         expect(autoAddSpaceId).toEqual(await getAutoAddAccountsFromEmailDomainSpaceId(emailDomain));
 
@@ -1014,7 +1076,7 @@ describe("Invite email addresses after sign up", () => {
             });
         const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1030,7 +1092,7 @@ describe("Invite email addresses after sign up", () => {
         const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
         expect(spaceIds.size).toEqual(2);
 
-        const personalSpaceId = openSpaceId;
+        const personalSpaceId = open.spaceId;
         expect(spaceIds.has(personalSpaceId)).toEqual(true);
 
         const autoAddSpaceId = assertExists(
@@ -1054,7 +1116,7 @@ describe("Invite email addresses after sign up", () => {
         const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
         const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1073,7 +1135,7 @@ describe("Invite email addresses after sign up", () => {
         const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
         expect(spaceIds.size).toEqual(2);
 
-        const autoAddSpaceId = openSpaceId;
+        const autoAddSpaceId = open.spaceId;
         expect(spaceIds.has(autoAddSpaceId)).toEqual(true);
         expect(autoAddSpaceId).toEqual(await getAutoAddAccountsFromEmailDomainSpaceId(emailDomain));
 
@@ -1098,7 +1160,7 @@ describe("Invite email addresses after sign up", () => {
         });
         const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1111,7 +1173,7 @@ describe("Invite email addresses after sign up", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(openSpaceId).toEqual(firstSession.space.id);
+        expect(open.spaceId).toEqual(firstSession.space.id);
 
         const accountEmailAddressItem = await getAccountEmailAddressForTest(
             context,
@@ -1158,7 +1220,7 @@ describe("Invite email addresses after sign up", () => {
         });
         const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1171,7 +1233,7 @@ describe("Invite email addresses after sign up", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(openSpaceId).not.toEqual(firstSession.space.id);
+        expect(open.spaceId).not.toEqual(firstSession.space.id);
 
         const accountEmailAddressItem = await getAccountEmailAddressForTest(
             context,
@@ -1185,7 +1247,7 @@ describe("Invite email addresses after sign up", () => {
             iterableFind(spaceIds, spaceId => spaceId !== firstSession.space.id),
         );
 
-        expect(openSpaceId).toEqual(personalSpaceId);
+        expect(open.spaceId).toEqual(personalSpaceId);
 
         await expectSpaceAccountWithInvitePendingState(
             inviteEmailAddressWithDifferentDomain,
@@ -1205,7 +1267,7 @@ describe("Invite email addresses after sign up", () => {
         const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
         const inviteEmailAddressWithDifferentDomain = generatePersonalTestEmailAddress();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1221,7 +1283,7 @@ describe("Invite email addresses after sign up", () => {
 
         await ProcessContextModule.waitForTestTasks();
 
-        expect(openSpaceId).toEqual(firstSession.space.id);
+        expect(open.spaceId).toEqual(firstSession.space.id);
 
         const accountEmailAddressItem = await getAccountEmailAddressForTest(
             context,
@@ -1271,7 +1333,7 @@ describe("Invite email addresses after sign up", () => {
         });
         const inviteEmailAddressWithSameDomain = generateWorkTestEmailAddress(emailDomain);
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1295,7 +1357,7 @@ describe("Invite email addresses after sign up", () => {
         expect(spaceIds.size).toEqual(1);
 
         const personalSpaceId = assertExists(Array.from(spaceIds)[0]);
-        expect(openSpaceId).toEqual(personalSpaceId);
+        expectActiveOpen(open, personalSpaceId);
         await expectSpaceAccountWithInvitePendingState(
             inviteEmailAddressWithSameDomain,
             personalSpaceId,
@@ -1630,7 +1692,7 @@ describe("Welcome package", () => {
 
         addSearchAffinityEntityPoints.mockClear();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1640,6 +1702,7 @@ describe("Welcome package", () => {
                 userAgent: null,
             },
         );
+        const openSpaceId = getActiveOpenSpaceId(open);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -1703,7 +1766,7 @@ describe("Welcome package", () => {
 
         addSearchAffinityEntityPoints.mockClear();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1713,6 +1776,7 @@ describe("Welcome package", () => {
                 userAgent: null,
             },
         );
+        const openSpaceId = getActiveOpenSpaceId(open);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -1763,7 +1827,7 @@ describe("Welcome package", () => {
 
         addSearchAffinityEntityPoints.mockClear();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1776,6 +1840,7 @@ describe("Welcome package", () => {
                 userAgent: null,
             },
         );
+        const openSpaceId = getActiveOpenSpaceId(open);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -1830,7 +1895,7 @@ describe("Welcome package", () => {
 
         addSearchAffinityEntityPoints.mockClear();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1843,6 +1908,7 @@ describe("Welcome package", () => {
                 userAgent: null,
             },
         );
+        const openSpaceId = getActiveOpenSpaceId(open);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -1906,7 +1972,7 @@ describe("Welcome package", () => {
 
         addSearchAffinityEntityPoints.mockClear();
 
-        const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
+        const {open} = await attemptOneTimePasswordSignUpThenCreateSpace(
             context.unknownAnonymousAction(),
             {
                 emailAddress,
@@ -1916,6 +1982,7 @@ describe("Welcome package", () => {
                 userAgent: null,
             },
         );
+        const openSpaceId = getActiveOpenSpaceId(open);
 
         await ProcessContextModule.waitForTestTasks();
 

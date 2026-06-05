@@ -25,6 +25,7 @@ import {
     parseAccountNameAssumingWesternNameOrder,
 } from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {getEmailDomainForAutoAddSpaceAccounts} from "~/shared/accounts/get_email_domain_for_auto_add_space_accounts.js";
+import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
@@ -37,6 +38,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {iterableLast} from "~/shared/helpers/iterable/iterable_last.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
@@ -74,7 +76,9 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 ): Promise<{
     sessionId: SessionId;
     sessionAccountId: AccountId;
-    openSpaceId: SpaceId;
+    personalSpaceId: SpaceId;
+    autoAddToEmailDomainSpaceId: SpaceId | null;
+    open: AuthSignInOrSignUpOpen;
 }> {
     const autoAddAccountsFromEmailDomain = getEmailDomainForAutoAddSpaceAccounts(emailAddress);
 
@@ -87,7 +91,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         : null;
 
     const [
-        {account, personalSpaceResult, autoAddToEmailDomainSpaceResult},
+        {account, personalSpaceResult, autoAddToEmailDomainSpaceResult, invitePendingSpaceIds},
         {sessionId, sessionAccountId},
     ] = await attemptOneTimePasswordSignInWithAction(
         context,
@@ -218,7 +222,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         })(),
     ]);
 
-    let openSpaceId: SpaceId;
+    let open: AuthSignInOrSignUpOpen;
+    const lastInvitePendingSpaceId = iterableLast(invitePendingSpaceIds);
 
     // If the user invited some emails we added to their personal space then redirect
     // them to the personal space (not the company space).
@@ -226,12 +231,22 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         inviteEmailAddressesToPersonalSpace.length > 0 &&
         inviteEmailAddressesToAutoAddToEmailDomainSpace.length === 0
     ) {
-        openSpaceId = personalSpaceResult.spaceId;
+        open = {type: "ActiveSpace", spaceId: personalSpaceResult.spaceId};
     } else {
-        openSpaceId = autoAddToEmailDomainSpaceResult?.spaceId ?? personalSpaceResult.spaceId;
+        open = autoAddToEmailDomainSpaceResult
+            ? {type: "ActiveSpace", spaceId: autoAddToEmailDomainSpaceResult.spaceId}
+            : lastInvitePendingSpaceId
+              ? {type: "InvitePendingSpace", spaceId: lastInvitePendingSpaceId}
+              : {type: "ActiveSpace", spaceId: personalSpaceResult.spaceId};
     }
 
-    return {sessionId, sessionAccountId, openSpaceId};
+    return {
+        sessionId,
+        sessionAccountId,
+        personalSpaceId: personalSpaceResult.spaceId,
+        autoAddToEmailDomainSpaceId: autoAddToEmailDomainSpaceResult?.spaceId ?? null,
+        open,
+    };
 
     type CreateSpaceResult = {
         spaceId: SpaceId;
@@ -256,6 +271,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             {welcomePackageItem: SpaceWelcomePackageItem}
         >;
         autoAddToEmailDomainSpaceResult: CreateSpaceResult | null;
+        invitePendingSpaceIds: ReadonlySet<SpaceId>;
     }> {
         span.addData({
             auth: {
@@ -303,6 +319,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                             space: {type: "New", id: personalSpaceId},
                             account: {type: "Existing", id: accountId},
                             role: "Owner",
+                            inviterAccountId: null,
                         }),
                         createSpaceWelcomePackageTransactionEntries(context, {
                             currentTime,
@@ -390,6 +407,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                         dangerouslyWithoutInvite: true,
                                     },
                                     role: "Member",
+                                    inviterAccountId: null,
                                 }),
                                 SpacesTable.getItemIfExists(
                                     context,
@@ -466,6 +484,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 space: {type: "New", id: autoAddAccountsFromEmailDomainSpaceId},
                                 account: {type: "Existing", id: accountId},
                                 role: "Owner",
+                                inviterAccountId: null,
                             }),
                             createSpaceWelcomePackageTransactionEntries(context, {
                                 currentTime,
@@ -596,6 +615,9 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             accountShortName.slice(0, maxLabelStringLength - spaceNameSuffix.length) +
             spaceNameSuffix;
 
+        let invitePendingSpaceIds =
+            personalSpaceResult.accountSpacesItemTransactionEntry.newItem.invitePendingSpaceIds;
+
         let transactionEntries = [
             SpacesTable.transactionCreateItem({
                 partitionType: "Space",
@@ -616,6 +638,12 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
         // Make sure we actually auto-add the account to an associated space when needed.
         if (autoAddToEmailDomainSpaceResult) {
+            invitePendingSpaceIds = unionSets(
+                personalSpaceResult.accountSpacesItemTransactionEntry.newItem.invitePendingSpaceIds,
+                autoAddToEmailDomainSpaceResult.accountSpacesItemTransactionEntry.newItem
+                    .invitePendingSpaceIds,
+            );
+
             transactionEntries = [
                 ...transactionEntries.filter(
                     entry => entry !== personalSpaceResult.accountSpacesItemTransactionEntry,
@@ -643,12 +671,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                         autoAddToEmailDomainSpaceResult.accountSpacesItemTransactionEntry.newItem
                             .spaceIds,
                     ),
-                    invitePendingSpaceIds: unionSets(
-                        personalSpaceResult.accountSpacesItemTransactionEntry.newItem
-                            .invitePendingSpaceIds,
-                        autoAddToEmailDomainSpaceResult.accountSpacesItemTransactionEntry.newItem
-                            .invitePendingSpaceIds,
-                    ),
+                    invitePendingSpaceIds,
                     updateLockVersion:
                         (personalSpaceResult.accountSpacesItemTransactionEntry.newItem
                             .updateLockVersion ?? 0) - 1,
@@ -664,6 +687,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             account,
             personalSpaceResult,
             autoAddToEmailDomainSpaceResult,
+            invitePendingSpaceIds,
         };
     }
 

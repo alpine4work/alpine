@@ -90,7 +90,7 @@ export default implementRpcs(definitions, {
     addSpaceAccount: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const account = await addSpaceAccount(context, input);
+            const account = await addSpaceAccount(context.actor.authorizeSession(), input);
             return {account};
         },
     },

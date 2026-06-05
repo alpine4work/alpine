@@ -13610,6 +13610,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 },
                                                                 "optional": false
                                                             },
+                                                            "inviterAccountId": {
+                                                                "valueSchema": {
+                                                                    "type": "Nullable",
+                                                                    "schema": {
+                                                                        "type": "Id"
+                                                                    }
+                                                                },
+                                                                "optional": true
+                                                            },
                                                             "pendingAccountData": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",

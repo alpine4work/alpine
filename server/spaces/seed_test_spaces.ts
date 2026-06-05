@@ -47,6 +47,7 @@ export async function seedTestSpaces(
                     // make default space account as "Owner" since it is the first account in the
                     // space.
                     role: "Owner",
+                    inviterAccountId: null,
                 },
             );
         } catch (error) {

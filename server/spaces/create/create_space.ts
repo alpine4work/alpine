@@ -94,6 +94,7 @@ async function actuallyCreateSpace(
                 space: {type: "New", id: spaceId},
                 account: {type: "Existing", id: ownerAccountId},
                 role: "Owner",
+                inviterAccountId: null,
             }),
             createSpaceWelcomePackageTransactionEntries(context, {
                 currentTime,

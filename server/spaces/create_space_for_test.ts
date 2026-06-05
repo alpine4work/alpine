@@ -105,6 +105,7 @@ export async function addSpaceAccountForTest(
             spaceId,
             accountId,
             role,
+            inviterAccountId: null,
             overrideCurrentTimeForTest: overrideCurrentTime,
             withoutInviteForTest: true,
         },

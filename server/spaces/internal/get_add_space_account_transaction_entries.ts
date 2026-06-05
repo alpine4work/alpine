@@ -74,7 +74,8 @@ export async function getAddSpaceAccountTransactionEntries(
         currentTime,
         space: spaceInputWithoutData,
         account: accountInputWithoutData,
-        role = "Member",
+        role,
+        inviterAccountId,
     }: {
         currentTime: Date;
         space: {type: "Existing"; id: SpaceId} | {type: "New"; id: SpaceId};
@@ -94,7 +95,8 @@ export async function getAddSpaceAccountTransactionEntries(
                   id: AccountId;
                   emailAddress: EmailAddress;
               };
-        role?: SpaceRole;
+        role: SpaceRole;
+        inviterAccountId: AccountId | null;
     },
 ) {
     const [existingSpaceData, existingAccountData] = await runAllPromises([
@@ -279,7 +281,8 @@ export async function getAddSpaceAccountTransactionEntries(
             } else {
                 state = {
                     type: "InvitePending",
-                    invitedTime: new Date(),
+                    invitedTime: currentTime,
+                    inviterAccountId,
                     pendingAccountData: accountInput.spaceAccountItem.state.oldAccountData,
                     // Should always be true in this code path.
                     wasPreviouslyRemoved: accountInput.spaceAccountItem.state.type === "Removed",
@@ -344,6 +347,7 @@ export async function getAddSpaceAccountTransactionEntries(
             state = {
                 type: "InvitePending",
                 invitedTime: currentTime,
+                inviterAccountId,
                 pendingAccountData: {
                     id: accountInput.id,
                     version: 0,

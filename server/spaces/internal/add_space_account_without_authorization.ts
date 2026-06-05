@@ -39,12 +39,14 @@ export async function addSpaceAccountWithoutAuthorization(
         spaceId,
         accountId,
         role = "Member",
+        inviterAccountId,
         overrideCurrentTimeForTest,
         withoutInviteForTest = false,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         role?: SpaceRole;
+        inviterAccountId: AccountId | null;
         overrideCurrentTimeForTest?: Date;
         withoutInviteForTest?: boolean;
     },
@@ -67,6 +69,7 @@ export async function addSpaceAccountWithoutAuthorization(
                     dangerouslyWithoutInvite: withoutInviteForTest,
                 },
                 role,
+                inviterAccountId,
             });
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);

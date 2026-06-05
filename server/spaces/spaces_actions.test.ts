@@ -1574,6 +1574,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
                 state: {
                     type: "InvitePending",
                     invitedTime: expect.any(Date),
+                    inviterAccountId: session1.account.id,
                     pendingAccountData: expect.objectContaining({
                         name: "Shawn Tyson",
                         nameVersion: 1,
@@ -2079,68 +2080,6 @@ test("don\u2019t allow creating multiple owners in a single space", async () => 
     ).rejects.toThrow("Space already has an owner");
 });
 
-test("don\u2019t allow creating multiple owners in a single space (with system actor)", async () => {
-    const space = await TestSpace.create(context);
-    await space.createSession({role: "Owner"});
-    const memberAccount = await TestAccount.create(context);
-    const adminAccount = await TestAccount.create(context);
-    const ownerAccount = await TestAccount.create(context);
-
-    await addSpaceAccount(space.systemAction(), {
-        spaceId: space.id,
-        accountId: memberAccount.id,
-        role: "Member",
-        withoutInviteForTest: true,
-    });
-
-    await addSpaceAccount(space.systemAction(), {
-        spaceId: space.id,
-        accountId: adminAccount.id,
-        role: "Admin",
-        withoutInviteForTest: true,
-    });
-
-    await expect(
-        addSpaceAccount(space.systemAction(), {
-            spaceId: space.id,
-            accountId: ownerAccount.id,
-            role: "Owner",
-            withoutInviteForTest: true,
-        }),
-    ).rejects.toThrow("Space already has an owner");
-});
-
-test("don\u2019t allow creating multiple owners in a single space (with impersonated account actor)", async () => {
-    const space = await TestSpace.create(context);
-    const ownerSession = await space.createSession({role: "Owner"});
-    const memberAccount = await TestAccount.create(context);
-    const adminAccount = await TestAccount.create(context);
-    const ownerAccount = await TestAccount.create(context);
-
-    await addSpaceAccount(space.impersonatedAction(ownerSession), {
-        spaceId: space.id,
-        accountId: memberAccount.id,
-        role: "Member",
-        withoutInviteForTest: true,
-    });
-
-    await addSpaceAccount(space.impersonatedAction(ownerSession), {
-        spaceId: space.id,
-        accountId: adminAccount.id,
-        role: "Admin",
-        withoutInviteForTest: true,
-    });
-
-    await expect(
-        addSpaceAccount(space.impersonatedAction(ownerSession), {
-            spaceId: space.id,
-            accountId: ownerAccount.id,
-            role: "Owner",
-            withoutInviteForTest: true,
-        }),
-    ).rejects.toThrow("Space already has an owner");
-});
-
 test("don\u2019t allow creating multiple owners in a single space (with test scenario framework)", async () => {
     const space = await TestSpace.create(context);
     await space.createSession({role: "Owner"});
@@ -2165,7 +2104,7 @@ test("`addSpaceAccount()` should throw if anonymous account tries to add account
 
     // anonymous account
     await expect(
-        addSpaceAccount(context.anonymousAction(), {
+        addSpaceAccount(context.anonymousAction() as any, {
             spaceId: space.id,
             accountId: otherAccount.id,
             withoutInviteForTest: true,

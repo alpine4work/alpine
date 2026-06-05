@@ -251,6 +251,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                         ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}
                         : {type: "New", id: accountId, emailAddress},
                     role: "Member",
+                    inviterAccountId: context.actor.getAccountId(),
                 }),
             ]);
 
