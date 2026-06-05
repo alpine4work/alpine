@@ -264,6 +264,7 @@ export class GitHubAlertSource extends AlertSource {
                               type: "Text",
                               text: commit.author.name,
                           };
+
                 const commitAuthorName =
                     commitAuthorElement.type === "Text"
                         ? commitAuthorElement.text
@@ -292,6 +293,8 @@ export class GitHubAlertSource extends AlertSource {
                 ];
             });
 
+        const authorElements = this.createPushAuthorElements(data.commits);
+
         const elements: Array<ApiContentElement> = [
             {
                 type: "Paragraph",
@@ -314,9 +317,19 @@ export class GitHubAlertSource extends AlertSource {
                             },
                         ],
                     },
+                ],
+            },
+            {
+                type: "Paragraph",
+                elements: [
                     {
                         type: "Text",
-                        text: " • Pushed by ",
+                        text: "Authored By: ",
+                    },
+                    ...authorElements,
+                    {
+                        type: "Text",
+                        text: " • Pushed By: ",
                     },
                     createUserElement(data.sender.login, data.sender.html_url, data.sender.login, {
                         tagUser: false,
@@ -333,6 +346,65 @@ export class GitHubAlertSource extends AlertSource {
         ];
 
         return await this.postAlertToAlpine(channel, {elements});
+    }
+
+    private createPushAuthorElements(
+        commits: GitHubPushEventPayload["commits"],
+    ): ApiContentParagraphBlockElement["elements"] {
+        const authorElements: Array<
+            ApiSpecification.components["schemas"]["ContentInlineElement"]
+        > = [];
+        const seenAuthorIds = new Set<string>();
+
+        for (const commit of commits) {
+            const authorId =
+                commit.author.username?.toLowerCase() || commit.author.email || commit.author.name;
+            if (seenAuthorIds.has(authorId)) {
+                continue;
+            }
+
+            seenAuthorIds.add(authorId);
+            const authorElement = commit.author.username
+                ? createUserElement(
+                      commit.author.name,
+                      `https://github.com/${commit.author.username}`,
+                      commit.author.username,
+                      {tagUser: false},
+                  )
+                : createUserElement(commit.author.name, "", commit.author.name, {
+                      tagUser: false,
+                  });
+
+            if (
+                authorElement.type === "Text" &&
+                authorElement.marks?.some(mark => mark.type === "Link" && mark.url === "")
+            ) {
+                authorElements.push({
+                    type: "Text",
+                    text: commit.author.name,
+                });
+            } else {
+                authorElements.push(authorElement);
+            }
+        }
+
+        return authorElements.flatMap((authorElement, index) => {
+            if (index === 0) {
+                return [authorElement];
+            }
+
+            const isLastAuthor = index === authorElements.length - 1;
+            const separator =
+                authorElements.length === 2 ? " and " : isLastAuthor ? ", and " : ", ";
+
+            return [
+                {
+                    type: "Text" as const,
+                    text: separator,
+                },
+                authorElement,
+            ];
+        });
     }
 
     private verifySignature(
