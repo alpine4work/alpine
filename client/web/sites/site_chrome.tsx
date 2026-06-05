@@ -21,10 +21,12 @@ export function SiteChrome({
     tree,
     parentId,
     children,
+    withoutContextMenu = false,
 }: {
     tree: SiteTreeForClient;
     parentId: SiteContainerId | null;
     children: ReactNode;
+    withoutContextMenu?: boolean;
 }) {
     if (parentId === null) {
         return <>{children}</>;
@@ -39,15 +41,25 @@ export function SiteChrome({
         case "SideBarSection": {
             // Sections don't add chrome, continue up to find the actual sidebar
             return (
-                <SiteChrome tree={tree} parentId={parent.parentId}>
+                <SiteChrome
+                    tree={tree}
+                    parentId={parent.parentId}
+                    withoutContextMenu={withoutContextMenu}
+                >
                     {children}
                 </SiteChrome>
             );
         }
         case "SideBar": {
             return (
-                <SiteChrome tree={tree} parentId={parent.parentId}>
-                    <SiteSideBar item={parent}>{children}</SiteSideBar>
+                <SiteChrome
+                    tree={tree}
+                    parentId={parent.parentId}
+                    withoutContextMenu={withoutContextMenu}
+                >
+                    <SiteSideBar item={parent} withoutContextMenu={withoutContextMenu}>
+                        {children}
+                    </SiteSideBar>
                 </SiteChrome>
             );
         }

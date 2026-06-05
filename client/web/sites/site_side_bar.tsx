@@ -9,10 +9,18 @@ import {SiteSideBarModel} from "~/shared/sites/site_model.js";
  * Provides horizontal flex layout with the sidebar navigation on the left and the
  * entity content on the right.
  */
-export function SiteSideBar({item, children}: {item: SiteSideBarModel; children: ReactNode}) {
+export function SiteSideBar({
+    item,
+    children,
+    withoutContextMenu = false,
+}: {
+    item: SiteSideBarModel;
+    children: ReactNode;
+    withoutContextMenu?: boolean;
+}) {
     return (
         <Box display="flex" flexDirection="row" height="full" width="full">
-            <SiteSideBarContent item={item} />
+            <SiteSideBarContent item={item} withoutContextMenu={withoutContextMenu} />
             {children}
         </Box>
     );

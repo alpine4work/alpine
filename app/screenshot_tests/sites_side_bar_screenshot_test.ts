@@ -5,7 +5,6 @@ import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screensho
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {favoriteSearchEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -301,12 +300,10 @@ last open design question is how column resizing should feel.
     await runner.screenshot("a0", "depth-lines");
 
     await runActivationAndScrollScenario(accounts.cassCade, runner);
-    await runSiteCreationFlowScenario(accounts.cassCade, runner);
+    await runSiteLifecycleScenario(accounts.cassCade, runner);
     await runDeepNestingScenario(accounts.cassCade, runner);
     await runLongTitlesScenario(accounts.cassCade, runner);
     await runGhostRowMenuScenario(accounts.cassCade, runner);
-    await runOverflowMenuNotFavoritedScenario(accounts.cassCade, runner);
-    await runOverflowMenuFavoritedScenario(accounts.cassCade, runner);
     await runEntityContextMenuScenario(accounts.cassCade, runner);
     await runSectionContextMenuScenario(accounts.cassCade, runner);
     await runDragOverlayExpandedSectionScenario(accounts.cassCade, runner, space.id, site.id);
@@ -929,8 +926,11 @@ async function runActivationAndScrollScenario(
 }
 
 /**
- * End-to-end site creation + rename flow driven through the real UI, captured as
- * two screenshots:
+ * The full lifecycle of a brand-new site, driven through the real UI on a single
+ * site instead of spinning up a fresh site per screenshot. We follow the natural
+ * order a user works in — create, name, favorite, set permissions, then add the
+ * first piece of content — and screenshot each surface as the site transitions
+ * from empty to full:
  *
  * 1. **`create-flow-editor-open`** — what a user sees the moment they click the
  *    global "+" Create button in the space sidebar and pick "Site" from the
@@ -944,17 +944,22 @@ async function runActivationAndScrollScenario(
  *    header and the welcome copy, proving the rename was saved (the welcome copy
  *    reads from the same site context that wraps the header, so a stale-cache
  *    rename would not update it).
+ * 3. **`navigation-bar-menu-{not-,}favorited`** — an _empty_ site has no sidebar,
+ *    so its 3-dot menu lives in the **top navigation bar** (`More`). Capture it
+ *    both before and after favoriting (the star fills in).
+ * 4. **`make-site-private-modal`** — newly created sites are private by default,
+ *    so we first share the site (no confirmation), then toggle it back to private,
+ *    which asks for confirmation. Capture that modal.
+ * 5. **`site-menu-{not-,}favorited`** — add the first entity through the UI. Now
+ *    the site is _full_, so the sidebar renders with its own 3-dot `Site menu`.
+ *    Capture the favorite/unfavorite states there too.
  *
- * This covers the very first thing a user does with a site: create it, then name
- * it. Worth driving through the UI because the create button → overlay → Site item
+ * Worth driving through the UI because the create button → overlay → Site item
  * path is the canonical entry point and exercises the `?focus=name` →
- * SiteNameHeader handoff that turns the create gesture into a single keystroke
- * sequence.
+ * SiteNameHeader handoff, and because reusing one site keeps the empty→full
+ * transition (and which menu surface owns favoriting at each stage) honest.
  */
-async function runSiteCreationFlowScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
+async function runSiteLifecycleScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
     // Start somewhere neutral inside the space — any entity URL puts the global "+"
     // button in the space sidebar in view.
     await runner.goto(session, `/s/${session.space.id}/`);
@@ -1010,6 +1015,91 @@ async function runSiteCreationFlowScenario(
     await runner.mouse.move(0, 0);
 
     await runner.screenshot("a25", "create-flow-renamed-site");
+
+    // Capture the new site's id from the URL before we navigate away — we come back to
+    // its `/sites/$siteId` page once it has content (see the full-site steps).
+    const siteIdMatch = runner.page.url().match(/\/sites\/([^/?#]+)/);
+    if (!siteIdMatch)
+        throw new InternalError("Could not determine the created site id from the URL");
+    const siteId = siteIdMatch[1];
+
+    // Let the new site's search entity index so favoriting resolves cleanly.
+    await runner.services.waitForSqsProcessJobs();
+    await ProcessContextModule.waitForTestTasks();
+
+    // --- Empty site: the 3-dot menu lives in the top navigation bar (`More`), not the
+    // sidebar (an empty site has no sidebar). Favorite + Copy link flow through it.
+    await runner.getByLabel("More").first().click();
+    await runner.getByText("Favorite").first().waitFor();
+    await runner.getByText("Copy link").first().waitFor();
+    await runner.screenshot("a26", "navigation-bar-menu-not-favorited");
+
+    // Favoriting updates the star in place without closing the menu, so screenshot the
+    // filled-star state directly rather than reopening (reopening is blocked by the
+    // open menu's pointer-clearance backdrop).
+    await runner.getByText("Favorite").first().click();
+    await ProcessContextModule.waitForTestTasks();
+    await runner.screenshot("a27", "navigation-bar-menu-favorited");
+
+    // Unfavorite — still inside the open menu — so the full-site `Site menu` steps
+    // below start from a clean not-favorited state (favorite state is shared across
+    // both menu surfaces). Then close the menu so it doesn't intercept later clicks.
+    await runner.getByText("Favorite").first().click();
+    await ProcessContextModule.waitForTestTasks();
+    await runner.page.keyboard.press("Escape");
+
+    // --- Permissions: newly created sites are private by default. Sharing a site (a
+    // `Local` access policy) takes effect immediately with no confirmation, so toggle
+    // the switch on first to reach the public state.
+    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
+    await runner
+        .getByLabel("Icon indicating the site is shared with everyone", {exact: false})
+        .first()
+        .waitFor();
+
+    // Toggling back to private asks the user to confirm. Capture that modal.
+    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
+    await runner.getByText("Make this site private?").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a28", "make-site-private-modal");
+
+    // Confirm to actually make the site private again, returning to the default state.
+    await runner.getByRole("button", {name: "Confirm"}).first().click();
+    await runner
+        .getByLabel("Icon indicating the site is private", {exact: false})
+        .first()
+        .waitFor();
+    await runner.services.waitForSqsProcessJobs();
+    await ProcessContextModule.waitForTestTasks();
+
+    // --- Add the first piece of content through the UI. `createDocumentInSite`
+    // navigates to the new document, so the site is no longer empty afterwards.
+    await runner.getByText("Add to site", {exact: true}).first().click();
+    await runner.getByText("Document", {exact: true}).first().click();
+    await runner.page.waitForURL(/\/documents\//);
+    await runner.services.waitForSqsProcessJobs();
+    await ProcessContextModule.waitForTestTasks();
+
+    // Back on the now-full site page the sidebar renders with its own 3-dot
+    // `Site menu`, which takes over favoriting from the nav bar menu.
+    await runner.goto(session, `/s/${session.space.id}/sites/${siteId}`);
+    await runner.getByLabel("Site menu").first().waitFor();
+    await runner.getByLabel("Site menu").first().click();
+    await runner.getByText("Favorite").first().waitFor();
+    await runner.getByText("Copy link").first().waitFor();
+    await runner.screenshot("a29", "site-menu-not-favorited");
+
+    // The star fills in place here too, so screenshot the favorited state without
+    // reopening the menu.
+    await runner.getByText("Favorite").first().click();
+    await ProcessContextModule.waitForTestTasks();
+    await runner.screenshot("a2a", "site-menu-favorited");
+
+    // Unfavorite so this throwaway site doesn't surface as a favorite in the space
+    // chrome of later screenshots, then close the menu.
+    await runner.getByText("Favorite").first().click();
+    await ProcessContextModule.waitForTestTasks();
+    await runner.page.keyboard.press("Escape");
 }
 
 /**
@@ -1129,63 +1219,6 @@ async function runGhostRowMenuScenario(session: TestSpaceSession, runner: Screen
     await runner.getByText("Search for existing", {exact: false}).first().waitFor();
 
     await runner.screenshot("a5", "ghost-row-menu");
-}
-
-/**
- * Click the 3-dot site menu — `Favorite` action shows the outlined star and
- * `Copy link` sits below it. Covers the most common state (no one has favorited
- * yet).
- */
-async function runOverflowMenuNotFavoritedScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
-    await runner.getByText("FY2026 H2 Planning").first().waitFor();
-    await runner.getByLabel("Site menu").first().click();
-    await runner.getByText("Favorite").first().waitFor();
-    await runner.getByText("Copy link").first().waitFor();
-
-    await runner.screenshot("a6", "overflow-menu-not-favorited");
-}
-
-/**
- * Same overflow menu but with the site already favorited — the star icon switches
- * to its filled variant. Pre-favorited via `favoriteSearchEntity` so the loader
- * returns `isFavorite: true` and the menu mounts with the right initial state.
- */
-async function runOverflowMenuFavoritedScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    await favoriteSearchEntity(session.action(), {
-        spaceId: session.space.id,
-        entityId: `Site:${site.id}`,
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
-    await runner.getByText("FY2026 H2 Planning").first().waitFor();
-    await runner.getByLabel("Site menu").first().click();
-    await runner.getByText("Favorite").first().waitFor();
-    await runner.getByText("Copy link").first().waitFor();
-
-    await runner.screenshot("a7", "overflow-menu-favorited");
 }
 
 /**

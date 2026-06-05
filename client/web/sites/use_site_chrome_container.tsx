@@ -56,7 +56,7 @@ export function useSiteChromeContainer<Children extends ReactNode>(
             overflow="hidden"
             display="flex"
             flexDirection="column"
-            marginLeft="12"
+            marginLeft="8"
         >
             <SiteChrome tree={tree} parentId={entityEntry.parentId}>
                 {children}

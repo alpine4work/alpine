@@ -44,7 +44,7 @@ export async function createSite(
             accountGrantById: new Map([
                 [context.actor.getAccountId(), {level: "Manage", generation: 0}],
             ]),
-            defaultGrant: {level: "View"},
+            defaultGrant: null,
             urlGrant: null,
         },
         root,

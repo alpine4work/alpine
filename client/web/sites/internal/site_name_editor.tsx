@@ -61,7 +61,7 @@ export function SiteNameEditor({
 
     return (
         <>
-            <Box minWidth="flex-fit" marginLeft="-1">
+            <Box minWidth="flex-fit">
                 <Box display="flex" alignItems="center" gap="2" maxWidth="full" height="9">
                     <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                         <InputWithAutoGrowingWidth

@@ -86,7 +86,7 @@ describe("createSite", () => {
         expect(root.label).toBe("My Cool Site");
     });
 
-    test("default access policy grants creator Manage and defaultGrant View", async () => {
+    test("newly created sites are private to the creator by default", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -107,7 +107,7 @@ describe("createSite", () => {
         expect(attrs.accessPolicy).toEqual({
             type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: {level: "View"},
+            defaultGrant: null,
             urlGrant: null,
         });
     });
