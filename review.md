@@ -130,25 +130,26 @@ an explicit assertion/test rather than convention.
 
 ## Discovered during remediation
 
-**R1 (NOCOMMIT). `server/databases/database_durable_object_connection.ts` `transformEvent` — realtime
-diff filtering fails closed, causing silent client cache divergence on reconnect / DO eviction.**
-`BrowserPageTracker` is in-memory and per-DO; a browser's entry is deleted when its last connection
-closes (`browser_page_tracker.ts:58-60`) and lost entirely on DO eviction/restart. The client's OPFS
-cache persists across all of that, and `ensureCacheIsUpToDate` runs only once per client creation
-(memoized in `database_active_tab_manager.ts:211-224` — reconnect paths only re-register watches, not
-the resync). So after a reconnect the tracker under-estimates what the client holds,
-`clientMightHavePage` returns `false` for genuinely-cached pages, and their `PagesChanged` diffs are
-dropped rather than applied → stale OPFS, surfaced as stale local query reads.
+**R1 (NOCOMMIT). `server/databases/database_durable_object_connection.ts` `transformEvent` —
+realtime diff filtering fails closed, causing silent client cache divergence on reconnect / DO
+eviction.** `BrowserPageTracker` is in-memory and per-DO; a browser's entry is deleted when its last
+connection closes (`browser_page_tracker.ts:58-60`) and lost entirely on DO eviction/restart. The
+client's OPFS cache persists across all of that, and `ensureCacheIsUpToDate` runs only once per
+client creation (memoized in `database_active_tab_manager.ts:211-224` — reconnect paths only
+re-register watches, not the resync). So after a reconnect the tracker under-estimates what the
+client holds, `clientMightHavePage` returns `false` for genuinely-cached pages, and their
+`PagesChanged` diffs are dropped rather than applied → stale OPFS, surfaced as stale local query
+reads.
 
-The tracker is only a bandwidth optimization, and its error directions are asymmetric: over-estimating
-is harmless (the client skips diffs for pages it lacks via `base === null`), under-estimating diverges.
-So the correct posture is **fail-open** (unknown → send the diff). Fix options (decision pending): (a)
-fail-open in `clientMightHavePage`/`transformEvent` — small, closes the divergence immediately; (b)
-re-run `ensureCacheIsUpToDate` on reconnect to restore per-page filtering (larger: must handle a warm
-pager cache + in-flight optimistic mutations, since the current resync is cold-startup-only). Marked
-with a `NOCOMMIT` at the divergence site. Also worth questioning whether the `clientMightHavePage`
-gating earns its keep at all, given it carries the correctness risk for the smaller of the two
-optimizations.
+The tracker is only a bandwidth optimization, and its error directions are asymmetric:
+over-estimating is harmless (the client skips diffs for pages it lacks via `base === null`),
+under-estimating diverges. So the correct posture is **fail-open** (unknown → send the diff). Fix
+options (decision pending): (a) fail-open in `clientMightHavePage`/`transformEvent` — small, closes
+the divergence immediately; (b) re-run `ensureCacheIsUpToDate` on reconnect to restore per-page
+filtering (larger: must handle a warm pager cache + in-flight optimistic mutations, since the
+current resync is cold-startup-only). Marked with a `NOCOMMIT` at the divergence site. Also worth
+questioning whether the `clientMightHavePage` gating earns its keep at all, given it carries the
+correctness risk for the smaller of the two optimizations.
 
 ---
 

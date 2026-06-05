@@ -273,10 +273,19 @@ export class DatabaseServer {
                     });
                 } else {
                     const page = this.storage.readPage(tableId, pageIndex);
-                    const data = page !== null ? page.data : new Uint8Array(sqlitePageSize);
+                    // A read page that reads back `null` post-drain
+                    // was truncated away by this same batch: the VFS
+                    // only adds a page to the read set when the read
+                    // returned real data, so `null` here means the
+                    // batch's truncate tombstoned it. The server
+                    // considers it gone — omit it rather than
+                    // fabricating a zero-filled, version-0 page for
+                    // an index past the new end of file. Clients
+                    // learn of the shrink via `fileSizeInPages`.
+                    if (page === null) continue;
                     tableMap.set(pageIndex, {
-                        data: new Uint8Array(data),
-                        version: page?.version ?? 0,
+                        data: new Uint8Array(page.data),
+                        version: page.version,
                     });
                 }
             }

@@ -151,11 +151,16 @@ export function installVfs(
                     }
                 },
 
-                xTruncate(filePtr: WasmPointer, size: number) {
+                xTruncate(filePtr: WasmPointer, size: number | bigint) {
                     const file = files.get(filePtr);
                     if (file === undefined) return ioErr;
                     try {
-                        file.truncate(size);
+                        // `size` is a SQLite `i64`, marshalled as a
+                        // BigInt like `xRead`/`xWrite`'s `iOfst`.
+                        // Normalize to a JS number so it doesn't
+                        // poison downstream page arithmetic (e.g.
+                        // `Math.floor(size / pageSize)` in storage).
+                        file.truncate(Number(size));
                         return ok;
                     } catch (error) {
                         stash(error);

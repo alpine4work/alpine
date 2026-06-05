@@ -508,6 +508,35 @@ describe("DatabaseServer", () => {
         });
     });
 
+    describe("execute with writes — truncation", () => {
+        // VACUUM is the one SQL path that drains a VFS-produced
+        // file truncate through storage. The truncate size
+        // arrives from SQLite's `xTruncate` as an `i64` (BigInt);
+        // if it isn't normalized to a JS number it poisons the
+        // `Math.floor(size / pageSize)` page arithmetic in
+        // storage's `writePages`. Regression guard: VACUUM that
+        // shrinks the file must drain cleanly and actually shrink.
+        test("VACUUM that shrinks the file drains without error", async () => {
+            const storage = new InMemoryStorage();
+            const server = await DatabaseServer.create(storage);
+            openServers.push(server);
+            const db = server.unsafeGetDbForTests();
+            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, blob TEXT NOT NULL)");
+            // Grow the file across many pages, then free them all
+            // so the VACUUM rebuild produces a shrinking truncate.
+            for (let i = 0; i < 200; i++) {
+                db.exec(`INSERT INTO items (blob) VALUES ('${"x".repeat(200)}')`);
+            }
+            db.exec("DELETE FROM items");
+            server.commitBufferForTests();
+            const sizeBefore = storage.getFileSize(databaseMainTableId);
+
+            server.execute("VACUUM", {allowWrites: "schema+data"});
+
+            expect(storage.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
+        });
+    });
+
     describe("executeAction — rawSql", () => {
         test("SELECT returns rows in result", async () => {
             const server = await createServerWithSchema(
