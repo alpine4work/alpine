@@ -1,3 +1,4 @@
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {
     BrowserId,
     DatabaseTableId,
@@ -132,7 +133,11 @@ export class BrowserPageTracker {
         const entry = this._browsers.get(browserId);
         if (entry === undefined) return;
         for (const [tableId, indexes] of pagesByTable) {
-            const tablePages = this._getOrCreateTable(entry, tableId);
+            const tablePages = getOrSetDefaultMapValue(
+                entry.pages,
+                tableId,
+                () => new Map<number, PageStatus>(),
+            );
             for (const idx of indexes) {
                 if (tablePages.get(idx) !== "confirmed") {
                     tablePages.set(idx, "pending");
@@ -186,17 +191,5 @@ export class BrowserPageTracker {
             if (out.size > 0) filtered.set(tableId, out);
         }
         return filtered;
-    }
-
-    private _getOrCreateTable(
-        entry: {pages: Map<DatabaseTableId, Map<number, PageStatus>>},
-        tableId: DatabaseTableId,
-    ): Map<number, PageStatus> {
-        let tablePages = entry.pages.get(tableId);
-        if (tablePages === undefined) {
-            tablePages = new Map();
-            entry.pages.set(tableId, tablePages);
-        }
-        return tablePages;
     }
 }

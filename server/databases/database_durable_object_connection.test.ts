@@ -3,6 +3,8 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {BrowserPageTracker} from "~/server/databases/browser_page_tracker.js";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
+import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
+import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
 import {
     cacheUpdateStalePageLimit,
     databaseMainTableId,
@@ -23,24 +25,6 @@ let storage: any;
 beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
 });
-
-const noTruncates: ReadonlyMap<DatabaseTableId, number> = new Map();
-
-function writePagesFor(
-    doStorage: DatabaseDurableObjectStorage,
-    tableId: DatabaseTableId,
-    pages: ReadonlyMap<number, Uint8Array>,
-): number {
-    return doStorage.writePages(new Map([[tableId, pages]]), noTruncates);
-}
-
-function truncateFor(
-    doStorage: DatabaseDurableObjectStorage,
-    tableId: DatabaseTableId,
-    size: number,
-): number {
-    return doStorage.writePages(new Map(), new Map([[tableId, size]]));
-}
 
 function createConnection(doStorage: DatabaseDurableObjectStorage) {
     return new DatabaseDurableObjectConnection({
@@ -666,7 +650,7 @@ describe("per-browser page tracking", () => {
         expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
 
-    test("transformEvent returns empty pages for untracked client", async () => {
+    test("transformEvent omits tables with no forwardable pages", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         const tracker = new BrowserPageTracker();
         const browserId = generateId<BrowserId>();
@@ -692,8 +676,10 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        const main = event.pageDiffs.get(databaseMainTableId);
-        expect(main?.diffs.size).toBe(0);
+        // Every diff was filtered out, so the table entry is
+        // dropped entirely rather than forwarded as an empty
+        // entry that would trigger a wasted client sync().
+        expect(event.pageDiffs.has(databaseMainTableId)).toBe(false);
     });
 
     test("ensureCacheIsUpToDate replaces page set on each call", async () => {

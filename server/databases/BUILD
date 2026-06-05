@@ -7,6 +7,7 @@ ts_project(
         "//:node_modules/@miniflare/durable-objects",
         "//:node_modules/@miniflare/storage-memory",
         "//:node_modules/better-sqlite3",
+        "//server/databases/test_helpers",
     ],
     deps = [
         "//:node_modules/@cloudflare/workers-types",

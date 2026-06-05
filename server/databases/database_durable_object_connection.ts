@@ -18,6 +18,7 @@ import {
 } from "~/shared/databases/database_realtime_protocol.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
 import {cacheUpdateStalePageLimit, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {
     BrowserId,
@@ -85,7 +86,10 @@ export class DatabaseDurableObjectConnection {
 
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
-                    if (pages.size === 0) continue;
+                    // `getBufferedWrites` only emits a table entry
+                    // when it has at least one buffered page, so a
+                    // changed-pages entry always carries pages.
+                    assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
                     const tableReadPages = result.readPages.get(tableId);
                     const diffs = new Map<number, {version: number; diff: PageDiff}>();
                     for (const [pageIndex, {before, after}] of pages) {
@@ -272,10 +276,17 @@ export class DatabaseDurableObjectConnection {
                             tableFiltered.set(pageIndex, value);
                         }
                     }
-                    filtered.set(tableId, {
-                        diffs: tableFiltered,
-                        fileSizeInPages,
-                    });
+                    // Skip tables whose diffs were entirely
+                    // filtered out — emitting an empty entry just
+                    // makes the client run setServerFileSizeInPages
+                    // + sync() for no actual page data. Mirrors
+                    // filterReadPages's `if (out.size > 0)`.
+                    if (tableFiltered.size > 0) {
+                        filtered.set(tableId, {
+                            diffs: tableFiltered,
+                            fileSizeInPages,
+                        });
+                    }
                 }
                 return {
                     type: "PagesChanged",

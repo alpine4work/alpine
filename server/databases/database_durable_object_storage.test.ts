@@ -1,6 +1,9 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {DatabaseDurableObjectStorage} from "~/server/databases/database_durable_object_storage.js";
+import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
+import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
+import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -10,24 +13,6 @@ let storage: any;
 beforeEach(() => {
     storage = new DurableObjectStorage(new MemoryStorage());
 });
-
-const noTruncates: ReadonlyMap<DatabaseTableId, number> = new Map();
-
-function writePagesFor(
-    doStorage: DatabaseDurableObjectStorage,
-    tableId: DatabaseTableId,
-    pages: ReadonlyMap<number, Uint8Array>,
-): number {
-    return doStorage.writePages(new Map([[tableId, pages]]), noTruncates);
-}
-
-function truncateFor(
-    doStorage: DatabaseDurableObjectStorage,
-    tableId: DatabaseTableId,
-    size: number,
-): number {
-    return doStorage.writePages(new Map(), new Map([[tableId, size]]));
-}
 
 describe("DatabaseDurableObjectStorage", () => {
     test("construct, write pages, read them back", () => {

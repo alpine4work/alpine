@@ -32,6 +32,7 @@ import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_fu
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const vfsNamePrefix = "alpine-database";
@@ -646,10 +647,5 @@ function addToTablePageSet(
     tableId: DatabaseTableId,
     pageIndex: number,
 ): void {
-    let set = target.get(tableId);
-    if (set === undefined) {
-        set = new Set();
-        target.set(tableId, set);
-    }
-    set.add(pageIndex);
+    getOrSetDefaultMapValue(target, tableId, () => new Set<number>()).add(pageIndex);
 }
