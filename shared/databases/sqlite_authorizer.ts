@@ -86,21 +86,35 @@ export function sqliteAuthorizerActionName(code: number): string | undefined {
  * {@link writeLevel}. Pass `null` for idle/setup contexts
  * (e.g. running PRAGMAs at startup) where everything
  * except attach/detach should be allowed.
+ *
+ * `actionArg` is the third argument SQLite hands the
+ * authorizer (per-action context — for attach/detach
+ * it's the filename, with `""` indicating VACUUM's
+ * internal attach).
  */
 export function isSqliteActionAllowed(
     action: string,
+    actionArg: string | null,
     writeLevel: InternalSqliteWriteLevel | null,
 ): boolean {
     // `attach` / `detach` are reserved for the internal
     // `"attach"` write level used by `Database.attach()`.
     // Banning them everywhere else keeps user-supplied
-    // SQL from sneaking in a schema we don't track.
+    // SQL from sneaking in a schema we don't track. The
+    // one exception is the empty-filename attach SQLite
+    // performs internally during `VACUUM` — that one
+    // rides on whatever `schema+data` already authorized.
     if (action === "attach" || action === "detach") {
+        if (actionArg === "") {
+            return writeLevel === "schema+data";
+        }
         return writeLevel === "attach";
     }
     // Conversely, attach mode allows only the universally-
-    // permitted set below — no DML/DDL/pragmas etc. — so
-    // an action lifting writeLevel to "attach" can't also
+    // permitted set below — plus `pragma` so the caller
+    // can pin per-attach configuration like page_size
+    // before the new file is written. No DML/DDL, so an
+    // action lifting writeLevel to "attach" can't also
     // smuggle in arbitrary writes.
     switch (action) {
         case "read":
@@ -111,7 +125,7 @@ export function isSqliteActionAllowed(
             return true;
     }
     if (writeLevel === "attach") {
-        return false;
+        return action === "pragma";
     }
     if (writeLevel === null) {
         return true;

@@ -233,10 +233,9 @@ describe("Database — attach", () => {
         // Write a table into the attached schema, persist,
         // and read back. The new pager must flow through the
         // same VFS / hook plumbing as the main table.
-        database.executeSql(
-            `CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`,
-            {allowWrites: "schema+data"},
-        );
+        database.executeSql(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`, {
+            allowWrites: "schema+data",
+        });
         database.executeSql(`INSERT INTO "${otherTableId}".items VALUES (1)`, {
             allowWrites: "data",
         });

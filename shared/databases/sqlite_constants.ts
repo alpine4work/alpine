@@ -54,6 +54,19 @@ export const sqliteOpenPragmas: ReadonlyArray<string> = [
 ];
 
 /**
+ * SQL that pins `page_size` on an ATTACH-ed schema
+ * before it's first written. Connection-level
+ * `PRAGMA page_size` only applies to `main`; without
+ * this, a fresh attached database picks SQLite's
+ * compile-time default which may not match the
+ * {@link sqlitePageSize} the VFS asserts on.
+ */
+export function sqliteAttachPagePragma(schemaName: string): string {
+    // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier requires `"`
+    return `PRAGMA "${schemaName}".page_size = ${sqlitePageSize}`;
+}
+
+/**
  * Flag passed to `pageAccessHook` when SQLite reads a
  * page from the pager.
  */

@@ -24,6 +24,7 @@ import {
 import {
     databaseMainTableId,
     pageAccessFlagRead,
+    sqliteAttachPagePragma,
     sqliteOpenPragmas,
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
@@ -212,10 +213,10 @@ export class Database {
 
         capi.sqlite3_set_authorizer(
             this.db.pointer!,
-            (_cbArg: WasmPointer, actionCode: number) => {
+            (_cbArg: WasmPointer, actionCode: number, arg3: string | null) => {
                 const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) return capi.SQLITE_DENY;
-                return isSqliteActionAllowed(action, this.writeLevel)
+                return isSqliteActionAllowed(action, arg3, this.writeLevel)
                     ? capi.SQLITE_OK
                     : capi.SQLITE_DENY;
             },
@@ -411,8 +412,12 @@ export class Database {
         try {
             // Our table ids are 26-char alphanumerics, so
             // safe to inline as both an identifier and a
-            // path without escaping.
+            // path without escaping. Pin page_size on the
+            // fresh schema immediately so its first write
+            // matches the VFS's per-page contract.
+            // eslint-disable-next-line cyberworlds/string-quotes -- SQL literal
             this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${tableId}"`);
+            this.db.exec(sqliteAttachPagePragma(tableId));
             this.schemaToTable.set(tableId, tableId);
         } catch (error) {
             this.tables.delete(tableId);
@@ -452,11 +457,7 @@ export class Database {
      * pass the same JS reference and the FuncPtrAdapter
      * doesn't churn wasm thunks.
      */
-    private readonly handlePageAccess = (
-        schemaName: string,
-        pgno: number,
-        flags: number,
-    ): void => {
+    private readonly handlePageAccess = (schemaName: string, pgno: number, flags: number): void => {
         if (flags !== pageAccessFlagRead) return;
         const readSet = this.currentReadSet;
         if (readSet === null) return;
