@@ -23,6 +23,7 @@ import {
     Role,
     ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
+import {CfnImageRecipe} from "aws-cdk-lib/aws-imagebuilder";
 import {ILogGroup, LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs";
 import {BlockPublicAccess, Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3";
 import {StringParameter} from "aws-cdk-lib/aws-ssm";
@@ -35,6 +36,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const awsGithubRunnerTaskTimeout = Duration.hours(6);
 const awsGithubRunnerHeartbeatTimeout = Duration.minutes(10);
+const awsGithubRunnerAmiRootVolumeSizeGib = 80;
 const awsGithubRunnerAmiCacheKeyPath = "/opt/alpine-runner-image/bazel-cache-key";
 const awsGithubRunnerAmiSourceBundleKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
@@ -254,6 +256,26 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
         this.amiBazelCacheKeyParameter.grantRead(runnerImageBuilderRole);
 
         const runnerAmi = runnerImageBuilder.bindAmi();
+
+        // HACK: CloudSnorkel doesn't expose Image Builder volume mappings. Reach into its
+        // generated recipe to size the build root volume.
+        assert(runnerImageBuilder instanceof Construct);
+        const runnerImageBuilderAmiRecipe = runnerImageBuilder.node
+            .findChild("Ami Recipe")
+            .node.findChild("Recipe");
+
+        assert(runnerImageBuilderAmiRecipe instanceof CfnImageRecipe);
+        runnerImageBuilderAmiRecipe.blockDeviceMappings = [
+            {
+                deviceName: "/dev/sda1",
+                ebs: {
+                    deleteOnTermination: true,
+                    volumeSize: awsGithubRunnerAmiRootVolumeSizeGib,
+                    volumeType: "gp3",
+                },
+            },
+        ];
+
         assert(
             runnerAmi.architecture.instanceTypeMatch(
                 InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
@@ -340,7 +362,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                             DeviceName: "/dev/sda1",
                             Ebs: {
                                 DeleteOnTermination: true,
-                                VolumeSize: 80,
+                                VolumeSize: awsGithubRunnerAmiRootVolumeSizeGib,
                                 VolumeType: "gp3",
                             },
                         },

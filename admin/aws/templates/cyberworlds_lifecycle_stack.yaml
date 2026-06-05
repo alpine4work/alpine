@@ -2489,6 +2489,12 @@ Resources:
     GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAmiRecipeDB429820:
         Type: AWS::ImageBuilder::ImageRecipe
         Properties:
+            BlockDeviceMappings:
+                - DeviceName: /dev/sda1
+                  Ebs:
+                      DeleteOnTermination: true
+                      VolumeSize: 80
+                      VolumeType: gp3
             Components:
                 - ComponentArn:
                       Fn::GetAtt:
