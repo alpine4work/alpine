@@ -656,7 +656,7 @@ export function ContentEditorMentionFloater({
                             // Don't include your account in the suggested mention list and don't include
                             // removed accounts.
                             accountData.id !== currentAccount?.id &&
-                            accountData.space.state.type === "Active",
+                            accountData.space.state.type !== "Removed",
                     ),
                     0,
                     maxAccountCount,
@@ -674,15 +674,15 @@ export function ContentEditorMentionFloater({
             .sort((accountData1, accountData2) => {
                 // Sort removed accounts below all others when searching.
                 if (
-                    accountData1.space.state.type === "Active" &&
-                    accountData2.space.state.type !== "Active"
+                    accountData1.space.state.type !== "Removed" &&
+                    accountData2.space.state.type === "Removed"
                 ) {
                     return -1;
                 }
 
                 if (
-                    accountData1.space.state.type !== "Active" &&
-                    accountData2.space.state.type === "Active"
+                    accountData1.space.state.type === "Removed" &&
+                    accountData2.space.state.type !== "Removed"
                 ) {
                     return 1;
                 }

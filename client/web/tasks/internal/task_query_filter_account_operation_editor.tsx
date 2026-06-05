@@ -485,7 +485,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                       allItems.filter(
                           item =>
                               item.type !== "Account" ||
-                              item.accountData.space.state.type === "Active",
+                              item.accountData.space.state.type !== "Removed",
                       )
                     : itemsSearchIndex.search(searchInputValue).map(({item}) => item),
         };

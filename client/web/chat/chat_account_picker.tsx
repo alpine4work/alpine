@@ -458,8 +458,7 @@ function useChatAccountPickerItems({
                     itemsWithoutSelection.filter(
                         item =>
                             item.type !== "Account" ||
-                            item.accountData.space.state.type === "Active" ||
-                            item.accountData.space.state.type === "InvitePending",
+                            item.accountData.space.state.type !== "Removed",
                     ),
                 );
             }

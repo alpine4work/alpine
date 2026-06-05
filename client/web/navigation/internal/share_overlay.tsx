@@ -745,7 +745,7 @@ function ShareOverlayAccountGrant({
                     <Box
                         fontSize="100"
                         fontStyle="truncate-semi-bold"
-                        color={accountData.space.state.type === "Active" ? "grey-100" : "grey-60"}
+                        color={accountData.space.state.type !== "Removed" ? "grey-100" : "grey-60"}
                     >
                         {accountData.name}
                     </Box>
