@@ -1,0 +1,855 @@
+import {GitHubAlertSource} from "~/admin/lambda/send_alert/internal/github_alert_source.js";
+import {
+    GitHubEventPayload,
+    GitHubPushEventPayload,
+    GitHubWorkflowRunEventPayload,
+} from "~/admin/lambda/send_alert/internal/github_alert_source_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+
+const mockEnv = {
+    ALPINE_API_KEY: "test-api-key",
+    EDGE_SERVICE_URL: "https://test.cyberworlds.com",
+};
+
+const originalEnv = process.env;
+
+let mockFetchCalls: Array<{url: string; body: unknown}> = [];
+
+const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, options?: any) => {
+    if (options?.body) {
+        mockFetchCalls.push({
+            url: _url,
+            body: JSON.parse(options.body),
+        });
+    }
+
+    return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: () => Promise.resolve(""),
+    });
+});
+
+const testSpaceId = "test_space_id_for_snapshots" as SpaceId;
+
+function resetAlertSourceTestEnvironment(): void {
+    process.env = {...originalEnv, ...mockEnv};
+    mockFetchCalls = [];
+    global.fetch = mockFetch;
+    mockFetch.mockClear();
+}
+
+function restoreAlertSourceTestEnvironment(): void {
+    process.env = originalEnv;
+}
+
+function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
+    const body = fetchCall.body as {channelId: string; content: ApiContent};
+    const markdown = printApiContentToMarkdown(body.content, {spaceId: testSpaceId});
+    return `URL: ${fetchCall.url}
+Channel: ${body.channelId}
+
+${markdown}`;
+}
+
+async function handleGitHubPayload(data: GitHubEventPayload): Promise<void> {
+    await new GitHubAlertSource({
+        body: "",
+        headers: {"x-github-event": data.type},
+    }).handlePayload(data);
+}
+
+async function handleGitHubWorkflowRunPayload(data: GitHubWorkflowRunEventPayload): Promise<void> {
+    await handleGitHubPayload(data);
+}
+
+describe("GitHubAlertSource", () => {
+    beforeEach(() => {
+        resetAlertSourceTestEnvironment();
+    });
+
+    afterEach(() => {
+        restoreAlertSourceTestEnvironment();
+    });
+
+    const createGitHubFixture = (
+        overrides: Partial<GitHubWorkflowRunEventPayload> = {},
+    ): GitHubWorkflowRunEventPayload => ({
+        type: "workflow_run",
+        action: "completed",
+        workflow_run: {
+            id: 123456789,
+            name: "CI",
+            node_id: "WFR_kwDOExample123",
+            check_suite_id: 987654321,
+            head_branch: "main",
+            head_sha: "abc123def456",
+            path: ".github/workflows/ci.yml",
+            run_number: 42,
+            event: "push",
+            display_title: "Fix bug in user authentication",
+            status: "completed",
+            conclusion: "failure",
+            workflow_id: 789,
+            url: "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789",
+            html_url: "https://github.com/cyberworlds/cyberworlds/actions/runs/123456789",
+            pull_requests: [],
+            created_at: "2023-11-10T10:00:00Z",
+            updated_at: "2023-11-10T10:05:00Z",
+            actor: {
+                login: "developer123",
+                id: 12345,
+                node_id: "MDQ6VXNlcjEyMzQ1",
+                avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+                gravatar_id: "",
+                url: "https://api.github.com/users/developer123",
+                html_url: "https://github.com/developer123",
+                followers_url: "https://api.github.com/users/developer123/followers",
+                following_url: "https://api.github.com/users/developer123/following{/other_user}",
+                gists_url: "https://api.github.com/users/developer123/gists{/gist_id}",
+                starred_url: "https://api.github.com/users/developer123/starred{/owner}{/repo}",
+                subscriptions_url: "https://api.github.com/users/developer123/subscriptions",
+                organizations_url: "https://api.github.com/users/developer123/orgs",
+                repos_url: "https://api.github.com/users/developer123/repos",
+                events_url: "https://api.github.com/users/developer123/events{/privacy}",
+                received_events_url: "https://api.github.com/users/developer123/received_events",
+                type: "User",
+                site_admin: false,
+            },
+            run_attempt: 1,
+            run_started_at: "2023-11-10T10:00:00Z",
+            triggering_actor: {
+                login: "developer123",
+                id: 12345,
+                node_id: "MDQ6VXNlcjEyMzQ1",
+                avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+                gravatar_id: "",
+                url: "https://api.github.com/users/developer123",
+                html_url: "https://github.com/developer123",
+                followers_url: "https://api.github.com/users/developer123/followers",
+                following_url: "https://api.github.com/users/developer123/following{/other_user}",
+                gists_url: "https://api.github.com/users/developer123/gists{/gist_id}",
+                starred_url: "https://api.github.com/users/developer123/starred{/owner}{/repo}",
+                subscriptions_url: "https://api.github.com/users/developer123/subscriptions",
+                organizations_url: "https://api.github.com/users/developer123/orgs",
+                repos_url: "https://api.github.com/users/developer123/repos",
+                events_url: "https://api.github.com/users/developer123/events{/privacy}",
+                received_events_url: "https://api.github.com/users/developer123/received_events",
+                type: "User",
+                site_admin: false,
+            },
+            jobs_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789/jobs",
+            logs_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789/logs",
+            artifacts_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789/artifacts",
+            cancel_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789/cancel",
+            rerun_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/123456789/rerun",
+            workflow_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/actions/workflows/789",
+            head_commit: {
+                id: "abc123def456",
+                tree_id: "tree123456",
+                message: "Fix bug in user authentication",
+                timestamp: "2023-11-10T09:55:00Z",
+                author: {
+                    name: "developer123",
+                    email: "developer123@example.com",
+                },
+                committer: {
+                    name: "developer123",
+                    email: "developer123@example.com",
+                },
+            },
+            repository: {
+                id: 456789,
+                node_id: "MDEwOlJlcG9zaXRvcnk0NTY3ODk=",
+                name: "cyberworlds",
+                full_name: "cyberworlds/cyberworlds",
+                private: true,
+                owner: {
+                    login: "cyberworlds",
+                    id: 12345,
+                    node_id: "MDEyOk9yZ2FuaXphdGlvbjEyMzQ1",
+                    avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+                    gravatar_id: "",
+                    url: "https://api.github.com/users/cyberworlds",
+                    html_url: "https://github.com/cyberworlds",
+                    followers_url: "https://api.github.com/users/cyberworlds/followers",
+                    following_url:
+                        "https://api.github.com/users/cyberworlds/following{/other_user}",
+                    gists_url: "https://api.github.com/users/cyberworlds/gists{/gist_id}",
+                    starred_url: "https://api.github.com/users/cyberworlds/starred{/owner}{/repo}",
+                    subscriptions_url: "https://api.github.com/users/cyberworlds/subscriptions",
+                    organizations_url: "https://api.github.com/users/cyberworlds/orgs",
+                    repos_url: "https://api.github.com/users/cyberworlds/repos",
+                    events_url: "https://api.github.com/users/cyberworlds/events{/privacy}",
+                    received_events_url: "https://api.github.com/users/cyberworlds/received_events",
+                    type: "Organization",
+                    site_admin: false,
+                },
+                html_url: "https://github.com/cyberworlds/cyberworlds",
+                description: "Cyberworlds Application",
+                fork: false,
+                url: "https://api.github.com/repos/cyberworlds/cyberworlds",
+                archive_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/{archive_format}{/ref}",
+                assignees_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/assignees{/user}",
+                blobs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/blobs{/sha}",
+                branches_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/branches{/branch}",
+                collaborators_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/collaborators{/collaborator}",
+                comments_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/comments{/number}",
+                commits_url: "https://api.github.com/repos/cyberworlds/cyberworlds/commits{/sha}",
+                compare_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/compare/{base}...{head}",
+                contents_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/contents/{+path}",
+                contributors_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/contributors",
+                deployments_url: "https://api.github.com/repos/cyberworlds/cyberworlds/deployments",
+                downloads_url: "https://api.github.com/repos/cyberworlds/cyberworlds/downloads",
+                events_url: "https://api.github.com/repos/cyberworlds/cyberworlds/events",
+                forks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/forks",
+                git_commits_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/git/commits{/sha}",
+                git_refs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/refs{/sha}",
+                git_tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/tags{/sha}",
+                git_url: "git://github.com/cyberworlds/cyberworlds.git",
+                issue_comment_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/issues/comments{/number}",
+                issue_events_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/issues/events{/number}",
+                issues_url: "https://api.github.com/repos/cyberworlds/cyberworlds/issues{/number}",
+                keys_url: "https://api.github.com/repos/cyberworlds/cyberworlds/keys{/key_id}",
+                labels_url: "https://api.github.com/repos/cyberworlds/cyberworlds/labels{/name}",
+                languages_url: "https://api.github.com/repos/cyberworlds/cyberworlds/languages",
+                merges_url: "https://api.github.com/repos/cyberworlds/cyberworlds/merges",
+                milestones_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/milestones{/number}",
+                notifications_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/notifications{?since,all,participating}",
+                pulls_url: "https://api.github.com/repos/cyberworlds/cyberworlds/pulls{/number}",
+                releases_url: "https://api.github.com/repos/cyberworlds/cyberworlds/releases{/id}",
+                ssh_url: "git@github.com:cyberworlds/cyberworlds.git",
+                stargazers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/stargazers",
+                statuses_url: "https://api.github.com/repos/cyberworlds/cyberworlds/statuses/{sha}",
+                subscribers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/subscribers",
+                subscription_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/subscription",
+                tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/tags",
+                teams_url: "https://api.github.com/repos/cyberworlds/cyberworlds/teams",
+                trees_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/trees{/sha}",
+                clone_url: "https://github.com/cyberworlds/cyberworlds.git",
+                mirror_url: null,
+                hooks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/hooks",
+                svn_url: "https://github.com/cyberworlds/cyberworlds",
+                homepage: "https://cyberworlds.com",
+                language: "TypeScript",
+                forks_count: 5,
+                stargazers_count: 42,
+                watchers_count: 42,
+                size: 1024,
+                default_branch: "main",
+                open_issues_count: 3,
+                is_template: false,
+                topics: ["react", "typescript", "collaboration"],
+                has_issues: true,
+                has_projects: true,
+                has_wiki: false,
+                has_pages: false,
+                has_downloads: true,
+                archived: false,
+                disabled: false,
+                visibility: "private",
+                pushed_at: "2023-11-10T09:55:00Z",
+                created_at: "2023-01-01T00:00:00Z",
+                updated_at: "2023-11-10T09:55:00Z",
+                permissions: {
+                    admin: true,
+                    maintain: true,
+                    push: true,
+                    triage: true,
+                    pull: true,
+                },
+                allow_rebase_merge: true,
+                template_repository: null,
+                temp_clone_token: "",
+                allow_squash_merge: true,
+                allow_auto_merge: false,
+                delete_branch_on_merge: false,
+                allow_merge_commit: true,
+                subscribers_count: 10,
+                network_count: 5,
+                license: {
+                    key: "mit",
+                    name: "MIT License",
+                    url: "https://api.github.com/licenses/mit",
+                    spdx_id: "MIT",
+                    node_id: "MDc6TGljZW5zZW1pdA==",
+                    html_url: "https://github.com/git/git-scm.com/blob/main/MIT-LICENSE.txt",
+                },
+                forks: 5,
+                open_issues: 3,
+                watchers: 42,
+            },
+            head_repository: {
+                id: 456789,
+                node_id: "MDEwOlJlcG9zaXRvcnk0NTY3ODk=",
+                name: "app",
+                full_name: "cyberworlds/cyberworlds",
+                private: true,
+                owner: {
+                    login: "cyberworlds",
+                    id: 12345,
+                    node_id: "MDEyOk9yZ2FuaXphdGlvbjEyMzQ1",
+                    avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+                    gravatar_id: "",
+                    url: "https://api.github.com/users/cyberworlds",
+                    html_url: "https://github.com/cyberworlds",
+                    followers_url: "https://api.github.com/users/cyberworlds/followers",
+                    following_url:
+                        "https://api.github.com/users/cyberworlds/following{/other_user}",
+                    gists_url: "https://api.github.com/users/cyberworlds/gists{/gist_id}",
+                    starred_url: "https://api.github.com/users/cyberworlds/starred{/owner}{/repo}",
+                    subscriptions_url: "https://api.github.com/users/cyberworlds/subscriptions",
+                    organizations_url: "https://api.github.com/users/cyberworlds/orgs",
+                    repos_url: "https://api.github.com/users/cyberworlds/repos",
+                    events_url: "https://api.github.com/users/cyberworlds/events{/privacy}",
+                    received_events_url: "https://api.github.com/users/cyberworlds/received_events",
+                    type: "Organization",
+                    site_admin: false,
+                },
+                html_url: "https://github.com/cyberworlds/cyberworlds",
+                description: "Cyberworlds Application",
+                fork: false,
+                url: "https://api.github.com/repos/cyberworlds/cyberworlds",
+                archive_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/{archive_format}{/ref}",
+                assignees_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/assignees{/user}",
+                blobs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/blobs{/sha}",
+                branches_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/branches{/branch}",
+                collaborators_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/collaborators{/collaborator}",
+                comments_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/comments{/number}",
+                commits_url: "https://api.github.com/repos/cyberworlds/cyberworlds/commits{/sha}",
+                compare_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/compare/{base}...{head}",
+                contents_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/contents/{+path}",
+                contributors_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/contributors",
+                deployments_url: "https://api.github.com/repos/cyberworlds/cyberworlds/deployments",
+                downloads_url: "https://api.github.com/repos/cyberworlds/cyberworlds/downloads",
+                events_url: "https://api.github.com/repos/cyberworlds/cyberworlds/events",
+                forks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/forks",
+                git_commits_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/git/commits{/sha}",
+                git_refs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/refs{/sha}",
+                git_tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/tags{/sha}",
+                git_url: "git://github.com/cyberworlds/cyberworlds.git",
+                issue_comment_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/issues/comments{/number}",
+                issue_events_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/issues/events{/number}",
+                issues_url: "https://api.github.com/repos/cyberworlds/cyberworlds/issues{/number}",
+                keys_url: "https://api.github.com/repos/cyberworlds/cyberworlds/keys{/key_id}",
+                labels_url: "https://api.github.com/repos/cyberworlds/cyberworlds/labels{/name}",
+                languages_url: "https://api.github.com/repos/cyberworlds/cyberworlds/languages",
+                merges_url: "https://api.github.com/repos/cyberworlds/cyberworlds/merges",
+                milestones_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/milestones{/number}",
+                notifications_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/notifications{?since,all,participating}",
+                pulls_url: "https://api.github.com/repos/cyberworlds/cyberworlds/pulls{/number}",
+                releases_url: "https://api.github.com/repos/cyberworlds/cyberworlds/releases{/id}",
+                ssh_url: "git@github.com:cyberworlds/cyberworlds.git",
+                stargazers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/stargazers",
+                statuses_url: "https://api.github.com/repos/cyberworlds/cyberworlds/statuses/{sha}",
+                subscribers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/subscribers",
+                subscription_url:
+                    "https://api.github.com/repos/cyberworlds/cyberworlds/subscription",
+                tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/tags",
+                teams_url: "https://api.github.com/repos/cyberworlds/cyberworlds/teams",
+                trees_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/trees{/sha}",
+                clone_url: "https://github.com/cyberworlds/cyberworlds.git",
+                mirror_url: null,
+                hooks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/hooks",
+                svn_url: "https://github.com/cyberworlds/cyberworlds",
+                homepage: "https://cyberworlds.com",
+                language: "TypeScript",
+                forks_count: 5,
+                stargazers_count: 42,
+                watchers_count: 42,
+                size: 1024,
+                default_branch: "main",
+                open_issues_count: 3,
+                is_template: false,
+                topics: ["react", "typescript", "collaboration"],
+                has_issues: true,
+                has_projects: true,
+                has_wiki: false,
+                has_pages: false,
+                has_downloads: true,
+                archived: false,
+                disabled: false,
+                visibility: "private",
+                pushed_at: "2023-11-10T09:55:00Z",
+                created_at: "2023-01-01T00:00:00Z",
+                updated_at: "2023-11-10T09:55:00Z",
+                permissions: {
+                    admin: true,
+                    maintain: true,
+                    push: true,
+                    triage: true,
+                    pull: true,
+                },
+                allow_rebase_merge: true,
+                template_repository: null,
+                temp_clone_token: "",
+                allow_squash_merge: true,
+                allow_auto_merge: false,
+                delete_branch_on_merge: false,
+                allow_merge_commit: true,
+                subscribers_count: 10,
+                network_count: 5,
+                license: {
+                    key: "mit",
+                    name: "MIT License",
+                    url: "https://api.github.com/licenses/mit",
+                    spdx_id: "MIT",
+                    node_id: "MDc6TGljZW5zZW1pdA==",
+                    html_url: "https://github.com/git/git-scm.com/blob/main/MIT-LICENSE.txt",
+                },
+                forks: 5,
+                open_issues: 3,
+                watchers: 42,
+            },
+            referenced_workflows: [],
+        },
+        workflow: {
+            id: 789,
+            node_id: "W_kwDOExample789",
+            name: "CI",
+            path: ".github/workflows/ci.yml",
+            state: "active",
+            created_at: "2023-01-01T00:00:00Z",
+            updated_at: "2023-11-10T09:55:00Z",
+            url: "https://api.github.com/repos/cyberworlds/cyberworlds/actions/workflows/789",
+            html_url: "https://github.com/cyberworlds/cyberworlds/actions/workflows/ci.yml",
+            badge_url: "https://github.com/cyberworlds/cyberworlds/workflows/CI/badge.svg",
+        },
+        repository: {
+            id: 456789,
+            node_id: "MDEwOlJlcG9zaXRvcnk0NTY3ODk=",
+            name: "app",
+            full_name: "cyberworlds/cyberworlds",
+            private: true,
+            owner: {
+                login: "cyberworlds",
+                id: 12345,
+                node_id: "MDEyOk9yZ2FuaXphdGlvbjEyMzQ1",
+                avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+                gravatar_id: "",
+                url: "https://api.github.com/users/cyberworlds",
+                html_url: "https://github.com/cyberworlds",
+                followers_url: "https://api.github.com/users/cyberworlds/followers",
+                following_url: "https://api.github.com/users/cyberworlds/following{/other_user}",
+                gists_url: "https://api.github.com/users/cyberworlds/gists{/gist_id}",
+                starred_url: "https://api.github.com/users/cyberworlds/starred{/owner}{/repo}",
+                subscriptions_url: "https://api.github.com/users/cyberworlds/subscriptions",
+                organizations_url: "https://api.github.com/users/cyberworlds/orgs",
+                repos_url: "https://api.github.com/users/cyberworlds/repos",
+                events_url: "https://api.github.com/users/cyberworlds/events{/privacy}",
+                received_events_url: "https://api.github.com/users/cyberworlds/received_events",
+                type: "Organization",
+                site_admin: false,
+            },
+            html_url: "https://github.com/cyberworlds/cyberworlds",
+            description: "Cyberworlds Application",
+            fork: false,
+            url: "https://api.github.com/repos/cyberworlds/cyberworlds",
+            archive_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/{archive_format}{/ref}",
+            assignees_url: "https://api.github.com/repos/cyberworlds/cyberworlds/assignees{/user}",
+            blobs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/blobs{/sha}",
+            branches_url: "https://api.github.com/repos/cyberworlds/cyberworlds/branches{/branch}",
+            collaborators_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/collaborators{/collaborator}",
+            comments_url: "https://api.github.com/repos/cyberworlds/cyberworlds/comments{/number}",
+            commits_url: "https://api.github.com/repos/cyberworlds/cyberworlds/commits{/sha}",
+            compare_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/compare/{base}...{head}",
+            contents_url: "https://api.github.com/repos/cyberworlds/cyberworlds/contents/{+path}",
+            contributors_url: "https://api.github.com/repos/cyberworlds/cyberworlds/contributors",
+            deployments_url: "https://api.github.com/repos/cyberworlds/cyberworlds/deployments",
+            downloads_url: "https://api.github.com/repos/cyberworlds/cyberworlds/downloads",
+            events_url: "https://api.github.com/repos/cyberworlds/cyberworlds/events",
+            forks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/forks",
+            git_commits_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/git/commits{/sha}",
+            git_refs_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/refs{/sha}",
+            git_tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/tags{/sha}",
+            git_url: "git://github.com/cyberworlds/cyberworlds.git",
+            issue_comment_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/issues/comments{/number}",
+            issue_events_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/issues/events{/number}",
+            issues_url: "https://api.github.com/repos/cyberworlds/cyberworlds/issues{/number}",
+            keys_url: "https://api.github.com/repos/cyberworlds/cyberworlds/keys{/key_id}",
+            labels_url: "https://api.github.com/repos/cyberworlds/cyberworlds/labels{/name}",
+            languages_url: "https://api.github.com/repos/cyberworlds/cyberworlds/languages",
+            merges_url: "https://api.github.com/repos/cyberworlds/cyberworlds/merges",
+            milestones_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/milestones{/number}",
+            notifications_url:
+                "https://api.github.com/repos/cyberworlds/cyberworlds/notifications{?since,all,participating}",
+            pulls_url: "https://api.github.com/repos/cyberworlds/cyberworlds/pulls{/number}",
+            releases_url: "https://api.github.com/repos/cyberworlds/cyberworlds/releases{/id}",
+            ssh_url: "git@github.com:cyberworlds/cyberworlds.git",
+            stargazers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/stargazers",
+            statuses_url: "https://api.github.com/repos/cyberworlds/cyberworlds/statuses/{sha}",
+            subscribers_url: "https://api.github.com/repos/cyberworlds/cyberworlds/subscribers",
+            subscription_url: "https://api.github.com/repos/cyberworlds/cyberworlds/subscription",
+            tags_url: "https://api.github.com/repos/cyberworlds/cyberworlds/tags",
+            teams_url: "https://api.github.com/repos/cyberworlds/cyberworlds/teams",
+            trees_url: "https://api.github.com/repos/cyberworlds/cyberworlds/git/trees{/sha}",
+            clone_url: "https://github.com/cyberworlds/cyberworlds.git",
+            mirror_url: null,
+            hooks_url: "https://api.github.com/repos/cyberworlds/cyberworlds/hooks",
+            svn_url: "https://github.com/cyberworlds/cyberworlds",
+            homepage: "https://cyberworlds.com",
+            language: "TypeScript",
+            forks_count: 5,
+            stargazers_count: 42,
+            watchers_count: 42,
+            size: 1024,
+            default_branch: "main",
+            open_issues_count: 3,
+            is_template: false,
+            topics: ["react", "typescript", "collaboration"],
+            has_issues: true,
+            has_projects: true,
+            has_wiki: false,
+            has_pages: false,
+            has_downloads: true,
+            archived: false,
+            disabled: false,
+            visibility: "private",
+            pushed_at: "2023-11-10T09:55:00Z",
+            created_at: "2023-01-01T00:00:00Z",
+            updated_at: "2023-11-10T09:55:00Z",
+            permissions: {
+                admin: true,
+                maintain: true,
+                push: true,
+                triage: true,
+                pull: true,
+            },
+            allow_rebase_merge: true,
+            template_repository: null,
+            temp_clone_token: "",
+            allow_squash_merge: true,
+            allow_auto_merge: false,
+            delete_branch_on_merge: false,
+            allow_merge_commit: true,
+            subscribers_count: 10,
+            network_count: 5,
+            license: {
+                key: "mit",
+                name: "MIT License",
+                url: "https://api.github.com/licenses/mit",
+                spdx_id: "MIT",
+                node_id: "MDc6TGljZW5zZW1pdA==",
+                html_url: "https://github.com/git/git-scm.com/blob/main/MIT-LICENSE.txt",
+            },
+            forks: 5,
+            open_issues: 3,
+            watchers: 42,
+        },
+        sender: {
+            login: "developer123",
+            id: 12345,
+            node_id: "MDQ6VXNlcjEyMzQ1",
+            avatar_url: "https://avatars.githubusercontent.com/u/12345?v=4",
+            gravatar_id: "",
+            url: "https://api.github.com/users/developer123",
+            html_url: "https://github.com/developer123",
+            followers_url: "https://api.github.com/users/developer123/followers",
+            following_url: "https://api.github.com/users/developer123/following{/other_user}",
+            gists_url: "https://api.github.com/users/developer123/gists{/gist_id}",
+            starred_url: "https://api.github.com/users/developer123/starred{/owner}{/repo}",
+            subscriptions_url: "https://api.github.com/users/developer123/subscriptions",
+            organizations_url: "https://api.github.com/users/developer123/orgs",
+            repos_url: "https://api.github.com/users/developer123/repos",
+            events_url: "https://api.github.com/users/developer123/events{/privacy}",
+            received_events_url: "https://api.github.com/users/developer123/received_events",
+            type: "User",
+            site_admin: false,
+        },
+        ...overrides,
+    });
+
+    const createGitHubPushCommitFixture = (
+        overrides: Partial<GitHubPushEventPayload["commits"][number]> = {},
+    ): GitHubPushEventPayload["commits"][number] => ({
+        id: "def456abc789",
+        tree_id: "tree987654",
+        distinct: true,
+        message: "Ship GitHub commit alert (#812)",
+        timestamp: "2023-11-10T09:55:00Z",
+        url: "https://github.com/cyberworlds/cyberworlds/commit/def456abc789",
+        author: {
+            name: "Josh Johnson",
+            email: "josh@example.com",
+            username: "imjoshin",
+        },
+        committer: {
+            name: "GitHub",
+            email: "noreply@github.com",
+            username: "web-flow",
+        },
+        added: [],
+        removed: [],
+        modified: ["admin/lambda/send_alert/send_alert_to_alpine.ts"],
+        ...overrides,
+    });
+
+    const createGitHubPushFixture = (
+        overrides: Partial<GitHubPushEventPayload> = {},
+    ): GitHubPushEventPayload => {
+        const workflowRunFixture = createGitHubFixture();
+        const commit = createGitHubPushCommitFixture();
+
+        return {
+            type: "push",
+            after: commit.id,
+            base_ref: null,
+            before: "abc123def456",
+            commits: [commit],
+            compare:
+                "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...def456abc789",
+            created: false,
+            deleted: false,
+            forced: false,
+            head_commit: commit,
+            pusher: {
+                name: "imjoshin",
+                email: "josh@example.com",
+            },
+            ref: "refs/heads/main",
+            repository: workflowRunFixture.repository,
+            sender: {
+                ...workflowRunFixture.sender,
+                login: "imjoshin",
+                html_url: "https://github.com/imjoshin",
+            },
+            ...overrides,
+        };
+    };
+
+    test("build failure", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "failure",
+                head_commit: {
+                    id: "abc123def456",
+                    tree_id: "tree123456",
+                    message: "Fix bug in user authentication",
+                    timestamp: "2023-11-10T09:55:00Z",
+                    author: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                    committer: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                },
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("build failure with PR reference", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "failure",
+                head_commit: {
+                    id: "abc123def456",
+                    tree_id: "tree123456",
+                    message: "Small alert formatting (#746)",
+                    timestamp: "2023-11-10T09:55:00Z",
+                    author: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                    committer: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                },
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("build failure with multiple PR references", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "failure",
+                head_commit: {
+                    id: "abc123def456",
+                    tree_id: "tree123456",
+                    message: "Merge multiple PRs: feature A (#123) and bug fix (#456)",
+                    timestamp: "2023-11-10T09:55:00Z",
+                    author: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                    committer: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                },
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("push to main with multiple commits", async () => {
+        const firstCommit = createGitHubPushCommitFixture();
+        const secondCommit = createGitHubPushCommitFixture({
+            id: "fed321cba987",
+            tree_id: "tree654321",
+            message: "Follow-up alert polish",
+            timestamp: "2023-11-10T09:57:00Z",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/fed321cba987",
+            author: {
+                name: "Mona Lisa",
+                email: "mona@example.com",
+                username: null,
+            },
+            modified: ["admin/lambda/send_alert/internal/github_alert_source_types.ts"],
+        });
+        const payload = createGitHubPushFixture({
+            after: secondCommit.id,
+            commits: [firstCommit, secondCommit],
+            head_commit: secondCommit,
+            compare:
+                "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987",
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("push to main with one commit", async () => {
+        const payload = createGitHubPushFixture();
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("push maps real GitHub usernames to first names", async () => {
+        const firstCommit = createGitHubPushCommitFixture({
+            id: "1111111aaaaaa",
+            message: "Add support for GitHub push alerts",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa",
+            author: {
+                name: "i-fitz",
+                email: "ian@example.com",
+                username: "ifitzsimmons",
+            },
+        });
+        const secondCommit = createGitHubPushCommitFixture({
+            id: "2222222bbbbbb",
+            message: "Polish push alert copy",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb",
+            author: {
+                name: "rmt",
+                email: "rachel@example.com",
+                username: "rmtobin",
+            },
+        });
+        const thirdCommit = createGitHubPushCommitFixture({
+            id: "3333333cccccc",
+            message: "Wire push alert channel",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/3333333cccccc",
+            author: {
+                name: "jj",
+                email: "josh@example.com",
+                username: "imjoshin",
+            },
+        });
+        const payload = createGitHubPushFixture({
+            after: thirdCommit.id,
+            commits: [firstCommit, secondCommit, thirdCommit],
+            head_commit: thirdCommit,
+            compare:
+                "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc",
+            sender: {
+                ...createGitHubFixture().sender,
+                login: "calebmer",
+                html_url: "https://github.com/calebmer",
+            },
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("ignores push to another branch", async () => {
+        const payload = createGitHubPushFixture({
+            ref: "refs/heads/some-feature-branch",
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+
+    test("ignores push with no commits", async () => {
+        const payload = createGitHubPushFixture({
+            commits: [],
+            head_commit: null,
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(0);
+    });
+});

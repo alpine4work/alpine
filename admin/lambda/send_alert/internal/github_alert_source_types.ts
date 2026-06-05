@@ -2,7 +2,7 @@
 // https://docs.github.com/en/webhooks/webhook-events-and-payloads#workflow_run
 // https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
 
-type GitHubActionsActor = {
+type GitHubActor = {
     login: string;
     id: number;
     node_id: string;
@@ -23,13 +23,13 @@ type GitHubActionsActor = {
     site_admin: boolean;
 };
 
-type GitHubActionsRepository = {
+type GitHubRepository = {
     id: number;
     node_id: string;
     name: string;
     full_name: string;
     private: boolean;
-    owner: GitHubActionsActor;
+    owner: GitHubActor;
     html_url: string;
     description: string | null;
     fork: boolean;
@@ -125,7 +125,7 @@ type GitHubActionsRepository = {
     watchers: number;
 };
 
-type GitHubActionsWorkflowRunEventPayload = {
+export type GitHubWorkflowRunEventPayload = {
     type: "workflow_run";
     action: "completed" | "requested";
     workflow_run: {
@@ -156,10 +156,10 @@ type GitHubActionsWorkflowRunEventPayload = {
         pull_requests: Array<unknown>;
         created_at: string;
         updated_at: string;
-        actor: GitHubActionsActor;
+        actor: GitHubActor;
         run_attempt: number;
         run_started_at: string;
-        triggering_actor: GitHubActionsActor;
+        triggering_actor: GitHubActor;
         jobs_url: string;
         logs_url: string;
         artifacts_url: string;
@@ -180,8 +180,8 @@ type GitHubActionsWorkflowRunEventPayload = {
                 email: string;
             };
         };
-        repository: GitHubActionsRepository;
-        head_repository: GitHubActionsRepository;
+        repository: GitHubRepository;
+        head_repository: GitHubRepository;
         referenced_workflows: Array<unknown>;
     };
     workflow: {
@@ -196,8 +196,8 @@ type GitHubActionsWorkflowRunEventPayload = {
         html_url: string;
         badge_url: string;
     };
-    repository: GitHubActionsRepository;
-    sender: GitHubActionsActor;
+    repository: GitHubRepository;
+    sender: GitHubActor;
     organization?: {
         login: string;
         id: number;
@@ -252,8 +252,8 @@ export type GitHubPushEventPayload = {
         email: string;
     };
     ref: string;
-    repository: GitHubActionsRepository;
-    sender: GitHubActionsActor;
+    repository: GitHubRepository;
+    sender: GitHubActor;
     organization?: {
         login: string;
         id: number;
@@ -270,5 +270,4 @@ export type GitHubPushEventPayload = {
     };
 };
 
-export type GitHubActionsEventPayload = GitHubActionsWorkflowRunEventPayload;
-export type GitHubEventPayload = GitHubActionsWorkflowRunEventPayload | GitHubPushEventPayload;
+export type GitHubEventPayload = GitHubWorkflowRunEventPayload | GitHubPushEventPayload;

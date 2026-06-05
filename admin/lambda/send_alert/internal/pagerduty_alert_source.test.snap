@@ -1,0 +1,75 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PagerDutyAlertSource acknowledged incident 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## 🚨 Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`triggered\`</mark>
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
+`;
+
+exports[`PagerDutyAlertSource resolved incident 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## ✅ Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`resolved\`</mark>
+
+---
+
+**The incident has been resolved.**
+
+Database connection pool was restarted and issue resolved
+
+---
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
+`;
+
+exports[`PagerDutyAlertSource triggered incident 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## 🚨 Incident: Database Connection Pool Exhausted
+
+[View Incident](https://cyberworlds.pagerduty.com/incidents/incident-123) • [Escalation Policy](https://cyberworlds.pagerduty.com/escalation_policies/eng-escalation)
+
+Incident #42 • Status: <mark class="highlight-red">\`triggered\`</mark>
+
+Service: [Database Service](https://cyberworlds.pagerduty.com/services/database-service)
+
+Priority: \`P1 - Critical\` • Urgency: \`high\`
+
+Incident Type: \`Database Error\`
+
+Created: \`2023-11-10T10:00:00Z\`
+
+Assignees: [On-Call Engineer](https://cyberworlds.pagerduty.com/users/oncall-eng)
+"
+`;

@@ -1,0 +1,100 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GitHubAlertSource build failure 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Fix bug in user authentication
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource build failure with PR reference 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Small alert formatting [(#746)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/746)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource build failure with multiple PR references 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: c62kgg77zybqev6kkm77wza5gr
+
+## 🚨 Build failed: CI
+
+[View Run](https://github.com/cyberworlds/cyberworlds/actions/runs/123456789)
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Commit: [\`abc123d\`](https://github.com/cyberworlds/cyberworlds/commit/abc123def456)
+
+> Merge multiple PRs: feature A [(#123)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123) and bug fix [(#456)](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/456)
+
+Author: [developer123](https://github.com/developer123) • Triggered by: [developer123](https://github.com/developer123)
+"
+`;
+
+exports[`GitHubAlertSource push maps real GitHub usernames to first names 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+[3 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc) pushed to \`main\`
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Pushed by Caleb
+
+<pre>
+<code class="language-text">
+<a href="https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa">1111111</a> Add support for GitHub push alerts by Ian
+<a href="https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb">2222222</a> Polish push alert copy by Rachel
+<a href="https://github.com/cyberworlds/cyberworlds/commit/3333333cccccc">3333333</a> Wire push alert channel by Josh
+</code>
+</pre>
+"
+`;
+
+exports[`GitHubAlertSource push to main with multiple commits 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+[2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987) pushed to \`main\`
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Pushed by Josh
+
+<pre>
+<code class="language-text">
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> Ship GitHub commit alert <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> by Josh
+<a href="https://github.com/cyberworlds/cyberworlds/commit/fed321cba987">fed321c</a> Follow-up alert polish by Mona Lisa
+</code>
+</pre>
+"
+`;
+
+exports[`GitHubAlertSource push to main with one commit 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+1 commit pushed to \`main\`
+
+Repository: [app](https://github.com/cyberworlds/cyberworlds) • Pushed by Josh
+
+<pre>
+<code class="language-text">
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> Ship GitHub commit alert <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> by Josh
+</code>
+</pre>
+"
+`;
