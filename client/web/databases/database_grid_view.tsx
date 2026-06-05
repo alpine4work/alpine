@@ -335,6 +335,7 @@ export function DatabaseGridView({
                     minHeight: spacing[gridRowHeight],
                     node: (
                         <DatabaseGridViewDataRow
+                            tableId={tableId}
                             fields={gridFields.fields}
                             row={row}
                             rowId={rowId}
@@ -349,6 +350,7 @@ export function DatabaseGridView({
                 };
             },
         [
+            tableId,
             gridFields.fields,
             gridFields.hiddenFields,
             gridFields.startAddingField,
@@ -721,6 +723,7 @@ function DatabaseGridViewResizeHandle({
 // -- Data row -----------------------------------------------------------------
 
 function DatabaseGridViewDataRow({
+    tableId,
     fields,
     row,
     rowId,
@@ -731,6 +734,7 @@ function DatabaseGridViewDataRow({
     moveSelection,
     onCreateRow,
 }: {
+    tableId: DatabaseTableId;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
@@ -758,6 +762,7 @@ function DatabaseGridViewDataRow({
                 return (
                     <DatabaseGridViewCell
                         key={field.id}
+                        tableId={tableId}
                         field={field}
                         value={row.getCellValue(field.id)}
                         rowId={rowId}
@@ -778,6 +783,7 @@ function DatabaseGridViewDataRow({
 // -- Cell ---------------------------------------------------------------------
 
 function DatabaseGridViewCell({
+    tableId,
     field,
     value,
     rowId,
@@ -789,6 +795,7 @@ function DatabaseGridViewCell({
     moveSelection,
     onCreateRow,
 }: {
+    tableId: DatabaseTableId;
     field: DatabaseGridViewFieldWithEditing;
     value: unknown;
     rowId: DatabaseRowId;
@@ -817,6 +824,7 @@ function DatabaseGridViewCell({
         startTransition(async () => {
             setOptimisticValue(newValue);
             await conn.executeAction("updateCellValue", {
+                tableId,
                 fieldId: field.id,
                 rowId,
                 value: newValue as SchemaSerializedValue,

@@ -10,11 +10,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
     const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getTables",
+        name: "listTableIds",
         input: {},
     });
 
-    const firstTableId = result.tables.keys().next().value;
+    const firstTableId = result.tableIds[0];
     const target = firstTableId ?? "sql";
 
     // Use a relative redirect so that peek routes (which re-export this

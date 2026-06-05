@@ -173,6 +173,15 @@ export class DatabaseClient {
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
 
+        // Server-only actions (e.g. createTable) never run
+        // optimistically: they mint ids and attach new
+        // per-table files server-side, so the client just
+        // routes them straight to the server and applies the
+        // resulting pages (attaching any new table).
+        if (databaseActions[actionObject.name].serverOnly) {
+            return await this.executeActionViaServer(conn, actionObject, mutationId);
+        }
+
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
@@ -226,7 +235,7 @@ export class DatabaseClient {
     async executeActionWithTracking<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
-    ): Promise<{output: DatabaseActionOutput<N>; readPages: ReadonlySet<number>}> {
+    ): Promise<{output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet}> {
         assert(
             databaseActions[actionObject.name].writeLevel === "none",
             "executeActionWithTracking only supports read-only actions",
@@ -247,11 +256,13 @@ export class DatabaseClient {
 
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-    ): {output: DatabaseActionOutput<N>; readPages: ReadonlySet<number>} {
+    ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
-        const main = readPages.get(databaseMainTableId) ?? new Set<number>();
-        return {output, readPages: main};
+        // The read-set spans every table the action touched —
+        // including the per-table databases that hold row data,
+        // not just main's routing tables.
+        return {output, readPages};
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -260,7 +271,7 @@ export class DatabaseClient {
         string,
         {
             readonly actionObject: DatabaseActionObject;
-            readPages: ReadonlySet<number> | null;
+            readPages: ReadonlyDatabasePageSet | null;
             readonly conn: DatabaseClientConnection;
             readonly notify: (output: DatabaseActionOutput<DatabaseActionName>) => void;
             readonly reportError: (error: unknown) => void;
@@ -335,25 +346,14 @@ export class DatabaseClient {
     }
 
     private async checkInvalidation(writtenPages: ReadonlyDatabasePageSet): Promise<void> {
-        // Reactive action read-tracking is still
-        // single-table; treat each action's `readPages` as
-        // referring to main-table pages and check overlap
-        // against just main-table writes.
-        const mainWrites = writtenPages.get(databaseMainTableId);
+        // A reactive action's read-set spans every table it
+        // touched (main routing + per-table data), so check
+        // overlap against the written pages of every table.
         for (const [, reg] of this.reactiveActions) {
             if (reg.reExecuting) continue;
 
-            let overlaps = false;
-            if (reg.readPages === null) {
-                overlaps = true;
-            } else if (mainWrites !== undefined) {
-                for (const page of mainWrites) {
-                    if (reg.readPages.has(page)) {
-                        overlaps = true;
-                        break;
-                    }
-                }
-            }
+            const overlaps =
+                reg.readPages === null || pageSetsOverlap(reg.readPages, writtenPages);
             if (!overlaps) continue;
 
             reg.reExecuting = true;
@@ -541,6 +541,36 @@ export class DatabaseClient {
         }
     }
 
+    /**
+     * Ensure `tableId`'s per-db file has a local page store
+     * and is attached to the SQLite connection. No-op if it
+     * is already attached. Pages are fetched lazily (server
+     * fallback) on first access, not here.
+     */
+    private async ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
+        if (this.database.isAttached(tableId)) return;
+        if (this.storage.get(tableId) === undefined) {
+            await this.storage.create(tableId);
+        }
+        this.database.attach(tableId);
+    }
+
+    /**
+     * Attach every table recorded in the main database's
+     * `_alpine_tables` registry so their per-db files are
+     * reachable. Called once at cold-open after the cache is
+     * validated, before any per-table action runs.
+     */
+    async attachExistingTables(conn: DatabaseClientConnection): Promise<void> {
+        const {tableIds} = await this.executeAction<"listTableIds">(conn, {
+            name: "listTableIds",
+            input: {},
+        });
+        for (const tableId of tableIds) {
+            await this.ensureTableAttached(tableId);
+        }
+    }
+
     private async executeActionViaServer<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
         actionObject: DatabaseActionObject<N>,
@@ -569,6 +599,12 @@ export class DatabaseClient {
         // before we replay the queue on top.
         this.database.discardBuffer();
         if (serverResult.readPages !== null) {
+            // Attach any table the server just told us about
+            // (e.g. a table this client created) before writing
+            // its pages, so its per-db file is reachable.
+            for (const tableId of serverResult.readPages.keys()) {
+                await this.ensureTableAttached(tableId);
+            }
             this.applyServerPages(serverResult.readPages);
             const acknowledged = new Map<DatabaseTableId, Array<number>>();
             for (const [tableId, tablePages] of serverResult.readPages) {
@@ -637,4 +673,23 @@ export class DatabaseClient {
         assert(import.meta.jest);
         return this.database.unsafeGetDbForTests();
     }
+}
+
+/**
+ * Whether any page in `readPages` (per table) was also
+ * written in `writtenPages`. Used to decide if a reactive
+ * action's result is stale.
+ */
+function pageSetsOverlap(
+    readPages: ReadonlyDatabasePageSet,
+    writtenPages: ReadonlyDatabasePageSet,
+): boolean {
+    for (const [tableId, readSet] of readPages) {
+        const writes = writtenPages.get(tableId);
+        if (writes === undefined) continue;
+        for (const page of readSet) {
+            if (writes.has(page)) return true;
+        }
+    }
+    return false;
 }

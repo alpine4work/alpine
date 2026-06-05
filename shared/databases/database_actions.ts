@@ -10,6 +10,7 @@ import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_help
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
+import {runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -36,95 +37,127 @@ const sqlBoolean = Schema.boolean.migration({
 
 // -- Row schema configs -------------------------------------------------------
 
+/** Row config for a per-db file's singleton `_alpine_table`. */
 const alpineTableConfig = {
     id: Schema.id<DatabaseTableId>(),
     name: Schema.string,
     tableName: Schema.string.originalPropertyKey("table_name"),
 };
 
-const alpineViewConfig = {
-    id: Schema.id<DatabaseViewId>(),
-    tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
-    name: Schema.string,
-};
+/**
+ * Capabilities handed to a database action's `run()` beyond
+ * the raw SQLite handle.
+ */
+export interface DatabaseActionContext {
+    /**
+     * Attach a per-table database file (no-op if already
+     * attached) so the action can create or write to it.
+     * Used by server-only schema actions like
+     * {@link databaseActions.createTable}.
+     */
+    attachTable(tableId: DatabaseTableId): void;
+}
 
 /**
  * Defines a database action with typed input/output
  * schemas, a write level, and a shared `run()` function
  * that executes on both client and server.
+ *
+ * `serverOnly` actions never run optimistically on the
+ * client; the client routes them straight to the server.
+ * This lets them generate ids internally and attach new
+ * per-table files without client/server divergence.
  */
 function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
-    run: (db: Database, input: Input) => any;
+    serverOnly?: boolean;
+    run: (db: Database, input: Input, ctx: DatabaseActionContext) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
-    run: (db: Database, input: Input) => Output;
+    serverOnly: boolean;
+    run: (db: Database, input: Input, ctx: DatabaseActionContext) => Output;
 } {
-    return def;
+    return {serverOnly: false, ...def};
+}
+
+/**
+ * Reads a table's SQLite identifier (`table_name`) from its
+ * own per-db file. The display name and identifier are
+ * private and never live in the public main database.
+ */
+function readTableName(db: Database, tableId: DatabaseTableId): string {
+    return sql`
+        SELECT
+            table_name
+        FROM
+            ${sql.tableRef(tableId, "_alpine_table")}
+    `.selectValue(db, Schema.string);
 }
 
 /**
  * Resolves a `tableOrViewId` (which may be either a
  * table ID or a view ID) into the canonical triple of
- * `{tableId, viewId, tableName}`. Checks the view path
- * first since that is the happy path after URL
- * canonicalization.
+ * `{tableId, viewId, tableName}`.
+ *
+ * A bare view ID is routed to its owning table through the
+ * main database's ID-only `_alpine_views(id, table_id)`
+ * routing index (the happy path after URL canonicalization);
+ * the table's name then comes from its per-db file. A bare
+ * table ID falls back to picking its first view from that
+ * table's per-db file.
  */
 function resolveTableOrViewId(
     db: Database,
     tableOrViewId: string,
 ): {tableId: DatabaseTableId; viewId: DatabaseViewId; tableName: string} {
-    // Happy path: try as a view ID first since URLs are
-    // canonicalized to view IDs after the first redirect.
-    const viewResult = sql`
+    // Happy path: route the view ID to its table via the
+    // main routing index (URLs canonicalize to view IDs).
+    const routing = sql`
         SELECT
-            *
+            table_id
         FROM
             _alpine_views
         WHERE
             id = ${tableOrViewId}
-    `.selectOneOrNone(db, alpineViewConfig);
+    `.selectOneOrNone(db, {
+        tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
+    });
 
-    if (viewResult !== null) {
-        const table = sql`
-            SELECT
-                *
-            FROM
-                _alpine_tables
-            WHERE
-                id = ${viewResult.tableId}
-        `.selectOne(db, alpineTableConfig);
-        return {tableId: table.id, viewId: viewResult.id, tableName: table.tableName};
+    if (routing !== null) {
+        return {
+            tableId: routing.tableId,
+            viewId: tableOrViewId as DatabaseViewId,
+            tableName: readTableName(db, routing.tableId),
+        };
     }
 
-    // Fallback: resolve as a table ID and pick its first view.
-    const tableResult = sql`
+    // Fallback: resolve as a table ID and pick its first
+    // view from that table's per-db file.
+    const table = sql`
         SELECT
-            *
+            id
         FROM
             _alpine_tables
         WHERE
             id = ${tableOrViewId}
-    `.selectOne(db, alpineTableConfig);
+    `.selectOne(db, {id: Schema.id<DatabaseTableId>()});
 
     const view = sql`
         SELECT
-            *
+            id
         FROM
-            _alpine_views
-        WHERE
-            table_id = ${tableResult.id}
+            ${sql.tableRef(table.id, "_alpine_views")}
         ORDER BY
             id
         LIMIT
             1
-    `.selectOne(db, alpineViewConfig);
+    `.selectOne(db, {id: Schema.id<DatabaseViewId>()});
 
-    return {tableId: tableResult.id, viewId: view.id, tableName: tableResult.tableName};
+    return {tableId: table.id, viewId: view.id, tableName: readTableName(db, table.id)};
 }
 
 /**
@@ -151,21 +184,14 @@ function createField(
         type: DatabaseFieldType;
     },
 ): void {
-    const table = sql`
-        SELECT
-            *
-        FROM
-            _alpine_tables
-        WHERE
-            id = ${tableId}
-    `.selectOne(db, alpineTableConfig);
+    const tableName = readTableName(db, tableId);
 
     const existingColumnNames = new Set(
         sql`
             SELECT
                 column_name
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
             WHERE
                 table_id = ${tableId}
         `
@@ -178,7 +204,7 @@ function createField(
         SELECT
             MAX(position)
         FROM
-            _alpine_view_fields
+            ${sql.tableRef(tableId, "_alpine_view_fields")}
         WHERE
             view_id = ${viewId}
     `.selectValue(db, Schema.string.nullable());
@@ -188,7 +214,7 @@ function createField(
 
     sql`
         INSERT INTO
-            _alpine_fields (id, table_id, name, column_name, config)
+            ${sql.tableRef(tableId, "_alpine_fields")} (id, table_id, name, column_name, config)
         VALUES
             (
                 ${fieldId},
@@ -201,7 +227,7 @@ function createField(
 
     sql`
         INSERT INTO
-            _alpine_view_fields (view_id, field_id, position, width)
+            ${sql.tableRef(tableId, "_alpine_view_fields")} (view_id, field_id, position, width)
         VALUES
             (
                 ${viewId},
@@ -214,7 +240,7 @@ function createField(
     const {sqliteType, defaultValue, generateCheckConstraint} = provider;
 
     sql`
-        ALTER TABLE ${sql.identifier(table.tableName)}
+        ALTER TABLE ${sql.tableRef(tableId, tableName)}
         ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
             fieldId,
         )} NOT NULL DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
@@ -247,30 +273,40 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "none",
         run(db) {
-            sql`
+            // Main routing tables (public, IDs only).
+            const tableIds = sql`
                 SELECT
-                    *
+                    id
                 FROM
                     _alpine_tables
-            `.selectAllUnknown(db);
-            sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_fields
-            `.selectAllUnknown(db);
+            `
+                .selectAll(db, {id: Schema.id<DatabaseTableId>()})
+                .map(row => row.id);
             sql`
                 SELECT
                     *
                 FROM
                     _alpine_views
             `.selectAllUnknown(db);
-            sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_view_fields
-            `.selectAllUnknown(db);
+
+            // Each table's real metadata lives in its own
+            // per-db file; touch every metadata table so its
+            // pages are pulled into the read set (and cached).
+            for (const tableId of tableIds) {
+                for (const table of [
+                    "_alpine_table",
+                    "_alpine_fields",
+                    "_alpine_views",
+                    "_alpine_view_fields",
+                ]) {
+                    sql`
+                        SELECT
+                            *
+                        FROM
+                            ${sql.tableRef(tableId, table)}
+                    `.selectAllUnknown(db);
+                }
+            }
             return {};
         },
     }),
@@ -283,23 +319,49 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
-        run(db, {name}) {
-            const existingTableNames = new Set(
-                sql`
-                    SELECT
-                        table_name
-                    FROM
-                        _alpine_tables
-                `
-                    .selectAll(db, {tableName: Schema.string.originalPropertyKey("table_name")})
-                    .map(row => row.tableName),
-            );
-            const tableName = formatUniqueSqlName(name, existingTableNames);
+        // Server-only so it can mint ids internally and attach
+        // a brand-new per-db file without client/server
+        // divergence; the client routes this to the server.
+        serverOnly: true,
+        run(db, {name}, ctx) {
             const tableId = generateChronologicalId<DatabaseTableId>();
+            const viewId = generateChronologicalId<DatabaseViewId>();
 
+            // Attach + migrate the new per-db file before
+            // writing any of the table's data or metadata into
+            // it. `attachTable` is a no-op if already attached.
+            ctx.attachTable(tableId);
+            runTableMigrations(db, tableId);
+
+            // Public main database: ID-only registry + routing.
             sql`
                 INSERT INTO
-                    _alpine_tables (id, name, table_name)
+                    _alpine_tables (id)
+                VALUES
+                    (${tableId})
+            `.exec(db);
+            sql`
+                INSERT INTO
+                    _alpine_views (id, table_id)
+                VALUES
+                    (
+                        ${viewId},
+                        ${tableId}
+                    )
+            `.exec(db);
+
+            // SQLite identifier for the data table. It only has
+            // to be unique within this table's own file, and
+            // `formatUniqueSqlName` strips leading underscores
+            // so it can never collide with the `_alpine_*`
+            // metadata tables.
+            const tableName = formatUniqueSqlName(name, new Set());
+
+            // Real, table-scoped metadata lives in the per-db
+            // file, never in the public main database.
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name)
                 VALUES
                     (
                         ${tableId},
@@ -307,11 +369,9 @@ export const databaseActions = {
                         ${tableName}
                     )
             `.exec(db);
-
-            const viewId = generateChronologicalId<DatabaseViewId>();
             sql`
                 INSERT INTO
-                    _alpine_views (id, table_id, name)
+                    ${sql.tableRef(tableId, "_alpine_views")} (id, table_id, name)
                 VALUES
                     (
                         ${viewId},
@@ -321,7 +381,7 @@ export const databaseActions = {
             `.exec(db);
 
             sql`
-                CREATE TABLE ${sql.identifier(tableName)} (
+                CREATE TABLE ${sql.tableRef(tableId, tableName)} (
                     _id TEXT PRIMARY KEY DEFAULT (generate_id ()),
                     _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
                     CHECK (is_id (_id)),
@@ -333,9 +393,10 @@ export const databaseActions = {
             createField(db, {fieldId, tableId, viewId, name: "Name", type: "plainText"});
 
             sql`
-                CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
-                    tableName,
-                )} (_created_at)
+                CREATE INDEX ${sql.tableRef(
+                    tableId,
+                    tableName + "__created_at",
+                )} ON ${sql.identifier(tableName)} (_created_at)
             `.exec(db);
 
             return {tableId, tableName, viewId};
@@ -356,40 +417,35 @@ export const databaseActions = {
                 SELECT
                     *
                 FROM
-                    _alpine_tables
-                WHERE
-                    id = ${tableId}
+                    ${sql.tableRef(tableId, "_alpine_table")}
             `.selectOne(db, alpineTableConfig);
 
-            const otherTableNames = new Set(
-                sql`
-                    SELECT
-                        table_name
-                    FROM
-                        _alpine_tables
-                    WHERE
-                        id != ${tableId}
-                `
-                    .selectAll(db, {tableName: Schema.string.originalPropertyKey("table_name")})
-                    .map(row => row.tableName),
-            );
-            const tableName = formatUniqueSqlName(name, otherTableNames);
+            // The identifier only has to be unique within this
+            // table's own file, so there are no other names to
+            // avoid.
+            const tableName = formatUniqueSqlName(name, new Set());
 
             if (tableName !== existing.tableName) {
-                sql` DROP INDEX ${sql.identifier(existing.tableName + "__created_at")} `.exec(db);
+                // Index names are schema-qualified; the renamed
+                // table stays in its own schema so the RENAME TO
+                // target is unqualified.
                 sql`
-                    ALTER TABLE ${sql.identifier(existing.tableName)}
+                    DROP INDEX ${sql.tableRef(tableId, existing.tableName + "__created_at")}
+                `.exec(db);
+                sql`
+                    ALTER TABLE ${sql.tableRef(tableId, existing.tableName)}
                     RENAME TO ${sql.identifier(tableName)}
                 `.exec(db);
                 sql`
-                    CREATE INDEX ${sql.identifier(tableName + "__created_at")} ON ${sql.identifier(
-                        tableName,
-                    )} (_created_at)
+                    CREATE INDEX ${sql.tableRef(
+                        tableId,
+                        tableName + "__created_at",
+                    )} ON ${sql.identifier(tableName)} (_created_at)
                 `.exec(db);
             }
 
             sql`
-                UPDATE _alpine_tables
+                UPDATE ${sql.tableRef(tableId, "_alpine_table")}
                 SET
                     name = ${name},
                     table_name = ${tableName}
@@ -401,32 +457,22 @@ export const databaseActions = {
         },
     }),
 
-    getTables: defineDatabaseAction({
+    listTableIds: defineDatabaseAction({
         input: Schema.object({}),
         output: Schema.object({
-            tables: Schema.map(
-                Schema.id<DatabaseTableId>(),
-                Schema.object({
-                    name: Schema.string,
-                    tableName: Schema.string,
-                }),
-            ),
+            tableIds: Schema.array(Schema.id<DatabaseTableId>()),
         }),
         writeLevel: "none",
         run(db) {
             const rows = sql`
                 SELECT
-                    *
+                    id
                 FROM
                     _alpine_tables
                 ORDER BY
                     id
-            `.selectAll(db, alpineTableConfig);
-            const tables = new Map<DatabaseTableId, {name: string; tableName: string}>();
-            for (const row of rows) {
-                tables.set(row.id, {name: row.name, tableName: row.tableName});
-            }
-            return {tables};
+            `.selectAll(db, {id: Schema.id<DatabaseTableId>()});
+            return {tableIds: rows.map(row => row.id)};
         },
     }),
 
@@ -462,8 +508,8 @@ export const databaseActions = {
                     vf.width,
                     vf.hidden
                 FROM
-                    _alpine_view_fields vf
-                    JOIN _alpine_fields f ON f.id = vf.field_id
+                    ${sql.tableRef(tableId, "_alpine_view_fields")} vf
+                    JOIN ${sql.tableRef(tableId, "_alpine_fields")} f ON f.id = vf.field_id
                 WHERE
                     vf.view_id = ${viewId}
                 ORDER BY
@@ -515,7 +561,7 @@ export const databaseActions = {
                 SELECT
                     _id
                 FROM
-                    ${sql.identifier(tableName)} ${whereClause}
+                    ${sql.tableRef(tableId, tableName)} ${whereClause}
                 ORDER BY
                     _id
                 LIMIT
@@ -541,7 +587,7 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run(db, {tableOrViewId, afterCursor, endCursor}) {
-            const {viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
+            const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
             // Get the view's fields in position order so we
             // can build a deterministic SELECT list and a
@@ -552,8 +598,8 @@ export const databaseActions = {
                     f.column_name,
                     f.config
                 FROM
-                    _alpine_view_fields vf
-                    JOIN _alpine_fields f ON f.id = vf.field_id
+                    ${sql.tableRef(tableId, "_alpine_view_fields")} vf
+                    JOIN ${sql.tableRef(tableId, "_alpine_fields")} f ON f.id = vf.field_id
                 WHERE
                     vf.view_id = ${viewId}
                 ORDER BY
@@ -610,7 +656,7 @@ export const databaseActions = {
                 SELECT
                     ${selectList}
                 FROM
-                    ${sql.identifier(tableName)} ${whereClause}
+                    ${sql.tableRef(tableId, tableName)} ${whereClause}
                 ORDER BY
                     _id
             `.selectAllArrays(db, columnSchemas);
@@ -621,40 +667,30 @@ export const databaseActions = {
 
     updateCellValue: defineDatabaseAction({
         input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             rowId: Schema.id<DatabaseRowId>(),
             value: Schema.unknown(),
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {fieldId, rowId, value}) {
+        run(db, {tableId, fieldId, rowId, value}) {
             const field = sql`
                 SELECT
-                    id,
-                    table_id,
                     column_name,
                     config
                 FROM
-                    _alpine_fields
+                    ${sql.tableRef(tableId, "_alpine_fields")}
                 WHERE
                     id = ${fieldId}
             `.selectOne(db, {
-                id: Schema.id<DatabaseFieldId>(),
-                tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
                 columnName: Schema.string.originalPropertyKey("column_name"),
                 config: DatabaseFieldConfigSqlSchema,
             });
             const provider = getDatabaseFieldProvider(field.config.type);
-            const table = sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${field.tableId}
-            `.selectOne(db, alpineTableConfig);
+            const tableName = readTableName(db, tableId);
             sql`
-                UPDATE ${sql.identifier(table.tableName)}
+                UPDATE ${sql.tableRef(tableId, tableName)}
                 SET
                     ${sql.identifier(field.columnName)} = ${provider.sqlValueSchema.serialize(
                     value,
@@ -674,17 +710,10 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "data",
         run(db, {tableId, rowId}) {
-            const table = sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${tableId}
-            `.selectOne(db, alpineTableConfig);
+            const tableName = readTableName(db, tableId);
             sql`
                 INSERT INTO
-                    ${sql.identifier(table.tableName)} (_id)
+                    ${sql.tableRef(tableId, tableName)} (_id)
                 VALUES
                     (${rowId})
             `.exec(db);
@@ -710,15 +739,16 @@ export const databaseActions = {
 
     resizeField: defineDatabaseAction({
         input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             width: Schema.integer,
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {viewId, fieldId, width}) {
+        run(db, {tableId, viewId, fieldId, width}) {
             sql`
-                UPDATE _alpine_view_fields
+                UPDATE ${sql.tableRef(tableId, "_alpine_view_fields")}
                 SET
                     width = ${width}
                 WHERE
@@ -731,6 +761,7 @@ export const databaseActions = {
 
     updateFieldViewVisibility: defineDatabaseAction({
         input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             position: OrderKeySchema,
@@ -738,10 +769,13 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {viewId, fieldId, position, isHidden}) {
+        run(db, {tableId, viewId, fieldId, position, isHidden}) {
             sql`
                 INSERT INTO
-                    _alpine_view_fields (view_id, field_id, position, width, hidden)
+                    ${sql.tableRef(
+                    tableId,
+                    "_alpine_view_fields",
+                )} (view_id, field_id, position, width, hidden)
                 VALUES
                     (
                         ${viewId},
@@ -761,45 +795,34 @@ export const databaseActions = {
 
     renameField: defineDatabaseAction({
         input: Schema.object({
+            tableId: Schema.id<DatabaseTableId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
             name: LabelStringSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run(db, {fieldId, name}) {
+        run(db, {tableId, fieldId, name}) {
             const field = sql`
                 SELECT
-                    id,
-                    table_id,
                     column_name
                 FROM
-                    _alpine_fields
+                    ${sql.tableRef(tableId, "_alpine_fields")}
                 WHERE
                     id = ${fieldId}
             `.selectOne(db, {
-                id: Schema.id<DatabaseFieldId>(),
-                tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
                 columnName: Schema.string.originalPropertyKey("column_name"),
             });
 
-            const table = sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_tables
-                WHERE
-                    id = ${field.tableId}
-            `.selectOne(db, alpineTableConfig);
+            const tableName = readTableName(db, tableId);
 
             const existingColumnNames = new Set(
                 sql`
                     SELECT
                         column_name
                     FROM
-                        _alpine_fields
+                        ${sql.tableRef(tableId, "_alpine_fields")}
                     WHERE
-                        table_id = ${field.tableId}
-                        AND id != ${fieldId}
+                        id != ${fieldId}
                 `
                     .selectAll(db, {
                         columnName: Schema.string.originalPropertyKey("column_name"),
@@ -809,7 +832,7 @@ export const databaseActions = {
             const newColumnName = formatUniqueSqlName(name, existingColumnNames);
 
             sql`
-                UPDATE _alpine_fields
+                UPDATE ${sql.tableRef(tableId, "_alpine_fields")}
                 SET
                     name = ${name},
                     column_name = ${newColumnName}
@@ -818,7 +841,7 @@ export const databaseActions = {
             `.exec(db);
 
             sql`
-                ALTER TABLE ${sql.identifier(table.tableName)}
+                ALTER TABLE ${sql.tableRef(tableId, tableName)}
                 RENAME COLUMN ${sql.identifier(field.columnName)} TO ${sql.identifier(
                     newColumnName,
                 )}

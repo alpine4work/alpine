@@ -5,6 +5,7 @@ import type {
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
+    type DatabaseActionContext,
     type DatabaseActionName,
     type DatabaseActionObject,
     type DatabaseActionOutput,
@@ -173,6 +174,14 @@ export class Database {
     private writeLevel: InternalSqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
+    /**
+     * Capabilities passed to every action's `run()`. Lets
+     * server-only schema actions (e.g. createTable) attach
+     * their own per-table file mid-execute.
+     */
+    private readonly actionContext: DatabaseActionContext = {
+        attachTable: tableId => this.attachIfNeeded(tableId),
+    };
 
     private constructor(sqlite3: Sqlite3Static, storage: ReadonlyDatabaseStorage) {
         this.storage = storage;
@@ -286,10 +295,20 @@ export class Database {
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
         const {result, readPages, writtenPages} = this.execute(
-            db => action.run(db, actionObject.input as never),
+            db => action.run(db, actionObject.input as never, this.actionContext),
             {allowWrites: action.writeLevel},
         );
         return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
+    }
+
+    /**
+     * The {@link DatabaseActionContext} passed to action
+     * `run()` functions. Exposed for callers that invoke
+     * `action.run` directly (e.g. {@link DatabaseServer})
+     * rather than through {@link executeAction}.
+     */
+    getActionContext(): DatabaseActionContext {
+        return this.actionContext;
     }
 
     /**
@@ -387,6 +406,18 @@ export class Database {
         this.db.exec("PRAGMA shrink_memory");
     }
 
+    /** Whether `tableId`'s per-db file is currently attached. */
+    isAttached(tableId: DatabaseTableId): boolean {
+        return this.tables.has(tableId);
+    }
+
+    /** {@link attach} the table unless it is already attached. */
+    attachIfNeeded(tableId: DatabaseTableId): void {
+        if (!this.tables.has(tableId)) {
+            this.attach(tableId);
+        }
+    }
+
     /**
      * Attach an additional per-table SQLite database to
      * this connection so its pages flow through the same
@@ -396,23 +427,27 @@ export class Database {
      * normal write level; this method briefly flips
      * `writeLevel` to the internal `"attach"` value so
      * the SQL it issues itself is permitted, then restores
-     * it. Schema name and VFS filename are both `tableId`,
-     * so `schemaToTable` maps `tableId → tableId`.
+     * whatever level was in effect. Schema name and VFS
+     * filename are both `tableId`, so `schemaToTable` maps
+     * `tableId → tableId`.
      *
-     * The caller is responsible for ensuring the backing
-     * `storage` already has a page store for `tableId`
-     * before this is invoked. Must be called when no
-     * `execute()` is in flight.
+     * Safe to call mid-`execute()` (e.g. from a server-only
+     * action that creates a new table): `execute()` opens no
+     * explicit transaction, so `ATTACH` between statements is
+     * legal, and the surrounding write level is saved and
+     * restored. The caller is responsible for ensuring the
+     * backing `storage` already has a page store for `tableId`
+     * before this is invoked.
      */
     attach(tableId: DatabaseTableId): void {
         assert(!this.tables.has(tableId), `attach: table already attached: ${tableId}`);
-        assert(this.writeLevel === null, "attach is not supported during an in-flight execute");
 
         // The VFS open callback runs synchronously during
         // ATTACH and looks up state by tableId, so the
         // entry must exist before the SQL runs.
         this.tables.set(tableId, new DatabaseTableState());
 
+        const previousWriteLevel = this.writeLevel;
         this.writeLevel = "attach";
         try {
             // Our table ids are 26-char alphanumerics, so
@@ -428,7 +463,7 @@ export class Database {
             this.tables.delete(tableId);
             throw error;
         } finally {
-            this.writeLevel = null;
+            this.writeLevel = previousWriteLevel;
         }
 
         // The new pager exists now; re-install the hook so

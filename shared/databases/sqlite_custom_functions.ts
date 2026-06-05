@@ -17,7 +17,7 @@ import {isId} from "~/shared/id/id.js";
 /**
  * Registers Alpine's custom SQL functions on a SQLite
  * database handle. Must be called before
- * {@link runSqliteMigrations} since the migration DDL
+ * {@link runMainMigrations} since the migration DDL
  * references these functions.
  *
  * - `generate_id()` — returns a new 26-char

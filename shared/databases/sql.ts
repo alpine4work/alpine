@@ -227,4 +227,16 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
 sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
 
+/**
+ * Create a schema-qualified SQL identifier, `"schema"."name"`,
+ * for referencing a table (or index) in an `ATTACH`-ed
+ * database. Both parts are quoted and escaped per the SQL
+ * standard (`"` → `""`).
+ */
+sql.tableRef = (schema: string, name: string): SqlQuery =>
+    new SqlQuery(
+        // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
+        `"${schema.replace(/"/g, '""')}"."${name.replace(/"/g, '""')}"`,
+    );
+
 export {sql, SqlQuery};

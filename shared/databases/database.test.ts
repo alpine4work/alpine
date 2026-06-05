@@ -276,6 +276,54 @@ describe("Database — attach", () => {
             }),
         ).toThrow();
     });
+
+    test("attaches a fresh table mid-execute and round-trips a write", async () => {
+        const {database, storage} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        // A server-only action like createTable attaches its
+        // own per-db file partway through an in-flight execute.
+        database.execute(
+            db => {
+                database.attach(otherTableId);
+                db.exec(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`);
+                db.exec(`INSERT INTO "${otherTableId}".items VALUES (1)`);
+            },
+            {allowWrites: "schema+data"},
+        );
+        commit(database, storage);
+
+        const result = database.executeSql(`SELECT id FROM "${otherTableId}".items`, {
+            allowWrites: "none",
+        });
+
+        expect(result.rows).toEqual([{id: 1}]);
+    });
+
+    test("tracks writes to a mid-execute attached schema under its tableId", async () => {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        const {writtenPages} = database.execute(
+            db => {
+                database.attach(otherTableId);
+                db.exec(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`);
+            },
+            {allowWrites: "schema+data"},
+        );
+
+        expect(writtenPages.get(otherTableId)?.size).toBeGreaterThan(0);
+    });
+
+    test("isAttached reflects attach state; attachIfNeeded is idempotent", async () => {
+        const {database} = await createDatabase();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+
+        database.attachIfNeeded(otherTableId);
+        database.attachIfNeeded(otherTableId);
+
+        expect(database.isAttached(otherTableId)).toBe(true);
+    });
 });
 
 describe("Database — error handling", () => {

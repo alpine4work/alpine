@@ -142,6 +142,18 @@ describe("sql.identifier", () => {
     });
 });
 
+describe("sql.tableRef", () => {
+    test("qualifies a name with its schema", () => {
+        const q = sql.tableRef("schema_a", "my_table");
+        expect(q.query).toBe('"schema_a"."my_table"');
+    });
+
+    test("escapes double quotes in both parts", () => {
+        const q = sql.tableRef('a "b"', 'c "d"');
+        expect(q.query).toBe('"a ""b"""."c ""d"""');
+    });
+});
+
 describe("sql.raw execution", () => {
     test("executes a raw SQL string", () => {
         const rows = sql.raw("SELECT id, name FROM t ORDER BY id").selectAll(db, {

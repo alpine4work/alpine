@@ -4,7 +4,7 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {isOrderKey} from "~/shared/helpers/sort/order_key.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -27,7 +27,7 @@ async function createDb(): Promise<Database> {
     const db = new sqlite3.oo1.DB(`/test-custom-fns-${dbCounter++}.sqlite3`, "ct");
     openDbs.push(db);
     registerSqliteCustomFunctions(sqlite3, db);
-    runSqliteMigrations(db);
+    runMainMigrations(db);
     return db;
 }
 

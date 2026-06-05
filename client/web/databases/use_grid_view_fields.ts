@@ -156,7 +156,7 @@ export function useGridViewFields({
                 const fieldId = editingState.fieldId;
                 startTransition(async () => {
                     applyOptimisticField({type: "rename", fieldId, name: trimmed});
-                    await conn.executeAction("renameField", {fieldId, name: trimmed});
+                    await conn.executeAction("renameField", {tableId, fieldId, name: trimmed});
                 });
                 break;
             }
@@ -357,7 +357,12 @@ export function useGridViewFields({
                 setResizingState(null);
                 startTransition(async () => {
                     applyOptimisticField({type: "resize", fieldId, width: finalWidth});
-                    await conn.executeAction("resizeField", {viewId, fieldId, width: finalWidth});
+                    await conn.executeAction("resizeField", {
+                        tableId,
+                        viewId,
+                        fieldId,
+                        width: finalWidth,
+                    });
                 });
             },
             onCancel() {
@@ -377,6 +382,7 @@ export function useGridViewFields({
             startTransition(async () => {
                 applyOptimisticField({type: "updateVisibility", fieldId, position, isHidden});
                 await conn.executeAction("updateFieldViewVisibility", {
+                    tableId,
                     viewId,
                     fieldId,
                     position,

@@ -242,6 +242,7 @@ describe("DatabaseServer", () => {
                     sqlite_schema
                 WHERE
                     type = 'table'
+                    AND name IN ('t1', 't2', 't3')
                 ORDER BY
                     name
             `.selectAll(db, {name: Schema.string, rootpage: Schema.integer});

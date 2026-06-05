@@ -3,7 +3,6 @@ import {useEffect, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {createDatabaseGroupConnection} from "~/client/web/databases/connect_to_database.js";
 import {DatabaseConnectionContext} from "~/client/web/databases/database_connection_context.js";
-import {DatabaseTablesContext} from "~/client/web/databases/database_tables_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
@@ -32,13 +31,6 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     databaseGroupId: Schema.id<DatabaseGroupId>(),
-    tables: Schema.map(
-        Schema.id<DatabaseTableId>(),
-        Schema.object({
-            name: Schema.string,
-            tableName: Schema.string,
-        }),
-    ),
     pages: DatabasePagesSchema,
 });
 
@@ -49,20 +41,19 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    const {result, readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "getTables",
+    const {readPages} = await fetchDatabaseGroupAction(context, databaseGroupId, {
+        name: "listTableIds",
         input: {},
     });
 
     return jsonWithSchema(LoaderSchema, {
         databaseGroupId,
-        tables: result.tables,
         pages: readPages,
     });
 }
 
 export default function DatabaseGroupLayoutRoute() {
-    const {databaseGroupId, tables, pages} = useLoaderDataWithSchema(LoaderSchema);
+    const {databaseGroupId, pages} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const browserId = useBrowserId();
     const navigate = useNavigate();
@@ -157,16 +148,6 @@ export default function DatabaseGroupLayoutRoute() {
             padding="4"
         >
             <Box display="flex" gap="1" flexWrap="wrap">
-                {Array.from(tables, ([tableId, table]) => (
-                    <Button
-                        key={tableId}
-                        variant={params.tableOrViewId === tableId ? "neutral" : "quieter"}
-                        onPress={() => navigate(`${basePath}/${tableId}`, {stopPropagation: true})}
-                        pressErrorTitle="Failed to navigate"
-                    >
-                        {table.name}
-                    </Button>
-                ))}
                 <Button
                     variant={params.tableOrViewId == null ? "neutral" : "quieter"}
                     onPress={() => navigate(`${basePath}/sql`, {stopPropagation: true})}
@@ -175,11 +156,9 @@ export default function DatabaseGroupLayoutRoute() {
                     SQL
                 </Button>
             </Box>
-            <DatabaseTablesContext.Provider value={tables}>
-                <DatabaseConnectionContext.Provider value={conn}>
-                    <Outlet />
-                </DatabaseConnectionContext.Provider>
-            </DatabaseTablesContext.Provider>
+            <DatabaseConnectionContext.Provider value={conn}>
+                <Outlet />
+            </DatabaseConnectionContext.Provider>
         </Box>
     );
 }

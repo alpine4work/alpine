@@ -2,12 +2,18 @@
 
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseActions} from "~/shared/databases/database_actions.js";
+import {
+    type DatabaseActionContext,
+    type DatabaseActionInput,
+    type DatabaseActionName,
+    type DatabaseActionOutput,
+    databaseActions,
+} from "~/shared/databases/database_actions.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
-import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
@@ -26,31 +32,74 @@ async function createDb(): Promise<Database> {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-actions-${dbCounter++}.sqlite3`, "ct");
     registerSqliteCustomFunctions(sqlite3, db);
-    runSqliteMigrations(db);
+    runMainMigrations(db);
     return db;
 }
 
+/**
+ * Action context for the raw test handle. There's no VFS
+ * here, so a table's per-db file is simulated with an
+ * in-memory attached database under the table id's schema.
+ */
+function makeCtx(db: Database): DatabaseActionContext {
+    return {
+        attachTable(tableId) {
+            db.exec(`ATTACH DATABASE ':memory:' AS "${tableId}"`);
+        },
+    };
+}
+
+/** Run an action with a freshly-built context. */
+function run<N extends DatabaseActionName>(
+    db: Database,
+    name: N,
+    input: DatabaseActionInput<N>,
+): DatabaseActionOutput<N> {
+    return databaseActions[name].run(db, input as never, makeCtx(db)) as DatabaseActionOutput<N>;
+}
+
 describe("createTable", () => {
-    test("inserts metadata into _alpine_tables and _alpine_fields", async () => {
+    test("registers an id-only row in the main database", async () => {
         const db = await createDb();
-        const {tableId, tableName} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId, tableName} = run(db, "createTable", {name: "Tasks"});
 
         expect(isId(tableId)).toBe(true);
         expect(tableName).toBe("tasks");
 
+        // The public main database holds only the id — no name.
         const tables = sql`
             SELECT
                 *
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toMatchObject([{id: tableId, name: "Tasks", table_name: "tasks"}]);
+        expect(tables).toEqual([{id: tableId}]);
+        db.close();
+    });
+
+    test("stores the table name and identifier in its per-db file", async () => {
+        const db = await createDb();
+        const {tableId} = run(db, "createTable", {name: "Tasks"});
+
+        const row = sql`
+            SELECT
+                *
+            FROM
+                ${sql.tableRef(tableId, "_alpine_table")}
+        `.selectAllUnknown(db);
+        expect(row).toMatchObject([{id: tableId, name: "Tasks", table_name: "tasks"}]);
+        db.close();
+    });
+
+    test("stores the initial Name field in its per-db file", async () => {
+        const db = await createDb();
+        const {tableId} = run(db, "createTable", {name: "Tasks"});
 
         const fields = sql`
             SELECT
                 *
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
         `.selectAllUnknown(db);
         expect(fields).toMatchObject([
             {
@@ -65,11 +114,11 @@ describe("createTable", () => {
 
     test("creates a queryable table with system columns", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId, tableName} = run(db, "createTable", {name: "Tasks"});
 
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('Do laundry')
         `.exec(db);
@@ -77,7 +126,7 @@ describe("createTable", () => {
             SELECT
                 *
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectAllUnknown(db);
 
         expect(isId(rows[0]!._id as string)).toBe(true);
@@ -87,17 +136,17 @@ describe("createTable", () => {
 
     test("_id auto-generates a ChronologicalId", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('a')
         `.exec(db);
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('b')
         `.exec(db);
@@ -105,7 +154,7 @@ describe("createTable", () => {
             SELECT
                 _id
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
             ORDER BY
                 _id
         `.selectAllUnknown(db);
@@ -118,11 +167,11 @@ describe("createTable", () => {
 
     test("_created_at auto-populates with datetime", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('x')
         `.exec(db);
@@ -130,7 +179,7 @@ describe("createTable", () => {
             SELECT
                 _created_at
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectOne(db, {
             createdAt: Schema.string.originalPropertyKey("_created_at"),
         }).createdAt;
@@ -141,12 +190,12 @@ describe("createTable", () => {
 
     test("_created_at CHECK rejects unparseable values", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (_created_at, name)
+                    ${sql.tableRef(tableId, tableName)} (_created_at, name)
                 VALUES
                     ('not-a-date', 'x')
             `.exec(db);
@@ -155,18 +204,18 @@ describe("createTable", () => {
 
     test("name column defaults to empty string", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} DEFAULT
+                ${sql.tableRef(tableId, tableName)} DEFAULT
             VALUES
         `.exec(db);
         const name = sql`
             SELECT
                 name
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectOne(db, {
             name: Schema.string,
         }).name;
@@ -175,12 +224,12 @@ describe("createTable", () => {
 
     test("name column CHECK rejects blobs", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (name)
+                    ${sql.tableRef(tableId, tableName)} (name)
                 VALUES
                     (${sql.raw("x'00'")})
             `.exec(db);
@@ -189,53 +238,80 @@ describe("createTable", () => {
 
     test("column type is encoded in type name", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const colInfo = sql`PRAGMA table_info (${sql.identifier(tableName)})`.selectAllUnknown(db);
+        const colInfo = sql
+            .raw(
+                `PRAGMA ${sql.identifier(tableId).query}.table_info(${sql.identifier(tableName).query})`,
+            )
+            .selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
         expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
     });
 
-    test("duplicate name gets unique suffix", async () => {
+    test("duplicate names each land in their own file (no cross-table dedup)", async () => {
         const db = await createDb();
-        const first = databaseActions.createTable.run(db, {name: "Tasks"});
-        const second = databaseActions.createTable.run(db, {name: "Tasks"});
+        const first = run(db, "createTable", {name: "Tasks"});
+        const second = run(db, "createTable", {name: "Tasks"});
 
+        // Each table owns its own per-db file, so the SQLite
+        // identifier only needs to be unique within that file —
+        // no "_2" suffix across tables.
         expect(first.tableName).toBe("tasks");
-        expect(second.tableName).toBe("tasks_2");
+        expect(second.tableName).toBe("tasks");
     });
 
     test("index exists on _created_at", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const indexes = sql`PRAGMA index_list (${sql.identifier(tableName)})`.selectAllUnknown(db);
+        const indexes = sql
+            .raw(
+                `PRAGMA ${sql.identifier(tableId).query}.index_list(${sql.identifier(tableName).query})`,
+            )
+            .selectAllUnknown(db);
 
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
     });
 
-    test("creates a default view", async () => {
+    test("creates a default view in the per-db file", async () => {
         const db = await createDb();
-        const {tableId} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
+
+        const views = sql`
+            SELECT
+                *
+            FROM
+                ${sql.tableRef(tableId, "_alpine_views")}
+            WHERE
+                table_id = ${tableId}
+        `.selectAllUnknown(db);
+
+        expect(views).toMatchObject([{id: viewId, table_id: tableId, name: "Grid view"}]);
+        db.close();
+    });
+
+    test("records the view in the main routing index", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
 
         const views = sql`
             SELECT
                 *
             FROM
                 _alpine_views
-            WHERE
-                table_id = ${tableId}
         `.selectAllUnknown(db);
 
-        expect(views).toMatchObject([{table_id: tableId, name: "Grid view"}]);
+        // The main index is ids only — no name.
+        expect(views).toEqual([{id: viewId, table_id: tableId}]);
         db.close();
     });
 
     test("returns viewId", async () => {
         const db = await createDb();
-        const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {viewId} = run(db, "createTable", {name: "Tasks"});
 
         expect(isId(viewId)).toBe(true);
         db.close();
@@ -243,13 +319,13 @@ describe("createTable", () => {
 
     test("default view contains the Name field", async () => {
         const db = await createDb();
-        const {viewId} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId, viewId} = run(db, "createTable", {name: "Tasks"});
 
         const viewFields = sql`
             SELECT
                 *
             FROM
-                _alpine_view_fields
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
             WHERE
                 view_id = ${viewId}
         `.selectAllUnknown(db);
@@ -260,55 +336,13 @@ describe("createTable", () => {
         expect(typeof viewFields[0]!.position).toBe("string");
         db.close();
     });
-
-    test("multiple tables get independent views", async () => {
-        const db = await createDb();
-        const first = databaseActions.createTable.run(db, {name: "Tasks"});
-        const second = databaseActions.createTable.run(db, {name: "Projects"});
-
-        const views = sql`
-            SELECT
-                *
-            FROM
-                _alpine_views
-            ORDER BY
-                id
-        `.selectAllUnknown(db);
-
-        expect(views).toMatchObject([
-            {table_id: first.tableId, name: "Grid view"},
-            {table_id: second.tableId, name: "Grid view"},
-        ]);
-
-        const firstFields = sql`
-            SELECT
-                *
-            FROM
-                _alpine_view_fields
-            WHERE
-                view_id = ${first.viewId}
-        `.selectAllUnknown(db);
-        const secondFields = sql`
-            SELECT
-                *
-            FROM
-                _alpine_view_fields
-            WHERE
-                view_id = ${second.viewId}
-        `.selectAllUnknown(db);
-
-        expect(firstFields).toHaveLength(1);
-        expect(secondFields).toHaveLength(1);
-        expect(firstFields[0]!.field_id).not.toBe(secondFields[0]!.field_id);
-        db.close();
-    });
 });
 
 describe("getViewSchema", () => {
     test("returns position and hidden in field output", async () => {
         const db = await createDb();
-        const {viewId} = databaseActions.createTable.run(db, {name: "T"});
-        const result = databaseActions.getViewSchema.run(db, {tableOrViewId: viewId});
+        const {viewId} = run(db, "createTable", {name: "T"});
+        const result = run(db, "getViewSchema", {tableOrViewId: viewId});
 
         expect(result.fields).toHaveLength(1);
         expect(typeof result.fields[0]!.position).toBe("string");
@@ -318,17 +352,18 @@ describe("getViewSchema", () => {
 
     test("hidden field is included with hidden=true", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
 
         const {fieldId: secondFieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
-        databaseActions.updateFieldViewVisibility.run(db, {
+        run(db, "updateFieldViewVisibility", {
+            tableId,
             viewId,
             fieldId: secondFieldId,
             position: "a1" as OrderKey,
             isHidden: true,
         });
 
-        const result = databaseActions.getViewSchema.run(db, {tableOrViewId: viewId});
+        const result = run(db, "getViewSchema", {tableOrViewId: viewId});
         expect(result.fields).toHaveLength(2);
 
         const hidden = result.fields.find(f => f.id === secondFieldId)!;
@@ -343,10 +378,11 @@ describe("getViewSchema", () => {
 describe("updateFieldViewVisibility", () => {
     test("updates position and hidden flag", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        databaseActions.updateFieldViewVisibility.run(db, {
+        run(db, "updateFieldViewVisibility", {
+            tableId,
             viewId,
             fieldId,
             position: "a1" as OrderKey,
@@ -357,7 +393,7 @@ describe("updateFieldViewVisibility", () => {
             SELECT
                 *
             FROM
-                _alpine_view_fields
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
             WHERE
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
@@ -368,16 +404,18 @@ describe("updateFieldViewVisibility", () => {
 
     test("can toggle back to visible", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        databaseActions.updateFieldViewVisibility.run(db, {
+        run(db, "updateFieldViewVisibility", {
+            tableId,
             viewId,
             fieldId,
             position: "a1" as OrderKey,
             isHidden: true,
         });
-        databaseActions.updateFieldViewVisibility.run(db, {
+        run(db, "updateFieldViewVisibility", {
+            tableId,
             viewId,
             fieldId,
             position: "a2" as OrderKey,
@@ -388,7 +426,7 @@ describe("updateFieldViewVisibility", () => {
             SELECT
                 *
             FROM
-                _alpine_view_fields
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
             WHERE
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
@@ -400,31 +438,31 @@ describe("updateFieldViewVisibility", () => {
 
 /** Helper: creates a field via the action and returns its id. */
 function addFieldAndGetId(
-    db: Awaited<ReturnType<typeof createDb>>,
+    db: Database,
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
     name: string,
     type: "plainText" | "checkbox" = "plainText",
 ) {
     const fieldId = generateChronologicalId<DatabaseFieldId>();
-    databaseActions.createField.run(db, {fieldId, tableId, viewId, name, type});
+    run(db, "createField", {fieldId, tableId, viewId, name, type});
     return {fieldId};
 }
 
 describe("rawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('a'),
                 ('b')
         `.exec(db);
 
-        const {rows} = databaseActions.rawSql.run(db, {
-            sql: `SELECT name FROM ${tableName} ORDER BY name`,
+        const {rows} = run(db, "rawSql", {
+            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query} ORDER BY name`,
         });
 
         expect(rows).toMatchObject([{name: "a"}, {name: "b"}]);
@@ -433,17 +471,17 @@ describe("rawSql", () => {
 
     test("INSERT goes through (writeLevel: data)", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        databaseActions.rawSql.run(db, {
-            sql: `INSERT INTO ${tableName} (name) VALUES ('inserted')`,
+        run(db, "rawSql", {
+            sql: `INSERT INTO ${sql.tableRef(tableId, tableName).query} (name) VALUES ('inserted')`,
         });
 
         const rows = sql`
             SELECT
                 name
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "inserted"}]);
         db.close();
@@ -453,16 +491,16 @@ describe("rawSql", () => {
 describe("readonlyRawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('hello')
         `.exec(db);
 
-        const {rows} = databaseActions.readonlyRawSql.run(db, {
-            sql: `SELECT name FROM ${tableName}`,
+        const {rows} = run(db, "readonlyRawSql", {
+            sql: `SELECT name FROM ${sql.tableRef(tableId, tableName).query}`,
         });
 
         expect(rows).toMatchObject([{name: "hello"}]);
@@ -471,10 +509,10 @@ describe("readonlyRawSql", () => {
 
     test("returns empty array for empty result set", async () => {
         const db = await createDb();
-        const {tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const {rows} = databaseActions.readonlyRawSql.run(db, {
-            sql: `SELECT * FROM ${tableName}`,
+        const {rows} = run(db, "readonlyRawSql", {
+            sql: `SELECT * FROM ${sql.tableRef(tableId, tableName).query}`,
         });
 
         expect(rows).toEqual([]);
@@ -486,15 +524,37 @@ describe("ensureSchemaPagesLoaded", () => {
     test("returns empty object and does not throw on a fresh database", async () => {
         const db = await createDb();
 
-        expect(databaseActions.ensureSchemaPagesLoaded.run(db, {})).toEqual({});
+        expect(run(db, "ensureSchemaPagesLoaded", {})).toEqual({});
         db.close();
     });
 
     test("returns empty object after tables exist", async () => {
         const db = await createDb();
-        databaseActions.createTable.run(db, {name: "T"});
+        run(db, "createTable", {name: "T"});
 
-        expect(databaseActions.ensureSchemaPagesLoaded.run(db, {})).toEqual({});
+        expect(run(db, "ensureSchemaPagesLoaded", {})).toEqual({});
+        db.close();
+    });
+});
+
+describe("listTableIds", () => {
+    test("returns table ids in id order", async () => {
+        const db = await createDb();
+        const first = run(db, "createTable", {name: "Tasks"});
+        const second = run(db, "createTable", {name: "Projects"});
+
+        const {tableIds} = run(db, "listTableIds", {});
+
+        expect(tableIds).toEqual([first.tableId, second.tableId]);
+        db.close();
+    });
+
+    test("returns empty array on a fresh database", async () => {
+        const db = await createDb();
+
+        const {tableIds} = run(db, "listTableIds", {});
+
+        expect(tableIds).toEqual([]);
         db.close();
     });
 });
@@ -502,11 +562,11 @@ describe("ensureSchemaPagesLoaded", () => {
 describe("renameTable", () => {
     test("relabels without changing tableName when slug is unchanged", async () => {
         const db = await createDb();
-        const {tableId, tableName: original} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId, tableName: original} = run(db, "createTable", {name: "Tasks"});
 
         // "Tasks" and "Tasks!" both slugify to "tasks", so the
         // SQL table name should not change — only the label.
-        const {tableName} = databaseActions.renameTable.run(db, {tableId, name: "Tasks!"});
+        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks!"});
 
         expect(tableName).toBe(original);
         const rows = sql`
@@ -514,9 +574,7 @@ describe("renameTable", () => {
                 name,
                 table_name
             FROM
-                _alpine_tables
-            WHERE
-                id = ${tableId}
+                ${sql.tableRef(tableId, "_alpine_table")}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "Tasks!", table_name: original}]);
         db.close();
@@ -524,15 +582,15 @@ describe("renameTable", () => {
 
     test("renames the SQL table when the slug changes and recreates the index", async () => {
         const db = await createDb();
-        const {tableId} = databaseActions.createTable.run(db, {name: "Tasks"});
+        const {tableId} = run(db, "createTable", {name: "Tasks"});
         sql`
             INSERT INTO
-                tasks (name)
+                ${sql.tableRef(tableId, "tasks")} (name)
             VALUES
                 ('keep me')
         `.exec(db);
 
-        const {tableName} = databaseActions.renameTable.run(db, {tableId, name: "Projects"});
+        const {tableName} = run(db, "renameTable", {tableId, name: "Projects"});
 
         expect(tableName).toBe("projects");
         // Data survives the rename.
@@ -540,50 +598,29 @@ describe("renameTable", () => {
             SELECT
                 name
             FROM
-                projects
+                ${sql.tableRef(tableId, "projects")}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "keep me"}]);
         // The created_at index follows the rename.
-        const indexes = sql`PRAGMA index_list ("projects")`.selectAllUnknown(db);
+        const indexes = sql
+            .raw(
+                `PRAGMA ${sql.identifier(tableId).query}.index_list(${sql.identifier("projects").query})`,
+            )
+            .selectAllUnknown(db);
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
     });
 
-    test("rename to an existing label dedups the SQL table name", async () => {
+    test("rename within its own file does not add a dedup suffix", async () => {
         const db = await createDb();
-        databaseActions.createTable.run(db, {name: "Tasks"});
-        const {tableId} = databaseActions.createTable.run(db, {name: "Projects"});
+        // A separate table named "Tasks" lives in its own file,
+        // so it does not collide with this rename.
+        run(db, "createTable", {name: "Tasks"});
+        const {tableId} = run(db, "createTable", {name: "Projects"});
 
-        const {tableName} = databaseActions.renameTable.run(db, {tableId, name: "Tasks"});
+        const {tableName} = run(db, "renameTable", {tableId, name: "Tasks"});
 
-        // The other table already owns "tasks", so the rename
-        // gets a "_2" suffix instead of clobbering it.
-        expect(tableName).toBe("tasks_2");
-        db.close();
-    });
-});
-
-describe("getTables", () => {
-    test("returns each table's name and tableName keyed by id in id order", async () => {
-        const db = await createDb();
-        const first = databaseActions.createTable.run(db, {name: "Tasks"});
-        const second = databaseActions.createTable.run(db, {name: "Projects"});
-
-        const {tables} = databaseActions.getTables.run(db, {});
-
-        expect([...tables]).toEqual([
-            [first.tableId, {name: "Tasks", tableName: "tasks"}],
-            [second.tableId, {name: "Projects", tableName: "projects"}],
-        ]);
-        db.close();
-    });
-
-    test("returns empty map on a fresh database", async () => {
-        const db = await createDb();
-
-        const {tables} = databaseActions.getTables.run(db, {});
-
-        expect(tables.size).toBe(0);
+        expect(tableName).toBe("tasks");
         db.close();
     });
 });
@@ -591,16 +628,16 @@ describe("getTables", () => {
 describe("getViewRowsPageCursor", () => {
     test("returns null endCursor when fewer rows than limit exist", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.tableRef(tableId, tableName)} (name)
             VALUES
                 ('a'),
                 ('b')
         `.exec(db);
 
-        const result = databaseActions.getViewRowsPageCursor.run(db, {
+        const result = run(db, "getViewRowsPageCursor", {
             tableOrViewId: viewId,
             afterCursor: null,
             limit: 5,
@@ -611,14 +648,14 @@ describe("getViewRowsPageCursor", () => {
 
     test("returns endCursor when row count equals limit", async () => {
         const db = await createDb();
-        const {viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const ids: Array<string> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (_id, name)
+                    ${sql.tableRef(tableId, tableName)} (_id, name)
                 VALUES
                     (
                         ${id},
@@ -627,7 +664,7 @@ describe("getViewRowsPageCursor", () => {
             `.exec(db);
         }
 
-        const result = databaseActions.getViewRowsPageCursor.run(db, {
+        const result = run(db, "getViewRowsPageCursor", {
             tableOrViewId: viewId,
             afterCursor: null,
             limit: 3,
@@ -639,20 +676,20 @@ describe("getViewRowsPageCursor", () => {
 
     test("after-cursor pagination skips earlier rows", async () => {
         const db = await createDb();
-        const {viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 5; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (_id)
+                    ${sql.tableRef(tableId, tableName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
         }
 
-        const result = databaseActions.getViewRowsPageCursor.run(db, {
+        const result = run(db, "getViewRowsPageCursor", {
             tableOrViewId: viewId,
             afterCursor: ids[1]!,
             limit: 2,
@@ -666,12 +703,12 @@ describe("getViewRowsPageCursor", () => {
 describe("getViewRowsPage", () => {
     test("returns rows in id order with _id at position 0 and view fields at positions 1..n", async () => {
         const db = await createDb();
-        const {viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const id1 = generateChronologicalId<DatabaseRowId>();
         const id2 = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (_id, name)
+                ${sql.tableRef(tableId, tableName)} (_id, name)
             VALUES
                 (
                     ${id1},
@@ -680,7 +717,7 @@ describe("getViewRowsPage", () => {
         `.exec(db);
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (_id, name)
+                ${sql.tableRef(tableId, tableName)} (_id, name)
             VALUES
                 (
                     ${id2},
@@ -688,7 +725,7 @@ describe("getViewRowsPage", () => {
                 )
         `.exec(db);
 
-        const {fieldIndexes, rows} = databaseActions.getViewRowsPage.run(db, {
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: null,
             endCursor: null,
@@ -705,20 +742,20 @@ describe("getViewRowsPage", () => {
 
     test("filters by both afterCursor and endCursor when both are set", async () => {
         const db = await createDb();
-        const {viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 4; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (_id)
+                    ${sql.tableRef(tableId, tableName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
         }
 
-        const {rows} = databaseActions.getViewRowsPage.run(db, {
+        const {rows} = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: ids[0]!,
             endCursor: ids[2]!,
@@ -729,27 +766,27 @@ describe("getViewRowsPage", () => {
 
     test("after-only and end-only cursor branches return the expected slices", async () => {
         const db = await createDb();
-        const {viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.identifier(tableName)} (_id)
+                    ${sql.tableRef(tableId, tableName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
         }
 
-        const afterOnly = databaseActions.getViewRowsPage.run(db, {
+        const afterOnly = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: ids[0]!,
             endCursor: null,
         });
         expect(afterOnly.rows.map(r => r[0])).toEqual([ids[1], ids[2]]);
 
-        const endOnly = databaseActions.getViewRowsPage.run(db, {
+        const endOnly = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: null,
             endCursor: ids[1]!,
@@ -759,18 +796,18 @@ describe("getViewRowsPage", () => {
 
     test("checkbox values are deserialized via the field provider's sqlValueSchema", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (_id)
+                ${sql.tableRef(tableId, tableName)} (_id)
             VALUES
                 (${rowId})
         `.exec(db);
-        databaseActions.updateCellValue.run(db, {fieldId, rowId, value: true});
+        run(db, "updateCellValue", {tableId, fieldId, rowId, value: true});
 
-        const {fieldIndexes, rows} = databaseActions.getViewRowsPage.run(db, {
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: null,
             endCursor: null,
@@ -784,12 +821,12 @@ describe("getViewRowsPage", () => {
 describe("updateCellValue", () => {
     test("writes the value to the table after serializing through the provider", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const {fieldId: nameFieldId} = sql`
             SELECT
                 id
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
             WHERE
                 table_id = ${tableId}
         `.selectOne(db, {
@@ -798,12 +835,13 @@ describe("updateCellValue", () => {
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (_id)
+                ${sql.tableRef(tableId, tableName)} (_id)
             VALUES
                 (${rowId})
         `.exec(db);
 
-        databaseActions.updateCellValue.run(db, {
+        run(db, "updateCellValue", {
+            tableId,
             fieldId: nameFieldId,
             rowId,
             value: "updated",
@@ -811,7 +849,7 @@ describe("updateCellValue", () => {
 
         // Use the view to confirm the value flows through
         // serialize and deserialize correctly.
-        const {fieldIndexes, rows} = databaseActions.getViewRowsPage.run(db, {
+        const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: null,
             endCursor: null,
@@ -824,16 +862,16 @@ describe("updateCellValue", () => {
 describe("createRow", () => {
     test("inserts a row with the given _id and uses column defaults for the rest", async () => {
         const db = await createDb();
-        const {tableId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, tableName} = run(db, "createTable", {name: "T"});
         const rowId = generateChronologicalId<DatabaseRowId>();
 
-        databaseActions.createRow.run(db, {tableId, rowId});
+        run(db, "createRow", {tableId, rowId});
 
         const rows = sql`
             SELECT
                 *
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{_id: rowId, name: ""}]);
         expect(rows[0]!._created_at).toBeDefined();
@@ -844,16 +882,16 @@ describe("createRow", () => {
 describe("resizeField", () => {
     test("updates only the width of the targeted view+field row", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        databaseActions.resizeField.run(db, {viewId, fieldId, width: 321});
+        run(db, "resizeField", {tableId, viewId, fieldId, width: 321});
 
         const row = sql`
             SELECT
                 width
             FROM
-                _alpine_view_fields
+                ${sql.tableRef(tableId, "_alpine_view_fields")}
             WHERE
                 view_id = ${viewId}
                 AND field_id = ${fieldId}
@@ -866,17 +904,17 @@ describe("resizeField", () => {
 describe("renameField", () => {
     test("renames both the metadata row and the underlying SQL column", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        databaseActions.renameField.run(db, {fieldId, name: "Priority"});
+        run(db, "renameField", {tableId, fieldId, name: "Priority"});
 
         const meta = sql`
             SELECT
                 name,
                 column_name
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
             WHERE
                 id = ${fieldId}
         `.selectOne(db, {
@@ -891,26 +929,26 @@ describe("renameField", () => {
             SELECT
                 priority
             FROM
-                ${sql.identifier(tableName)}
+                ${sql.tableRef(tableId, tableName)}
         `.selectAllUnknown(db);
         db.close();
     });
 
     test("dedups against existing column names but excludes the field being renamed", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId: statusId} = addFieldAndGetId(db, tableId, viewId, "Status");
         addFieldAndGetId(db, tableId, viewId, "Priority");
 
         // Rename Status → Priority. The "priority" column is
         // taken by the other field, so a suffix should be added.
-        databaseActions.renameField.run(db, {fieldId: statusId, name: "Priority"});
+        run(db, "renameField", {tableId, fieldId: statusId, name: "Priority"});
 
         const meta = sql`
             SELECT
                 column_name
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
             WHERE
                 id = ${statusId}
         `.selectOne(db, {columnName: Schema.string.originalPropertyKey("column_name")});
@@ -920,20 +958,20 @@ describe("renameField", () => {
 
     test("can rename to a label whose slug equals the existing column (idempotent)", async () => {
         const db = await createDb();
-        const {tableId, viewId} = databaseActions.createTable.run(db, {name: "T"});
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
         // The existing field's column is "status"; renaming to
         // "Status!" still slugifies to "status" — but the
         // dedup loop excludes the field being renamed
         // (`AND id != ${fieldId}`) so no suffix is added.
-        databaseActions.renameField.run(db, {fieldId, name: "Status!"});
+        run(db, "renameField", {tableId, fieldId, name: "Status!"});
 
         const meta = sql`
             SELECT
                 column_name
             FROM
-                _alpine_fields
+                ${sql.tableRef(tableId, "_alpine_fields")}
             WHERE
                 id = ${fieldId}
         `.selectOne(db, {columnName: Schema.string.originalPropertyKey("column_name")});

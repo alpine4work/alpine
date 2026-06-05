@@ -11,7 +11,7 @@ import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -92,8 +92,9 @@ export class DatabaseServer {
         changedPages: DatabaseServerChangedPages;
     } {
         const action = databaseActions[actionObject.name];
+        const ctx = this.database.getActionContext();
         const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, db =>
-            action.run(db, actionObject.input as never),
+            action.run(db, actionObject.input as never, ctx),
         );
         return {
             result: result as DatabaseActionOutput<N>,
@@ -132,18 +133,33 @@ export class DatabaseServer {
         // Bootstrap runs as one privileged "execute" so its
         // writes flow through the buffer like any other
         // action; we drain to storage immediately after.
+        // ATTACH is legal mid-execute (no explicit
+        // transaction is open), so we can attach + migrate
+        // every per-table file inline.
+        const ctx = this.database.getActionContext();
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
-                runSqliteMigrations(db);
-                const tableCount = sql`
+                runMainMigrations(db);
+
+                // Attach + migrate each existing table's per-db
+                // file so its data and metadata are reachable.
+                const tableIds = sql`
                     SELECT
-                        COUNT(*)
+                        id
                     FROM
                         _alpine_tables
-                `.selectValue(db, Schema.integer);
-                if (tableCount === 0) {
-                    databaseActions.createTable.run(db, {name: "Table"});
+                `
+                    .selectAll(db, {id: Schema.id<DatabaseTableId>()})
+                    .map(row => row.id);
+                for (const tableId of tableIds) {
+                    ctx.attachTable(tableId);
+                    runTableMigrations(db, tableId);
+                }
+
+                // Seed the first table on a brand-new group.
+                if (tableIds.length === 0) {
+                    databaseActions.createTable.run(db, {name: "Table"}, ctx);
                 }
                 db.exec("PRAGMA optimize");
             },

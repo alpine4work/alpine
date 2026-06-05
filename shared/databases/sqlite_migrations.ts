@@ -1,153 +1,163 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type SqliteMigration = string | ((db: Database) => void);
 
 /**
- * Ordered list of schema migrations for Alpine's internal
- * SQLite tables. Each entry is either a SQL string
- * executed once or a function receiving the database
- * handle. Tracked by `PRAGMA user_version`.
+ * Ordered migrations for the **main** database — the one
+ * SQLite opens as schema `main`. It is treated as public
+ * and holds **no real information**, only opaque IDs:
+ *
+ * - `_alpine_tables(id)` — registry of every table id;
+ *   drives cold-open attach of per-table databases.
+ * - `_alpine_views(id, table_id)` — view→table routing
+ *   index so a bare view id from a URL resolves to its
+ *   owning table without attaching every table.
+ *
+ * All human-readable, table-scoped metadata (names,
+ * fields, view layout) lives in each table's own
+ * `ATTACH`-ed per-db file instead — see
+ * {@link tableSqliteMigrations}.
  */
-export const sqliteMigrations: ReadonlyArray<SqliteMigration> = [
+export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
     `CREATE TABLE _alpine_tables (
-        id TEXT PRIMARY KEY DEFAULT (generate_id()),
-        name TEXT NOT NULL,
-        table_name TEXT NOT NULL UNIQUE,
+        id TEXT PRIMARY KEY,
         CHECK(is_id(id))
     ) STRICT, WITHOUT ROWID;
 
-    CREATE TABLE _alpine_fields (
-        id TEXT PRIMARY KEY DEFAULT (generate_id()),
-        table_id TEXT NOT NULL REFERENCES _alpine_tables(id),
-        name TEXT NOT NULL,
-        column_name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        UNIQUE(table_id, column_name),
-        CHECK(is_id(id)),
-        CHECK(is_id(table_id))
-    ) STRICT, WITHOUT ROWID;
-
-    CREATE INDEX _alpine_fields_table_id ON _alpine_fields(table_id);
-
     CREATE TABLE _alpine_views (
-        id TEXT PRIMARY KEY DEFAULT (generate_id()),
+        id TEXT PRIMARY KEY,
         table_id TEXT NOT NULL REFERENCES _alpine_tables(id),
-        name TEXT NOT NULL,
         CHECK(is_id(id)),
         CHECK(is_id(table_id))
     ) STRICT, WITHOUT ROWID;
 
-    CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id);
+    CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id);`,
+];
 
-    CREATE TABLE _alpine_view_fields (
-        view_id TEXT NOT NULL REFERENCES _alpine_views(id),
-        field_id TEXT NOT NULL REFERENCES _alpine_fields(id),
-        position INTEGER NOT NULL,
-        width INTEGER NOT NULL,
-        PRIMARY KEY (view_id, field_id),
-        CHECK(is_id(view_id)),
-        CHECK(is_id(field_id))
-    ) STRICT, WITHOUT ROWID;`,
+/**
+ * A per-table migration. Unlike main migrations, these run
+ * against an `ATTACH`-ed schema, so they receive the schema
+ * name (the table id) to qualify their DDL.
+ */
+export type TableSqliteMigration = (db: Database, schema: string) => void;
 
-    // Migration 2: rename type -> config, position INTEGER -> TEXT order key
-    function migration2(db: Database): void {
-        // 1. Rename _alpine_fields.type -> config
-        db.exec(`ALTER TABLE _alpine_fields RENAME COLUMN type TO config`);
+/**
+ * Ordered migrations for a **per-table** database — the
+ * `ATTACH`-ed file that holds one user table's data plus
+ * all of its real metadata, none of which is allowed in
+ * the public main database:
+ *
+ * - `_alpine_table(id, name, table_name)` — this table's
+ *   display name and SQLite identifier (singleton row).
+ * - `_alpine_fields` / `_alpine_views` / `_alpine_view_fields`
+ *   — the table's columns and grid-view layout.
+ *
+ * The data table itself is created by the `createTable`
+ * action, not here.
+ */
+export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
+    function migration1(db: Database, schema: string): void {
+        // `REFERENCES` parent tables stay unqualified — SQLite
+        // resolves a foreign key's parent within the same
+        // database as the child. Index names carry the schema;
+        // their `ON` table stays unqualified (resolved within
+        // that schema).
+        db.exec(`CREATE TABLE ${ref(schema, "_alpine_table")} (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            table_name TEXT NOT NULL,
+            CHECK(is_id(id))
+        ) STRICT, WITHOUT ROWID;
 
-        // 2. Create new view fields table with TEXT position
-        db.exec(`CREATE TABLE _alpine_view_fields_new (
+        CREATE TABLE ${ref(schema, "_alpine_fields")} (
+            id TEXT PRIMARY KEY,
+            table_id TEXT NOT NULL REFERENCES _alpine_table(id),
+            name TEXT NOT NULL,
+            column_name TEXT NOT NULL,
+            config TEXT NOT NULL,
+            UNIQUE(table_id, column_name),
+            CHECK(is_id(id)),
+            CHECK(is_id(table_id))
+        ) STRICT, WITHOUT ROWID;
+
+        CREATE INDEX ${ref(schema, "_alpine_fields_table_id")} ON _alpine_fields(table_id);
+
+        CREATE TABLE ${ref(schema, "_alpine_views")} (
+            id TEXT PRIMARY KEY,
+            table_id TEXT NOT NULL REFERENCES _alpine_table(id),
+            name TEXT NOT NULL,
+            CHECK(is_id(id)),
+            CHECK(is_id(table_id))
+        ) STRICT, WITHOUT ROWID;
+
+        CREATE INDEX ${ref(schema, "_alpine_views_table_id")} ON _alpine_views(table_id);
+
+        CREATE TABLE ${ref(schema, "_alpine_view_fields")} (
             view_id TEXT NOT NULL REFERENCES _alpine_views(id),
             field_id TEXT NOT NULL REFERENCES _alpine_fields(id),
             position TEXT NOT NULL,
             width INTEGER NOT NULL,
+            hidden INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (view_id, field_id),
             CHECK(is_id(view_id)),
             CHECK(is_id(field_id)),
             CHECK(is_order_key(position))
-        ) STRICT, WITHOUT ROWID`);
-
-        // 3. Migrate data: read old rows grouped by view_id,
-        //    generate order keys, insert into new table.
-        const rows = sql`
-            SELECT
-                view_id,
-                field_id,
-                position,
-                width
-            FROM
-                _alpine_view_fields
-            ORDER BY
-                view_id,
-                position
-        `.selectAll(db, {
-            viewId: Schema.string.originalPropertyKey("view_id"),
-            fieldId: Schema.string.originalPropertyKey("field_id"),
-            position: Schema.integer,
-            width: Schema.integer,
-        });
-
-        // Group by view_id
-        const groups = new Map<string, Array<{fieldId: string; width: number}>>();
-        for (const row of rows) {
-            let group = groups.get(row.viewId);
-            if (group == null) {
-                group = [];
-                groups.set(row.viewId, group);
-            }
-            group.push({fieldId: row.fieldId, width: row.width});
-        }
-
-        for (const [viewId, group] of groups) {
-            const keys = generateOrderKeysBetween(null, null, group.length);
-            for (let i = 0; i < group.length; i++) {
-                sql`
-                    INSERT INTO
-                        _alpine_view_fields_new (view_id, field_id, position, width)
-                    VALUES
-                        (
-                            ${viewId},
-                            ${group[i]!.fieldId},
-                            ${keys[i] as string},
-                            ${group[i]!.width}
-                        )
-                `.exec(db);
-            }
-        }
-
-        // 4. Drop old table, rename new
-        db.exec(`DROP TABLE _alpine_view_fields`);
-        db.exec(`ALTER TABLE _alpine_view_fields_new RENAME TO _alpine_view_fields`);
+        ) STRICT, WITHOUT ROWID;`);
     },
-
-    // Migration 3: add hidden column to _alpine_view_fields
-    `ALTER TABLE _alpine_view_fields ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 ];
 
 /**
- * Runs any pending migrations from {@link sqliteMigrations}
- * against the given database. Uses `PRAGMA user_version`
- * (defaults to 0 for new databases) to track which
+ * Runs any pending {@link mainSqliteMigrations} against the
+ * main database. Uses `PRAGMA user_version` to track which
  * migrations have already been applied.
  */
-export function runSqliteMigrations(db: Database): void {
+export function runMainMigrations(db: Database): void {
     const version = sql`PRAGMA user_version`.selectValue(db, Schema.integer);
     assert(
-        version <= sqliteMigrations.length,
-        `database user_version (${version}) is ahead of known migrations (${sqliteMigrations.length})`,
+        version <= mainSqliteMigrations.length,
+        `main user_version (${version}) is ahead of known migrations (${mainSqliteMigrations.length})`,
     );
-    for (let i = version; i < sqliteMigrations.length; i++) {
-        const migration = sqliteMigrations[i]!;
+    for (let i = version; i < mainSqliteMigrations.length; i++) {
+        const migration = mainSqliteMigrations[i]!;
         if (typeof migration === "string") {
             db.exec(migration);
         } else {
             migration(db);
         }
     }
-    if (version < sqliteMigrations.length) {
-        db.exec(`PRAGMA user_version = ${sqliteMigrations.length}`);
+    if (version < mainSqliteMigrations.length) {
+        db.exec(`PRAGMA user_version = ${mainSqliteMigrations.length}`);
     }
+}
+
+/**
+ * Runs any pending {@link tableSqliteMigrations} against the
+ * `ATTACH`-ed per-table database named `schema` (the table
+ * id). Tracks progress with that schema's own
+ * `PRAGMA "{schema}".user_version`.
+ *
+ * Runs server-side only: the server is canonical for schema,
+ * and clients trust the pages it syncs.
+ */
+export function runTableMigrations(db: Database, schema: string): void {
+    const userVersionPragma = `PRAGMA ${sql.identifier(schema).query}.user_version`;
+    const version = sql.raw(userVersionPragma).selectValue(db, Schema.integer);
+    assert(
+        version <= tableSqliteMigrations.length,
+        `table ${schema} user_version (${version}) is ahead of known migrations (${tableSqliteMigrations.length})`,
+    );
+    for (let i = version; i < tableSqliteMigrations.length; i++) {
+        tableSqliteMigrations[i]!(db, schema);
+    }
+    if (version < tableSqliteMigrations.length) {
+        db.exec(`${userVersionPragma} = ${tableSqliteMigrations.length}`);
+    }
+}
+
+/** Build a `"schema"."name"` identifier for migration DDL. */
+function ref(schema: string, name: string): string {
+    return sql.tableRef(schema, name).query;
 }

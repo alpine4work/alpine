@@ -8,7 +8,6 @@ authorizer level.
 9 finder angles + a sweep, candidates verified against source, and `dev check` run as ground truth.
 **The branch does not currently compile** — that's the headline.
 
-
 ## 🟡 Efficiency (hot paths)
 
 **8. `server/databases/database_durable_object_storage.ts:88,131` — per-row work on the
@@ -22,7 +21,6 @@ per-page-read overhead.** The hook now does `wasm.cstrToJs(zSchemaPtr)` (allocat
 _and_ `schemaToTable.get(schemaName)` (string hash) on **every** page read, where the old hook used
 an ignored integer `pArg`. For the common no-ATTACH case this hashes the constant `"main"` per page.
 Consider memoizing by pointer value or short-circuiting the single-table case.
-
 
 ## ⚪ Altitude
 

@@ -229,6 +229,17 @@ export class DatabaseActiveTabWorker {
                     // missing pages on demand.
                 }
 
+                // Attach every existing table's per-db file so
+                // its metadata and data are reachable before any
+                // per-table action runs. Best-effort: missing
+                // pages are fetched from the server on demand.
+                try {
+                    await client.attachExistingTables(conn);
+                } catch {
+                    // Ignore — tables attach lazily via server
+                    // fallback when first accessed.
+                }
+
                 // Pre-fetch schema pages so optimistic mutations
                 // can read metadata without hitting the server.
                 // Best-effort — may fail if the local cache is

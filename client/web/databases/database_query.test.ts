@@ -10,6 +10,7 @@ import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_helpers/in_memory_opfs.js";
 import {makeDatabaseClientConnection} from "~/client/web/databases/test_helpers/make_database_client_connection.js";
+import {Database} from "~/shared/databases/database.js";
 import type {
     DatabaseActionInput,
     DatabaseActionName,
@@ -18,10 +19,10 @@ import type {
 } from "~/shared/databases/database_actions.js";
 import type {DatabasePages} from "~/shared/databases/database_protocol_schemas.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
-import {runSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.js";
 import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
+import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,36 @@ function flush(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 50));
 }
 
+/**
+ * Builds the pages for a fresh database group with one table
+ * by running the migrations + the server-only `createTable`
+ * action against a throwaway in-memory {@link Database} (the
+ * stand-in for the canonical server, which is the only place
+ * `createTable` runs). Returns the resulting pages so a test
+ * client can seed them — mirroring production cold-open.
+ */
+async function buildSchemaSeed(
+    name: string,
+): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
+    const fake = await Database.create({readPage: () => null, getFileSize: () => 0});
+    fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
+    const {output} = fake.executeAction({name: "createTable", input: {name}});
+
+    const buffered = fake.getBufferedWrites();
+    const seedPages: DatabasePages = new Map();
+    if (buffered !== null) {
+        for (const [tableId, pages] of buffered.pages) {
+            const tablePages = new Map<number, {version: number; data: Uint8Array}>();
+            for (const [index, data] of pages) {
+                tablePages.set(index, {version: 1, data: new Uint8Array(data)});
+            }
+            seedPages.set(tableId as DatabaseTableId, tablePages);
+        }
+    }
+    fake.close();
+    return {seedPages, viewId: output.viewId, tableName: output.tableName};
+}
+
 async function setupTestDatabase(): Promise<{
     client: DatabaseClient;
     conn: DatabaseWorkerConnection;
@@ -131,21 +162,15 @@ async function setupTestDatabase(): Promise<{
     const dir = createInMemoryOpfsDirectoryHandle();
     const client = await DatabaseClient.create(dir);
 
-    // Run Alpine schema migrations (creates _alpine_tables etc.)
-    client.executeLocallyForTests(runSqliteMigrations);
+    // Seed the schema pages produced by the server and attach
+    // the table, exactly as the client does at cold-open.
+    const {seedPages, viewId, tableName} = await buildSchemaSeed("Tasks");
+    await client.seedPages(seedPages);
+    await client.attachExistingTables(testClientConn);
 
     const {conn, mutate} = createTestConnection(client);
 
-    // Create a table with full Alpine metadata
-    const result = await conn.executeAction("createTable", {name: "Tasks"});
-
-    return {
-        client,
-        conn,
-        viewId: result.viewId,
-        tableName: result.tableName,
-        mutate,
-    };
+    return {client, conn, viewId, tableName, mutate};
 }
 
 async function insertRows(
