@@ -165,10 +165,6 @@ export class DatabaseServer {
         // not silently throwing away pre-existing buffered
         // writes belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
-        let inner: {
-            result: T;
-            readPages: ReadonlyDatabasePageSet;
-        };
         try {
             const tracked = this.database.execute(
                 db => {
@@ -185,14 +181,20 @@ export class DatabaseServer {
                 },
                 {allowWrites: writeLevel},
             );
-            inner = {result: tracked.result, readPages: tracked.readPages};
+            // Drain inside the try so a failure here is
+            // handled identically to a failure in the
+            // tracked execute above.
+            return this._persistAndBuildResult(tracked.result, tracked.readPages);
         } catch (error) {
-            // Drop any partial buffered writes so storage
-            // and SQLite's pager cache stay in sync.
+            // Drop any partial buffered writes — whether the
+            // tracked execute or the drain failed — so storage
+            // and SQLite's pager cache stay in sync and the
+            // next execute starts from an empty buffer.
+            // `discardBuffer` is a safe no-op if the drain
+            // already committed.
             this.database.discardBuffer();
             throw error;
         }
-        return this._persistAndBuildResult(inner.result, inner.readPages);
     }
 
     private _persistAndBuildResult<T>(

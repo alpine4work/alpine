@@ -4,6 +4,7 @@ import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {InternalError} from "~/shared/error/error.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -122,7 +123,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         ): number {
             if (this.failNextWritePages) {
                 this.failNextWritePages = false;
-                throw new Error("simulated storage failure");
+                throw new InternalError("simulated storage failure");
             }
             return this.inner.writePages(pages, truncates);
         }
@@ -139,9 +140,9 @@ describe("DatabaseServer — storage failure recovery", () => {
         // Arm a storage failure: the drain (`writePages`) throws
         // after `execute` has already buffered its write.
         storage.failNextWritePages = true;
-        expect(() =>
-            server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
-        ).toThrow("simulated storage failure");
+        expect(() => server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"})).toThrow(
+            "simulated storage failure",
+        );
 
         // The failed drain must not leave the buffer dirty: a
         // subsequent execute should succeed, not throw
