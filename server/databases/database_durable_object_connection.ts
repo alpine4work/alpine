@@ -10,6 +10,7 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import type {
     DatabasePageDiffs,
     DatabaseTablePageDiffs,
+    DatabaseTablePages,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {
     DatabaseRealtimeEvent,
@@ -124,10 +125,13 @@ export class DatabaseDurableObjectConnection {
             });
         },
         ensureCacheIsUpToDate: async (_context, input) => {
+            // Mutable builder for the readonly
+            // `DatabaseEnsureCacheIsUpToDateResult["tables"]`
+            // return type; `updatedPages` reuses the wire type.
             const tables = new Map<
                 DatabaseTableId,
                 {
-                    updatedPages: Map<number, {version: number; data: Uint8Array}>;
+                    updatedPages: DatabaseTablePages;
                     stalePageIndexes: Array<number>;
                     fileSizeInPages: number;
                 }
