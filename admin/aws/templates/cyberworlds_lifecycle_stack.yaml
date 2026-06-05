@@ -2589,35 +2589,6 @@ Resources:
                 Ref: VpcPublicSubnet1Subnet5C2D37C4
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider/RunnerImageBuilder/Infrastructure
-    GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAMIImage48667912:
-        Type: AWS::ImageBuilder::Image
-        Properties:
-            DistributionConfigurationArn:
-                Fn::GetAtt:
-                    - GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAMIDistributionB4697B0A
-                    - Arn
-            ImageRecipeArn:
-                Fn::GetAtt:
-                    - GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAmiRecipeDB429820
-                    - Arn
-            ImageTestsConfiguration:
-                ImageTestsEnabled: false
-            InfrastructureConfigurationArn:
-                Fn::GetAtt:
-                    - GithubRunnersTestRunnerAsgProviderRunnerImageBuilderInfrastructure1D90136A
-                    - Arn
-            Tags:
-                GitHubRunners:Builder: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider/RunnerImageBuilder
-                GitHubRunners:Stack: CyberworldsLifecycleStack
-        DependsOn:
-            - GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAmiLog55E63A8D
-            - GithubRunnersTestRunnerAsgProviderRunnerImageBuilderInfrastructure1D90136A
-        UpdateReplacePolicy: Retain
-        DeletionPolicy: RetainExceptOnCreate
-        Metadata:
-            aws:cdk:path:
-                CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider/RunnerImageBuilder/AMI
-                Image
     GithubRunnersTestRunnerAsgProviderRunnerImageBuilderAMIPipeline30A49F6A:
         Type: AWS::ImageBuilder::ImagePipeline
         Properties:

@@ -249,6 +249,12 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                 account: "aws",
                 resourceName: "ubuntu-server-24-lts-arm64/x.x.x",
             }),
+            // Avoid creating an `AWS::ImageBuilder::Image` during CDK deploy.
+            //
+            // `.github/workflows/build-test-runner-ami.yaml` starts the actual AMI build
+            // asynchronously after it publishes the source bundle and Bazel cache key for the
+            // image cache.
+            waitOnDeploy: false,
             awsImageBuilderOptions: {
                 // The AMI build runs `bazel fetch //...` and `build //:node_modules`. Give it a
                 // runner-sized box so weekly/main image refreshes spend their time warming the
