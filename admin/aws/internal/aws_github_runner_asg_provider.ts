@@ -6,7 +6,7 @@ import {
     Os,
     RunnerRuntimeParameters,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, Fn, RemovalPolicy, Stack} from "aws-cdk-lib";
+import {CfnResource, Duration, Fn, RemovalPolicy, Stack} from "aws-cdk-lib";
 import {
     IVpc,
     InstanceClass,
@@ -37,6 +37,18 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 const awsGithubRunnerTaskTimeout = Duration.hours(6);
 const awsGithubRunnerHeartbeatTimeout = Duration.minutes(10);
 const awsGithubRunnerAmiRootVolumeSizeGib = 80;
+const awsGithubRunnerAmiRootBlockDeviceMappings: Array<CfnImageRecipe.InstanceBlockDeviceMappingProperty> =
+    [
+        {
+            deviceName: "/dev/sda1",
+            ebs: {
+                deleteOnTermination: true,
+                volumeSize: awsGithubRunnerAmiRootVolumeSizeGib,
+                volumeType: "gp3",
+            },
+        },
+    ];
+
 const awsGithubRunnerAmiCacheKeyPath = "/opt/alpine-runner-image/bazel-cache-key";
 const awsGithubRunnerAmiSourceBundleKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
@@ -258,23 +270,27 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
         const runnerAmi = runnerImageBuilder.bindAmi();
 
         // HACK: CloudSnorkel doesn't expose Image Builder volume mappings. Reach into its
-        // generated recipe to size the build root volume.
+        // generated recipe and versioner to size the build root volume.
         assert(runnerImageBuilder instanceof Construct);
-        const runnerImageBuilderAmiRecipe = runnerImageBuilder.node
-            .findChild("Ami Recipe")
-            .node.findChild("Recipe");
+        const runnerImageBuilderAmiRecipeConstruct =
+            runnerImageBuilder.node.findChild("Ami Recipe");
+        const runnerImageBuilderAmiRecipe =
+            runnerImageBuilderAmiRecipeConstruct.node.findChild("Recipe");
 
         assert(runnerImageBuilderAmiRecipe instanceof CfnImageRecipe);
-        runnerImageBuilderAmiRecipe.blockDeviceMappings = [
-            {
-                deviceName: "/dev/sda1",
-                ebs: {
-                    deleteOnTermination: true,
-                    volumeSize: awsGithubRunnerAmiRootVolumeSizeGib,
-                    volumeType: "gp3",
-                },
-            },
-        ];
+        runnerImageBuilderAmiRecipe.blockDeviceMappings = awsGithubRunnerAmiRootBlockDeviceMappings;
+
+        // Image Builder recipes are immutable by semantic version. Include the hacked
+        // mapping in CloudSnorkel's version input so this replacement creates a new recipe
+        // version instead of reusing an existing one.
+        const runnerImageBuilderAmiRecipeVersion = runnerImageBuilderAmiRecipeConstruct.node
+            .findChild("Version")
+            .node.findChild("Default");
+        assert(runnerImageBuilderAmiRecipeVersion instanceof CfnResource);
+        runnerImageBuilderAmiRecipeVersion.addPropertyOverride(
+            "VersionedData.blockDeviceMappings",
+            awsGithubRunnerAmiRootBlockDeviceMappings,
+        );
 
         assert(
             runnerAmi.architecture.instanceTypeMatch(

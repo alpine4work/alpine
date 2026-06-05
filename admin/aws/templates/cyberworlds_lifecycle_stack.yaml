@@ -2480,6 +2480,12 @@ Resources:
                 tags:
                     GitHubRunners:Stack: CyberworldsLifecycleStack
                     GitHubRunners:Builder: CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider/RunnerImageBuilder
+                blockDeviceMappings:
+                    - deviceName: /dev/sda1
+                      ebs:
+                          deleteOnTermination: true
+                          volumeSize: 80
+                          volumeType: gp3
         UpdateReplacePolicy: Retain
         DeletionPolicy: Retain
         Metadata:
