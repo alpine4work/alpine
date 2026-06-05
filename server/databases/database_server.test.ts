@@ -97,6 +97,61 @@ async function createServerWithSchema(...statements: Array<string>): Promise<Dat
     return server;
 }
 
+describe("DatabaseServer — storage failure recovery", () => {
+    // A storage that delegates to an in-memory store but can
+    // be armed to throw from `writePages`, simulating a
+    // durable-storage failure during the buffer drain.
+    class FlakyStorage implements DatabaseServerStorage {
+        private readonly inner = new InMemoryStorage();
+        failNextWritePages = false;
+
+        readPage(
+            databaseTableId: DatabaseTableId,
+            index: number,
+        ): {data: Uint8Array; version: number} | null {
+            return this.inner.readPage(databaseTableId, index);
+        }
+
+        getFileSize(databaseTableId: DatabaseTableId): number {
+            return this.inner.getFileSize(databaseTableId);
+        }
+
+        writePages(
+            pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
+            truncates: ReadonlyMap<DatabaseTableId, number>,
+        ): number {
+            if (this.failNextWritePages) {
+                this.failNextWritePages = false;
+                throw new Error("simulated storage failure");
+            }
+            return this.inner.writePages(pages, truncates);
+        }
+    }
+
+    test("a failed buffer drain does not wedge later executes", async () => {
+        const storage = new FlakyStorage();
+        const server = await DatabaseServer.create(storage);
+        openServers.push(server);
+        server.execute("CREATE TABLE items (id INTEGER PRIMARY KEY)", {
+            allowWrites: "schema+data",
+        });
+
+        // Arm a storage failure: the drain (`writePages`) throws
+        // after `execute` has already buffered its write.
+        storage.failNextWritePages = true;
+        expect(() =>
+            server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
+        ).toThrow("simulated storage failure");
+
+        // The failed drain must not leave the buffer dirty: a
+        // subsequent execute should succeed, not throw
+        // "_runAndPersist requires an empty buffer".
+        expect(() =>
+            server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"}),
+        ).not.toThrow();
+    });
+});
+
 describe("DatabaseServer", () => {
     // Pass-through smoke: rows from a SELECT come back as
     // objects. Exhaustive SQL feature coverage lives in
