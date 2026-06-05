@@ -247,7 +247,7 @@ export class AwsFileProcessorService extends Construct {
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
 
             minCapacity: 1,
             // During a deploy, we double our capacity needs since we keep running old

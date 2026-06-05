@@ -2415,7 +2415,7 @@ Resources:
                             - TaskRealtimeServiceLaunchTemplateProfile73C60351
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: m6g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -3937,7 +3937,7 @@ Resources:
                             - AppServiceLaunchTemplateProfile42DDF9C1
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -5159,7 +5159,7 @@ Resources:
                             - ApiServiceLaunchTemplateProfile943D531F
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -6216,7 +6216,7 @@ Resources:
                             - JobQueueServiceLaunchTemplateProfileBBFF57CB
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -8771,7 +8771,7 @@ Resources:
             IamInstanceProfile:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
             InstanceType: r7g.large
             SecurityGroups:
                 - Fn::GetAtt:
@@ -10285,9 +10285,9 @@ Parameters:
     SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
         Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
-    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-        Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
+        Default: /aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id
     FileProcessorServiceResizeFileServiceLambdaWeight8C995723:
         Type: Number
         Default: 100

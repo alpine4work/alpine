@@ -69,7 +69,7 @@ export class AwsJobQueueService extends Construct {
 
         const launchTemplate = new LaunchTemplate(this, "LaunchTemplate", {
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
             role: new Role(this, "LaunchTemplateRole", {
                 assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
                 managedPolicies: [

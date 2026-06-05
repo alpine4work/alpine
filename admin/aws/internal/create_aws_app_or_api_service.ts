@@ -114,7 +114,7 @@ export function createAwsAppOrApiService(
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
         instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
-        machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+        machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
         role: new Role(parentConstruct, "LaunchTemplateRole", {
             assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
 

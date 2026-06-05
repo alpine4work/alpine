@@ -107,7 +107,7 @@ export class AwsTaskRealtimeService extends Construct {
             vpc,
             launchTemplate: new LaunchTemplate(this, "LaunchTemplate", {
                 instanceType,
-                machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+                machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
                 role: new Role(this, "LaunchTemplateRole", {
                     assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
                     managedPolicies: [
