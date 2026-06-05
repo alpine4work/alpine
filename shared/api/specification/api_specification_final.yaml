@@ -2964,23 +2964,34 @@ components:
                         addedTime:
                             $ref: "#/components/schemas/DateTime"
                         inactive:
-                            oneOf:
-                                - type: object
-                                  required:
-                                      - type
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: Removed
-                                      removedTime:
-                                          $ref: "#/components/schemas/DateTime"
-                                - type: object
-                                  required:
-                                      - type
-                                  additionalProperties: false
-                                  properties:
-                                      type:
-                                          const: InvitePending
+                            $ref: "#/components/schemas/AccountSpaceInactive"
+        AccountSpaceInactive:
+            oneOf:
+                - $ref: "#/components/schemas/AccountSpaceRemovedInactive"
+                - $ref: "#/components/schemas/AccountSpaceInvitePendingInactive"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Removed: "#/components/schemas/AccountSpaceRemovedInactive"
+                    InvitePending: "#/components/schemas/AccountSpaceInvitePendingInactive"
+        AccountSpaceRemovedInactive:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Removed
+                removedTime:
+                    $ref: "#/components/schemas/DateTime"
+        AccountSpaceInvitePendingInactive:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: InvitePending
         Inbox:
             type: object
             required:

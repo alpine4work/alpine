@@ -2953,17 +2953,26 @@ export namespace ApiSpecification {
                     /** @enum {string} */
                     readonly role: "Owner" | "Admin" | "Member";
                     readonly addedTime: components["schemas"]["DateTime"];
-                    readonly inactive?:
-                        | {
-                              /** @constant */
-                              readonly type: "Removed";
-                              readonly removedTime?: components["schemas"]["DateTime"];
-                          }
-                        | {
-                              /** @constant */
-                              readonly type: "InvitePending";
-                          };
+                    readonly inactive?: components["schemas"]["AccountSpaceInactive"];
                 };
+            };
+            readonly AccountSpaceInactive:
+                | components["schemas"]["AccountSpaceRemovedInactive"]
+                | components["schemas"]["AccountSpaceInvitePendingInactive"];
+            readonly AccountSpaceRemovedInactive: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Removed";
+                readonly removedTime?: components["schemas"]["DateTime"];
+            };
+            readonly AccountSpaceInvitePendingInactive: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "InvitePending";
             };
             readonly Inbox: {
                 readonly newEntryCount: number;
