@@ -57,11 +57,13 @@ async function main() {
     // shouldn't be included in the public API specification.
     specificationContent = specificationContent.replace(/^ *#[^\n]*\n+/gm, "");
 
+    const parsedSpecification = Yaml.parse(specificationContent, {merge: true});
+
     specificationContent = Yaml.stringify(
         // Use `JSON.parse(JSON.stringify())` to get a deep copy of the schema so we don't
         // end up with YAML references like `&a2` + `*a2`. This improves readability for
         // the generated schema and makes the generated schema easier to code review.
-        JSON.parse(JSON.stringify(specialize(Yaml.parse(specificationContent, {merge: true})))),
+        JSON.parse(JSON.stringify(specialize(parsedSpecification))),
         {indent: 4},
     );
 

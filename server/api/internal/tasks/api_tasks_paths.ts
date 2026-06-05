@@ -14,6 +14,7 @@ import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/interna
 import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
 import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
+import {updateTaskFromApi} from "~/server/api/internal/tasks/internal/update_task_from_api.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {
     FileTaskAuthorizer,
@@ -156,6 +157,43 @@ export const apiTasksPaths: Pick<
     },
 
     "/tasks/{id}": {
+        patch: async (context, {pathParameters, requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+            const consistency = "StrongWithinCache" as const;
+            const taskId = pathParameters.id;
+            const taskContentPromise = getTaskNotesContentWithCustomReferences(
+                context,
+                taskId,
+                async (context, spaceId, task) =>
+                    await intoApiContentWithReferences(
+                        context,
+                        spaceId,
+                        FileTaskAuthorizer.bind({
+                            type: "TaskNotes",
+                            taskId,
+                        }),
+                        task.content,
+                    ),
+                {consistency},
+            );
+
+            const [task, {content}] = await runAllPromises([
+                updateTaskFromApi(context, {
+                    spaceId,
+                    taskId,
+                    patches: requestBody.patches,
+                }),
+                taskContentPromise,
+            ]);
+
+            return {
+                content: {
+                    spaceId,
+                    task: await intoApiTask(context, task, content),
+                },
+            };
+        },
+
         get: async (context, {pathParameters}) => {
             const [task, {spaceId, content}] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move

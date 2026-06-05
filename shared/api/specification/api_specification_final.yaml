@@ -1157,14 +1157,7 @@ paths:
                                                 id:
                                                     $ref: "#/components/schemas/AccountId"
                                         due:
-                                            type: object
-                                            required:
-                                                - date
-                                            additionalProperties: false
-                                            properties:
-                                                date:
-                                                    type: string
-                                                    format: date
+                                            $ref: "#/components/schemas/TaskDueDate"
                                         priority:
                                             type: string
                                             enum:
@@ -1186,6 +1179,27 @@ paths:
               required: true
               schema:
                   $ref: "#/components/schemas/TaskId"
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - patches
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskPatch"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTask"
+                default:
+                    $ref: "#/components/responses/Error"
         get:
             responses:
                 "200":
@@ -3560,14 +3574,7 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    type: object
-                    required:
-                        - date
-                    additionalProperties: false
-                    properties:
-                        date:
-                            type: string
-                            format: date
+                    $ref: "#/components/schemas/TaskDueDate"
                 priority:
                     type: string
                     enum:
@@ -3603,14 +3610,7 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    type: object
-                    required:
-                        - date
-                    additionalProperties: false
-                    properties:
-                        date:
-                            type: string
-                            format: date
+                    $ref: "#/components/schemas/TaskDueDate"
                 priority:
                     type: string
                     enum:
@@ -3632,25 +3632,150 @@ components:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
+        TaskDueDate:
+            type: object
+            required:
+                - date
+            additionalProperties: false
+            properties:
+                date:
+                    type: string
+                    format: date
+        TaskPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetStatusPatch"
+                - $ref: "#/components/schemas/TaskSetDueDatePatch"
+                - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskAddCollectionPatch"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
+                    SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatch"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+        TaskSetTitlePatch:
+            type: object
+            required:
+                - type
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetTitle
+                title:
+                    type: string
+        TaskSetAssigneePatch:
+            type: object
+            required:
+                - type
+                - assignee
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetAssignee
+                assignee:
+                    oneOf:
+                        - $ref: "#/components/schemas/AccountId"
+                        - type: "null"
+        TaskSetStatusPatch:
+            type: object
+            required:
+                - type
+                - status
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetStatus
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+        TaskSetDueDatePatch:
+            type: object
+            required:
+                - type
+                - due
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDueDate
+                due:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskDueDate"
+                        - type: "null"
+        TaskSetPriorityPatch:
+            type: object
+            required:
+                - type
+                - priority
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetPriority
+                priority:
+                    oneOf:
+                        - type: string
+                          enum:
+                              - Low
+                              - Medium
+                              - High
+                              - Urgent
+                        - type: "null"
+        TaskAddCollectionPatch:
+            type: object
+            required:
+                - type
+                - collectionId
+            additionalProperties: false
+            properties:
+                type:
+                    const: AddCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+        TaskRemoveCollectionPatch:
+            type: object
+            required:
+                - type
+                - collectionId
+            additionalProperties: false
+            properties:
+                type:
+                    const: RemoveCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
         TaskStatus:
             oneOf:
-                - type: object
-                  required:
-                      - type
-                      - isActive
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Open
-                      isActive:
-                          type: boolean
-                - type: object
-                  required:
-                      - type
-                  additionalProperties: false
-                  properties:
-                      type:
-                          const: Closed
+                - $ref: "#/components/schemas/TaskOpenStatus"
+                - $ref: "#/components/schemas/TaskClosedStatus"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Open: "#/components/schemas/TaskOpenStatus"
+                    Closed: "#/components/schemas/TaskClosedStatus"
+        TaskOpenStatus:
+            type: object
+            required:
+                - type
+                - isActive
+            additionalProperties: false
+            properties:
+                type:
+                    const: Open
+                isActive:
+                    type: boolean
+        TaskClosedStatus:
+            type: object
+            required:
+                - type
+            additionalProperties: false
+            properties:
+                type:
+                    const: Closed
         TaskCollection:
             type: object
             required:
@@ -4949,14 +5074,7 @@ components:
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
-                    type: object
-                    required:
-                        - date
-                    additionalProperties: false
-                    properties:
-                        date:
-                            type: string
-                            format: date
+                    $ref: "#/components/schemas/TaskDueDate"
                 priority:
                     type: string
                     enum:
