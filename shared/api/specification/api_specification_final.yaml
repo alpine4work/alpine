@@ -1386,6 +1386,58 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamPart"
                 default:
                     $ref: "#/components/responses/Error"
+    /task-collections:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                                - collection
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                collection:
+                                    type: object
+                                    required:
+                                        - name
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            type: object
+                                            required:
+                                                - id
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        name:
+                                            $ref: "#/components/schemas/LabelString"
+                                        color:
+                                            oneOf:
+                                                - $ref: "#/components/schemas/TaskCollectionColor"
+                                                - type: "null"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - collection
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+                default:
+                    $ref: "#/components/responses/Error"
     /task-collections/{id}:
         parameters:
             - name: id
@@ -1402,12 +1454,12 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - taskCollection
+                                    - collection
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    taskCollection:
+                                    collection:
                                         $ref: "#/components/schemas/TaskCollection"
                 default:
                     $ref: "#/components/responses/Error"
@@ -1833,6 +1885,18 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        TaskCollectionColor:
+            type: string
+            enum:
+                - Red
+                - Orange
+                - Yellow
+                - Green
+                - Cyan
+                - Blue
+                - Indigo
+                - Purple
+                - Pink
         AccountMentionTarget:
             type: object
             required:
@@ -3785,8 +3849,20 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 name:
                     $ref: "#/components/schemas/LabelString"
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
         Message:
             type: object
             required:

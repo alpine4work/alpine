@@ -1244,6 +1244,78 @@ describe("/tasks/{id}/mention", () => {
     });
 });
 
+test("can create a task collection", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.POST("/task-collections", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            collection: {
+                name: "My Project Tasks",
+                color: "Blue",
+            },
+        },
+    });
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            collection: expect.objectContaining({
+                id: expect.any(String),
+                creator: {id: bot.id},
+                name: "My Project Tasks",
+                color: "Blue",
+            }),
+        }),
+    });
+});
+
+test("can create a task collection with creator", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await space.createSession({name: "Bob Johnson"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.POST("/task-collections", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            collection: {
+                creator: {id: otherSession.account.id},
+                name: "Bob\u2019s Tasks",
+                color: "Green",
+            },
+        },
+    });
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            spaceId: space.id,
+            collection: expect.objectContaining({
+                id: expect.any(String),
+                creator: {id: otherSession.account.id},
+                name: "Bob\u2019s Tasks",
+                color: "Green",
+            }),
+        }),
+    });
+});
+
 test("can read task collection information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Alice Smith", role: "Admin"});
@@ -1265,13 +1337,14 @@ test("can read task collection information", async () => {
     ).toEqual({
         status: 200,
         headers: expect.objectContaining({"content-type": "application/json"}),
-        body: expect.objectContaining({
+        body: {
             spaceId: space.id,
-            taskCollection: expect.objectContaining({
+            collection: {
                 id: collection.id,
+                creator: {id: session.account.id},
                 name: "My Project Tasks",
-            }),
-        }),
+            },
+        },
     });
 });
 
@@ -1472,7 +1545,7 @@ test("can read task collection information with task scope", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: expect.objectContaining({
             spaceId: space.id,
-            taskCollection: expect.objectContaining({
+            collection: expect.objectContaining({
                 id: collection.id,
                 name: "My Project Tasks",
             }),

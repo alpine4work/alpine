@@ -18,6 +18,7 @@ import {updateTaskFromApi} from "~/server/api/internal/tasks/internal/update_tas
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {
     FileTaskAuthorizer,
+    commitTaskActionTransaction,
     completeTaskCommentStream,
     createTaskComment,
     getTaskCommentPayload,
@@ -30,19 +31,23 @@ import {
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
+import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -60,7 +65,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 export const apiTasksPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
+    keyof ApiPaths &
+        ("/task-collections" | `/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
 > = {
     "/tasks": {
         post: async (context, {requestBody}) => {
@@ -509,6 +515,74 @@ export const apiTasksPaths: Pick<
         },
     },
 
+    "/task-collections": {
+        post: async (context, {requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+            const {collection} = requestBody;
+            const collectionId = generateId<TaskCollectionId>();
+            const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+            const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
+                consistency: "StrongWithinCache",
+            });
+
+            await commitTaskActionTransaction(
+                context,
+                spaceId,
+                [
+                    {
+                        type: "UpdateCollection",
+                        time: clock.now(),
+                        collectionId,
+                        collectionAction: {
+                            type: "Create",
+                            creator: {
+                                accountId:
+                                    collection.creator?.id ?? context.actor.getBotAccountId(),
+                                from: {
+                                    type: "Bot",
+                                    accountId: context.actor.getBotAccountId(),
+                                },
+                            },
+                            name: collection.name,
+                            accessPolicy,
+                        },
+                    },
+                    ...(collection.color !== undefined
+                        ? [
+                              {
+                                  type: "UpdateCollection" as const,
+                                  time: clock.now(),
+                                  collectionId,
+                                  collectionAction: {
+                                      type: "UpdateColor" as const,
+                                      color: collection.color
+                                          ? fromApiThemeColor(collection.color)
+                                          : null,
+                                  },
+                              },
+                          ]
+                        : []),
+                ],
+                {waitForProcessing: true},
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    collection: {
+                        id: collectionId,
+                        creator: {
+                            id: collection.creator?.id ?? context.actor.getBotAccountId(),
+                        },
+                        name: collection.name,
+                        color: collection.color ?? undefined,
+                    },
+                },
+            };
+        },
+    },
+
     "/task-collections/{id}": {
         get: async (context, {pathParameters}) => {
             const collection = await context.tasks.getCollection(
@@ -520,9 +594,15 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: context.actor.getSpaceId(),
-                    taskCollection: {
+                    collection: {
                         id: collection.id,
+                        creator: collection.rawData.creator?.accountId
+                            ? {id: collection.rawData.creator.accountId}
+                            : undefined,
                         name: collection.getName(),
+                        color: collection.getColor()
+                            ? intoApiThemeColor(collection.getColor()!)
+                            : undefined,
                     },
                 },
             };

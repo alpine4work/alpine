@@ -1964,6 +1964,59 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/task-collections": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly collection: {
+                                readonly creator?: {
+                                    readonly id: components["schemas"]["AccountId"];
+                                };
+                                readonly name: components["schemas"]["LabelString"];
+                                readonly color?:
+                                    | components["schemas"]["TaskCollectionColor"]
+                                    | null;
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly collection: components["schemas"]["TaskCollection"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/task-collections/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -1991,7 +2044,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly taskCollection: components["schemas"]["TaskCollection"];
+                                readonly collection: components["schemas"]["TaskCollection"];
                             };
                         };
                     };
@@ -2251,6 +2304,17 @@ export namespace ApiSpecification {
             readonly SpaceId: IdTypes.SpaceId;
             readonly TaskId: IdTypes.TaskId;
             readonly TaskCollectionId: IdTypes.TaskCollectionId;
+            /** @enum {string} */
+            readonly TaskCollectionColor:
+                | "Red"
+                | "Orange"
+                | "Yellow"
+                | "Green"
+                | "Cyan"
+                | "Blue"
+                | "Indigo"
+                | "Purple"
+                | "Pink";
             readonly AccountMentionTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -3232,7 +3296,11 @@ export namespace ApiSpecification {
             };
             readonly TaskCollection: {
                 readonly id: components["schemas"]["TaskCollectionId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
                 readonly name: components["schemas"]["LabelString"];
+                readonly color?: components["schemas"]["TaskCollectionColor"] | null;
             };
             readonly Message: {
                 readonly index: number;

@@ -1261,6 +1261,52 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
+    /task-collections:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, collection]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                collection:
+                                    type: object
+                                    required: [name]
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        name:
+                                            $ref: "#/components/schemas/LabelString"
+                                        color:
+                                            oneOf:
+                                                - $ref: "#/components/schemas/TaskCollectionColor"
+                                                - type: "null"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+
     /task-collections/{id}:
         parameters:
             - name: id
@@ -1275,12 +1321,12 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, taskCollection]
+                                required: [spaceId, collection]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    taskCollection:
+                                    collection:
                                         $ref: "#/components/schemas/TaskCollection"
 
     /task-collections/{id}/mention:
@@ -1711,6 +1757,10 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^{{idRegExp}}$
+
+        TaskCollectionColor:
+            type: string
+            enum: [Red, Orange, Yellow, Green, Cyan, Blue, Indigo, Purple, Pink]
 
         # =========================================================================== #
         #                               Mention targets                               #
@@ -3238,8 +3288,19 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 name:
                     $ref: "#/components/schemas/LabelString"
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
 
         # =========================================================================== #
         #                                  Messages                                   #

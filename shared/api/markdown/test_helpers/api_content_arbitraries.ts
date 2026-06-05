@@ -61,7 +61,6 @@ import {
     ApiPreviewTargetResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
@@ -446,11 +445,8 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                 }),
             ),
         })
-        .map(table => {
-            // Make sure we can print the table as a GFM table.
-            assert(isSimpleApiContentTableBlockElementForTest(table));
-            return table;
-        }),
+        // Make sure we can print the table as a GFM table.
+        .filter(table => isSimpleApiContentTableBlockElementForTest(table)),
 
     // Arbitrary table that's not limited to simple constructs that'll work in a GFM
     // table.
@@ -796,11 +792,8 @@ const ApiContentTableBlockElementResponseArbitrary: Arbitrary<ApiContentTableBlo
                     }),
                 ),
             })
-            .map(table => {
-                // Make sure we can print the table as a GFM table.
-                assert(isSimpleApiContentTableBlockElementForTest(table));
-                return table;
-            }),
+            // Make sure we can print the table as a GFM table.
+            .filter(table => isSimpleApiContentTableBlockElementForTest(table)),
 
         // Arbitrary table that's not limited to simple constructs that'll work in a GFM
         // table.

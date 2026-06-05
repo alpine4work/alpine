@@ -3626,12 +3626,29 @@ async function actuallyCommitTaskActionTransaction(
                 switch (collectionAction.type) {
                     case "Create": {
                         const creator = getTaskCollectionCreateActionCreator(collectionAction);
-                        const creatorId = creator?.accountId;
+                        const creatorId = creator?.accountId ?? state.getActorAccountId();
 
-                        if (creatorId !== state.getActorAccountId()) {
+                        if (
+                            creatorId !== state.getActorAccountId() &&
+                            state.getActorType() !== "Bot"
+                        ) {
                             throw new PermissionDeniedError(
-                                "Can only create a collection with yourself as the creator",
+                                "Only bots can create task collections on behalf of other accounts",
                             );
+                        }
+
+                        if (creator?.from !== null && creator?.from !== undefined) {
+                            if (state.getActorType() !== "Bot") {
+                                throw new PermissionDeniedError(
+                                    "Only bots can record task collection bot provenance",
+                                );
+                            }
+
+                            if (creator.from.accountId !== state.getActorAccountId()) {
+                                throw new PermissionDeniedError(
+                                    "Task collection bot provenance must match the acting bot",
+                                );
+                            }
                         }
 
                         const newEffectiveAccessPolicy = await state.validateAccessPolicyUpdate(

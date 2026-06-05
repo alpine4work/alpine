@@ -41,6 +41,7 @@ import {
     deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint,
     deleteTaskComment,
     getTaskAccessPolicyForBotScope,
+    getTaskCollectionItemForTest,
     getTaskComment,
     getTaskCommentPayload,
     getTaskCommentsFromEnd,
@@ -2207,31 +2208,33 @@ describe("old style", () => {
         ]);
     });
 
-    test("can\u2019t create a collection with no creator", async () => {
+    test("can create a collection with no creator by defaulting to the actor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
-        await expect(
-            commitTaskActionTransaction(context.action(session1), space.id, [
-                {
-                    type: "UpdateCollection",
-                    time: clock.now(),
-                    collectionId,
-                    collectionAction: {
-                        type: "Create",
-                        creator: null,
-                        name: "Test",
-                        accessPolicy: {
-                            type: "Local",
-                            accountGrantById: new Map([
-                                [taskAccount1.accountId, {level: "Manage", generation: 0}],
-                            ]),
-                            defaultGrant: null,
-                            urlGrant: null,
-                        },
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    creator: null,
+                    name: "Test",
+                    accessPolicy: {
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [taskAccount1.accountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: null,
+                        urlGrant: null,
                     },
                 },
-            ]),
-        ).rejects.toThrow(PermissionDeniedError);
+            },
+        ]);
+
+        await expect(getTaskCollectionItemForTest(context, collectionId)).resolves.toMatchObject({
+            creatorId: session1.account.id,
+        });
     });
 
     test("can\u2019t create a collection with the wrong creator", async () => {
@@ -22149,6 +22152,81 @@ describe("bot task creation authorization", () => {
                 },
             ]),
         ).rejects.toThrow("Edit");
+    });
+});
+
+describe("bot task collection creation authorization", () => {
+    test("non-bot can\u2019t create a task collection on behalf of another account", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const collectionId = generateId<TaskCollectionId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        await expect(
+            commitTaskActionTransaction(session1.action(), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: session2.account.id,
+                            from: null,
+                        },
+                        name: "Test Collection",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [session2.account.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError(
+                "Only bots can create task collections on behalf of other accounts",
+            ),
+        );
+    });
+
+    test("bot can create a task collection on behalf of another account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const collectionId = generateId<TaskCollectionId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: otherSession.account.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    name: "Test Collection",
+                    accessPolicy,
+                },
+            },
+        ]);
+
+        expect(await getTaskCollectionItemForTest(context, collectionId)).toMatchObject({
+            creatorId: otherSession.account.id,
+            creatorFrom: {type: "Bot", accountId: botAccount.id},
+        });
     });
 });
 

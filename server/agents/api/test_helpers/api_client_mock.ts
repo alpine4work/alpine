@@ -654,7 +654,7 @@ export class ApiClientMock implements ApiClient {
             {
                 data: {
                     spaceId,
-                    taskCollection: {
+                    collection: {
                         id: collectionId,
                         name: responseData.name ?? "Test Task Collection",
                     },
