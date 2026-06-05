@@ -9,6 +9,7 @@ import {
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     BrowserId,
@@ -300,6 +301,27 @@ function createTrackedConnection(
 }
 
 describe("per-browser page tracking", () => {
+    test("acknowledgePages ignores pages for tables the server never sent", async () => {
+        const doStorage = new DatabaseDurableObjectStorage(storage.sql);
+        const tracker = new BrowserPageTracker();
+        const browserId = generateId<BrowserId>();
+        const conn = createTrackedConnection(doStorage, tracker, browserId);
+
+        // A client fabricates a tableId it was never sent and
+        // acknowledges pages for it. The server must not create
+        // tracker state for an unknown table — otherwise an
+        // untrusted client can grow the per-browser page map
+        // without bound.
+        const bogusTableId = generateChronologicalId<DatabaseTableId>();
+        await conn.procedures.acknowledgePages(
+            null as any,
+            {pageIndexes: new Map([[bogusTableId, [0, 1, 2]]])},
+            null as any,
+        );
+
+        expect(tracker.clientMightHavePage(browserId, bogusTableId, 0)).toBe(false);
+    });
+
     test("ensureCacheIsUpToDate sets matching pages as confirmed in tracker", async () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
         writePagesFor(
@@ -394,6 +416,10 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
+        // The server sends these pages first (marking them
+        // pending) before the client can acknowledge them —
+        // acks for never-sent pages are ignored.
+        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [5, 6, 7]]]));
         await acknowledgePages(conn, [5, 6, 7]);
 
         // Acknowledged pages are confirmed — skipped by filterReadPages
@@ -436,6 +462,9 @@ describe("per-browser page tracking", () => {
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
         const conn2 = createTrackedConnection(doStorage, tracker, browserId);
 
+        // The server sends these pages first (marking them
+        // pending) before either connection acknowledges them.
+        tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0, 1, 2, 3]]]));
         await acknowledgePages(conn1, [0, 1]);
         await acknowledgePages(conn2, [2, 3]);
 
