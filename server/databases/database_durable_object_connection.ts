@@ -225,6 +225,27 @@ export class DatabaseDurableObjectConnection {
                 // Per-browser filter: only forward diffs for
                 // pages this browser might have cached, per
                 // table.
+                //
+                // NOCOMMIT: this filter fails CLOSED, which can
+                // cause silent client cache divergence. The
+                // BrowserPageTracker is in-memory and per-DO; a
+                // browser's entry is dropped on last-connection
+                // close (browser_page_tracker.ts unregister) and
+                // lost entirely on DO eviction/restart. But the
+                // client's OPFS cache persists, and ensureCacheIsUpToDate
+                // only runs once at client creation — never on
+                // reconnect. So after a reconnect/eviction the
+                // tracker under-estimates what the client holds,
+                // clientMightHavePage returns false for genuinely
+                // cached pages, and their PagesChanged diffs are
+                // dropped instead of applied -> stale OPFS.
+                //
+                // The tracker is only a bandwidth optimization,
+                // so the correct posture is fail-open (unknown ->
+                // send the diff; the client skips diffs for pages
+                // it lacks via base === null). Fix before merge:
+                // fail open here, and/or re-run ensureCacheIsUpToDate
+                // on reconnect. See review.md.
                 const filtered = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {diffs, fileSizeInPages}] of eventStub.pageDiffs) {
                     const tableFiltered = new Map<number, {version: number; diff: PageDiff}>();
