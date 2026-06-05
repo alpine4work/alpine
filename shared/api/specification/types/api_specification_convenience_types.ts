@@ -327,3 +327,9 @@ export type ApiInboxDocumentThreadEntry =
 
 export type ApiInboxTaskMessagesEntry =
     ApiSpecification.components["schemas"]["InboxTaskMessagesEntry"];
+
+export type ApiGetTaskResponse =
+    ApiSpecification.components["responses"]["GetTask"]["content"]["application/json"];
+
+export type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];

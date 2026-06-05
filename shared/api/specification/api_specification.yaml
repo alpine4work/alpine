@@ -1027,6 +1027,59 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/SearchResult"
 
+    /tasks:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, task]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                task:
+                                    type: object
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                            maxLength: {{taskTitleMaxLength}}
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        status:
+                                            $ref: "#/components/schemas/TaskStatus"
+                                        assignee:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        due:
+                                            type: object
+                                            required: [date]
+                                            additionalProperties: false
+                                            properties:
+                                                date:
+                                                    type: string
+                                                    format: date
+                                        priority:
+                                            type: string
+                                            enum: [Low, Medium, High, Urgent]
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+
     /tasks/{id}:
         parameters:
             - name: id
@@ -1036,18 +1089,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, task]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    task:
-                                        $ref: "#/components/schemas/Task"
+                "200": {$ref: "#/components/responses/GetTask"}
 
     /tasks/{id}/mention:
         parameters:
@@ -1427,6 +1469,19 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             document:
                                 $ref: "#/components/schemas/Document"
+
+        GetTask:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, task]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/Task"
 
         GetMessage:
             content:
@@ -2969,10 +3024,18 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
+                    maxLength: {{taskTitleMaxLength}}
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:
@@ -2996,10 +3059,18 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
+                    maxLength: {{taskTitleMaxLength}}
                 assignee:
                     $ref: "#/components/schemas/Account"
                 due:

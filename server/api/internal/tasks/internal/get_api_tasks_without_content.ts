@@ -82,6 +82,7 @@ export async function getApiTasksWithoutContent(
 
             return {
                 id: task.id,
+                creator: {id: task.getCreator().accountId},
                 status: intoApiTaskStatus(task.getDisplayStatus()),
                 title: task.getTitle().getText(),
                 assignee: getApiAccountForTaskAssignee(task),

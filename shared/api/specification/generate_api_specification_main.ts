@@ -27,6 +27,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import {taskTitleMaxLength} from "~/shared/tasks/title/task_title.js";
 
 async function main() {
     /* ========================================================================== *\
@@ -44,6 +45,7 @@ async function main() {
             idRegExp: idRegExp.source,
             integerRegExp: "(?:[0-9]|[1-9][0-9]+)",
             maxLabelStringLength,
+            taskTitleMaxLength,
             codeBlockLanguageIds: JSON.stringify(contentCodeBlockLanguageIds),
             fileContentTypes: JSON.stringify(Array.from(fileContentTypes).sort()),
         },

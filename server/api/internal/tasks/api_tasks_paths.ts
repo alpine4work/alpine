@@ -1,3 +1,5 @@
+import {parseDate} from "@internationalized/date";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
@@ -9,7 +11,10 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {createIntoApiTaskCommentContentPayloadParent} from "~/server/api/internal/tasks/internal/create_into_api_task_comment_content_payload_parent.ts.js";
+import {createTaskFromApi} from "~/server/api/internal/tasks/internal/create_task_from_api.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
+import {intoApiTask} from "~/server/api/internal/tasks/internal/into_api_task.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {
     FileTaskAuthorizer,
     completeTaskCommentStream,
@@ -21,9 +26,10 @@ import {
     pingTaskCommentStream,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
-import {ApiTask} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -31,13 +37,19 @@ import {
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {
+    TaskNotesContentProsemirrorSchema,
+    assertTaskNotesContent,
+    emptyTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {
     TaskQueryCollectionsNormalizedFilter,
     TaskQueryDisplayStatusNormalizedFilter,
@@ -47,17 +59,105 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 export const apiTasksPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/task-collections/${string}` | `/tasks/${string}`)
+    keyof ApiPaths & (`/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
 > = {
+    "/tasks": {
+        post: async (context, {requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+            const {task: taskInput} = requestBody;
+            const consistency = "StrongWithinCache" as const;
+            const title = taskInput.title ?? "";
+
+            const notesContent = taskInput.content
+                ? assertTaskNotesContent(
+                      fromApiContent(TaskNotesContentProsemirrorSchema, taskInput.content),
+                  )
+                : undefined;
+
+            const dueDate = taskInput.due ? parseDate(taskInput.due.date) : undefined;
+
+            const taskId = generateId<TaskId>();
+            const accessPolicyPromise = createAccessPolicyForContentCreatedByBot(context, spaceId, {
+                consistency,
+            });
+
+            let accessPolicy: LocalAccessPolicy;
+
+            // Attach files referenced in the content before creating the task so there's no
+            // race where a reader sees the task before its files are attached.
+            //
+            // We intentionally keep file attachment in `api_*_paths.ts` instead of moving it
+            // into `createTaskFromApi()`. Attaching files is adjacent to task creation, but it
+            // is not part of the task write itself, and we've agreed this one-off pre-step
+            // does not need to be atomic with the task transaction.
+            if (taskInput.content) {
+                const fileIds = extractFileIdsFromApiContent(taskInput.content);
+                [accessPolicy] = await runAllPromises([
+                    accessPolicyPromise,
+                    runAllPromises(
+                        [...fileIds].map(fileId =>
+                            attachFileToTargetAsBot(
+                                context,
+                                fileId,
+                                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                            ),
+                        ),
+                    ),
+                ]);
+            } else {
+                accessPolicy = await accessPolicyPromise;
+            }
+
+            const [task, content] = await runAllPromises([
+                createTaskFromApi(context, {
+                    taskId,
+                    spaceId,
+                    accessPolicy,
+                    creatorId: taskInput.creator?.id,
+                    title,
+                    notesContent,
+                    assigneeId: taskInput.assignee?.id,
+                    status: taskInput.status,
+                    dueDate,
+                    priority: taskInput.priority,
+                }),
+                intoApiContentWithReferences(
+                    context,
+                    spaceId,
+                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                    notesContent ?? emptyTaskNotesContent,
+                ),
+            ]);
+
+            const assigneeId = task.assigneeId;
+            const apiAssignee =
+                assigneeId !== undefined
+                    ? await getApiAccount(context, spaceId, assigneeId, {
+                          consistency: "StrongWithinCache",
+                      })
+                    : undefined;
+
+            return {
+                content: {
+                    spaceId,
+                    task: {
+                        id: task.id,
+                        creator: {id: task.creatorId},
+                        status: task.status,
+                        title: task.title,
+                        assignee: apiAssignee ?? undefined,
+                        due: task.dueDate ? {date: task.dueDate.toString()} : undefined,
+                        priority: task.priority,
+                        content,
+                    },
+                },
+            };
+        },
+    },
+
     "/tasks/{id}": {
         get: async (context, {pathParameters}) => {
-            const [
-                task,
-                {
-                    spaceId,
-                    content: {assignee, content},
-                },
-            ] = await runAllPromises([
+            const [task, {spaceId, content}] = await runAllPromises([
                 // TODO(calebmer): An optimization that would be pretty nice here is if we move
                 // notes loading into `TaskRealtimeService`. Currently we have to load the data for
                 // bot authorization twice. Once here in `ApiService` and again in
@@ -72,61 +172,24 @@ export const apiTasksPaths: Pick<
                 getTaskNotesContentWithCustomReferences(
                     context,
                     pathParameters.id,
-                    async (context, spaceId, task) => {
-                        const [assignee, content] = await runAllPromises([
-                            task.assigneeId
-                                ? getApiAccount(context, spaceId, task.assigneeId, {
-                                      consistency: "StrongWithinCache",
-                                  })
-                                : null,
-                            intoApiContentWithReferences(
-                                context,
-                                spaceId,
-                                FileTaskAuthorizer.bind({
-                                    type: "TaskNotes",
-                                    taskId: pathParameters.id,
-                                }),
-                                task.content,
-                            ),
-                        ]);
-                        return {assignee, content};
-                    },
+                    (context, spaceId, task) =>
+                        intoApiContentWithReferences(
+                            context,
+                            spaceId,
+                            FileTaskAuthorizer.bind({
+                                type: "TaskNotes",
+                                taskId: pathParameters.id,
+                            }),
+                            task.content,
+                        ),
                     {consistency: "StrongWithinCache"},
                 ),
             ]);
 
-            const status = task.getStatus();
-            const dueDate = task.getDueDate();
-
-            let actualStatus: ApiTask["status"];
-            switch (status.type) {
-                case "Closed": {
-                    actualStatus = {type: "Closed"};
-                    break;
-                }
-                case "Open": {
-                    actualStatus = {
-                        type: "Open",
-                        isActive: task.getAssigneeStatus().type === "Active",
-                    };
-                    break;
-                }
-                default:
-                    throw exhaustive(status);
-            }
-
             return {
                 content: {
                     spaceId,
-                    task: {
-                        id: pathParameters.id,
-                        status: actualStatus,
-                        title: task.getTitle().getText(),
-                        assignee: assignee ?? undefined,
-                        due: dueDate ? {date: dueDate.toString()} : undefined,
-                        priority: task.getPriority() ?? undefined,
-                        content,
-                    },
+                    task: await intoApiTask(context, task, content),
                 },
             };
         },

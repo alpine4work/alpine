@@ -14153,6 +14153,59 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "type": "String"
                                                                                     },
                                                                                     "optional": false
+                                                                                },
+                                                                                "accessPolicy": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Union",
+                                                                                        "typeKey": "type",
+                                                                                        "variantSchemaByTypeValue": {
+                                                                                            "Local": {
+                                                                                                "type": "Reference",
+                                                                                                "reuseReferenceId": "43b510f3"
+                                                                                            },
+                                                                                            "Site": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "Site"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "siteId": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Id"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "position": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "parentId": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "String"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                },
+                                                                                                                "orderKey": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "String"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                }
+                                                                                                            }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "defaultTypeValue": "Local",
+                                                                                        "referenceId": "24df270a"
+                                                                                    },
+                                                                                    "optional": true
                                                                                 }
                                                                             }
                                                                         },
@@ -14653,54 +14706,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 },
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Union",
-                                                                                        "typeKey": "type",
-                                                                                        "variantSchemaByTypeValue": {
-                                                                                            "Local": {
-                                                                                                "type": "Reference",
-                                                                                                "reuseReferenceId": "43b510f3"
-                                                                                            },
-                                                                                            "Site": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "Site"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "siteId": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Id"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "position": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "parentId": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "String"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                },
-                                                                                                                "orderKey": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "String"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                }
-                                                                                                            }
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        },
-                                                                                        "defaultTypeValue": "Local",
-                                                                                        "referenceId": "bc9960ed"
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "24df270a"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -14812,7 +14819,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "bc9960ed"
+                                                                                        "reuseReferenceId": "24df270a"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -14905,7 +14912,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "bc9960ed"
+                                                                                        "reuseReferenceId": "24df270a"
                                                                                     },
                                                                                     "optional": false
                                                                                 }

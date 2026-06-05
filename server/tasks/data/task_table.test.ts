@@ -2,6 +2,7 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {addDays, addHours, addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
 import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
@@ -44,6 +45,7 @@ import {
     getTaskCommentPayload,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
+    getTaskItemForTest,
     getTaskNotesContent,
     getTaskNotesContentAndOptionalInitialCommentsIfExists,
     getTaskNotesContentWithoutReferences,
@@ -116,6 +118,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 let jobs: Array<JobDescription> = [];
@@ -21922,6 +21925,231 @@ test("can send share notifications for update task access policy actions", async
             },
         },
     ]);
+});
+
+describe("bot task creation authorization", () => {
+    test("non-bot can\u2019t create a task on behalf of another account", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        await expect(
+            commitTaskActionTransaction(session1.action(), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "Create",
+                        creator: {
+                            accountId: session2.account.id,
+                            from: null,
+                        },
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                },
+            ]),
+        ).rejects.toThrow(
+            new PermissionDeniedError("Only bots can create tasks on behalf of other accounts"),
+        );
+    });
+
+    test("bot can create a task on behalf of another account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const otherSession = await space.createSession();
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        await commitTaskActionTransaction(botAccount.action(), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: otherSession.account.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                },
+            },
+        ]);
+
+        expect(await getTaskItemForTest(context, taskId)).toMatchObject({
+            creatorId: otherSession.account.id,
+            creatorFrom: {type: "Bot", accountId: botAccount.id},
+        });
+    });
+
+    test("bot can create a task with access policy", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+        ]);
+    });
+
+    test("bot can update a task it just created when access policy is set on create", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const taskId = generateId<TaskId>();
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        const botContext = botAccount.action();
+
+        const accessPolicy = await createAccessPolicyForContentCreatedByBot(botContext, space.id);
+
+        await commitTaskActionTransaction(botContext, space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creator: {
+                        accountId: botAccount.id,
+                        from: {type: "Bot", accountId: botAccount.id},
+                    },
+                    creatorTimeZone: defaultTimeZone,
+                    accessPolicy,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: createTaskTitleFromText("Bot task"),
+                },
+            },
+        ]);
+    });
+
+    test("bot can\u2019t update a task it doesn\u2019t have access to", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        // Create a private task owned by session2 with an explicit access policy that
+        // doesn't include the bot's scope.
+        const task = await TestTask.create(session2);
+        const privateAccessPolicy: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage" as const, generation: 0}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        await commitTaskActionTransaction(session2.action(), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task.id,
+                taskAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: privateAccessPolicy,
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(botAccount.action(), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: createTaskTitleFromText("Hacked"),
+                    },
+                },
+            ]),
+        ).rejects.toThrow("Edit");
+    });
+
+    test("bot can\u2019t set access policy on a task it doesn\u2019t have access to", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        // Create a private task owned by session2 with an explicit access policy that
+        // doesn't include the bot's scope.
+        const task = await TestTask.create(session2);
+        const privateAccessPolicy: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage" as const, generation: 0}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+        await commitTaskActionTransaction(session2.action(), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId: task.id,
+                taskAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: privateAccessPolicy,
+                },
+            },
+        ]);
+
+        const botContext = botAccount.action();
+        const botAccessPolicy = await createAccessPolicyForContentCreatedByBot(
+            botContext,
+            space.id,
+        );
+
+        await expect(
+            commitTaskActionTransaction(botContext, space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: botAccessPolicy,
+                    },
+                },
+            ]),
+        ).rejects.toThrow("Edit");
+    });
 });
 
 test("can\u2019t create task collection with bot account", async () => {

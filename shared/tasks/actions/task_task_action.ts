@@ -50,6 +50,7 @@ const TaskCreateActionSchema = Schema.object({
         from: null,
     }).originalPropertyKey("creatorId"),
     creatorTimeZone: TimeZoneSchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema.optional(),
 });
 
 /**

@@ -1597,6 +1597,57 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/tasks": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly task: {
+                                readonly title?: string;
+                                readonly creator?: {
+                                    readonly id: components["schemas"]["AccountId"];
+                                };
+                                readonly status?: components["schemas"]["TaskStatus"];
+                                readonly assignee?: {
+                                    readonly id: components["schemas"]["AccountId"];
+                                };
+                                readonly due?: {
+                                    /** Format: date */
+                                    readonly date: string;
+                                };
+                                /** @enum {string} */
+                                readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                                readonly content?: components["schemas"]["Content"];
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetTask"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/tasks/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -1617,17 +1668,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly task: components["schemas"]["Task_Response"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetTask"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -3058,6 +3099,9 @@ export namespace ApiSpecification {
             };
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
                 readonly status: components["schemas"]["TaskStatus"];
                 readonly title: string;
                 readonly assignee?: components["schemas"]["Account"];
@@ -3071,6 +3115,9 @@ export namespace ApiSpecification {
             };
             readonly TaskWithoutContent: {
                 readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
                 readonly status: components["schemas"]["TaskStatus"];
                 readonly title: string;
                 readonly assignee?: components["schemas"]["Account"];
@@ -3705,6 +3752,9 @@ export namespace ApiSpecification {
             };
             readonly Task_Response: {
                 readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
                 readonly status: components["schemas"]["TaskStatus"];
                 readonly title: string;
                 readonly assignee?: components["schemas"]["Account"];
@@ -3841,6 +3891,17 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly document: components["schemas"]["Document_Response"];
+                    };
+                };
+            };
+            readonly GetTask: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly task: components["schemas"]["Task_Response"];
                     };
                 };
             };

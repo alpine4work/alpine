@@ -52,7 +52,6 @@ import {
 } from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskRealtimeActionContext,
-    TaskRealtimeSessionActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
@@ -2017,7 +2016,7 @@ export async function queryTaskIndex(
  * whenever the task changes.
  */
 export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
-    context: TaskRealtimeSessionActionContext,
+    context: TaskRealtimeActionContext,
     {spaceId, taskId}: {spaceId: SpaceId; taskId: TaskId},
     action: () => Promise<Value>,
 ): Promise<Value> {

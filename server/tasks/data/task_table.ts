@@ -1055,6 +1055,28 @@ type TaskCollectionEssentialAttributesItemBase = Omit<
 
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
+export function createTaskNotesCreateTransactionEntry({
+    spaceId,
+    taskId,
+    content,
+}: {
+    spaceId: SpaceId;
+    taskId: TaskId;
+    content: TaskNotesContent;
+}): DynamoTransactionEntry {
+    // Create the initial notes row at version 0 in the same transaction as task
+    // creation so we never end up with a task that exists without its initial notes.
+    return TaskTable.transactionCreateItem({
+        partitionType: "Task",
+        sortRangeType: "Notes",
+        spaceId,
+        taskId,
+        version: 0,
+        content,
+        stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
+    });
+}
+
 // Authorizers must be declared next to their respective Tables
 export const FileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
@@ -1405,7 +1427,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
  * commutative property) multiple times (thanks to their idempotent property).
  */
 export function commitTaskActionTransaction(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
     options: {
@@ -1417,6 +1439,8 @@ export function commitTaskActionTransaction(
         };
         updateAccessPolicyShareNotification?: ShareNotification;
         extraTransactionEntries?: Array<DynamoTransactionEntry>;
+        consistency?: DynamoCacheReadConsistency;
+        waitForProcessing?: boolean;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -1511,7 +1535,7 @@ export function commitTaskActionTransaction(
                     type: "SendShareNotification",
                     jobId: generateId(),
                     spaceId,
-                    actorAccountId: context.actor.getAccountId(),
+                    actorAccountId: context.actor.getPossiblyBotAccountId(),
                     entityId,
                     notification: options.updateAccessPolicyShareNotification,
                 });
@@ -1528,6 +1552,10 @@ export function commitTaskActionTransaction(
         // realtime see these actions in the same order they were made.
         await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
 
+        if (options.waitForProcessing) {
+            await processPromise;
+        }
+
         return {
             extraActions,
             getRynamoEventsForSite,
@@ -1536,7 +1564,7 @@ export function commitTaskActionTransaction(
 }
 
 async function afterCommitTaskActionTransaction(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     actionTransactionItem: TaskActionTransactionItem,
 ) {
     const processPromise = processTaskActionTransaction(context, actionTransactionItem);
@@ -1673,7 +1701,7 @@ const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =
  * to read again.
  */
 class TaskActionTransactionCommitState {
-    private readonly _context: ServerSessionActionContext;
+    private readonly _context: ServerAccountActionContext;
     private readonly _spaceId: SpaceId;
     private readonly _leaseId: TaskActionTransactionLeaseId | null;
     private _startTime = Date.now();
@@ -1726,20 +1754,31 @@ class TaskActionTransactionCommitState {
     >();
 
     private readonly _afterCommitActions: Array<
-        (context: ServerSessionActionContext) => Promise<void>
+        (context: ServerAccountActionContext) => Promise<void>
     > = [];
 
+    private readonly _consistency: DynamoCacheReadConsistency;
+
     private constructor(
-        context: ServerSessionActionContext,
-        {spaceId, leaseId}: {spaceId: SpaceId; leaseId: TaskActionTransactionLeaseId | null},
+        context: ServerAccountActionContext,
+        {
+            spaceId,
+            leaseId,
+            consistency = "Eventual",
+        }: {
+            spaceId: SpaceId;
+            leaseId: TaskActionTransactionLeaseId | null;
+            consistency?: DynamoCacheReadConsistency;
+        },
     ) {
         this._context = context;
         this._spaceId = spaceId;
         this._leaseId = leaseId;
+        this._consistency = consistency;
     }
 
     public static commit(
-        context: ServerSessionActionContext,
+        context: ServerAccountActionContext,
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskAction>,
         {
@@ -1747,6 +1786,7 @@ class TaskActionTransactionCommitState {
             leaseId = null,
             createLeaseIfLostAccess,
             extraTransactionEntries,
+            consistency,
         }: {
             clientId?: TaskRealtimeClientId | null;
             leaseId?: TaskActionTransactionLeaseId | null;
@@ -1755,6 +1795,7 @@ class TaskActionTransactionCommitState {
                 actions: ReadonlyArray<TaskUpdateTaskAction>;
             };
             extraTransactionEntries?: Array<DynamoTransactionEntry>;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
@@ -1777,7 +1818,7 @@ class TaskActionTransactionCommitState {
                     partitionType: "Account",
                     sortRangeType: "TaskActionTransactionLease",
                     spaceId,
-                    accountId: context.actor.getAccountId(),
+                    accountId: context.actor.getPossiblyBotAccountId(),
                     leaseId,
                 });
 
@@ -1807,7 +1848,11 @@ class TaskActionTransactionCommitState {
                 }
             }
 
-            const state = new TaskActionTransactionCommitState(context, {spaceId, leaseId});
+            const state = new TaskActionTransactionCommitState(context, {
+                spaceId,
+                leaseId,
+                consistency,
+            });
             await state._prepareCommit(actions);
 
             if (createLeaseIfLostAccess) {
@@ -1875,7 +1920,7 @@ class TaskActionTransactionCommitState {
                         partitionType: "Account",
                         sortRangeType: "TaskActionTransactionLease",
                         spaceId,
-                        accountId: context.actor.getAccountId(),
+                        accountId: context.actor.getPossiblyBotAccountId(),
                         leaseId: createLeaseIfLostAccess.id,
                         actions: createLeaseIfLostAccess.actions,
                         // Leases have a short expiration time. You may not use a lease after two hours.
@@ -2032,7 +2077,7 @@ class TaskActionTransactionCommitState {
         }
 
         await commitTaskActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
-            this._context.actor.getAccountId(),
+            this._context.actor.getPossiblyBotAccountId(),
         );
 
         const actionTransactionItem: TaskActionTransactionItem = {
@@ -2043,7 +2088,7 @@ class TaskActionTransactionCommitState {
             actionTransactionId: generateId<TaskActionTransactionId>(),
             actions: [...actions, ...extraActions],
             wasProcessed: false,
-            actorId: this._context.actor.getAccountId(),
+            actorId: this._context.actor.getPossiblyBotAccountId(),
             clientId,
         };
 
@@ -2106,11 +2151,17 @@ class TaskActionTransactionCommitState {
     }
 
     public getActorAccountId(): AccountId {
-        return this._context.actor.getAccountId();
+        return this._context.actor.getPossiblyBotAccountId();
+    }
+
+    public getActorType() {
+        return this._context.actor.type;
     }
 
     public getAccountIfExists(accountId: AccountId): Promise<AccountModel | null> {
-        return getAccountIfExists(this._context, this._spaceId, accountId);
+        return getAccountIfExists(this._context, this._spaceId, accountId, {
+            consistency: this._consistency,
+        });
     }
 
     public isAccountMemberOfSpace(accountId: AccountId): Promise<boolean> {
@@ -2134,11 +2185,15 @@ class TaskActionTransactionCommitState {
 
     public getTaskItemIfExists(taskId: TaskId): Promise<TaskEssentialAttributesItem | null> {
         return getOrSetDefaultMapValue(this._taskItemById, taskId, async () => {
-            const taskItem = await TaskTable.getItemIfExists(this._context, {
-                partitionType: "Task",
-                sortRangeType: "EssentialAttributes",
-                taskId,
-            });
+            const taskItem = await TaskTable.getItemIfExists(
+                this._context,
+                {
+                    partitionType: "Task",
+                    sortRangeType: "EssentialAttributes",
+                    taskId,
+                },
+                {consistency: this._consistency},
+            );
             if (!taskItem) return null;
 
             if (taskItem.spaceId !== this._spaceId)
@@ -2297,11 +2352,15 @@ class TaskActionTransactionCommitState {
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionEssentialAttributesItem | null> {
         return getOrSetDefaultMapValue(this._collectionItemById, collectionId, async () => {
-            let collectionItem = await TaskTable.getItemIfExists(this._context, {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            });
+            let collectionItem = await TaskTable.getItemIfExists(
+                this._context,
+                {
+                    partitionType: "TaskCollection",
+                    sortRangeType: "EssentialAttributes",
+                    collectionId,
+                },
+                {consistency: this._consistency},
+            );
             if (!collectionItem) return null;
 
             if (collectionItem.spaceId !== this._spaceId)
@@ -2529,7 +2588,9 @@ class TaskActionTransactionCommitState {
         // authorization. The lease allows us to take otherwise disallowed actions.
         if (this._leaseId !== null && this._leaseId === taskItem.validLeaseId) return;
 
-        await authorizeTaskItemAccess(this._context, taskItem, expectedAccessLevel, this);
+        await authorizeTaskItemAccess(this._context, taskItem, expectedAccessLevel, this, {
+            consistency: this._consistency,
+        });
     }
 
     public async authorizeTaskItemAccessAllowingDeletedTasks(
@@ -2545,6 +2606,7 @@ class TaskActionTransactionCommitState {
             taskItem,
             expectedAccessLevel,
             this,
+            {consistency: this._consistency},
         );
     }
 
@@ -2559,7 +2621,7 @@ class TaskActionTransactionCommitState {
      * thrown). Since we don't actually commit lease actions until later.
      */
     public registerAfterCommitAction(
-        action: (context: ServerSessionActionContext) => Promise<void>,
+        action: (context: ServerAccountActionContext) => Promise<void>,
     ) {
         this._afterCommitActions.push(action);
     }
@@ -2591,11 +2653,36 @@ async function actuallyCommitTaskActionTransaction(
                     case "Create": {
                         const creatorId = taskAction.creator.accountId;
 
-                        if (creatorId !== state.getActorAccountId()) {
+                        if (
+                            creatorId !== state.getActorAccountId() &&
+                            state.getActorType() !== "Bot"
+                        ) {
                             throw new PermissionDeniedError(
-                                "Can only create a task with yourself as the creator",
+                                "Only bots can create tasks on behalf of other accounts",
                             );
                         }
+
+                        if (taskAction.creator.from !== null) {
+                            if (state.getActorType() !== "Bot") {
+                                throw new PermissionDeniedError(
+                                    "Only bots can record task bot provenance",
+                                );
+                            }
+
+                            if (taskAction.creator.from.accountId !== state.getActorAccountId()) {
+                                throw new PermissionDeniedError(
+                                    "Task bot provenance must match the acting bot",
+                                );
+                            }
+                        }
+
+                        const newResolvedAccessPolicy = taskAction.accessPolicy
+                            ? await state.validateAccessPolicyUpdate(
+                                  `Task:${taskId}`,
+                                  null,
+                                  taskAction.accessPolicy,
+                              )
+                            : null;
 
                         const newTaskItem: TaskEssentialAttributesItem = {
                             partitionType: "Task",
@@ -2624,13 +2711,28 @@ async function actuallyCommitTaskActionTransaction(
                             // `accessPolicy` to null. So the behavior of a task without an
                             // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in the
                             // first place.
-                            accessPolicy: null,
+                            accessPolicy: taskAction.accessPolicy
+                                ? new AccessPolicyRegister(taskAction.accessPolicy, action.time)
+                                : null,
                             layout: null,
-                            feed: null,
+                            feed: newResolvedAccessPolicy?.defaultGrant
+                                ? "AddedCandidateEntry"
+                                : null,
                             validLeaseId: null,
                         };
 
                         state.createTaskItem(newTaskItem);
+
+                        if (newTaskItem.feed !== null) {
+                            // New tasks have not yet added a feed entry for the creator, so allow this entry
+                            // through to the creator feed as well.
+                            registerSharedTaskFeedCandidateEntry(state, spaceId, {
+                                taskId,
+                                time: action.time,
+                                taskItem: newTaskItem,
+                                excludeFromCreatorFeed: false,
+                            });
+                        }
                         break;
                     }
                     case "Undelete": {
@@ -3365,7 +3467,7 @@ async function actuallyCommitTaskActionTransaction(
                                             type: "Task",
                                             taskId,
                                             sharedTime: new Date(action.time[0]),
-                                            sharerId: context.actor.getAccountId(),
+                                            sharerId: context.actor.getPossiblyBotAccountId(),
                                             creator: {
                                                 id: taskItem.creatorId,
                                                 from: taskItem.creatorFrom,
@@ -3383,7 +3485,7 @@ async function actuallyCommitTaskActionTransaction(
                                                     spaceId,
                                                     // In case the person turning the account into a project is different from the task
                                                     // creator, add the entry to the person turning the task into a project.
-                                                    context.actor.getAccountId(),
+                                                    context.actor.getPossiblyBotAccountId(),
                                                     entry,
                                                 ),
                                             );
@@ -3443,51 +3545,14 @@ async function actuallyCommitTaskActionTransaction(
                                 // children or a collection then that's good signal the user has filled out the
                                 // task.
                                 if (taskItem.feed !== newFeed) {
-                                    state.registerAfterCommitAction(async context => {
-                                        const entry: FeedEntry = {
-                                            type: "Task",
-                                            taskId,
-                                            sharedTime: new Date(action.time[0]),
-                                            sharerId: context.actor.getAccountId(),
-                                            creator: {
-                                                id: taskItem.creatorId,
-                                                from: taskItem.creatorFrom,
-                                            },
-                                            // If we've already added this entry to the creator's feed then we don't want to
-                                            // add it again.
-                                            excludeFromCreatorFeed:
-                                                taskItem.feed === "AddedAccountCandidateEntry",
-                                            event: "SharedWithAccessPolicyDefaultGrant",
-                                        };
-
-                                        if (
-                                            // Is this a project task? When you create a project task we focus the title (and
-                                            // set the creator as the assignee) so we assume at least those two fields have
-                                            // been filled out which will make for a relevant feed entry.
-                                            !!taskItem.layout?.value ||
-                                            // Does this task have any children? If so the user has clearly done some work to
-                                            // set up the task's data.
-                                            taskItem.addedChildTaskCount -
-                                                taskItem.removedChildTaskCount >
-                                                0 ||
-                                            // Is this task in at least one collection? If so the user has clearly done some
-                                            // work to set up the task's data.
-                                            taskItem.collections.getArray().length > 0
-                                        ) {
-                                            context.process.waitUntil(
-                                                addFeedCandidateEntry(context, spaceId, entry),
-                                            );
-                                        } else {
-                                            context.jobs.send(
-                                                {
-                                                    type: "AddFeedCandidateEntry",
-                                                    jobId: generateId(),
-                                                    spaceId,
-                                                    entry,
-                                                },
-                                                {delaySeconds: 5 * 60},
-                                            );
-                                        }
+                                    registerSharedTaskFeedCandidateEntry(state, spaceId, {
+                                        taskId,
+                                        time: action.time,
+                                        taskItem,
+                                        // If we've already added this entry to the creator's feed then we don't want to
+                                        // add it again.
+                                        excludeFromCreatorFeed:
+                                            taskItem.feed === "AddedAccountCandidateEntry",
                                     });
                                 }
                                 break;
@@ -3535,7 +3600,7 @@ async function actuallyCommitTaskActionTransaction(
                                 type: "Task",
                                 taskId,
                                 sharedTime: new Date(action.time[0]),
-                                sharerId: context.actor.getAccountId(),
+                                sharerId: context.actor.getPossiblyBotAccountId(),
                                 creator: {
                                     id: newTaskItem.creatorId,
                                     from: newTaskItem.creatorFrom,
@@ -3792,21 +3857,15 @@ async function actuallyCommitTaskActionTransaction(
                                             event: "SharedWithAccessPolicyDefaultGrant",
                                         };
 
-                                        if (collectionItem.openTaskCount >= 8) {
-                                            context.process.waitUntil(
-                                                addFeedCandidateEntry(context, spaceId, entry),
-                                            );
-                                        } else {
-                                            context.jobs.send(
-                                                {
-                                                    type: "AddFeedCandidateEntry",
-                                                    jobId: generateId(),
-                                                    spaceId,
-                                                    entry,
-                                                },
-                                                {delaySeconds: 5 * 60},
-                                            );
-                                        }
+                                        addFeedCandidateEntryNowOrAfterDelay(
+                                            context,
+                                            spaceId,
+                                            entry,
+                                            {
+                                                shouldAddImmediately:
+                                                    collectionItem.openTaskCount >= 8,
+                                            },
+                                        );
                                     });
                                 }
                                 break;
@@ -3836,6 +3895,79 @@ async function actuallyCommitTaskActionTransaction(
                 throw exhaustive(action);
         }
     }
+}
+
+function shouldAddTaskFeedCandidateEntryImmediately(
+    taskItem: TaskEssentialAttributesItem,
+): boolean {
+    return (
+        // Is this a project task? When you create a project task we focus the title (and
+        // set the creator as the assignee) so we assume at least those two fields have
+        // been filled out which will make for a relevant feed entry.
+        !!taskItem.layout?.value ||
+        // Does this task have any children? If so the user has clearly done some work to
+        // set up the task's data.
+        taskItem.addedChildTaskCount - taskItem.removedChildTaskCount > 0 ||
+        // Is this task in at least one collection? If so the user has clearly done some
+        // work to set up the task's data.
+        taskItem.collections.getArray().length > 0
+    );
+}
+
+function addFeedCandidateEntryNowOrAfterDelay(
+    context: ServerAccountActionContext,
+    spaceId: SpaceId,
+    entry: FeedEntry,
+    {shouldAddImmediately}: {shouldAddImmediately: boolean},
+) {
+    if (shouldAddImmediately) {
+        context.process.waitUntil(addFeedCandidateEntry(context, spaceId, entry));
+    } else {
+        context.jobs.send(
+            {
+                type: "AddFeedCandidateEntry",
+                jobId: generateId(),
+                spaceId,
+                entry,
+            },
+            {delaySeconds: 5 * 60},
+        );
+    }
+}
+
+function registerSharedTaskFeedCandidateEntry(
+    state: TaskActionTransactionCommitState,
+    spaceId: SpaceId,
+    {
+        taskId,
+        time,
+        taskItem,
+        excludeFromCreatorFeed,
+    }: {
+        taskId: TaskId;
+        time: HybridLogicalTime;
+        taskItem: TaskEssentialAttributesItem;
+        excludeFromCreatorFeed: boolean;
+    },
+) {
+    state.registerAfterCommitAction(async context => {
+        const entry: FeedEntry = {
+            type: "Task",
+            taskId,
+            sharedTime: new Date(time[0]),
+            sharerId: context.actor.getPossiblyBotAccountId(),
+            creator: {
+                id: taskItem.creatorId,
+                from: taskItem.creatorFrom,
+            },
+            excludeFromCreatorFeed,
+            event: "SharedWithAccessPolicyDefaultGrant",
+        };
+
+        addFeedCandidateEntryNowOrAfterDelay(context, spaceId, entry, {
+            shouldAddImmediately: shouldAddTaskFeedCandidateEntryImmediately(taskItem),
+        });
+    });
 }
 
 export const deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint = new TestCheckpoint<AccountId>();
@@ -5005,6 +5137,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<void> {
     unwrapResult(
         await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
@@ -5012,6 +5145,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
             taskItem,
             expectedAccessLevel,
             loaders,
+            options,
         ),
     );
 }
@@ -8246,36 +8380,51 @@ export async function getTaskNotesContent(
  * steps (unlike document content). There's no way to recover!
  */
 export function updateTaskNotesContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         spaceId,
         taskId,
         version,
         steps,
+        consistency,
     }: {
         spaceId: SpaceId;
         taskId: TaskId;
         version: number;
         steps: ReadonlyArray<Step>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ) {
     return withSendTaskIndexSearchEntityJobIfNeeded(context, {spaceId, taskId}, () => {
         return context.dynamo.retryTransaction(async context => {
             const [taskItem, notesItem] = await runAllPromises([
                 (async () => {
-                    const taskItem = await TaskTable.getItem(context, {
-                        partitionType: "Task",
-                        sortRangeType: "EssentialAttributes",
-                        taskId,
-                    });
+                    const taskItem = await TaskTable.getItem(
+                        context,
+                        {
+                            partitionType: "Task",
+                            sortRangeType: "EssentialAttributes",
+                            taskId,
+                        },
+                        {consistency},
+                    );
 
                     const expectedAccessLevel = "Edit";
 
-                    await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
-                        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
-                        getCollectionItem: collectionId =>
-                            getTaskCollectionItemForAuthorization(context, collectionId, null),
-                    });
+                    await authorizeTaskItemAccess(
+                        context,
+                        taskItem,
+                        expectedAccessLevel,
+                        {
+                            getTaskItem: taskId =>
+                                getTaskItemForAuthorization(context, taskId, null, {consistency}),
+                            getCollectionItem: collectionId =>
+                                getTaskCollectionItemForAuthorization(context, collectionId, null, {
+                                    consistency,
+                                }),
+                        },
+                        {consistency},
+                    );
 
                     if (taskItem.spaceId !== spaceId) {
                         throw new FailedPreconditionError("Task is in unexpected space");
@@ -8283,25 +8432,29 @@ export function updateTaskNotesContent(
 
                     return taskItem;
                 })(),
-                TaskTable.getItemIfExists(context, {
-                    partitionType: "Task",
-                    sortRangeType: "Notes",
-                    taskId,
-                }),
+                TaskTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Task",
+                        sortRangeType: "Notes",
+                        taskId,
+                    },
+                    {consistency},
+                ),
             ]);
 
             let newStepCountByAccountId =
                 notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map());
 
             // Keep track of how much each account contributed to the task's notes.
-            if (context.actor.getAccountId() !== taskItem.creatorId) {
+            if (context.actor.getPossiblyBotAccountId() !== taskItem.creatorId) {
                 const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
 
                 const stepCount =
-                    actualNewStepCountByAccountId.get(context.actor.getAccountId()) ?? 0;
+                    actualNewStepCountByAccountId.get(context.actor.getPossiblyBotAccountId()) ?? 0;
 
                 actualNewStepCountByAccountId.set(
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     stepCount + steps.length,
                 );
 
