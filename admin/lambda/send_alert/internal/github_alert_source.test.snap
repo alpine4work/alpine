@@ -52,11 +52,9 @@ exports[`GitHubAlertSource push maps real GitHub usernames to first names 1`] = 
 "URL: https://api.test.cyberworlds.com/posts
 Channel: cw0bwdj673tafptr8aete3ma8c
 
-[3 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc) pushed to \`main\`
+[3 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...3333333cccccc) pushed to \`main\` • [app](https://github.com/cyberworlds/cyberworlds)
 
-Repository: [app](https://github.com/cyberworlds/cyberworlds)
-
-Authored By: Ian, Rachel, and Josh • Pushed By: Caleb
+Authored by: Ian, Rachel, and Josh • Pushed by: Caleb
 
 <pre>
 <code class="language-text">
@@ -68,19 +66,33 @@ Authored By: Ian, Rachel, and Josh • Pushed By: Caleb
 "
 `;
 
+exports[`GitHubAlertSource push pulls only the final PR reference out of the commit message 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+1 commit pushed to \`main\` • [app](https://github.com/cyberworlds/cyberworlds)
+
+Authored by: Josh • Pushed by: Josh
+
+<pre>
+<code class="language-text">
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> Backfill alert 404 handling <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/811">(#811)</a> by Josh
+</code>
+</pre>
+"
+`;
+
 exports[`GitHubAlertSource push to main with multiple commits 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: cw0bwdj673tafptr8aete3ma8c
 
-[2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987) pushed to \`main\`
+[2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...fed321cba987) pushed to \`main\` • [app](https://github.com/cyberworlds/cyberworlds)
 
-Repository: [app](https://github.com/cyberworlds/cyberworlds)
-
-Authored By: Josh and Mona Lisa • Pushed By: Josh
+Authored by: Josh and Mona Lisa • Pushed by: Josh
 
 <pre>
 <code class="language-text">
-<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> Ship GitHub commit alert <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> by Josh
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> Ship GitHub commit alert by Josh
 <a href="https://github.com/cyberworlds/cyberworlds/commit/fed321cba987">fed321c</a> Follow-up alert polish by Mona Lisa
 </code>
 </pre>
@@ -91,15 +103,13 @@ exports[`GitHubAlertSource push to main with one commit 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: cw0bwdj673tafptr8aete3ma8c
 
-1 commit pushed to \`main\`
+1 commit pushed to \`main\` • [app](https://github.com/cyberworlds/cyberworlds)
 
-Repository: [app](https://github.com/cyberworlds/cyberworlds)
-
-Authored By: Josh • Pushed By: Josh
+Authored by: Josh • Pushed by: Josh
 
 <pre>
 <code class="language-text">
-<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> Ship GitHub commit alert <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> by Josh
+<a href="https://github.com/cyberworlds/cyberworlds/commit/def456abc789">def456a</a> <a href="https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812">(#812)</a> Ship GitHub commit alert by Josh
 </code>
 </pre>
 "
@@ -109,11 +119,9 @@ exports[`GitHubAlertSource push uses the first line of a multiline commit messag
 "URL: https://api.test.cyberworlds.com/posts
 Channel: cw0bwdj673tafptr8aete3ma8c
 
-1 commit pushed to \`main\`
+1 commit pushed to \`main\` • [app](https://github.com/cyberworlds/cyberworlds)
 
-Repository: [app](https://github.com/cyberworlds/cyberworlds)
-
-Authored By: Josh • Pushed By: Josh
+Authored by: Josh • Pushed by: Josh
 
 <pre>
 <code class="language-text">

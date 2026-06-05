@@ -249,9 +249,53 @@ export class GitHubAlertSource extends AlertSource {
                       },
                   ];
 
+        const pushSummaryElements: ApiContentParagraphBlockElement["elements"] = [
+            ...commitsElements,
+            {
+                type: "Text",
+                text: " • ",
+            },
+            {
+                type: "Text",
+                text: data.repository.name,
+                marks: [
+                    {
+                        type: "Link",
+                        url: data.repository.html_url,
+                    },
+                ],
+            },
+        ];
+
         const commitLines: Array<Array<ApiContentCodeBlockElementTextInlineElement>> =
             data.commits.map(commit => {
                 const commitMessageTitle = commit.message.split("\n", 1)[0] || commit.message;
+                const trailingPrReferenceMatch = commitMessageTitle.match(/\s*\(#(\d+)\)$/);
+
+                const commitMessageTitleWithoutTrailingPr = trailingPrReferenceMatch
+                    ? commitMessageTitle.substring(0, trailingPrReferenceMatch.index).trimEnd()
+                    : commitMessageTitle;
+
+                const commitPrElements: Array<ApiContentCodeBlockElementTextInlineElement> =
+                    trailingPrReferenceMatch
+                        ? [
+                              {
+                                  type: "Text",
+                                  text: `(#${trailingPrReferenceMatch[1]})`,
+                                  marks: [
+                                      {
+                                          type: "Link",
+                                          url: `https://app.graphite.com/github/pr/${data.repository.full_name}/${trailingPrReferenceMatch[1]}`,
+                                      },
+                                  ],
+                              },
+                              {
+                                  type: "Text",
+                                  text: " ",
+                              },
+                          ]
+                        : [];
+
                 const commitAuthorElement: ApiSpecification.components["schemas"]["ContentInlineElement"] =
                     commit.author.username
                         ? createUserElement(
@@ -285,7 +329,11 @@ export class GitHubAlertSource extends AlertSource {
                         type: "Text",
                         text: " ",
                     },
-                    ...createCommitMessageElements(commitMessageTitle, data.repository.full_name),
+                    ...commitPrElements,
+                    ...createCommitMessageElements(
+                        commitMessageTitleWithoutTrailingPr,
+                        data.repository.full_name,
+                    ),
                     {
                         type: "Text",
                         text: ` by ${commitAuthorName}`,
@@ -298,38 +346,19 @@ export class GitHubAlertSource extends AlertSource {
         const elements: Array<ApiContentElement> = [
             {
                 type: "Paragraph",
-                elements: commitsElements,
+                elements: pushSummaryElements,
             },
             {
                 type: "Paragraph",
                 elements: [
                     {
                         type: "Text",
-                        text: "Repository: ",
-                    },
-                    {
-                        type: "Text",
-                        text: data.repository.name,
-                        marks: [
-                            {
-                                type: "Link",
-                                url: data.repository.html_url,
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                type: "Paragraph",
-                elements: [
-                    {
-                        type: "Text",
-                        text: "Authored By: ",
+                        text: "Authored by: ",
                     },
                     ...authorElements,
                     {
                         type: "Text",
-                        text: " • Pushed By: ",
+                        text: " • Pushed by: ",
                     },
                     createUserElement(data.sender.login, data.sender.html_url, data.sender.login, {
                         tagUser: false,

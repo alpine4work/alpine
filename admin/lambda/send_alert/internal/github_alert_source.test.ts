@@ -904,6 +904,21 @@ describe("GitHubAlertSource", () => {
         expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
     });
 
+    test("push pulls only the final PR reference out of the commit message", async () => {
+        const payload = createGitHubPushFixture({
+            commits: [
+                createGitHubPushCommitFixture({
+                    message: "Backfill alert 404 handling (#811) (#812)",
+                }),
+            ],
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
     test("push maps real GitHub usernames to first names", async () => {
         const firstCommit = createGitHubPushCommitFixture({
             id: "1111111aaaaaa",
