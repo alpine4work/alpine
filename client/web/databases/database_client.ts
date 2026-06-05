@@ -352,8 +352,7 @@ export class DatabaseClient {
         for (const [, reg] of this.reactiveActions) {
             if (reg.reExecuting) continue;
 
-            const overlaps =
-                reg.readPages === null || pageSetsOverlap(reg.readPages, writtenPages);
+            const overlaps = reg.readPages === null || pageSetsOverlap(reg.readPages, writtenPages);
             if (!overlaps) continue;
 
             reg.reExecuting = true;

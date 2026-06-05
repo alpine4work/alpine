@@ -603,3 +603,55 @@ describe("DatabaseServer", () => {
         });
     });
 });
+
+describe("DatabaseServer — per-table bootstrap", () => {
+    test("seeds the first table as an id-only main row plus its own per-db file", async () => {
+        const server = await DatabaseServer.create(new InMemoryStorage());
+        openServers.push(server);
+        const db = server.unsafeGetDbForTests();
+
+        // Main holds only the table id — no name, no table_name.
+        const tables = sql`
+            SELECT
+                *
+            FROM
+                _alpine_tables
+        `.selectAllUnknown(db);
+        expect(tables).toHaveLength(1);
+        const tableId = tables[0]!.id as DatabaseTableId;
+        expect(Object.keys(tables[0]!)).toEqual(["id"]);
+
+        // The display name lives in the table's own per-db file.
+        const meta = sql`
+            SELECT
+                name
+            FROM
+                ${sql.tableRef(tableId, "_alpine_table")}
+        `.selectValue(db, Schema.string);
+        expect(meta).toBe("Table");
+    });
+
+    test("re-attaches and serves an existing table after reopening", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage);
+        const tableId = sql`
+            SELECT
+                id
+            FROM
+                _alpine_tables
+        `.selectValue(server1.unsafeGetDbForTests(), Schema.id<DatabaseTableId>());
+        server1.close();
+
+        // Reopen on the same storage; bootstrap should attach
+        // and migrate the existing table so it stays queryable.
+        const server2 = await DatabaseServer.create(storage);
+        openServers.push(server2);
+        const name = sql`
+            SELECT
+                name
+            FROM
+                ${sql.tableRef(tableId, "_alpine_table")}
+        `.selectValue(server2.unsafeGetDbForTests(), Schema.string);
+        expect(name).toBe("Table");
+    });
+});

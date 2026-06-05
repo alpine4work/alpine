@@ -135,17 +135,17 @@ async function buildSchemaSeed(
 ): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
     const fake = await Database.create({readPage: () => null, getFileSize: () => 0});
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
-    const {output} = fake.executeAction({name: "createTable", input: {name}});
+    const {output} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
 
     const buffered = fake.getBufferedWrites();
-    const seedPages: DatabasePages = new Map();
+    const seedPages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
     if (buffered !== null) {
         for (const [tableId, pages] of buffered.pages) {
             const tablePages = new Map<number, {version: number; data: Uint8Array}>();
             for (const [index, data] of pages) {
                 tablePages.set(index, {version: 1, data: new Uint8Array(data)});
             }
-            seedPages.set(tableId as DatabaseTableId, tablePages);
+            seedPages.set(tableId, tablePages);
         }
     }
     fake.close();

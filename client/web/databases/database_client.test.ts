@@ -515,9 +515,11 @@ describe("executeActionWithTracking", () => {
             input: {sql: "SELECT * FROM t2"},
         });
 
-        // 0-based page indices (SQLite rootpage is 1-based)
-        expect(pagesT1.has(t1Root - 1)).toBe(true);
-        expect(pagesT2.has(t2Root - 1)).toBe(true);
+        // 0-based page indices (SQLite rootpage is 1-based).
+        // These tables live in main (raw DDL), so read pages
+        // are tracked under the main table id.
+        expect(pagesT1.get(databaseMainTableId)!.has(t1Root - 1)).toBe(true);
+        expect(pagesT2.get(databaseMainTableId)!.has(t2Root - 1)).toBe(true);
     });
 
     test("different tables have different read sets", async () => {
@@ -541,8 +543,10 @@ describe("executeActionWithTracking", () => {
 
         // Both include page 0 (schema page), but differ
         // on at least one page (each table's root page).
-        const onlyT1 = [...pagesT1].filter(p => !pagesT2.has(p));
-        const onlyT2 = [...pagesT2].filter(p => !pagesT1.has(p));
+        const mainT1 = pagesT1.get(databaseMainTableId) ?? new Set<number>();
+        const mainT2 = pagesT2.get(databaseMainTableId) ?? new Set<number>();
+        const onlyT1 = [...mainT1].filter(p => !mainT2.has(p));
+        const onlyT2 = [...mainT2].filter(p => !mainT1.has(p));
         expect(onlyT1.length + onlyT2.length).toBeGreaterThan(0);
     });
 
