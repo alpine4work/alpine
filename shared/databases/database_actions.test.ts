@@ -43,8 +43,11 @@ async function createDb(): Promise<Database> {
  */
 function makeCtx(db: Database): DatabaseActionContext {
     return {
-        attachTable(tableId) {
-            db.exec(`ATTACH DATABASE ':memory:' AS "${tableId}"`);
+        db,
+        server: {
+            attach(tableId) {
+                db.exec(`ATTACH DATABASE ':memory:' AS "${tableId}"`);
+            },
         },
     };
 }
@@ -55,7 +58,7 @@ function run<N extends DatabaseActionName>(
     name: N,
     input: DatabaseActionInput<N>,
 ): DatabaseActionOutput<N> {
-    return databaseActions[name].run(db, input as never, makeCtx(db)) as DatabaseActionOutput<N>;
+    return databaseActions[name].run(makeCtx(db), input as never) as DatabaseActionOutput<N>;
 }
 
 describe("createTable", () => {

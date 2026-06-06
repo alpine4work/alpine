@@ -540,12 +540,27 @@ export class DatabaseClient {
      * is already attached. Pages are fetched lazily (server
      * fallback) on first access, not here.
      */
-    private async ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
-        if (this.database.isAttached(tableId)) return;
-        if (this.storage.get(tableId) === undefined) {
-            await this.storage.create(tableId);
+    private readonly attachingTables = new Map<DatabaseTableId, Promise<void>>();
+
+    private ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
+        if (this.database.isAttached(tableId)) return Promise.resolve();
+        // Dedupe concurrent attaches of the same table:
+        // `storage.create` yields, so without this two callers
+        // could both pass the `isAttached` check and the second
+        // `attach` would throw "already attached".
+        let pending = this.attachingTables.get(tableId);
+        if (pending === undefined) {
+            pending = (async () => {
+                if (this.storage.get(tableId) === undefined) {
+                    await this.storage.create(tableId);
+                }
+                this.database.attach(tableId);
+            })().finally(() => {
+                this.attachingTables.delete(tableId);
+            });
+            this.attachingTables.set(tableId, pending);
         }
-        this.database.attach(tableId);
+        return pending;
     }
 
     /**

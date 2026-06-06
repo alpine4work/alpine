@@ -11,6 +11,7 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -45,17 +46,26 @@ const alpineTableConfig = {
 };
 
 /**
- * Capabilities handed to a database action's `run()` beyond
- * the raw SQLite handle.
+ * Server-only capabilities. Present on the server, `null`
+ * on the client — so client-side actions can't attach
+ * per-table files.
  */
-export interface DatabaseActionContext {
+export interface DatabaseActionServerContext {
     /**
      * Attach a per-table database file (no-op if already
      * attached) so the action can create or write to it.
      * Used by server-only schema actions like
      * {@link databaseActions.createTable}.
      */
-    attachTable(tableId: DatabaseTableId): void;
+    attach(tableId: DatabaseTableId): void;
+}
+
+/** Context handed to a database action's `run()`. */
+export interface DatabaseActionContext {
+    /** The SQLite handle the action runs against. */
+    db: Database;
+    /** Server-only capabilities, or `null` on the client. */
+    server: DatabaseActionServerContext | null;
 }
 
 /**
@@ -73,13 +83,13 @@ function defineDatabaseAction<Input, Output>(def: {
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     serverOnly?: boolean;
-    run: (db: Database, input: Input, ctx: DatabaseActionContext) => any;
+    run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     serverOnly: boolean;
-    run: (db: Database, input: Input, ctx: DatabaseActionContext) => Output;
+    run: (ctx: DatabaseActionContext, input: Input) => Output;
 } {
     return {serverOnly: false, ...def};
 }
@@ -252,7 +262,7 @@ export const databaseActions = {
         input: Schema.object({sql: Schema.string}),
         output: Schema.object({rows: Schema.array(Schema.unknown())}),
         writeLevel: "data",
-        run(db, input) {
+        run({db}, input) {
             const rows = sql.raw(input.sql).selectAllUnknown(db);
             return {rows};
         },
@@ -262,7 +272,7 @@ export const databaseActions = {
         input: Schema.object({sql: Schema.string}),
         output: Schema.object({rows: Schema.array(Schema.unknown())}),
         writeLevel: "none",
-        run(db, input) {
+        run({db}, input) {
             const rows = sql.raw(input.sql).selectAllUnknown(db);
             return {rows};
         },
@@ -272,7 +282,7 @@ export const databaseActions = {
         input: Schema.object({}),
         output: Schema.object({}),
         writeLevel: "none",
-        run(db) {
+        run({db}) {
             // Pull the main registry's pages into the read set
             // (and cache). Per-table metadata is fetched on
             // demand for now.
@@ -298,14 +308,15 @@ export const databaseActions = {
         // a brand-new per-db file without client/server
         // divergence; the client routes this to the server.
         serverOnly: true,
-        run(db, {name}, ctx) {
+        run({db, server}, {name}) {
+            assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
             const viewId = generateChronologicalId<DatabaseViewId>();
 
             // Attach + migrate the new per-db file before
             // writing any of the table's data or metadata into
-            // it. `attachTable` is a no-op if already attached.
-            ctx.attachTable(tableId);
+            // it. `attach` is a no-op if already attached.
+            server.attach(tableId);
             runTableMigrations(db, tableId);
 
             // Public main database: ID-only registry + routing.
@@ -387,7 +398,7 @@ export const databaseActions = {
             tableName: Schema.string,
         }),
         writeLevel: "schema+data",
-        run(db, {tableId, name}) {
+        run({db}, {tableId, name}) {
             const existing = sql`
                 SELECT
                     *
@@ -438,7 +449,7 @@ export const databaseActions = {
             tableIds: Schema.array(Schema.id<DatabaseTableId>()),
         }),
         writeLevel: "none",
-        run(db) {
+        run({db}) {
             const tableIds = sql`
                 SELECT
                     id
@@ -470,7 +481,7 @@ export const databaseActions = {
             ),
         }),
         writeLevel: "none",
-        run(db, {tableOrViewId}) {
+        run({db}, {tableOrViewId}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
             const fields = sql`
@@ -521,7 +532,7 @@ export const databaseActions = {
             endCursor: Schema.id<DatabaseRowId>().nullable(),
         }),
         writeLevel: "none",
-        run(db, {tableOrViewId, afterCursor, limit}) {
+        run({db}, {tableOrViewId, afterCursor, limit}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
             const whereClause =
@@ -561,7 +572,7 @@ export const databaseActions = {
             rows: Schema.array(Schema.array(Schema.unknown())),
         }),
         writeLevel: "none",
-        run(db, {tableOrViewId, afterCursor, endCursor}) {
+        run({db}, {tableOrViewId, afterCursor, endCursor}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
             // Get the view's fields in position order so we
@@ -649,7 +660,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {tableId, fieldId, rowId, value}) {
+        run({db}, {tableId, fieldId, rowId, value}) {
             const field = sql`
                 SELECT
                     column_name,
@@ -684,7 +695,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {tableId, rowId}) {
+        run({db}, {tableId, rowId}) {
             const tableName = readTableName(db, tableId);
             sql`
                 INSERT INTO
@@ -706,7 +717,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run(db, {fieldId, tableId, viewId, name, type}) {
+        run({db}, {fieldId, tableId, viewId, name, type}) {
             createField(db, {fieldId, tableId, viewId, name, type});
             return {};
         },
@@ -721,7 +732,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {tableId, viewId, fieldId, width}) {
+        run({db}, {tableId, viewId, fieldId, width}) {
             sql`
                 UPDATE ${sql.tableRef(tableId, "_alpine_view_fields")}
                 SET
@@ -744,7 +755,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "data",
-        run(db, {tableId, viewId, fieldId, position, isHidden}) {
+        run({db}, {tableId, viewId, fieldId, position, isHidden}) {
             sql`
                 INSERT INTO
                     ${sql.tableRef(
@@ -776,7 +787,7 @@ export const databaseActions = {
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run(db, {tableId, fieldId, name}) {
+        run({db}, {tableId, fieldId, name}) {
             const field = sql`
                 SELECT
                     column_name

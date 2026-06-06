@@ -9,6 +9,7 @@ import {
     type DatabaseActionName,
     type DatabaseActionObject,
     type DatabaseActionOutput,
+    type DatabaseActionServerContext,
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
@@ -175,16 +176,21 @@ export class Database {
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
     /**
-     * Capabilities passed to every action's `run()`. Lets
-     * server-only schema actions (e.g. createTable) attach
-     * their own per-table file mid-execute.
+     * Server-only action capabilities, or `null` on the
+     * client. Lets server-only schema actions (e.g.
+     * createTable) attach their own per-table file
+     * mid-execute; absent on the client so client-side
+     * actions can't attach.
      */
-    private readonly actionContext: DatabaseActionContext = {
-        attachTable: tableId => this.attachIfNeeded(tableId),
-    };
+    private readonly serverContext: DatabaseActionServerContext | null;
 
-    private constructor(sqlite3: Sqlite3Static, storage: ReadonlyDatabaseStorage) {
+    private constructor(
+        sqlite3: Sqlite3Static,
+        storage: ReadonlyDatabaseStorage,
+        isServer: boolean,
+    ) {
         this.storage = storage;
+        this.serverContext = isServer ? {attach: tableId => this.attachIfNeeded(tableId)} : null;
         this.tables.set(databaseMainTableId, new DatabaseTableState());
         // SQLite reserves the schema name "main" for
         // `aDb[0]`, so the connection's main table is
@@ -246,14 +252,22 @@ export class Database {
         this.installPageAccessHook();
     }
 
-    /** Open a {@link Database} backed by `storage`. */
-    static async create(storage: ReadonlyDatabaseStorage): Promise<Database> {
+    /**
+     * Open a {@link Database} backed by `storage`. Pass
+     * `{server: true}` to grant server-only action
+     * capabilities (attaching per-table files); the client
+     * leaves it off so its actions can't attach.
+     */
+    static async create(
+        storage: ReadonlyDatabaseStorage,
+        options?: {server?: boolean},
+    ): Promise<Database> {
         if (sqlite3Promise === undefined) {
             const instantiateWasm = trySqlite3WasmLoader();
             sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
         }
         const sqlite3 = await sqlite3Promise;
-        return new Database(sqlite3, storage);
+        return new Database(sqlite3, storage, options?.server ?? false);
     }
 
     /**
@@ -294,8 +308,9 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
+        const ctx = this.getActionContext();
         const {result, readPages, writtenPages} = this.execute(
-            db => action.run(db, actionObject.input as never, this.actionContext),
+            () => action.run(ctx, actionObject.input as never),
             {allowWrites: action.writeLevel},
         );
         return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
@@ -308,7 +323,7 @@ export class Database {
      * rather than through {@link executeAction}.
      */
     getActionContext(): DatabaseActionContext {
-        return this.actionContext;
+        return {db: this.db, server: this.serverContext};
     }
 
     /**

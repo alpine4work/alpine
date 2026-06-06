@@ -133,7 +133,10 @@ function flush(): Promise<void> {
 async function buildSchemaSeed(
     name: string,
 ): Promise<{seedPages: DatabasePages; viewId: string; tableName: string}> {
-    const fake = await Database.create({readPage: () => null, getFileSize: () => 0});
+    const fake = await Database.create(
+        {readPage: () => null, getFileSize: () => 0},
+        {server: true},
+    );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
     const {output} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
 

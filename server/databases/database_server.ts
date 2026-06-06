@@ -71,7 +71,7 @@ export class DatabaseServer {
     }
 
     static async create(storage: DatabaseServerStorage): Promise<DatabaseServer> {
-        const database = await Database.create(storage);
+        const database = await Database.create(storage, {server: true});
         const server = new DatabaseServer(database, storage);
         server._bootstrap();
         return server;
@@ -93,8 +93,8 @@ export class DatabaseServer {
     } {
         const action = databaseActions[actionObject.name];
         const ctx = this.database.getActionContext();
-        const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, db =>
-            action.run(db, actionObject.input as never, ctx),
+        const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, () =>
+            action.run(ctx, actionObject.input as never),
         );
         return {
             result: result as DatabaseActionOutput<N>,
@@ -136,7 +136,8 @@ export class DatabaseServer {
         // ATTACH is legal mid-execute (no explicit
         // transaction is open), so we can attach + migrate
         // every per-table file inline.
-        const ctx = this.database.getActionContext();
+        const {server} = this.database.getActionContext();
+        assert(server !== null, "DatabaseServer must have server capabilities");
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
@@ -149,11 +150,9 @@ export class DatabaseServer {
                         id
                     FROM
                         _alpine_tables
-                `
-                    .selectAll(db, {id: Schema.id<DatabaseTableId>()})
-                    .map(row => row.id);
+                `.selectValues(db, Schema.id<DatabaseTableId>());
                 for (const tableId of tableIds) {
-                    ctx.attachTable(tableId);
+                    server.attach(tableId);
                     runTableMigrations(db, tableId);
                 }
 
