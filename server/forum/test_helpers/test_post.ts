@@ -54,7 +54,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -133,7 +133,7 @@ export class TestPost extends TestCommentRoomBase {
         {};
 
         if (typeof content === "string") {
-            content = parsePostTestContent(channel.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -412,7 +412,7 @@ export class TestPost extends TestCommentRoomBase {
         );
 
         if (typeof content === "string") {
-            content = parsePostTestContent(this.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -497,7 +497,7 @@ export class TestPost extends TestCommentRoomBase {
     }
 }
 
-function parsePostTestContent(spaceId: SpaceId, content: string): PostContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parsePostTestContent(content: string): PostContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertPostContent(fromApiContent(PostContentProsemirrorSchema, apiContent));
 }

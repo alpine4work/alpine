@@ -11,6 +11,6 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 TODO: describe the demo steps here.
         `,
         session,
-        path: `/s/${space.id}/`,
+        path: `/home/${space.id}`,
     });
 });

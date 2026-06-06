@@ -49,7 +49,7 @@ export class SlackContextModule extends SlackContextModuleBase {
     }
 
     private getRedirectUri(spaceId: SpaceId): string {
-        return `${this._authRedirectOrigin}/s/${spaceId}/integrations/slack/oauth`;
+        return `${this._authRedirectOrigin}/integrations/slack/oauth/${spaceId}`;
     }
 
     /**

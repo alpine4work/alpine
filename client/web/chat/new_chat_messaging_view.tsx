@@ -42,7 +42,7 @@ function NewChatMessagingView(
 ) {
     const context = useAppContext();
     const spaceContext = useSpaceContext();
-    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId();
 
     // We only send the currently viewed entity for 1:1 chats with a bot. We do some
     // validation here and on the server.
@@ -201,7 +201,7 @@ function NewChatMessagingView(
                         );
                     }
                     return new URL(
-                        `/s/${selectedChat.chat.spaceId}/chat/${selectedChat.chat.id}?message=${messageIndex}`,
+                        `/chat/${selectedChat.chat.id}?message=${messageIndex}`,
                         window.location.href,
                     );
                 },

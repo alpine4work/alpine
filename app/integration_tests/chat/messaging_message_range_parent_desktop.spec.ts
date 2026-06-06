@@ -41,7 +41,7 @@ const testCases: Record<
 
             return {
                 room: chat,
-                roomPath: `/s/${chat.space.id}/chat/${chat.id}`,
+                roomPath: `/chat/${chat.id}`,
             };
         },
     },
@@ -60,7 +60,7 @@ const testCases: Record<
 
             return {
                 room: commentThread,
-                roomPath: `/s/${document.space.id}/documents/${document.id}?comments=${commentThread.id}`,
+                roomPath: `/doc/${document.id}?thread=${commentThread.id}`,
             };
         },
     },
@@ -71,7 +71,7 @@ const testCases: Record<
 
             return {
                 room: post,
-                roomPath: `/s/${post.space.id}/posts/${post.id}`,
+                roomPath: `/post/${post.id}`,
             };
         },
     },
@@ -83,7 +83,7 @@ const testCases: Record<
 
             return {
                 room: task,
-                roomPath: `/s/${task.space.id}/tasks/${task.id}?comments=show`,
+                roomPath: `/task/${task.id}`,
             };
         },
     },

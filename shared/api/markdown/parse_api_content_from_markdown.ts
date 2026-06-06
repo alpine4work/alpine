@@ -22,8 +22,9 @@ import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {
     ApiContentFileOrPreviewBlockElement,
-    parseApiContentFileOrPreviewBlockElementFromUrl,
-} from "~/shared/api/markdown/internal/parse_api_content_file_or_preview_block_element_from_url.js";
+    parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible,
+    parseApiMentionTargetFromMarkdownUrlIfPossible,
+} from "~/shared/api/markdown/internal/parse_api_content_from_markdown_url_if_possible.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
@@ -43,7 +44,6 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
-    ApiMentionTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -58,21 +58,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {isId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ChannelId,
-    ChatId,
-    DocumentCommentThreadId,
-    DocumentId,
-    PostId,
-    SpaceId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
-
-export type ApiContentMarkdownParserOptions = {
-    readonly spaceId: SpaceId | null;
-};
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
 export {parseApiContentFromMarkdown as parseApiContentFromMarkdownTree};
@@ -106,12 +92,9 @@ type ApiContentMarkdownParserDefinitions = {
 // [2]: https://github.com/syntax-tree/mdast-util-math
 // [3]:
 //     https://genai.stackexchange.com/questions/386/how-does-chatgpt-render-math-in-markdown-output
-function actuallyParseApiContentFromMarkdown(
-    markdown: string,
-    options: ApiContentMarkdownParserOptions,
-): ApiContent {
+function actuallyParseApiContentFromMarkdown(markdown: string): ApiContent {
     const root = parseMarkdownTree(markdown);
-    return parseApiContentFromMarkdown(root, options);
+    return parseApiContentFromMarkdown(root);
 }
 
 export function parseMarkdownTree(
@@ -161,10 +144,7 @@ export function parseMarkdownTree(
     });
 }
 
-function parseApiContentFromMarkdown(
-    root: Root,
-    options: ApiContentMarkdownParserOptions,
-): ApiContent {
+function parseApiContentFromMarkdown(root: Root): ApiContent {
     const definitions: ApiContentMarkdownParserDefinitions = {
         futureDefinitionsByIdentifier: new Map(),
         pastDefinitionsByIdentifier: new Map(),
@@ -195,7 +175,6 @@ function parseApiContentFromMarkdown(
             parseApiContentBlockElementsFromMarkdown(
                 root.children as Array<BlockContent | DefinitionContent>,
                 definitions,
-                options,
                 {withTableHtml: true},
             ),
         ),
@@ -256,7 +235,6 @@ function mergeAdjacentFileElements(elements: Array<ApiContentBlockElement>) {
 function* parseApiContentBlockElementsFromMarkdown(
     contents: Array<BlockContent | DefinitionContent>,
     definitions: ApiContentMarkdownParserDefinitions,
-    options: ApiContentMarkdownParserOptions,
     // Required option so caller must make a choice on whether to enable this property
     // or not.
     {withTableHtml}: {withTableHtml: boolean},
@@ -336,7 +314,6 @@ function* parseApiContentBlockElementsFromMarkdown(
             content,
             definitions,
             tableState,
-            options,
         )) {
             if (tableState !== null && tableState.onBlockElement(element)) continue;
 
@@ -370,10 +347,9 @@ function* parseApiContentBlockElementFromMarkdown(
     content: BlockContent | DefinitionContent,
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
-    options: ApiContentMarkdownParserOptions,
 ): IterableIterator<ApiContentBlockElement> {
     // TODO: Support inline images that appear in the middle of paragraph text, e.g.
-    // `Check out this diagram: ![](https://alpine.inc/s/.../files/abc123)`. Today we
+    // `Check out this diagram: ![](https://alpine.inc/file/abc123/content)`. Today we
     // only recognize a file URL when it's the sole child of a paragraph. Ideally we'd
     // split the paragraph into: a paragraph with the preceding text, the File/Preview
     // block element, and a paragraph with the trailing text. This would let agents
@@ -384,17 +360,13 @@ function* parseApiContentBlockElementFromMarkdown(
             // A paragraph with a single image child may represent a File or Preview block
             // element if the URL matches our alpine.inc patterns.
             const firstChild = content.children[0];
-            if (
-                content.children.length === 1 &&
-                firstChild?.type === "image" &&
-                options.spaceId !== null
-            ) {
+            if (content.children.length === 1 && firstChild?.type === "image") {
                 const imageNode = firstChild;
 
-                const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
-                    options.spaceId,
-                    imageNode.url,
-                );
+                const fileOrPreview =
+                    parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
+                        imageNode.url,
+                    );
 
                 if (fileOrPreview !== null) {
                     yield fileOrPreview;
@@ -405,18 +377,12 @@ function* parseApiContentBlockElementFromMarkdown(
             // A paragraph with a single link child may represent a Preview block element if
             // the URL matches our alpine.inc preview patterns. We don't print previews as
             // links (we use image syntax), but an agent might write markdown like
-            // `[My Document](https://alpine.inc/s/.../documents/...)` and we want to handle
-            // that gracefully.
-            if (
-                content.children.length === 1 &&
-                firstChild?.type === "link" &&
-                options.spaceId !== null
-            ) {
+            // `[My Document](https://alpine.inc/doc/...)` and we want to handle that
+            // gracefully.
+            if (content.children.length === 1 && firstChild?.type === "link") {
                 const linkNode = firstChild;
-                const fileOrPreview = parseApiContentFileOrPreviewBlockElementFromUrl(
-                    options.spaceId,
-                    linkNode.url,
-                );
+                const fileOrPreview =
+                    parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(linkNode.url);
 
                 if (fileOrPreview !== null && fileOrPreview.type === "Preview") {
                     yield fileOrPreview;
@@ -431,7 +397,7 @@ function* parseApiContentBlockElementFromMarkdown(
             // adjacent `html` children that form the complete element, concatenate them, and
             // re-parse as block HTML to extract the file element. Any surrounding text is
             // preserved as separate paragraphs.
-            if (options.spaceId !== null) {
+            {
                 const mediaStartIndex = content.children.findIndex(
                     child => child.type === "html" && inlineHtmlMediaTagPattern.test(child.value),
                 );
@@ -465,7 +431,6 @@ function* parseApiContentBlockElementFromMarkdown(
                                 parseAndMergeApiContentInlineElementsFromMarkdown(
                                     before,
                                     definitions,
-                                    options,
                                 ),
                             ),
                         };
@@ -476,7 +441,6 @@ function* parseApiContentBlockElementFromMarkdown(
                         {type: "html", value: combinedHtml},
                         definitions,
                         tableState,
-                        options,
                     );
 
                     // Yield a paragraph for any children after the media tags.
@@ -488,7 +452,6 @@ function* parseApiContentBlockElementFromMarkdown(
                                 parseAndMergeApiContentInlineElementsFromMarkdown(
                                     after,
                                     definitions,
-                                    options,
                                 ),
                             ),
                         };
@@ -504,7 +467,6 @@ function* parseApiContentBlockElementFromMarkdown(
                     parseAndMergeApiContentInlineElementsFromMarkdown(
                         content.children,
                         definitions,
-                        options,
                     ),
                 ),
             };
@@ -525,7 +487,6 @@ function* parseApiContentBlockElementFromMarkdown(
                     items: parseContentListBlockElementItems(
                         content.children,
                         definitions,
-                        options,
                         intoApiContentListBlockElementItem,
                     ),
                 };
@@ -572,7 +533,6 @@ function* parseApiContentBlockElementFromMarkdown(
                         items: parseContentListBlockElementItems(
                             group.items,
                             definitions,
-                            options,
                             intoApiContentListBlockElementItem,
                         ),
                     };
@@ -582,7 +542,6 @@ function* parseApiContentBlockElementFromMarkdown(
                         items: parseContentListBlockElementItems(
                             group.items,
                             definitions,
-                            options,
                             intoApiContentCheckListBlockElementItem,
                         ),
                     };
@@ -598,7 +557,6 @@ function* parseApiContentBlockElementFromMarkdown(
                         parseApiContentBlockElementsFromMarkdown(
                             content.children,
                             definitions,
-                            options,
                             // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
                             // if we see table HTML.
                             {withTableHtml: false},
@@ -617,7 +575,6 @@ function* parseApiContentBlockElementFromMarkdown(
                     parseAndMergeApiContentInlineElementsFromMarkdown(
                         content.children,
                         definitions,
-                        options,
                     ),
                 ),
             };
@@ -813,11 +770,9 @@ function* parseApiContentBlockElementFromMarkdown(
                     return;
                 }
 
-                if (mediaUrl && options.spaceId !== null) {
-                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
-                        options.spaceId,
-                        mediaUrl,
-                    );
+                if (mediaUrl) {
+                    const element =
+                        parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(mediaUrl);
                     if (element !== null) {
                         if (divFileState?.containerType === "file-gallery-row") {
                             // Widths are response-only metadata computed by the server. We don't need to parse
@@ -912,8 +867,8 @@ function* parseApiContentBlockElementFromMarkdown(
                                     // Inside a gallery/float container, track `<a>` as a potential preview anchor
                                     // instead of an inline link mark. We don't print previews as `<a>` tags (we use
                                     // `<img>`), but an agent might write
-                                    // `<a href="https://alpine.inc/s/.../documents/...">Title</a>` inside a gallery
-                                    // div to create a preview element.
+                                    // `<a href="https://alpine.inc/doc/...">Title</a>` inside a gallery div to create
+                                    // a preview element.
                                     previewAnchorState = {phase: "<a>", href: "", title: ""};
                                 } else {
                                     anchorTagState = {phase: "<a>", href: null};
@@ -1151,11 +1106,11 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "a": {
                                 // Resolve a preview anchor tag into a Preview element. We don't print previews as
                                 // `<a>` tags, but an agent might use anchor syntax to reference a preview URL.
-                                if (previewAnchorState !== null && options.spaceId !== null) {
-                                    const element = parseApiContentFileOrPreviewBlockElementFromUrl(
-                                        options.spaceId,
-                                        previewAnchorState.href,
-                                    );
+                                if (previewAnchorState !== null) {
+                                    const element =
+                                        parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
+                                            previewAnchorState.href,
+                                        );
                                     if (element !== null && element.type === "Preview") {
                                         const preview: ApiContentFileOrPreviewBlockElement =
                                             element;
@@ -1645,7 +1600,6 @@ function* parseApiContentBlockElementFromMarkdown(
                             parseAndMergeApiContentInlineElementsFromMarkdown(
                                 cell.children,
                                 definitions,
-                                options,
                                 {
                                     onSpanDataWidth: newWidth => {
                                         width = newWidth;
@@ -2025,7 +1979,6 @@ class ApiContentBlockElementsMarkdownTableState {
 function* parseAndMergeApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
-    options: ApiContentMarkdownParserOptions,
     callbacks?: {
         onSpanDataWidth?: (width: number | null) => void;
         onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
@@ -2037,7 +1990,6 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
         contents,
         definitions,
         new ApiContentInlineElementsMarkdownParserMarkStack(),
-        options,
         callbacks,
     )) {
         // Merge any adjacent text elements with the same marks.
@@ -2115,7 +2067,6 @@ function* parseApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
-    options: ApiContentMarkdownParserOptions,
     callbacks?: {
         onSpanDataWidth?: (width: number | null) => void;
         onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
@@ -2144,7 +2095,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -2)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2159,7 +2109,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(2)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2186,7 +2135,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -1)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2201,7 +2149,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(1)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2228,7 +2175,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -1)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2243,7 +2189,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(1)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2269,7 +2214,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content, value: content.value.slice(0, -2)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2279,7 +2223,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                         content2,
                         definitions,
                         markStack,
-                        options,
                         callbacks,
                     );
                     markStack.pop();
@@ -2289,7 +2232,6 @@ function* parseApiContentInlineElementsFromMarkdown(
                             {...content3, value: content3.value.slice(2)},
                             definitions,
                             markStack,
-                            options,
                             callbacks,
                         );
                     }
@@ -2300,13 +2242,7 @@ function* parseApiContentInlineElementsFromMarkdown(
             }
         }
 
-        yield* parseApiContentInlineElementFromMarkdown(
-            content,
-            definitions,
-            markStack,
-            options,
-            callbacks,
-        );
+        yield* parseApiContentInlineElementFromMarkdown(content, definitions, markStack, callbacks);
 
         index += 1;
     }
@@ -2316,7 +2252,6 @@ function* parseApiContentInlineElementFromMarkdown(
     content: PhrasingContent,
     definitions: ApiContentMarkdownParserDefinitions,
     markStack: ApiContentInlineElementsMarkdownParserMarkStack,
-    options: ApiContentMarkdownParserOptions,
     callbacks:
         | {
               onSpanDataWidth?: (width: number | null) => void;
@@ -2331,7 +2266,6 @@ function* parseApiContentInlineElementFromMarkdown(
                 content.children,
                 definitions,
                 markStack,
-                options,
             );
             markStack.pop();
             break;
@@ -2342,7 +2276,6 @@ function* parseApiContentInlineElementFromMarkdown(
                 content.children,
                 definitions,
                 markStack,
-                options,
             );
             markStack.pop();
             break;
@@ -2353,7 +2286,6 @@ function* parseApiContentInlineElementFromMarkdown(
                 content.children,
                 definitions,
                 markStack,
-                options,
             );
             markStack.pop();
             break;
@@ -2368,9 +2300,7 @@ function* parseApiContentInlineElementFromMarkdown(
             }
 
             const mentionTarget =
-                url !== undefined && options.spaceId !== null
-                    ? parseApiMentionTargetIfPossible(options.spaceId, url)
-                    : null;
+                url !== undefined ? parseApiMentionTargetFromMarkdownUrlIfPossible(url) : null;
 
             if (mentionTarget === null) {
                 markStack.push({type: "Link", url: content.url});
@@ -2379,14 +2309,12 @@ function* parseApiContentInlineElementFromMarkdown(
                     content.children,
                     definitions,
                     markStack,
-                    options,
                 );
 
                 markStack.pop();
             } else {
                 const isAccountShortName =
-                    mentionTarget.type === "Account" &&
-                    url?.searchParams.get("mention") === "short";
+                    mentionTarget.type === "Account" && url?.searchParams.has("short");
 
                 yield {
                     type: "Mention",
@@ -2428,7 +2356,6 @@ function* parseApiContentInlineElementFromMarkdown(
                 content.children,
                 definitions,
                 markStack,
-                options,
             );
 
             if (definition !== undefined) {
@@ -2781,74 +2708,6 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-function parseApiMentionTargetIfPossible(spaceId: SpaceId, url: URL): ApiMentionTarget | null {
-    const isMentionUrl =
-        url?.protocol === "https:" &&
-        url.host === "alpine.inc" &&
-        url.pathname.startsWith(`/s/${spaceId}/`) &&
-        url.searchParams.has("mention");
-
-    // This link is treated as a mention if it's an `https://alpine.inc` link with a
-    // `mention` search param.
-    if (!isMentionUrl) return null;
-
-    const pathSegments = url.pathname.slice(`/s/${spaceId}/`.length).split("/");
-
-    if (pathSegments.length === 2) {
-        const pathSegment1 = pathSegments[0]!;
-        const pathSegment2 = pathSegments[1]!;
-
-        switch (pathSegment1) {
-            case "accounts": {
-                if (isId<AccountId>(pathSegment2)) {
-                    return {type: "Account", id: pathSegment2};
-                }
-                break;
-            }
-            case "channels": {
-                if (isId<ChannelId>(pathSegment2)) {
-                    return {type: "Channel", id: pathSegment2};
-                }
-                break;
-            }
-            case "chats": {
-                if (isId<ChatId>(pathSegment2)) {
-                    return {type: "Chat", id: pathSegment2};
-                }
-                break;
-            }
-            case "documents": {
-                if (isId<DocumentId>(pathSegment2)) {
-                    return {type: "Document", id: pathSegment2};
-                }
-                break;
-            }
-            case "posts": {
-                if (isId<PostId>(pathSegment2)) {
-                    return {type: "Post", id: pathSegment2};
-                }
-                break;
-            }
-            case "tasks": {
-                if (isId<TaskId>(pathSegment2)) {
-                    return {type: "Task", id: pathSegment2};
-                }
-                break;
-            }
-        }
-    } else if (pathSegments.length === 3) {
-        if (
-            pathSegments[0] === "tasks" &&
-            pathSegments[1] === "collections" &&
-            isId<TaskCollectionId>(pathSegments[2]!)
-        ) {
-            return {type: "TaskCollection", id: pathSegments[2]};
-        }
-    }
-
-    return null;
-}
-
 function intoApiContentCheckListBlockElementItem(
     item: ListItem,
     elements: ReadonlyArray<ApiContentBlockElement>,
@@ -2880,7 +2739,6 @@ function parseContentListBlockElementItems<
 >(
     inputListItems: ReadonlyArray<InputListItem>,
     definitions: ApiContentMarkdownParserDefinitions,
-    options: ApiContentMarkdownParserOptions,
     createOutputListItem: (
         inputListItem: InputListItem,
         elements: ReadonlyArray<ApiContentBlockElement>,
@@ -2895,7 +2753,6 @@ function parseContentListBlockElementItems<
             for (const element of parseApiContentBlockElementsFromMarkdown(
                 item.children,
                 definitions,
-                options,
                 // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
                 // if we see table HTML.
                 {withTableHtml: false},

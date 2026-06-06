@@ -352,10 +352,7 @@ export function TaskCollectionView({
     } | null>(null);
 
     const copyLink = useCallback(async () => {
-        const url = new URL(
-            `/s/${space.id}/tasks/collections/${collectionId}`,
-            window.location.href,
-        );
+        const url = new URL(`/task-collection/${collectionId}`, window.location.href);
 
         if (filters.length > 0) {
             url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
@@ -366,7 +363,7 @@ export function TaskCollectionView({
         }
 
         await writeTextToClipboard(url.toString());
-    }, [collectionId, filters, sorts, space.id]);
+    }, [collectionId, filters, sorts]);
 
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         `TaskCollection:${collectionId}`,
@@ -876,7 +873,7 @@ export function TaskCollectionView({
               }
             : undefined,
         menuActions,
-        defaultPreviousRoute: `/s/${space.id}/tasks`,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(

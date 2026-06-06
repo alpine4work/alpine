@@ -116,7 +116,7 @@ quarter. We\u2019re going to add a couple features for larger businesses this qu
 | Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
             `,
             {
-                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                spaceUrl: `https://alpine.inc/home/${space.id}`,
                 otherDocumentId: otherDocument.id,
                 masonClayAccountId: masonClay.account.id,
                 elleKappaTanAccountId: elleKappaTan.account.id,

@@ -866,6 +866,7 @@ function PostListView(
             startEditingPost: post => {
                 postEditingDispatch({
                     type: "StartEditing",
+                    spaceId: space.id,
                     postId: post.id,
                     contentVersion: post.contentUpdate?.mappings.length ?? 0,
                     content: post.content,
@@ -873,7 +874,7 @@ function PostListView(
                 });
             },
         }),
-        [jumpToMessageRange, platform, postEditingDispatch],
+        [jumpToMessageRange, platform, postEditingDispatch, space.id],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard opens
@@ -1340,9 +1341,7 @@ function PostListView(
                                                 routeLayout === "narrow" &&
                                                 !isPostView
                                             ) {
-                                                navigate(
-                                                    `/s/${item.post.spaceId}/posts/${item.post.id}`,
-                                                );
+                                                navigate(`/post/${item.post.id}`);
                                                 return;
                                             }
 
@@ -2081,7 +2080,7 @@ function PostListView(
                         assert(parent.type === "PostRange");
 
                         await navigate(
-                            `/s/${space.id}/posts/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.contentVersion}`,
+                            `/post/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.contentVersion}`,
                         );
                         return;
                     }

@@ -64,7 +64,7 @@ export default function CreateSpaceRoute() {
                             name,
                         });
 
-                        await rootNavigate(`/s/${space.id}`);
+                        await rootNavigate(`/home/${space.id}`);
                     }}
                 >
                     Create

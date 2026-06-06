@@ -54,12 +54,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(feedEntries)),
     );
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/feed?${searchParams.toString()}`, {
+    await runner.goto(accounts.cassCade, `/dev/feed/${space.id}?${searchParams.toString()}`, {
         fixedTime: screenshotTime,
     });
     await runner.screenshot("a0", "basic");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/feed?${searchParams.toString()}`, {
+    await runner.goto(accounts.cassCade, `/dev/feed/${space.id}?${searchParams.toString()}`, {
         fixedTime: screenshotTime,
         viewport: "wide",
     });

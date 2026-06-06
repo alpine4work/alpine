@@ -79,9 +79,9 @@ export function AuthenticationView() {
         }
     }, [hasProfileSearchParam, setSearchParams]);
 
-    // Optimization: Preload the `s.$spaceId`, `s.$spaceId._index`, and
-    // `s.$spaceId.invite._index` routes so that redirecting to the space at the end of
-    // sign in or sign up isn't blocked by loading a bunch of JavaScript code.
+    // Optimization: Preload the `_space` and `_space.home.$spaceId` routes so that
+    // redirecting to the space at the end of sign in or sign up isn't blocked by
+    // loading a bunch of JavaScript code.
     //
     // The sign in/up button can otherwise feel slow since there's a bunch of
     // JavaScript to download to get into the app and we're not performing a server
@@ -98,11 +98,11 @@ export function AuthenticationView() {
             runPromiseWithoutAwaiting(
                 runAllPromises([
                     loadRouteModuleWithBlockingLinks(
-                        window.__remixManifest.routes["routes/s.$spaceId"]!,
+                        window.__remixManifest.routes["routes/_space"]!,
                         window.__remixRouteModules,
                     ),
                     loadRouteModuleWithBlockingLinks(
-                        window.__remixManifest.routes["routes/s.$spaceId._index"]!,
+                        window.__remixManifest.routes["routes/_space.home.$spaceId._index"]!,
                         window.__remixRouteModules,
                     ),
                     loadRouteModuleWithBlockingLinks(

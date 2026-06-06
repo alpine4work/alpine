@@ -5,9 +5,7 @@ import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
+import {AccountId, DocumentId, TaskId} from "~/shared/id/types/id_types.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 
@@ -36,9 +34,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -74,9 +70,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -105,9 +99,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // When shouldKeepLink returns true, the link is kept (not stripped)
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
@@ -141,9 +133,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -176,9 +166,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -208,9 +196,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => true,
@@ -245,9 +231,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -285,9 +269,7 @@ describe("mixed content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -323,9 +305,7 @@ describe("mixed content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // Keep only document links
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
@@ -368,9 +348,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -403,9 +381,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -434,9 +410,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -457,9 +431,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -473,9 +445,7 @@ describe("edge cases", () => {
             elements: [],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -503,9 +473,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -533,9 +501,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -562,9 +528,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,
@@ -605,9 +569,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
             shouldKeepLink: () => false,

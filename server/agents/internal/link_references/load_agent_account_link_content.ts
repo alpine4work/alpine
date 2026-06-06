@@ -25,7 +25,6 @@ export async function loadAgentAccountLinkContent({
 
     return await printApiContentToAgentMarkdownTreeWithFrontmatter({
         transaction,
-        request,
         frontmatter: {
             type: "Account",
             name: account.name,

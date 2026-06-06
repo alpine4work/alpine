@@ -42,6 +42,7 @@ async function requestAccountPlanLoader(
         } as unknown as LoaderContext,
         span,
         params: {accountId: accountId},
+        matches: [],
         serverRoutes: [],
     });
 

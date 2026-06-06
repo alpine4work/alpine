@@ -238,7 +238,7 @@ export function SearchMobileView({
                                         {"\u2009\u2219\u2009"}
                                         <SearchMobileViewFavoritesHeaderSeeMoreButton
                                             onPress={() => {
-                                                navigate(`/s/${space.id}/favorites`);
+                                                navigate(`/favorites/${space.id}`);
                                             }}
                                         />
                                     </>

@@ -21,7 +21,7 @@ test("will remember the account being messaged in a chat peek", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeHidden();
@@ -109,7 +109,7 @@ test("will expand chat peek on top of chat peek with different selection", async
     page,
 }) => {
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     await expect(page.getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByText("Kendall Roy")).toBeVisible();

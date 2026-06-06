@@ -1,3 +1,4 @@
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -40,6 +41,16 @@ export type ServerActionContextModulesBase = ServerProcessContextModules & {
      * `deleteItem()` in short succession on the context are batched.
      */
     batch: BatchContextModule;
+
+    /**
+     * Optional context module our parent context provides when it wants to immediately
+     * know about certain pieces of information that's only discovered deep within the
+     * call stack.
+     *
+     * For example, to immediately figure out the `SpaceId` for a document when loading
+     * the `/doc/:documentId` route once we've initially loaded the document.
+     */
+    discovery?: DiscoveryContextModule;
 };
 
 /**

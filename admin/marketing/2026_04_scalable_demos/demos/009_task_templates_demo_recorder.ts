@@ -82,7 +82,7 @@ about bot templates or anything like that.
 6. Scroll the duplicated task a bit.
         `,
         session,
-        path: `/s/${space.id}/tasks/${task.id}`,
+        path: `/task/${task.id}`,
         viewport: {
             width: taskTemplatesDemoRecordingWidth,
             height: taskTemplatesDemoRecordingHeight,

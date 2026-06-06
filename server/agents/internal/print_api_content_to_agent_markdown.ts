@@ -16,7 +16,6 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Print API content to Markdown for an agent. Strips some Markdown formatting that
@@ -26,9 +25,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
     content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
 ) {
-    const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {spaceId});
+    const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
     return printAgentContentMarkdownTree(markdownTree);
 }
 
@@ -40,12 +38,10 @@ export async function printApiContentToAgentMarkdown(
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
     content: ApiContentResponse,
-    {spaceId}: {spaceId: SpaceId},
 ) {
     const promiseWaiter = new PromiseWaiter();
 
     const markdownTree = printApiContentToMarkdownTree(content, {
-        spaceId,
         // Our LLMs don't need to know the width of columns in a table. The potentially
         // long floats will consume a lot of tokens and may confuse the LLM.
         withoutTableWidth: true,

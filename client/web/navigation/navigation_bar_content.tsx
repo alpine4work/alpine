@@ -213,7 +213,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         }
         // If we don't have a previous page in browser history and no default previous
         // route, navigate to the space home page.
-        await navigate(spaceContext?.space.id ? `/s/${spaceContext.space.id}` : "/");
+        await navigate(spaceContext?.space.id ? `/home/${spaceContext.space.id}` : "/");
     };
 
     return (

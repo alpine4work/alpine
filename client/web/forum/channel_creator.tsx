@@ -80,7 +80,11 @@ export function ChannelCreator({
     }));
 
     const [{descriptionState, hasDescriptionChanged}, setDescriptionState] = useState(() => ({
-        descriptionState: ContentEditorState.create(initialDescription, {selection: "start"}),
+        descriptionState: ContentEditorState.create({
+            spaceId: space.id,
+            content: initialDescription,
+            selection: "start",
+        }),
         hasDescriptionChanged: false,
     }));
 
@@ -139,9 +143,7 @@ export function ChannelCreator({
                     onPress={async () => {
                         if (isContentEmpty(descriptionState.getDoc()) && isPublic) {
                             await navigate(
-                                `/s/${
-                                    space.id
-                                }/channels/${generateId()}?create=${encodeURIComponent(name)}`,
+                                `/channel/${generateId()}?create=${space.id}+${encodeURIComponent(name)}`,
                                 {
                                     replace: true,
                                     // In our native mobile app, we want to call
@@ -184,18 +186,13 @@ export function ChannelCreator({
                                     : undefined,
                             });
 
-                            await navigate(
-                                `/s/${space.id}/channels/${channel.channelId}?consistency=strong`,
-                                {
-                                    replace: true,
-                                    // In our native mobile app, we want to call
-                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
-                                    // push animation while replacing in the history stack.
-                                    state: NativeMobileBridge
-                                        ? {withPushAnimation: true}
-                                        : undefined,
-                                },
-                            );
+                            await navigate(`/channel/${channel.channelId}?consistency=strong`, {
+                                replace: true,
+                                // In our native mobile app, we want to call
+                                // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                // push animation while replacing in the history stack.
+                                state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
+                            });
                         }
                     }}
                 >
@@ -203,7 +200,7 @@ export function ChannelCreator({
                 </Button>
             </Box>
         ),
-        defaultPreviousRoute: `/s/${space.id}/create`,
+        defaultPreviousRoute: `/create/${space.id}`,
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {

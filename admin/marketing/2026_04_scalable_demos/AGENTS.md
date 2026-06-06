@@ -508,29 +508,27 @@ inline mention link.** Mentions make the demo feel like a real, connected worksp
 names feel like a screenshot, mentions feel like a product. Use them in document bodies, post
 bodies, chat messages, and task notes.
 
-The URL shape is `https://alpine.inc/s/{spaceId}/{entityPath}?mention`. The `?mention` query
-parameter tells the renderer to display the link as an inline mention chip rather than a plain
-hyperlink. The link text in the markdown is a fallback label; the UI replaces it with the real
-entity name at render time.
+The URL shape is `https://alpine.inc/{entityPath}?mention`. The `?mention` query parameter tells the
+renderer to display the link as an inline mention chip rather than a plain hyperlink. The link text
+in the markdown is a fallback label; the UI replaces it with the real entity name at render time.
 
 **Account mentions use `?mention=short` by default**, which renders the person's first name only
 (e.g. "Mason" instead of "Mason Clay"). Use plain `?mention` only when you specifically want the
 full name.
 
-| Entity   | URL path                              |
-| -------- | ------------------------------------- |
-| Account  | `/accounts/{accountId}?mention=short` |
-| Document | `/documents/{documentId}?mention`     |
-| Channel  | `/channels/{channelId}?mention`       |
-| Task     | `/tasks/{taskId}?mention`             |
+| Entity   | URL path                       |
+| -------- | ------------------------------ |
+| Account  | `/mention/{accountId}?short`   |
+| Document | `/doc/{documentId}?mention`    |
+| Channel  | `/channel/{channelId}?mention` |
+| Task     | `/task/{taskId}?mention`       |
 
 Because the `markdown` tag doesn't support interpolation (see Style & authoring tips), build a
 helper and use placeholder + `.replace()`:
 
 ```ts
-const spaceUrl = `https://alpine.inc/s/${spaceId}`;
 const mentionUrl = (session: {account: {id: string}}) =>
-    `${spaceUrl}/accounts/${session.account.id}?mention=short`;
+    `https://alpine.inc/mention/${session.account.id}?short`;
 
 const body = markdown`
 [Mason](MASON_MENTION) is leading the redesign. [Elle](ELLE_MENTION) is scoping SSO.
@@ -542,7 +540,7 @@ const body = markdown`
 For document mentions:
 
 ```ts
-const docMentionUrl = `${spaceUrl}/documents/${document.id}?mention`;
+const docMentionUrl = `https://alpine.inc/doc/${document.id}?mention`;
 
 const body = markdown`
 Full context in the [FY2026 Q2 Update](DOC_MENTION).
@@ -554,8 +552,8 @@ Reference implementation: `014_feed_post_with_collection_preview_demo_recorder.t
 ### Feed entries (hero feed / demo feed surfaces)
 
 Feed entries aren't written into the database. They're **passed through a URL query param to the
-special `/s/{spaceId}/dev/feed` page**, which renders them as if they came from the real feed. This
-is what `landing_page_scenario.ts` and the hero/demo scenarios do:
+special `/dev/feed/{spaceId}` page**, which renders them as if they came from the real feed. This is
+what `landing_page_scenario.ts` and the hero/demo scenarios do:
 
 ```ts
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
@@ -580,7 +578,7 @@ const entries: Array<FeedEntry> = [
     },
 ];
 
-const url = new UrlPath(`/s/${space.id}/dev/feed`);
+const url = new UrlPath(`/dev/feed/${space.id}`);
 url.searchParams.set(
     "entries",
     JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),
@@ -688,7 +686,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
         // The user to act as in the demo
         session: accounts.cassCade,
         // The starting page for the demo
-        path: `/s/${space.id}/documents/${doc.id}`,
+        path: `/doc/${doc.id}`,
         // The size of the viewport
         viewport: {width: scalableDemoNarrowViewportWidth},
         // Anything to run in the browser before we start. Default to toggling the
@@ -810,8 +808,8 @@ Handy knobs:
             actions: [
                 async cliffBrowser => {
                     // The collaborator\u2019s context has `baseURL` set, so relative
-                    // `page.goto("/s/...")` works.
-                    await cliffBrowser.goto(`/s/${space.id}/chat/${chat.id}`);
+                    // `page.goto("/chat/...")` works.
+                    await cliffBrowser.goto(`/chat/${chat.id}`);
 
                     const input = cliffBrowser.getByLabel("New message");
                     await input.click();

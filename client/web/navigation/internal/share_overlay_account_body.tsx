@@ -54,7 +54,10 @@ export function ShareOverlayAccountBody({
         // policy.
         willNotifyPeople:
             selectedAccounts.length !== 1 || selectedAccounts[0]!.id !== currentAccount?.id,
-        messageState: ContentEditorState.create(emptyMessageContentWithReferences),
+        messageState: ContentEditorState.create({
+            spaceId: space.id,
+            content: emptyMessageContentWithReferences,
+        }),
     }));
 
     if (!willNotifyPeople && willAlwaysNotifyPeople) {
@@ -92,9 +95,10 @@ export function ShareOverlayAccountBody({
                                 setState(state => ({
                                     willNotifyPeople,
                                     // Keep the content but reset the selection when `willNotifyPeople` changes.
-                                    messageState: ContentEditorState.create(
-                                        state.messageState.getContent(),
-                                    ),
+                                    messageState: ContentEditorState.create({
+                                        spaceId: space.id,
+                                        content: state.messageState.getContent(),
+                                    }),
                                 }));
                             }}
                         >

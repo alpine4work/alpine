@@ -69,36 +69,27 @@ export function handleContentLinkClick(
             // https://cyberworlds.dev to https://alpine.inc.
             (oldUrl.host === "alpine.inc" && newUrl.host === "cyberworlds.dev"))
     ) {
-        const spaceIdRegExp = /^\/s\/([^/]+)(?:\/|$)/;
-        const oldUrlSpaceIdMatch = oldUrl.pathname.match(spaceIdRegExp);
-        const newUrlSpaceIdMatch = newUrl.pathname.match(spaceIdRegExp);
-        if (
-            oldUrlSpaceIdMatch &&
-            newUrlSpaceIdMatch &&
-            oldUrlSpaceIdMatch[1] === newUrlSpaceIdMatch[1]
-        ) {
-            // If we are already waiting on a navigation for this link, don't perform a new
-            // navigation.
-            if (pendingUrlByEventTarget.get(eventTarget)?.toString() === newUrl.toString()) {
-                return;
-            }
-
-            const navigationPromise = onNavigate({
-                pathname: newUrl.pathname,
-                search: newUrl.search,
-                hash: newUrl.hash,
-            });
-
-            pendingUrlByEventTarget.set(eventTarget, newUrl);
-            void navigationPromise.finally(() => {
-                // Make sure the URL in `pendingUrlByEventTarget` hasn't changed before we delete
-                // it.
-                if (pendingUrlByEventTarget.get(eventTarget) === newUrl) {
-                    pendingUrlByEventTarget.delete(eventTarget);
-                }
-            });
+        // If we are already waiting on a navigation for this link, don't perform a new
+        // navigation.
+        if (pendingUrlByEventTarget.get(eventTarget)?.toString() === newUrl.toString()) {
             return;
         }
+
+        const navigationPromise = onNavigate({
+            pathname: newUrl.pathname,
+            search: newUrl.search,
+            hash: newUrl.hash,
+        });
+
+        pendingUrlByEventTarget.set(eventTarget, newUrl);
+        void navigationPromise.finally(() => {
+            // Make sure the URL in `pendingUrlByEventTarget` hasn't changed before we delete
+            // it.
+            if (pendingUrlByEventTarget.get(eventTarget) === newUrl) {
+                pendingUrlByEventTarget.delete(eventTarget);
+            }
+        });
+        return;
     }
 
     window.open(

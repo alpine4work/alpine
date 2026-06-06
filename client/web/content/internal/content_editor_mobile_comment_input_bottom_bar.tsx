@@ -45,12 +45,12 @@ export function ContentEditorMobileCommentInputBottomBar({
         "Can\u2019t server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
 
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<MessageInputRef>(null);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({spaceId: space.id, content: emptyMessageContentWithReferences}),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);

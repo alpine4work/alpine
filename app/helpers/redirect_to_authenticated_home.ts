@@ -57,7 +57,7 @@ export async function redirectToAuthenticatedHome(loaderContext: LoaderContext) 
 
             return redirect(
                 defaultSpaceId
-                    ? `/s/${defaultSpaceId}${searchParamsString}`
+                    ? `/home/${defaultSpaceId}${searchParamsString}`
                     : `/switch-space${searchParamsString}`,
             );
         }

@@ -41,8 +41,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 declare module "mdast" {
     export interface EmphasisData {
@@ -62,12 +60,6 @@ declare module "mdast" {
 }
 
 export type ApiContentMarkdownPrinterOptions = {
-    /**
-     * The `SpaceId` of the content we're printing. The `SpaceId` is added to generated
-     * mention links.
-     */
-    readonly spaceId: SpaceId;
-
     /**
      * If `true` then we don't add the `data-width` and `data-column-widths` attributes
      * to tables.
@@ -95,7 +87,7 @@ export {printApiContentToMarkdown as printApiContentToMarkdownTree};
 
 function actuallyPrintApiContentToMarkdown(
     content: ApiContent,
-    options: ApiContentMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions = {},
 ): string {
     const root = printApiContentToMarkdown(content, options);
     return printMarkdownTree(root);
@@ -129,7 +121,7 @@ export function printMarkdownTree(root: Root): string {
 
 function printApiContentToMarkdown(
     content: ApiContent,
-    options: ApiContentMarkdownPrinterOptions,
+    options: ApiContentMarkdownPrinterOptions = {},
 ): Root {
     const firstPrintableBlockElementIndex = getFirstPrintableBlockElementIndex(content.elements);
 
@@ -369,7 +361,7 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "File": {
-            const fileUrl = printFileUrl(options.spaceId, element.id);
+            const fileUrl = printFileUrl(element.id);
             if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
                 // Web safe images (and files with unknown content type) use markdown image syntax.
                 yield {
@@ -390,7 +382,7 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(options.spaceId, element.target);
+            const previewUrl = printPreviewTargetUrl(element.target);
             const title = element.title?.trim() ? element.title : "";
             yield {
                 type: "paragraph",
@@ -441,13 +433,7 @@ function* printApiContentBlockElementToMarkdown(
                     const item = assertExists(row.items[i]);
                     const widthPercent = assertExists(widthPercents[i]);
 
-                    lines.push(
-                        fileOrPreviewToHtml(
-                            item.element,
-                            options.spaceId,
-                            `flex: 0 0 ${widthPercent}%`,
-                        ),
-                    );
+                    lines.push(fileOrPreviewToHtml(item.element, `flex: 0 0 ${widthPercent}%`));
                 }
                 lines.push(`</div>`);
                 yield {type: "html", value: lines.join("\n")};
@@ -459,7 +445,7 @@ function* printApiContentBlockElementToMarkdown(
             const style = `float: ${side}; clear: both`;
             yield {
                 type: "html",
-                value: `<div style="${style}">${fileOrPreviewToHtml(element.element, options.spaceId)}</div>`,
+                value: `<div style="${style}">${fileOrPreviewToHtml(element.element)}</div>`,
             };
             break;
         }
@@ -509,17 +495,16 @@ function fileOrPreviewToHtml(
     element:
         | {readonly type: "File"; readonly id: string; readonly contentType?: string}
         | {readonly type: "Preview"; readonly target: ApiPreviewTarget; readonly title?: string},
-    spaceId: SpaceId,
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
     switch (element.type) {
         case "File": {
-            const fileUrl = printFileUrl(spaceId, element.id);
+            const fileUrl = printFileUrl(element.id);
             return fileToHtml(fileUrl, element.contentType, styleAttr);
         }
         case "Preview": {
-            const previewUrl = printPreviewTargetUrl(spaceId, element.target);
+            const previewUrl = printPreviewTargetUrl(element.target);
             const title = element.title?.trim() ? element.title : "";
             return `<img alt="${escapeHtml(title)}" src="${escapeHtml(previewUrl)}"${styleAttr}/>`;
         }
@@ -698,11 +683,7 @@ export function isSimpleApiContentTableBlockElementForTest(
 ): boolean {
     assert(import.meta.jest);
 
-    return (
-        printSimpleApiContentTableBlockElementToMarkdownIfPossible(element, {
-            spaceId: generateId(),
-        }) !== null
-    );
+    return printSimpleApiContentTableBlockElementToMarkdownIfPossible(element, {}) !== null;
 }
 
 function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
@@ -1289,7 +1270,6 @@ function* printApiContentInlineElementToMarkdown(
                     : `Unknown ${getApiMentionTargetNoun(mentionTarget.type)}`);
 
             const targetUrl = printApiMentionPathToMentionLinkUrl(mentionTarget, {
-                spaceId: options.spaceId,
                 isAccountShortName: element.isAccountShortName,
             });
 
@@ -1344,26 +1324,24 @@ function* printApiContentInlineElementToMarkdown(
 
 export function printApiMentionPathToMentionLinkUrl(
     target: ApiMentionTarget,
-    {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
+    {isAccountShortName}: {isAccountShortName: boolean | undefined},
 ) {
     switch (target.type) {
         case "Account": {
-            return `https://alpine.inc/s/${spaceId}/accounts/${target.id}?mention${
-                isAccountShortName ? "=short" : ""
-            }`;
+            return `https://alpine.inc/mention/${target.id}${isAccountShortName ? "?short" : ""}`;
         }
         case "Channel":
-            return `https://alpine.inc/s/${spaceId}/channels/${target.id}?mention`;
+            return `https://alpine.inc/channel/${target.id}?mention`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${target.id}?mention`;
+            return `https://alpine.inc/chat/${target.id}?mention`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${target.id}?mention`;
+            return `https://alpine.inc/doc/${target.id}?mention`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${target.id}?mention`;
+            return `https://alpine.inc/post/${target.id}?mention`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}?mention`;
+            return `https://alpine.inc/task/${target.id}?mention`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}?mention`;
+            return `https://alpine.inc/task-collection/${target.id}?mention`;
         default:
             throw exhaustive(target);
     }
@@ -1373,27 +1351,27 @@ export function printApiMentionPathToMentionLinkUrl(
 // points to our app which would render a custom previewer, but `<img>`, `<video>`,
 // `<audio>`, and `<object>` tags need the raw file content to work. This should
 // serve the file bytes directly (or redirect to a signed URL).
-function printFileUrl(spaceId: SpaceId, fileId: string): string {
-    return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+function printFileUrl(fileId: string): string {
+    return `https://alpine.inc/file/${fileId}/content`;
 }
 
-function printPreviewTargetUrl(spaceId: SpaceId, target: ApiPreviewTarget): string {
+function printPreviewTargetUrl(target: ApiPreviewTarget): string {
     // TODO(#sites): Add Site to PreviewTarget.
     switch (target.type) {
         case "Channel":
             // TODO: Implement /preview endpoints that generate a PNG or similar image for each
             // previewable entity. Can also serve as OpenGraph images.
-            return `https://alpine.inc/s/${spaceId}/channels/${target.id}/preview`;
+            return `https://alpine.inc/channel/${target.id}/preview`;
         case "Chat":
-            return `https://alpine.inc/s/${spaceId}/chats/${target.id}/preview`;
+            return `https://alpine.inc/chat/${target.id}/preview`;
         case "Document":
-            return `https://alpine.inc/s/${spaceId}/documents/${target.id}/preview`;
+            return `https://alpine.inc/doc/${target.id}/preview`;
         case "Post":
-            return `https://alpine.inc/s/${spaceId}/posts/${target.id}/preview`;
+            return `https://alpine.inc/post/${target.id}/preview`;
         case "Task":
-            return `https://alpine.inc/s/${spaceId}/tasks/${target.id}/preview`;
+            return `https://alpine.inc/task/${target.id}/preview`;
         case "TaskCollection":
-            return `https://alpine.inc/s/${spaceId}/tasks/collections/${target.id}/preview`;
+            return `https://alpine.inc/task-collection/${target.id}/preview`;
         default:
             throw exhaustive(target);
     }
@@ -1451,27 +1429,26 @@ function isWebSafeVideoContentType(contentType: string): boolean {
 
 export function printAppUrlFromApiNotMentionPath(
     targetPathObject: ApiNotMentionPathObject,
-    {spaceId}: {spaceId: SpaceId},
 ): string {
     switch (targetPathObject.type) {
         case "ChatMessages":
-            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.id}`;
+            return `https://alpine.inc/chat/${targetPathObject.id}`;
         case "ChatMessage":
-            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.id}?message=${targetPathObject.index}`;
+            return `https://alpine.inc/chat/${targetPathObject.id}?message=${targetPathObject.index}`;
         case "DocumentComment":
-            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.id}?comments=${targetPathObject.threadId}&comment=${targetPathObject.index}`;
+            return `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}&comment=${targetPathObject.index}`;
         case "DocumentCommentThread":
         case "DocumentCommentThreadComments":
-            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.id}?comments=${targetPathObject.threadId}`;
+            return `https://alpine.inc/doc/${targetPathObject.id}?thread=${targetPathObject.threadId}`;
         case "PostComment":
-            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.id}?comment=${targetPathObject.index}`;
+            return `https://alpine.inc/post/${targetPathObject.id}?comment=${targetPathObject.index}`;
         case "PostComments":
             // Redirect to the post itself. This is mentionable.
-            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.id}?mention`;
+            return `https://alpine.inc/post/${targetPathObject.id}?mention`;
         case "TaskComment":
-            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.id}?comment=${targetPathObject.index}`;
+            return `https://alpine.inc/task/${targetPathObject.id}?comment=${targetPathObject.index}`;
         case "TaskComments":
-            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.id}?comments=show`;
+            return `https://alpine.inc/task/${targetPathObject.id}`;
         default:
             throw exhaustive(targetPathObject);
     }
@@ -1508,8 +1485,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         if (
             url?.protocol === "https:" &&
             url.host === "alpine.inc" &&
-            url.pathname.startsWith(`/s/${options.spaceId}/`) &&
-            url.searchParams.has("mention")
+            (url.searchParams.has("mention") || url.pathname.startsWith("/mention/"))
         ) {
             mentionishMark = mark;
         }

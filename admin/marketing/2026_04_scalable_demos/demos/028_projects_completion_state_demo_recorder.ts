@@ -11,7 +11,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const [projectsCollection, fy2026Q2Collection] = await runAllPromises([
         TestTaskCollection.create(accounts.cassCade, {name: "Projects", access: "Public"}),
@@ -145,8 +145,7 @@ clear migration path for existing workspaces.
         }),
     ]);
 
-    const spaceUrl = `https://alpine.inc/s/${space.id}`;
-    const taskPreviewUrl = (task: TestTask) => `${spaceUrl}/tasks/${task.id}/preview`;
+    const taskPreviewUrl = (task: TestTask) => `https://alpine.inc/task/${task.id}/preview`;
 
     const q2UpdateDocument = await TestDocument.create(accounts.cassCade, {
         title: "FY2026 Q2 Update",
@@ -200,7 +199,7 @@ opens the Tables project in peek, and expands that peek to full screen.
 2. Start recording, then press Enter in this terminal to begin the automated actions.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${q2UpdateDocument.id}`,
+        path: `/doc/${q2UpdateDocument.id}`,
         viewport: scalableDemoWideViewport,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

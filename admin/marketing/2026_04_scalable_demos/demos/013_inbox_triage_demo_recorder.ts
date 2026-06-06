@@ -410,7 +410,7 @@ after.
 6. Click back into the Q3 Planning doc in the sidebar. Resume typing where you left off.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${q3PlanningDoc.id}`,
+        path: `/doc/${q3PlanningDoc.id}`,
         viewport: scalableDemoWideViewport,
     });
 });

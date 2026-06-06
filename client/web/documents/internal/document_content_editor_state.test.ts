@@ -24,8 +24,9 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {AccountId, ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
 
+const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 
 function textSlice(text: string) {
@@ -37,6 +38,7 @@ test("can receive steps one at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -128,6 +130,7 @@ test("can receive multiple steps at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -237,6 +240,7 @@ test("can receive steps out of order", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -351,6 +355,7 @@ test("can receive steps multiple times", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -522,6 +527,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -619,6 +625,7 @@ test("can receive large step backfill with duplicate steps at beginning of backf
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -704,6 +711,7 @@ test("can receive large step backfill with duplicate steps in the middle of back
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -781,6 +789,7 @@ test("reproduce receive steps assertion failure", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 0,
@@ -938,6 +947,7 @@ test("collaborative update scenario", () => {
     const collabPluginVersion = 11;
 
     const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
+        spaceId: null,
         version: collabPluginVersion,
         content: {doc, references: emptyDocumentContentReferences},
         reduceReferences: reduceDocumentContentReferences,
@@ -1041,6 +1051,7 @@ test("collaborative update scenario", () => {
     }
 
     const oldState: DocumentContentEditorState = {
+        spaceId,
         persistedVersion: 0,
         pendingActions: [
             {
@@ -1128,6 +1139,7 @@ test("generates correct remembered steps", () => {
     );
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -1242,6 +1254,7 @@ test("can reset to persisted version", () => {
     );
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -1384,6 +1397,7 @@ test("setting presence state to a version we don't have remembered steps for doe
     const client1Id = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Manage",
         initialVersion: 10,
@@ -1481,6 +1495,7 @@ test("setting presence state to a version we don't have remembered steps for doe
 
 test("ourPresenceState is cleared when accessLevel is below Edit and selection is empty", () => {
     const initialState = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "View",
         initialVersion: 0,
@@ -1509,6 +1524,7 @@ test("ourPresenceState is cleared when accessLevel is below Edit and selection i
 
 test("ourPresenceState is preserved when accessLevel is Edit even with an empty selection", () => {
     const initialState = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "Edit",
         initialVersion: 0,
@@ -1543,6 +1559,7 @@ test("ourPresenceState is preserved when accessLevel is below Edit but selection
         ]),
     );
     const initialState = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
         accessLevel: "View",
         initialVersion: 0,

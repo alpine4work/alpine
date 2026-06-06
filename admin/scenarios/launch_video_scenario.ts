@@ -607,9 +607,7 @@ field when they receive them. Comment on ideas you like!
                         index: 1,
                         payload: {
                             type: "Content",
-                            content: parseApiContentFromMarkdown(incrementalPart1Text, {
-                                spaceId: space.id,
-                            }),
+                            content: parseApiContentFromMarkdown(incrementalPart1Text),
                         },
                     });
                 }
@@ -633,9 +631,7 @@ field when they receive them. Comment on ideas you like!
                         index: 2,
                         payload: {
                             type: "Content",
-                            content: parseApiContentFromMarkdown(incrementalPart2Text, {
-                                spaceId: space.id,
-                            }),
+                            content: parseApiContentFromMarkdown(incrementalPart2Text),
                         },
                     });
                 }
@@ -664,8 +660,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask1.id}?mention)`,
-                        {spaceId: space.id},
+                        `- [](https://alpine.inc/task/${followupTask1.id}?mention)`,
                     ),
                 },
             });
@@ -681,8 +676,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask2.id}?mention)`,
-                        {spaceId: space.id},
+                        `- [](https://alpine.inc/task/${followupTask2.id}?mention)`,
                     ),
                 },
             });
@@ -698,8 +692,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask3.id}?mention)`,
-                        {spaceId: space.id},
+                        `- [](https://alpine.inc/task/${followupTask3.id}?mention)`,
                     ),
                 },
             });
@@ -715,8 +708,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask4.id}?mention)`,
-                        {spaceId: space.id},
+                        `- [](https://alpine.inc/task/${followupTask4.id}?mention)`,
                     ),
                 },
             });
@@ -732,8 +724,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask5.id}?mention)`,
-                        {spaceId: space.id},
+                        `- [](https://alpine.inc/task/${followupTask5.id}?mention)`,
                     ),
                 },
             });
@@ -899,13 +890,13 @@ i'll try to reproduce locally…
             markdown`
 Below are the first five pilot programs we\u2019re mapping, plus owners and key dates.
 
-| Program                               | Launch Tier | Owner                                                               | Key Deadline |
-| ------------------------------------- | ----------- | ------------------------------------------------------------------- | ------------ |
-| EQIP 382 (Fence)                      | Pilot       | [Cass]({{accountsBaseUrl}}/{{cassCadeAccountId}}?mention=short)     | June 12      |
-| CSP (Conservation Stewardship)        | Pilot       | [Elle]({{accountsBaseUrl}}/{{elleKappaTanAccountId}}?mention=short) | June 20      |
-| REAP (Energy)                         | Beta        | [Mason]({{accountsBaseUrl}}/{{masonClayAccountId}}?mention=short)   | June 26      |
-| CA State Soil Health Grant            | Pilot       | [Cass]({{accountsBaseUrl}}/{{cassCadeAccountId}}?mention=short)     | June 22      |
-| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt]({{accountsBaseUrl}}/{{mattRHornAccountId}}?mention=short)    | June 29      |
+| Program                               | Launch Tier | Owner                                                              | Key Deadline |
+| ------------------------------------- | ----------- | ------------------------------------------------------------------ | ------------ |
+| EQIP 382 (Fence)                      | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 12      |
+| CSP (Conservation Stewardship)        | Pilot       | [Elle](https://alpine.inc/mention/{{elleKappaTanAccountId}}?short) | June 20      |
+| REAP (Energy)                         | Beta        | [Mason](https://alpine.inc/mention/{{masonClayAccountId}}?short)   | June 26      |
+| CA State Soil Health Grant            | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 22      |
+| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt](https://alpine.inc/mention/{{mattRHornAccountId}}?short)    | June 29      |
 
 Feedback needed
 
@@ -913,7 +904,6 @@ Feedback needed
 - Any missing fields for operation type or acreage bands?
             `,
             {
-                accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
                 cassCadeAccountId: cassCade.account.id,
                 elleKappaTanAccountId: elleKappaTan.account.id,
                 masonClayAccountId: masonClay.account.id,
@@ -974,8 +964,7 @@ Nice work, team!
             Mustache.render(
                 markdown`
 Remember we're meeting with Audacious Ventures in _five minutes_. Make sure you're ready
-[Rose](https://alpine.inc/s/{{spaceId}}/accounts/{{roseCompasAccountId}}?mention=short). This is the
-big one! You got this!
+[Rose](https://alpine.inc/mention/{{roseCompasAccountId}}?short). This is the big one! You got this!
                 `,
                 {
                     spaceId: space.id,
@@ -998,7 +987,7 @@ big one! You got this!
 
     feedEntries.reverse();
 
-    const url = new UrlPath(`/s/${space.id}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${space.id}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(feedEntries)),
@@ -1022,8 +1011,6 @@ async function createLaunchVideoDocuments({
     cliffWeathers,
     hollyEvergreen,
 }: DemoSpaceAccounts) {
-    const {space} = roseCompas;
-
     const [
         pitchDeckDocument,
         debuggingNotesDocument,
@@ -1061,16 +1048,15 @@ for small family business farms. We\u2019re raising a series A to accelerate our
 
 # Our team
 
-- [Rose Compás]({{accountsBaseUrl}}/{{roseCompasAccountId}}?mention) (founder/CEO)
-- [Cass Cade]({{accountsBaseUrl}}/{{cassCadeAccountId}}?mention) (Chief of Staff)
-- [Mason Clay]({{accountsBaseUrl}}/{{masonClayAccountId}}?mention) (Founding Engineer)
-- [Elle Kappa-Tan]({{accountsBaseUrl}}/{{elleKappaTanAccountId}}?mention) (Founding Engineer)
-- [Matt R. Horn]({{accountsBaseUrl}}/{{mattRHornAccountId}}?mention) (Founding Designer)
-- [Cliff Weathers]({{accountsBaseUrl}}/{{cliffWeathersAccountId}}?mention) (Sales)
-- [Holly Evergreen]({{accountsBaseUrl}}/{{hollyEvergreenAccountId}}?mention) (HR)
+- [Rose Compás](https://alpine.inc/mention/{{roseCompasAccountId}}) (founder/CEO)
+- [Cass Cade](https://alpine.inc/mention/{{cassCadeAccountId}}) (Chief of Staff)
+- [Mason Clay](https://alpine.inc/mention/{{masonClayAccountId}}) (Founding Engineer)
+- [Elle Kappa-Tan](https://alpine.inc/mention/{{elleKappaTanAccountId}}) (Founding Engineer)
+- [Matt R. Horn](https://alpine.inc/mention/{{mattRHornAccountId}}) (Founding Designer)
+- [Cliff Weathers](https://alpine.inc/mention/{{cliffWeathersAccountId}}) (Sales)
+- [Holly Evergreen](https://alpine.inc/mention/{{hollyEvergreenAccountId}}) (HR)
                     `,
                     {
-                        accountsBaseUrl: `https://alpine.inc/s/${space.id}/accounts`,
                         roseCompasAccountId: roseCompas.account.id,
                         cassCadeAccountId: cassCade.account.id,
                         masonClayAccountId: masonClay.account.id,

@@ -114,7 +114,7 @@ export class CursorClient {
                         }
                         case 401: {
                             throw new UnauthenticatedError("Cursor authentication failed", {
-                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/s/${this._spaceId}/settings/bots/${this._botId}`)}.`,
+                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/settings/${this._spaceId}/bots/${this._botId}`)}.`,
                             });
                         }
                         case 403: {

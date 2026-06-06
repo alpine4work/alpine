@@ -304,7 +304,7 @@ async function getCursorBotSettings({
 
     if (!cloudAgentApiKey) {
         throw new FailedPreconditionError("Missing `cloudAgentApiKey` string in bot settings", {
-            displayMessage: errorDisplayMessage`Please add a Cursor Cloud Agents API key in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
+            displayMessage: errorDisplayMessage`Please add a Cursor Cloud Agents API key in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)}.`,
         });
     }
 
@@ -314,13 +314,13 @@ async function getCursorBotSettings({
 
     if (typeof githubRepositoryUrl !== "string" || githubRepositoryUrl.length === 0) {
         throw new FailedPreconditionError("Missing `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`Please add a GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
+            displayMessage: errorDisplayMessage`Please add a GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)}.`,
         });
     }
 
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(githubRepositoryUrl)) {
         throw new FailedPreconditionError("Invalid `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`\u201C${githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
+            displayMessage: errorDisplayMessage`\u201C${githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
         });
     }
 

@@ -1,6 +1,7 @@
 import {today} from "@internationalized/date";
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -49,7 +50,7 @@ test("sections in personal view: 1, 2, 3, 4", async ({page, context: browserCont
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -138,7 +139,7 @@ test("sections in personal view: 1, 2, 3", async ({page, context: browserContext
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -222,7 +223,7 @@ test("sections in personal view: 1, 2, 4", async ({page, context: browserContext
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -306,7 +307,7 @@ test("sections in personal view: 1, 3, 4", async ({page, context: browserContext
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -391,7 +392,7 @@ test("sections in personal view: 2, 3, 4", async ({page, context: browserContext
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -470,7 +471,7 @@ test("sections in personal view: 1, 2", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -544,7 +545,7 @@ test("sections in personal view: 1, 3", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -618,7 +619,7 @@ test("sections in personal view: 1, 4", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -692,7 +693,7 @@ test("sections in personal view: 2, 3", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -766,7 +767,7 @@ test("sections in personal view: 2, 4", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -840,7 +841,7 @@ test("sections in personal view: 3, 4", async ({page, context: browserContext}) 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -907,7 +908,7 @@ test("sections in personal view: 1", async ({page, context: browserContext}) => 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -971,7 +972,7 @@ test("sections in personal view: 2", async ({page, context: browserContext}) => 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -1035,7 +1036,7 @@ test("sections in personal view: 3", async ({page, context: browserContext}) => 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -1099,7 +1100,7 @@ test("sections in personal view: 4", async ({page, context: browserContext}) => 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -1154,7 +1155,7 @@ test("no sections in personal view", async ({page, context: browserContext}) => 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeHidden();
@@ -1232,7 +1233,7 @@ test("interactions across all sections", async ({page, context: browserContext})
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks`);
+    await page.goto(`/my-tasks/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "My tasks"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Active"})).toBeVisible();
@@ -1563,7 +1564,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1583,7 +1584,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1602,9 +1603,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1623,7 +1624,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1641,9 +1642,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1661,7 +1662,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1678,9 +1679,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1697,7 +1698,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1713,9 +1714,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1731,7 +1732,7 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1746,9 +1747,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(
         page,
@@ -1763,27 +1764,27 @@ test("interactions across all sections", async ({page, context: browserContext})
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(
         page,

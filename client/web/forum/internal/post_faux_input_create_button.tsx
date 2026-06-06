@@ -35,11 +35,11 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                 // channel with the back button.
                 if (routeLayout === "narrow") {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content`,
                     );
                 } else {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content&return=back`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content&return=back`,
                     );
                 }
             },

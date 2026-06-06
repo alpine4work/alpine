@@ -158,7 +158,7 @@ Two beats: one drag, one inline create.
    is clean.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/tasks`,
+        path: `/my-tasks/${space.id}`,
         viewport: scalableDemoWideViewport,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

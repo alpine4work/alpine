@@ -59,7 +59,7 @@ const testCases: Record<
                 const chat = await TestChat.get(session1, session2);
 
                 await services.signIn(browserContext, session1);
-                await page.goto(`/s/${space.id}/chat/${chat.id}`);
+                await page.goto(`/chat/${chat.id}`);
 
                 const messageInput = page.getByTestId("MessageInput");
                 const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
@@ -82,7 +82,7 @@ const testCases: Record<
                 const document = await TestDocument.create(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/documents/${document.id}`);
+                await page.goto(`/doc/${document.id}`);
 
                 return {
                     type: "ContentEditor",
@@ -110,9 +110,7 @@ const testCases: Record<
                 );
 
                 await services.signIn(browserContext, session);
-                await page.goto(
-                    `/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`,
-                );
+                await page.goto(`/doc/${document.id}?thread=${commentThread.id}`);
 
                 const messageInput = page.getByTestId(`DocumentCommentInput:${commentThread.id}`);
                 const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
@@ -142,9 +140,7 @@ const testCases: Record<
                 );
 
                 await services.signIn(browserContext, session);
-                await page.goto(
-                    `/s/${space.id}/documents/${document.id}/comments/${commentThread.id}`,
-                );
+                await page.goto(`/doc/${document.id}/thread/${commentThread.id}`);
 
                 const messageInput = page.getByTestId(`DocumentCommentInput:${commentThread.id}`);
                 const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
@@ -178,7 +174,7 @@ const testCases: Record<
                 );
 
                 await services.signIn(browserContext, session1);
-                await page.goto(`/s/${space.id}/documents/${document.id}`);
+                await page.goto(`/doc/${document.id}`);
 
                 await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
 
@@ -214,7 +210,7 @@ const testCases: Record<
                 const post = await channel.createPost(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/posts/${post.id}`);
+                await page.goto(`/post/${post.id}`);
 
                 await page.getByLabel("More").click();
                 await page.getByRole("menuitem", {name: "Edit"}).click();
@@ -237,7 +233,7 @@ const testCases: Record<
                 const draftId = generateChronologicalId<PostDraftId>();
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/posts/new/${draftId}`);
+                await page.goto(`/post/new/${draftId}/${space.id}`);
 
                 return {
                     type: "ContentEditor",
@@ -258,7 +254,7 @@ const testCases: Record<
                 const post = await channel.createPost(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/posts/${post.id}`);
+                await page.goto(`/post/${post.id}`);
 
                 const messageInput = page.getByTestId(`PostCommentInput:${post.id}`);
                 const dropTarget = messageInput.getByTestId("MessageInputDropTarget");
@@ -282,7 +278,7 @@ const testCases: Record<
                 await channel.createPost(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/channels/${channel.id}`);
+                await page.goto(`/channel/${channel.id}`);
 
                 await page.getByLabel("0 comments").nth(1).click();
                 await expect(page.getByLabel("New comment")).toHaveCount(1);
@@ -310,7 +306,7 @@ const testCases: Record<
                 const task = await TestTask.create(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/tasks/${task.id}`);
+                await page.goto(`/task/${task.id}`);
 
                 return {
                     type: "ContentEditor",
@@ -330,7 +326,7 @@ const testCases: Record<
                 const task = await TestTask.create(session);
 
                 await services.signIn(browserContext, session);
-                await page.goto(`/s/${space.id}/tasks/${task.id}?comments=show`);
+                await page.goto(`/task/${task.id}`);
 
                 const dropTarget = page.getByTestId("MessageInputDropTarget");
                 const messageInput = dropTarget;

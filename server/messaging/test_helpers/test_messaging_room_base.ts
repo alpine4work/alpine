@@ -32,7 +32,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -202,7 +202,7 @@ export abstract class TestMessagingRoomBase {
                         : (parent ?? null),
                 content:
                     typeof content === "string"
-                        ? parseTestMessageContent(this.space.id, content)
+                        ? parseTestMessageContent(content)
                         : content instanceof Node
                           ? assertMessageContent(content)
                           : createSimpleMessageContent(""),
@@ -314,7 +314,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                     message.payload.content.doc.content.size,
                     new Slice(
                         (typeof content === "string"
-                            ? parseTestMessageContent(this.space.id, content)
+                            ? parseTestMessageContent(content)
                             : assertMessageContent(content)
                         ).content,
                         0,
@@ -340,7 +340,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             partIndex,
             payload:
                 typeof payload === "string"
-                    ? {type: "Content", content: parseTestMessageContent(this.space.id, payload)}
+                    ? {type: "Content", content: parseTestMessageContent(payload)}
                     : payload instanceof Node
                       ? {type: "Content", content: assertMessageContent(payload)}
                       : payload,
@@ -405,7 +405,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 }
 
-export function parseTestMessageContent(spaceId: SpaceId, content: string): MessageContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+export function parseTestMessageContent(content: string): MessageContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertMessageContent(fromApiContent(MessageContentProsemirrorSchema, apiContent));
 }

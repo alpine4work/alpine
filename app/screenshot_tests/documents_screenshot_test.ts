@@ -324,13 +324,13 @@ load-bearing. The tables design review pulled directly from it, and the next edi
 in there starts to feel out of date, fix it in place rather than starting a new doc.
             `,
             {
-                masonMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.masonClay.account.id}?mention=short)`,
-                elleMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.elleKappaTan.account.id}?mention=short)`,
-                cassMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.cassCade.account.id}?mention=short)`,
-                mattMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.mattRHorn.account.id}?mention=short)`,
-                roseMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.roseCompas.account.id}?mention=short)`,
-                cliffMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.cliffWeathers.account.id}?mention=short)`,
-                hollyMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.hollyEvergreen.account.id}?mention=short)`,
+                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}?short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
+                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}?short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
+                roseMention: `[](https://alpine.inc/mention/${accounts.roseCompas.account.id}?short)`,
+                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}?short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
             },
         ),
     });
@@ -460,13 +460,13 @@ the page so future us doesn\u2019t have to go through this debate again.
     // Make sure Cass dismisses the comment thread inbox entry by setting a reaction.
     await lastCommentInCommentThread2.setReaction(accounts.cassCade, "GenericLike");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${document.id}`);
+    await runner.goto(accounts.cassCade, `/doc/${document.id}`);
     await runner.screenshot("a0", "basic");
 
     await runner.getByRole("button", {name: "More"}).click();
     await runner.screenshot("a1", "more-menu");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${document.id}`);
+    await runner.goto(accounts.cassCade, `/doc/${document.id}`);
     await runner.getByRole("button", {name: "Share"}).click();
     await runner.screenshot("a2", "share-overlay");
 
@@ -475,41 +475,29 @@ the page so future us doesn\u2019t have to go through this debate again.
     await runner.getByRole("option", {name: "Holly Evergreen"}).click();
     await runner.screenshot("a3", "share-overlay-account-input");
 
-    await runner.goto(
-        accounts.cassCade,
-        `/s/${space.id}/documents/${document.id}?comments=${commentThread1.id}`,
-    );
+    await runner.goto(accounts.cassCade, `/doc/${document.id}?thread=${commentThread1.id}`);
     await runner.screenshot("a4", "comment-sidebar");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${document.id}`, {
+    await runner.goto(accounts.cassCade, `/doc/${document.id}`, {
         viewport: "wide",
     });
     await runner.screenshot("a4G", "wide");
 
-    await runner.goto(
-        accounts.cassCade,
-        `/s/${space.id}/documents/${document.id}?comments=${commentThread1.id}`,
-        {viewport: "wide"},
-    );
+    await runner.goto(accounts.cassCade, `/doc/${document.id}?thread=${commentThread1.id}`, {
+        viewport: "wide",
+    });
     await runner.screenshot("a4V", "comment-sidebar-wide");
 
-    await runner.goto(
-        accounts.cassCade,
-        `/s/${space.id}/documents/${document.id}/comments/${commentThread1.id}`,
-    );
+    await runner.goto(accounts.cassCade, `/doc/${document.id}/thread/${commentThread1.id}`);
     await runner.screenshot("a5", "comment-thread");
 
-    await runner.goto(
-        accounts.cassCade,
-        `/s/${space.id}/documents/${document.id}/comments/${commentThread1.id}`,
-        {
-            peekPath: `/s/${space.id}/documents/${document.id}/comments/${commentThread1.id}/${comment.index}/reactions?at=${reactionsSearchParam}`,
-        },
-    );
+    await runner.goto(accounts.cassCade, `/doc/${document.id}/thread/${commentThread1.id}`, {
+        peekPath: `/doc/${document.id}/thread/${commentThread1.id}/comment/${comment.index}/reactions?at=${reactionsSearchParam}`,
+    });
     await runner.screenshot("a6", "comment-reactions");
 
     await document.access.grantUrl(accounts.cassCade);
-    await runner.goto(null, `/s/${space.id}/documents/${document.id}`);
+    await runner.goto(null, `/doc/${document.id}`);
     await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
     await runner.screenshot("a7", "url-grant");
 
@@ -528,11 +516,11 @@ the page so future us doesn\u2019t have to go through this debate again.
         },
     });
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${generateId()}?create`);
+    await runner.goto(accounts.cassCade, `/doc/${generateId()}?create=${space.id}`);
     await runner.screenshot("a8", "new");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-        peekPath: `/s/${space.id}/documents/${generateId()}?create`,
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+        peekPath: `/doc/${generateId()}?create=${space.id}`,
     });
     await runner.screenshot("a9", "new-peek");
 
@@ -639,8 +627,8 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
             duplicateSearchParams.set("schema", encodedDuplicateSchema);
         }
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${duplicateDocument.id}`, {
-            peekPath: `/s/${space.id}/documents/${duplicateDocument.id}/duplicate?${duplicateSearchParams.toString()}`,
+        await runner.goto(accounts.cassCade, `/doc/${duplicateDocument.id}`, {
+            peekPath: `/doc/${duplicateDocument.id}/duplicate?${duplicateSearchParams.toString()}`,
         });
         await runner.screenshot("aA", "duplicate");
     }
@@ -652,8 +640,8 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
         // Open the peek against `/dev/empty` so the background is plain and the screenshot
         // focuses on the document peek under test rather than whatever's happening on the
         // surrounding space route.
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-            peekPath: `/s/${space.id}/documents/${document.id}`,
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            peekPath: `/doc/${document.id}`,
         });
         await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
         await runner.mouse.move(0, 0);
@@ -682,8 +670,8 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
         await ProcessContextModule.waitForTestTasks();
         await runner.services.waitForSqsProcessJobs();
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-            peekPath: `/s/${space.id}/documents/${document.id}`,
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+            peekPath: `/doc/${document.id}`,
         });
         await runner.getByRole("heading", {name: "Q3 Planning"}).waitFor();
         await runner.mouse.move(0, 0);

@@ -1287,7 +1287,7 @@ describe("getNotificationDigestContent", () => {
                     url: expect.any(URL),
                 },
             ],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);
@@ -1321,7 +1321,7 @@ describe("getNotificationDigestContent", () => {
 
         const expectedContent = {
             digestEntries: [],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);

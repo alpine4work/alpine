@@ -16,7 +16,7 @@ test("chat message stays when changing chat selection", async ({page, context: b
     ]);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -89,7 +89,7 @@ test("send chat message to another account", async ({page, context: browserConte
     ]);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -148,7 +148,7 @@ test("can see chat message from recipient account", async ({page, context: brows
     await chat1.sendMessage(session1, "message1");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -178,7 +178,7 @@ test("can not see chat message from non-recipient account but can send a differe
     await chat1.sendMessage(session1, "message1");
 
     await services.signIn(browserContext, session3);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -221,7 +221,7 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
     await chat2.sendMessage(session3, "message2");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -296,7 +296,7 @@ test("reloading the page will keep the chat selection", async ({page, context: b
     await chat3.sendMessage(session1, "message3");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -352,7 +352,7 @@ test("can remove selected chat accounts", async ({page, context: browserContext}
     await chat3.sendMessage(session1, "message3");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -443,7 +443,7 @@ test("includes recommended group chats for autocomplete", async ({
     await chat3.sendMessage(session2, "message3");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -535,7 +535,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await chat3.sendMessage(session1, "message3");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/${chat1.id}`);
+    await page.goto(`/chat/${chat1.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -548,7 +548,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await expect(page.getByText("message2")).toBeHidden();
     await expect(page.getByText("message3")).toBeHidden();
 
-    await page.goto(`/s/${space.id}/chat/${chat2.id}`);
+    await page.goto(`/chat/${chat2.id}`);
 
     await expect(page.getByRole("heading", {name: "Kendall"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Siobahn"})).toBeHidden();
@@ -558,7 +558,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message3")).toBeHidden();
 
-    await page.goto(`/s/${space.id}/chat/${chat3.id}`);
+    await page.goto(`/chat/${chat3.id}`);
 
     await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Siobahn", exact: true})).toBeHidden();
@@ -570,7 +570,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
 
-    await page.goto(`/s/${space.id}/chat/with/${session2.account.id}`);
+    await page.goto(`/chat/with/${session2.account.id}/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "Siobahn"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Kendall"})).toBeHidden();
@@ -580,7 +580,7 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await expect(page.getByText("message2")).toBeHidden();
     await expect(page.getByText("message3")).toBeHidden();
 
-    await page.goto(`/s/${space.id}/chat/with/${session3.account.id}`);
+    await page.goto(`/chat/with/${session3.account.id}/${space.id}`);
 
     await expect(page.getByRole("heading", {name: "Kendall"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Siobahn"})).toBeHidden();
@@ -611,7 +611,7 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await chat3.sendMessage(session1, "message3");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -669,7 +669,7 @@ test("two accounts can look at an empty chat and see new messages appear in real
     ]);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/chat/new`);
+    await page1.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page1.waitForFunction("dev.contentEditor");
@@ -677,7 +677,7 @@ test("two accounts can look at an empty chat and see new messages appear in real
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session4);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/new`);
+    await page2.goto(`/chat/new/${space.id}`);
 
     // Wait for React to mount
     await page2.waitForFunction("dev.contentEditor");

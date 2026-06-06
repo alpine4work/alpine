@@ -164,22 +164,22 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     const signUpSession = await TestSession.get(context, sessionId);
 
     assert(open.type === "ActiveSpace");
-    await runner.goto(signUpSession, `/s/${open.spaceId}`);
+    await runner.goto(signUpSession, `/home/${open.spaceId}`);
     await runner.screenshot("a7", "sign-up-space");
 
-    await runner.goto(inviteAcceptSession, `/s/${space.id}/invite`);
+    await runner.goto(inviteAcceptSession, `/invite/${space.id}`);
     await runner.screenshot("a8", "invite");
     await runner.getByRole("link", {name: "Report"}).click();
     await runner.getByRole("alertdialog", {name: "Report spam?"}).waitFor();
     await runner.screenshot("a8I", "invite-report-as-spam-modal");
 
-    await runner.goto(minInviteSession, `/s/${minInviteSpace.id}/invite`);
+    await runner.goto(minInviteSession, `/invite/${minInviteSpace.id}`);
     await runner.screenshot("a8a", "invite-min-accounts");
 
-    await runner.goto(maxInviteSession, `/s/${maxInviteSpace.id}/invite`);
+    await runner.goto(maxInviteSession, `/invite/${maxInviteSpace.id}`);
     await runner.screenshot("a8b", "invite-max-accounts");
 
-    await runner.goto(inviteAcceptSession, `/s/${space.id}/invite/accept?redirect=no`);
+    await runner.goto(inviteAcceptSession, `/invite/${space.id}/accept?redirect=no`);
     await runner.screenshot("a8c", "invite-accept");
 
     const inviteRejectAccount = await TestAccount.create(context, {
@@ -193,6 +193,6 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         inviteRejectEmailAddress,
     );
 
-    await runner.goto(inviteRejectSession, `/s/${space.id}/invite/reject-and-mark-as-spam`);
+    await runner.goto(inviteRejectSession, `/invite/${space.id}/reject-and-mark-as-spam`);
     await runner.screenshot("a9", "invite-reject-and-spam");
 }

@@ -303,12 +303,12 @@ function ChatViewTopBar({
     );
 
     const handleBackButtonPress = () => {
-        if (inboxContext?.entry) {
-            navigate(`/s/${inboxContext.entry.model.spaceId}/inbox`);
-        } else if (navigationState.hasPreviousLocation) {
+        if (navigationState.hasPreviousLocation) {
             navigate(-1);
+        } else if (inboxContext?.entry) {
+            navigate(`/inbox/${inboxContext.entry.model.spaceId}`);
         } else {
-            navigate(`/s/${space.id}/chat/with/${chat.id}`);
+            navigate(`/home/${space.id}`);
         }
     };
 
@@ -683,7 +683,7 @@ function ChatViewTopBar({
                                       },
                                       onCopyLink: async () => {
                                           const url = new URL(
-                                              `/s/${space.id}/chat/${chat.id}`,
+                                              `/chat/${chat.id}`,
                                               window.location.href,
                                           );
                                           await writeTextToClipboard(url.toString());
@@ -701,7 +701,7 @@ function ChatViewTopBar({
                                         pressErrorTitle: "Couldn\u2019t copy link",
                                         onPress: async () => {
                                             const url = new URL(
-                                                `/s/${space.id}/chat/${chat.id}`,
+                                                `/chat/${chat.id}`,
                                                 window.location.href,
                                             );
                                             await writeTextToClipboard(url.toString());
@@ -793,7 +793,6 @@ function ChatViewTopBar({
                                 isSubscribed,
                                 platform,
                                 setIsSubscribedOptimistically,
-                                space.id,
                             ],
                         )}
                         extraBottom={null}
@@ -880,7 +879,7 @@ function ChatMessagingView({
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
     const spaceContext = useSpaceContext();
-    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId();
 
     // We only send the currently viewed entity for 1:1 chats with a bot. We do some
     // validation here and on the server.
@@ -977,11 +976,8 @@ function ChatMessagingView({
             subscribeToPongs={subscribeToPongs}
             getMessageUrl={useCallback(
                 messageIndex =>
-                    new URL(
-                        `/s/${chat.spaceId}/chat/${chat.id}?message=${messageIndex}`,
-                        window.location.href,
-                    ),
-                [chat.id, chat.spaceId],
+                    new URL(`/chat/${chat.id}?message=${messageIndex}`, window.location.href),
+                [chat.id],
             )}
             dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
             extraChildren={<ChatDirectOneOnOneInvitePendingOverlayController chat={chat} />}

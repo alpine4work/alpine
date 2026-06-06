@@ -26,9 +26,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     const spaceId = space.id;
     const accountId = accounts.cassCade.account.id;
-    const spaceUrl = `https://alpine.inc/s/${spaceId}`;
     const mentionUrl = (accountSession: {account: {id: string}}) =>
-        `${spaceUrl}/accounts/${accountSession.account.id}?mention=short`;
+        `https://alpine.inc/mention/${accountSession.account.id}?short`;
 
     // ── Active project tasks Cass is driving this week ────────────────── These three
     // are the top of Cass's suggested list. Each is a `layout: "Project"` task with
@@ -498,7 +497,7 @@ It\u2019s a40-person eng team, similar shape to Meridian. Demo\u2019s booked for
         },
     ];
 
-    const url = new UrlPath(`/s/${spaceId}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${spaceId}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),

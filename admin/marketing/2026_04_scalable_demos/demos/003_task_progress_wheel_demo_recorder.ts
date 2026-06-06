@@ -74,7 +74,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 6. Click the expand button to hide child tasks.
         `,
         session,
-        path: `/s/${space.id}/tasks/${parentTask.id}`,
+        path: `/task/${parentTask.id}`,
         viewport: {
             width: scalableDemoDefaultViewportWidth,
             height: scalableDemoDefaultViewportWidth,

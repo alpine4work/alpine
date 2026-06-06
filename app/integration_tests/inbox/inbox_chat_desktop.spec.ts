@@ -27,17 +27,17 @@ test("can see new chat notifications on inbox button and preview", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
+    await page1.goto(`/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat2Id}`);
+    await page2.goto(`/chat/${chat2Id}`);
 
     const browserContext3 = await browser.newContext();
     await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
-    await page3.goto(`/s/${space.id}/dev/empty`);
+    await page3.goto(`/dev/empty/${space.id}`);
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeHidden();
 
@@ -181,17 +181,17 @@ test("can see new chat notifications from inbox", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
+    await page1.goto(`/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat2Id}`);
+    await page2.goto(`/chat/${chat2Id}`);
 
     const browserContext3 = await browser.newContext();
     await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
-    await page3.goto(`/s/${space.id}/dev/empty`);
+    await page3.goto(`/dev/empty/${space.id}`);
 
     await page3.getByRole("button", {name: "Inbox"}).click();
     await page3
@@ -332,17 +332,17 @@ test("can go offline then when reconnecting notifications catch up", async ({
     });
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/chat/${chat1Id}`);
+    await page1.goto(`/chat/${chat1Id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session1);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/dev/empty`);
+    await page2.goto(`/dev/empty/${space.id}`);
 
     const browserContext3 = await browser.newContext();
     await services.signIn(browserContext3, session1);
     const page3 = await browserContext3.newPage();
-    await page3.goto(`/s/${space.id}/inbox`);
+    await page3.goto(`/inbox/${space.id}`);
 
     await expect(page2.getByRole("button", {name: "Inbox"}).getByText("1")).toBeHidden();
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeHidden();

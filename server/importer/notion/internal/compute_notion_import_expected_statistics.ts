@@ -98,9 +98,7 @@ export async function computeNotionImportExpectedStatistics({
         // Our markdown parser doesn't support inline images/videos/files directly. It only
         // recognizes files via URLs matching our alpine.inc format. Convert image syntax
         // to link syntax so the URLs are preserved as Link marks for file path resolution.
-        const apiContent = parseApiContentFromMarkdown(markdown.replaceAll("![", "["), {
-            spaceId: null,
-        });
+        const apiContent = parseApiContentFromMarkdown(markdown.replaceAll("![", "["));
 
         visitApiContent(apiContent, {
             visitInlineElementMark: mark => {

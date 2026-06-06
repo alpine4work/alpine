@@ -25,7 +25,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     // with a `?mention` search param as first-class `@` mentions, which in turn light
     // up the inbox loud-notification path for the mentioned account.
     const mention = (account: {account: {id: string}}, displayName: string) =>
-        `[@${displayName}](https://alpine.inc/s/${space.id}/accounts/${account.account.id}?mention)`;
+        `[@${displayName}](https://alpine.inc/mention/${account.account.id})`;
 
     const mentionRose = mention(accounts.roseCompas, "Rose Compás");
     const mentionMatt = mention(accounts.mattRHorn, "Matt Horn");
@@ -302,7 +302,6 @@ questions here so we can resolve them in-thread instead of another meeting.
         chatGpt,
         `/chats/${chat.id}`,
         createMockAgentRecording(
-            space.id,
             [
                 2_000,
                 "Here\u2019s a quick read on the launch post you\u2019re on:",
@@ -370,7 +369,7 @@ meeting is in 10 minutes.
 12. Send the reply. Stop recording once it lands in the thread.
         `,
         session: accounts.roseCompas,
-        path: `/s/${space.id}/`,
+        path: `/home/${space.id}`,
         viewport: {
             width: summarizeViewedPostDemoRecordingWidth,
             height: summarizeViewedPostDemoRecordingHeight,

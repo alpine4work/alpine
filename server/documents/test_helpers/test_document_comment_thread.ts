@@ -115,7 +115,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                         commentThreadId: id,
                         initialCommentContent:
                             typeof content === "string"
-                                ? parseTestMessageContent(document.space.id, content)
+                                ? parseTestMessageContent(content)
                                 : assertMessageContent(content),
                         initialCommentFileIds: [],
                         createdTimeZone: defaultTimeZone,

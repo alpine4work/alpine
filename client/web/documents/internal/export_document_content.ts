@@ -133,7 +133,7 @@ export async function exportDocumentContent({
         },
     });
 
-    const markdownTree = printApiContentToMarkdownTree(apiContent, {spaceId});
+    const markdownTree = printApiContentToMarkdownTree(apiContent);
 
     const traverse = (node: Parent) => {
         // Headings from `ApiContent` should always start at level 2. That way we can add

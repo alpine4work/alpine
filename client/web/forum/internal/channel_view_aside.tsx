@@ -262,11 +262,16 @@ function ChannelViewAsideDescriptionEditor({
     const reporter = useReporter();
     const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
+    const {space} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(channel.description, {selection: "end"}),
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: channel.description,
+            selection: "end",
+        }),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -385,11 +390,10 @@ function ChannelViewAsideDescriptionEditor({
 
 function ChannelViewAsideSeeAllFilesButton({channel}: {channel: ChannelModel}) {
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${space.id}/channels/${channel.id}/files?from=channel`, {
+            navigate(`/channel/${channel.id}/files?from=channel`, {
                 // Don't open in a peek when in desktop layout. Instead perform a full page
                 // navigation.
                 stopPropagation: true,

@@ -145,7 +145,7 @@ You are logged in as Matt. The chat with Mason is pre-loaded with a short backlo
    visible, then stop recording.
         `,
         session: accounts.mattRHorn,
-        path: `/s/${space.id}/chat/${chat.id}`,
+        path: `/chat/${chat.id}`,
         // Add 35px so the height of the viewport is tall enough to display the mention
         // floater with 2 people, the email spec doc, and the insert menu.
         viewport: {width: scalableDemoDefaultViewportWidth + 35},

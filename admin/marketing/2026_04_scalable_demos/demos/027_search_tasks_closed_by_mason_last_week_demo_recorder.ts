@@ -34,9 +34,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const taskTimeAt = (days: number, hour: number, minute: number, tick = 0) =>
         [daysAgoAt(days, hour, minute).getTime(), tick] as const;
 
-    const spaceUrl = `https://alpine.inc/s/${space.id}`;
     const mentionUrl = (session: {account: {id: string}}) =>
-        `${spaceUrl}/accounts/${session.account.id}?mention=short`;
+        `https://alpine.inc/mention/${session.account.id}?short`;
 
     const [announcementsChannel, engineeringChannel, planningChannel, salesChannel] =
         await runAllPromises([
@@ -509,7 +508,7 @@ is landing.
         },
     ];
 
-    const url = new UrlPath(`/s/${space.id}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${space.id}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),

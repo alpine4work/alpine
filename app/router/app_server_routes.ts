@@ -43,13 +43,13 @@ export function createAppServerRoutes(routes: ServerBuild["routes"]): ServerBuil
             }
         }
 
-        // Make sure all route children of `routes/s.$spaceId.tsx` have the same error
+        // Make sure all route children of `routes/_space.tsx` have the same error
         // boundary. This is so we don't have to add an `ErrorBoundary` export to each
         // space route file.
         //
         // We need to implement the same thing in `app_client_routes.ts` so we have the
         // same error boundary when client rendering.
-        if (route.parentId === "routes/s.$spaceId") {
+        if (route.parentId === "routes/_space") {
             hasUpdatedSpaceLayoutDataRoute = true;
 
             if (route.module.default && !route.module.ErrorBoundary) {

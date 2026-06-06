@@ -1,6 +1,5 @@
 import {Root} from "mdast";
 import {stringify as stringifyYaml} from "yaml";
-import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
@@ -16,19 +15,16 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export async function printApiContentToAgentMarkdownTreeWithFrontmatter({
     transaction,
-    request,
     frontmatter,
     content,
 }: {
     transaction: DurableObjectTransactionInterface;
-    request: Pick<AgentWebhookRequest, "spaceId">;
     frontmatter: Record<string, AgentLink | string | number | boolean | undefined>;
     content?: ApiContentResponse;
 }): Promise<Root> {
     const markdownTree = await printApiContentToAgentMarkdownTree(
         transaction,
         content ?? {elements: []},
-        {spaceId: request.spaceId},
     );
 
     markdownTree.children.unshift({

@@ -252,6 +252,23 @@ import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchr
 const taskWideProjectLayoutWidth = "1/4";
 const taskWideProjectLayoutMaxWidth = "96";
 
+function parseTaskCreateSearchParam(createSearchParam: string): {
+    filtersSearchParam: string;
+    parentTaskId: string;
+} {
+    const spaceIdSeparatorIndex = createSearchParam.indexOf(" ");
+    const rest =
+        spaceIdSeparatorIndex === -1 ? "" : createSearchParam.slice(spaceIdSeparatorIndex + 1);
+    const parentTaskIdSeparatorIndex = rest.indexOf(" ");
+
+    return {
+        filtersSearchParam:
+            parentTaskIdSeparatorIndex === -1 ? rest : rest.slice(0, parentTaskIdSeparatorIndex),
+        parentTaskId:
+            parentTaskIdSeparatorIndex === -1 ? "" : rest.slice(parentTaskIdSeparatorIndex + 1),
+    };
+}
+
 export function TaskDetailView({
     taskId: possiblyGhostTaskId,
     store,
@@ -1830,10 +1847,7 @@ export function TaskDetailView({
                         );
                     }
 
-                    const url = new URL(
-                        `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
-                        window.location.href,
-                    );
+                    const url = new URL(`/task/${possiblyGhostTaskId}`, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
             },
@@ -1927,7 +1941,7 @@ export function TaskDetailView({
                         searchParams.set("schema", encodedSchema);
 
                         await navigate(
-                            `/s/${spaceId}/tasks/${possiblyGhostTaskId}/duplicate?${searchParams.toString()}`,
+                            `/task/${possiblyGhostTaskId}/duplicate?${searchParams.toString()}`,
                         );
                         return;
                     }
@@ -1948,9 +1962,9 @@ export function TaskDetailView({
                     // Navigate to the new task. Always open in a peek on desktop. To make it clear
                     // when you're duplicating from a peek that the new task is a duplicate.
                     if (peekStackContext && platform !== "mobile") {
-                        await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                        await peekStackContext.push(`/task/${newTaskId}`);
                     } else {
-                        await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                        await navigate(`/task/${newTaskId}`);
                     }
                 },
             });
@@ -1985,46 +1999,43 @@ export function TaskDetailView({
                             onPress: async () => {
                                 let isNavigatingToGhostTask = false;
 
-                                if (platform === "desktop" && routeLayout !== "wide") {
-                                    let createSearchParam = searchParams.get("create");
+                                let createSearchParam = searchParams.get("create");
 
-                                    // If this is a ghost task then we want to navigate to a ghost task that has
-                                    // `layout: "Project"` in its initial fields.
-                                    if (createSearchParam !== null) {
-                                        const [
-                                            oldCreateSearchParamFilters = "",
-                                            createSearchParamParentTaskId = "",
-                                        ] = createSearchParam.split(" ", 2);
+                                // If this is a ghost task then we want to navigate to a ghost task that has
+                                // `layout: "Project"` in its initial fields.
+                                if (createSearchParam !== null) {
+                                    const {
+                                        filtersSearchParam: oldCreateSearchParamFilters,
+                                        parentTaskId: createSearchParamParentTaskId,
+                                    } = parseTaskCreateSearchParam(createSearchParam);
 
-                                        const filters: Array<TaskQueryFilter> = [
-                                            ...(oldCreateSearchParamFilters.length > 0
-                                                ? deserializeTaskQueryFiltersSearchParam(
-                                                      oldCreateSearchParamFilters,
-                                                  )
-                                                : []),
-                                            {
-                                                type: "Layout",
-                                                operation: {
-                                                    type: "OneOf",
-                                                    layouts: ["Project"],
-                                                },
+                                    const filters: Array<TaskQueryFilter> = [
+                                        ...(oldCreateSearchParamFilters.length > 0
+                                            ? deserializeTaskQueryFiltersSearchParam(
+                                                  oldCreateSearchParamFilters,
+                                              )
+                                            : []),
+                                        {
+                                            type: "Layout",
+                                            operation: {
+                                                type: "OneOf",
+                                                layouts: ["Project"],
                                             },
-                                        ];
+                                        },
+                                    ];
 
-                                        const newCreateSearchParamFilters =
-                                            serializeTaskQueryFiltersSearchParam(filters);
+                                    const newCreateSearchParamFilters =
+                                        serializeTaskQueryFiltersSearchParam(filters);
 
-                                        createSearchParam =
-                                            createSearchParamParentTaskId.length > 0
-                                                ? // "+" when URL decoded becomes a space (" ")
-                                                  `${newCreateSearchParamFilters}+${createSearchParamParentTaskId}`
-                                                : newCreateSearchParamFilters;
+                                    createSearchParam =
+                                        createSearchParamParentTaskId.length > 0
+                                            ? // "+" when URL decoded becomes a space (" ")
+                                              `${newCreateSearchParamFilters}+${createSearchParamParentTaskId}`
+                                            : newCreateSearchParamFilters;
 
-                                        isNavigatingToGhostTask = true;
-                                    }
-
+                                    isNavigatingToGhostTask = true;
                                     await rootNavigate(
-                                        `/s/${space.id}/tasks/${possiblyGhostTaskId}${createSearchParam ? `?create=${createSearchParam}&focus` : ""}`,
+                                        `/task/${possiblyGhostTaskId}?create=${space.id}+${createSearchParam}&focus`,
                                     );
                                 }
 
@@ -2072,7 +2083,6 @@ export function TaskDetailView({
         favoriteMenuAction,
         hasEditAccessLevel,
         taskSubscription,
-        spaceId,
         possiblyGhostTaskId,
         commitActionTransactionAndCreateIfNeeded,
         undoManager,
@@ -2098,7 +2108,6 @@ export function TaskDetailView({
         platform,
         navigate,
         layout,
-        routeLayout,
         searchParams,
         rootNavigate,
         space.id,
@@ -2172,10 +2181,7 @@ export function TaskDetailView({
                       );
                   }
 
-                  const url = new URL(
-                      `/s/${spaceId}/tasks/${possiblyGhostTaskId}`,
-                      window.location.href,
-                  );
+                  const url = new URL(`/task/${possiblyGhostTaskId}`, window.location.href);
                   await writeTextToClipboard(url.toString());
               },
               activationHint: shareActivationHint,
@@ -2222,12 +2228,12 @@ export function TaskDetailView({
                 // path
                 if (collections[0]?.collectionId) {
                     const firstCollectionId = collections[0].collectionId;
-                    return `/s/${spaceId}/tasks/collections/${firstCollectionId}`;
+                    return `/task-collection/${firstCollectionId}`;
                 }
             }
 
             // Otherwise, use the "my tasks" view as the default back path
-            return `/s/${spaceId}/tasks`;
+            return `/my-tasks/${spaceId}`;
         },
         shareButton,
     });
@@ -2430,7 +2436,7 @@ export function TaskDetailView({
                     },
                     getMessageUrl: commentIndex => {
                         return new URL(
-                            `/s/${spaceId}/tasks/${possiblyGhostTaskId}?comment=${commentIndex}`,
+                            `/task/${possiblyGhostTaskId}?comment=${commentIndex}`,
                             window.location.href,
                         );
                     },
@@ -2606,7 +2612,6 @@ export function TaskDetailView({
             handleDeleteCommentReaction,
             handleUpdateCommentsOptimistically,
             procedures,
-            spaceId,
             setComments,
         ],
     );
@@ -2814,9 +2819,9 @@ export function TaskDetailView({
                         // Navigate to the new task. Always open in a peek on desktop. To make it clear
                         // when you're duplicating from a peek that the new task is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
-                            await peekStackContext.push(`/s/${spaceId}/tasks/${newTaskId}`);
+                            await peekStackContext.push(`/task/${newTaskId}`);
                         } else {
-                            await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                            await navigate(`/task/${newTaskId}`);
                         }
                     }}
                     onClose={() => setShowDuplicateInstructionalModal(false)}

@@ -93,7 +93,7 @@ export function renderContentMentionToHtml(
 
     switch (mention.type) {
         case "Account": {
-            href = `/s/${spaceId}/chat/with/${mention.accountId}?focus`;
+            href = `/chat/with/${mention.accountId}/${spaceId}?focus`;
 
             const account = references.accountById.get(mention.accountId);
             searchEntityData = account ? {type: "Account", account} : null;

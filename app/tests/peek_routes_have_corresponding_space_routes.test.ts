@@ -34,7 +34,7 @@ test("every peek route has a corresponding space route and exports the same thin
     const routes = (await fs.readdir(routesPath)).filter(route => !route.endsWith(".map"));
 
     const peekRoutes = routes.filter(
-        route => route.startsWith("s.$spaceId.peek.") && route !== "s.$spaceId.peek.js",
+        route => route.startsWith("_space.peek.") && route !== "_space.peek.js",
     );
 
     // Make sure we have the right directory by verifying there is at least one peek

@@ -137,11 +137,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read message in room bot doesn\u2019t have access to", async () => {
@@ -252,11 +250,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read message with account mention", async () => {
@@ -303,12 +299,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -356,12 +348,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -409,12 +397,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -460,12 +444,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -511,12 +491,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -562,12 +538,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -616,11 +588,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t send message to room that doesn\u2019t exist", async () => {
@@ -731,11 +701,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent", async () => {
@@ -796,11 +764,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent then read it back", async () => {
@@ -865,11 +831,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages", async () => {
@@ -909,11 +873,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read messages in room bot doesn\u2019t have access to", async () => {
@@ -1001,11 +963,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages with account mention", async () => {
@@ -1055,12 +1015,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -1111,12 +1067,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -1167,12 +1119,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -1221,12 +1169,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -1275,12 +1219,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -1329,12 +1269,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -1778,11 +1714,7 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(`\
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(`\
 # Hello, world!
 
 ## Level 2
@@ -1822,11 +1754,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("<hr/>\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "<hr/>\n",
+            );
         });
 
         test("can create message with italic mark", async () => {
@@ -1873,11 +1803,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, *world*!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, *world*!\n",
+            );
         });
 
         test("can create message with highlight mark that\u2019s dropped", async () => {
@@ -1924,11 +1852,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with comment mark that\u2019s dropped", async () => {
@@ -1975,11 +1901,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         describe("message streams", () => {

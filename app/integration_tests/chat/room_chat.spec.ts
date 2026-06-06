@@ -28,12 +28,12 @@ test("can turn a direct chat into a chat room in realtime", async ({
     const roomName = "Realtime Room";
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page1.goto(`/chat/${chat.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page2.goto(`/chat/${chat.id}`);
 
     await page1.getByTestId("ChatViewTopBar").getByLabel("More").click();
     await page1.getByRole("menuitem", {name: "Turn into chat room"}).click();
@@ -59,12 +59,12 @@ test("can change a chat room name in realtime", async ({
     const chat = await TestChat.createRoom(session1, {name: oldName, access: "Public"});
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page1.goto(`/chat/${chat.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page2.goto(`/chat/${chat.id}`);
 
     await expect(page1.getByRole("heading", {name: oldName})).toBeVisible();
     await expect(page2.getByRole("heading", {name: oldName})).toBeVisible();
@@ -104,12 +104,12 @@ test("can change chat room access policy in realtime", async ({
     await chat.sendMessage(session1, "hello from room");
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page1.goto(`/chat/${chat.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page2.goto(`/chat/${chat.id}`);
 
     await expect(page2.getByLabel("New message")).toBeVisible();
 
@@ -140,12 +140,12 @@ test("can lose access to a chat room in realtime", async ({
     await chat.sendMessage(session1, "hello before revoke");
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page1.goto(`/chat/${chat.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page2.goto(`/chat/${chat.id}`);
 
     await expect(page2.getByText("hello before revoke")).toBeVisible();
 
@@ -177,7 +177,7 @@ test("view only chat room can read messages but hides message input", async ({
     await chat.sendMessage(session1, "message for viewers");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     await expect(page.getByRole("heading", {name: "View Only Room"})).toBeVisible();
     await expect(page.getByText("message for viewers")).toBeVisible();
@@ -195,7 +195,7 @@ test("chat room can be shared by URL with view access", async ({browser, page: p
 
     await chat.sendMessage(session1, "url-shared message");
 
-    await page2.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page2.goto(`/chat/${chat.id}`);
 
     await expect(page2.getByText("Couldn\u2019t open chat")).toBeVisible();
     await expect(page2.getByRole("heading", {name: "URL Shared Room"})).toBeHidden();
@@ -203,7 +203,7 @@ test("chat room can be shared by URL with view access", async ({browser, page: p
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page1.goto(`/chat/${chat.id}`);
 
     await openChatShareOverlay(page1);
     await page1.getByTestId("ShareOverlayUrlGrant").getByRole("button").click();
@@ -277,7 +277,7 @@ test("anonymous users can view room chat mentions shared with URL grant", async 
 
     await chat.roomAccess.grantUrl(session, "View");
 
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     await expect(page.getByRole("heading", {name: "URL Shared Mention Room"})).toBeVisible();
     await expect(page.getByText("Mentions:")).toBeVisible();
@@ -307,7 +307,7 @@ test("anonymous users can view room chat files shared with URL grant", async ({p
 
     await chat.roomAccess.grantUrl(session, "View");
 
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     await expect(page.getByRole("heading", {name: "URL Shared Files Room"})).toBeVisible();
     await expect(page.getByText("message with file")).toBeVisible();
@@ -332,7 +332,7 @@ test("anonymous users can open message context menu in URL shared room chat", as
 
     await chat.roomAccess.grantUrl(session, "View");
 
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     await expect(page.getByText("context menu message")).toBeVisible();
 
@@ -354,7 +354,7 @@ test("can create a new chat room from create menu", async ({
     const roomName = "Created Chat Room";
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await page.getByLabel("Create").click();
     if (isMobile) {

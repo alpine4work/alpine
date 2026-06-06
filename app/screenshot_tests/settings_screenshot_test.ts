@@ -14,19 +14,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     const {space, accounts} = await runner.createDemoSpace(context);
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/profile`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/profile`);
     await runner.screenshot("a0", "profile");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/notifications`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/notifications`);
     await expect(
         runner.getByRole("switch", {name: "Receive web push notifications"}),
     ).not.toBeChecked();
     await runner.screenshot("a1", "notifications");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/general`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/general`);
     await runner.screenshot("a2", "general");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/people`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/people`);
     await runner.screenshot("a3", "people");
 
     await runner.getByRole("button", {name: "Invite"}).click();
@@ -44,15 +44,15 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         }),
     ]);
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/bots`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/bots`);
     await runner.screenshot("a5", "bots");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/bots/${chatGptKnownBotId}`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/bots/${chatGptKnownBotId}`);
     await runner.screenshot("a6", "bot-chatgpt");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/settings/bots/${cursorKnownBotId}`);
+    await runner.goto(accounts.cassCade, `/settings/${space.id}/bots/${cursorKnownBotId}`);
     await runner.screenshot("a7", "bot-cursor");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty?purchased=lifetime-access`);
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}?purchased=lifetime-access`);
     await runner.screenshot("a8", "purchased-lifetime-access-modal");
 }

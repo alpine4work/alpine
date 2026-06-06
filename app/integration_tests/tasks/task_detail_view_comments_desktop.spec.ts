@@ -40,7 +40,7 @@ async function openGhostTaskFromCreateMenu(page: Page) {
 }
 
 function getTaskIdFromUrl(page: Page): TaskId {
-    const taskId = page.url().match(/\/tasks\/([^/?]+)/)?.[1];
+    const taskId = page.url().match(/\/task\/([^/?]+)/)?.[1];
     return assertExists(taskId) as TaskId;
 }
 
@@ -49,7 +49,7 @@ test("can create a comment on a ghost task", async ({page, context: browserConte
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await openGhostTaskFromCreateMenu(page);
 
@@ -76,7 +76,7 @@ test("can create a comment with a file on a ghost task", async ({
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await openGhostTaskFromCreateMenu(page);
 
@@ -172,12 +172,12 @@ test("comment access can be gained and lost in realtime", async ({
     await collection2.access.grant(session1, session2, "Comment");
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection1.id}`);
+    await page1.goto(`/task-collection/${collection1.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${task1.id}`);
+    await page2.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeHidden();
     await expect(page2.getByText("Comment 1")).toBeHidden();
@@ -192,12 +192,12 @@ test("comment access can be gained and lost in realtime", async ({
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeVisible();
     await expect(page2.getByText("Comment 1")).toBeVisible();
 
-    await page2.goto(`/s/${space.id}/tasks/${task2.id}`);
+    await page2.goto(`/task/${task2.id}`);
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeVisible();
     await expect(page2.getByText("Comment 2")).toBeVisible();
 
-    await page1.goto(`/s/${space.id}/tasks/collections/${collection2.id}`);
+    await page1.goto(`/task-collection/${collection2.id}`);
     await page1.getByRole("button", {name: "Share"}).click();
     await page1
         .getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)
@@ -225,12 +225,12 @@ test("task comments update in realtime across accounts", async ({
     await collection.access.grant(session1, session2, "Comment");
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page1.goto(`/task/${task.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page2.goto(`/task/${task.id}`);
 
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeVisible();
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeVisible();

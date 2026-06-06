@@ -23,7 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -73,15 +73,18 @@ export const reduceTaskNotesContentEditorState = createCollaborativeContentEdito
 });
 
 export function getInitialTaskNotesContentEditorState({
+    spaceId,
     taskId,
     initialNotesVersion,
     initialNotesContent,
 }: {
+    spaceId: SpaceId;
     taskId: TaskId;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }): TaskNotesContentEditorState {
     return getInitialCollaborativeContentEditorState({
+        spaceId,
         initialVersion: initialNotesVersion,
         initialContent: initialNotesContent,
         reduceReferences: reduceContentReferences,
@@ -255,6 +258,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                                     extra: {
                                         type: "Reset",
                                         state: getInitialCollaborativeContentEditorState({
+                                            spaceId: state.spaceId,
                                             initialVersion: output.result.newVersion,
                                             initialContent: output.result.content,
                                             reduceReferences: reduceContentReferences,

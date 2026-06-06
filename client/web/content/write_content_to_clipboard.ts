@@ -19,7 +19,7 @@ export async function writeContentToClipboard(
     fileAttachmentTarget: FileAttachmentTarget | null,
     slice: Slice = content.doc.slice(0),
 ) {
-    const state = ContentEditorState.create(content)._getInternalState();
+    const state = ContentEditorState.create({spaceId, content})._getInternalState();
     const {schema} = state.doc.type;
 
     const view = new EditorView(null, {

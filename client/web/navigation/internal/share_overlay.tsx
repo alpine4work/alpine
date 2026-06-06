@@ -425,7 +425,7 @@ function ShareOverlay(
                                                     generateChronologicalId<PostDraftId>();
 
                                                 await navigate(
-                                                    `/s/${space.id}/posts/new/${draftId}?focus=content&share=${entityId}`,
+                                                    `/post/new/${draftId}/${space.id}?focus=content&share=${entityId}`,
                                                 );
 
                                                 // Assume copy will work and close overlay without flicker.

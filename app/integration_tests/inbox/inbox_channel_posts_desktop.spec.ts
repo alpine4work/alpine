@@ -17,12 +17,12 @@ test("can implicitly archive single channel posts inbox entry", async ({
     await channel.subscribe(session1);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/inbox`);
+    await page1.goto(`/inbox/${space.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     await page2.getByRole("button", {name: "Post"}).click();
     await (await page2.getByLabel("New post").elementHandle())!.waitForElementState("stable");

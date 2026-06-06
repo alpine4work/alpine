@@ -74,4 +74,8 @@ export type KeyboardShortcutHintHotKey =
     | ","
     | "."
     | "/"
-    | "enter";
+    | "enter"
+    | "left"
+    | "right"
+    | "up"
+    | "down";

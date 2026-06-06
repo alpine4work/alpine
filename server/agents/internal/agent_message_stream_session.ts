@@ -290,7 +290,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         void this._update(span, [
             {
                 type: "Reasoning",
-                content: parseApiContentFromMarkdown(summary, {spaceId: this._request.spaceId}),
+                content: parseApiContentFromMarkdown(summary),
             },
         ]);
     }

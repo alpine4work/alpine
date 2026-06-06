@@ -32,7 +32,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SiteId} from "~/shared/id/types/id_types.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;
@@ -165,7 +165,7 @@ export class TestDocument {
                     [
                         schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
                         ...(options.body
-                            ? parseDocumentTestContent(session.space.id, options.body)
+                            ? parseDocumentTestContent(options.body)
                             : [schema.node("paragraph", {}, [])]),
                     ],
                 ),
@@ -381,8 +381,8 @@ export class TestDocument {
     }
 }
 
-function parseDocumentTestContent(spaceId: SpaceId, content: string) {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parseDocumentTestContent(content: string) {
+    const apiContent = parseApiContentFromMarkdown(content);
 
     return Array.from(
         fromApiContentBlockElements(DocumentContentProsemirrorSchema, apiContent.elements),

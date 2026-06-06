@@ -6,7 +6,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const chat = await TestChat.get(accounts.cliffWeathers, accounts.cassCade);
 
@@ -26,7 +26,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 3. Hover over the \u201Ccoffee streak\u201D line and react with \u201CLaugh\u201D.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/chat/${chat.id}`,
+        path: `/chat/${chat.id}`,
         viewport: scalableDemoWideViewport,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");
@@ -41,7 +41,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
                     async cliffBrowser => {
                         await wait(2000);
 
-                        await cliffBrowser.goto(`/s/${space.id}/chat/${chat.id}`);
+                        await cliffBrowser.goto(`/chat/${chat.id}`);
 
                         const input = cliffBrowser.getByLabel("New message");
                         await input.click();

@@ -35,8 +35,8 @@ globalThis.__remixErrorSchema = ErrorSchema;
 async function main() {
     registerAlwaysClearSelectionOnMouseDown();
 
-    // Used by `s.$spaceId.inbox.tsx` to load routes rendered in the peek before React
-    // hydration starts (which will need the route module code).
+    // Used by `_space.inbox.$spaceId.tsx` to load routes rendered in the peek before
+    // React hydration starts (which will need the route module code).
     if (window.__remixLoadExtraRouteIds) {
         await runAllPromises(
             window.__remixLoadExtraRouteIds.map(routeId =>

@@ -420,7 +420,7 @@ export function useSiteMutations() {
                               parseSiteItemSearchEntityId(adjacentEntityId),
                               routeLayout,
                           )
-                        : `/s/${space.id}/sites/${siteId}`,
+                        : `/site/${siteId}`,
                 );
                 flushSync(() => handleEventForSite(events));
             });
@@ -508,7 +508,7 @@ export function useSiteMutations() {
                     sitePosition: {siteId, parentId, orderKey},
                 });
 
-                await navigateWithinSite(`/s/${space.id}/documents/${documentId}`);
+                await navigateWithinSite(`/doc/${documentId}`);
                 flushSync(() => handleEventForSite(eventsForSite));
             });
         },
@@ -562,7 +562,7 @@ export function useSiteMutations() {
                     ],
                 });
 
-                await navigateWithinSite(`/s/${space.id}/tasks/${taskId}`);
+                await navigateWithinSite(`/task/${taskId}`);
                 if (eventsForSite) {
                     flushSync(() => handleEventForSite(eventsForSite));
                 }
@@ -594,7 +594,7 @@ export function useSiteMutations() {
                     accessPolicy: {type: "Site", siteId, position: {parentId, orderKey}},
                 });
 
-                await navigateWithinSite(`/s/${space.id}/channels/${channelId}`);
+                await navigateWithinSite(`/channel/${channelId}`);
 
                 flushSync(() => handleEventForSite(eventsForSite));
             });
@@ -642,7 +642,7 @@ export function useSiteMutations() {
                     ],
                 });
 
-                await navigateWithinSite(`/s/${space.id}/tasks/collections/${collectionId}`);
+                await navigateWithinSite(`/task-collection/${collectionId}`);
                 if (eventsForSite) {
                     flushSync(() => handleEventForSite(eventsForSite));
                 }

@@ -78,7 +78,12 @@ export function PostCreator({
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: initialContent,
+        }),
+    );
 
     const [channel, setChannel] = useState(initialChannel);
 
@@ -194,7 +199,7 @@ export function PostCreator({
                 if (shouldReturnBack) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${space.id}/posts/${post.id}`, {
+                    await navigate(`/post/${post.id}`, {
                         replace: true,
                         // In our native mobile app, we want to call
                         // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
@@ -221,9 +226,7 @@ export function PostCreator({
                 {createButtonNode}
             </Box>
         ),
-        defaultPreviousRoute: channelId
-            ? `/s/${space.id}/channels/${channelId}`
-            : `/s/${space.id}/create`,
+        defaultPreviousRoute: channelId ? `/channel/${channelId}` : `/create/${space.id}`,
     });
 
     const onSelectGif = useCallback((url: URL) => {

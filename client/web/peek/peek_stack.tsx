@@ -323,8 +323,6 @@ function PeekStackContextProvider(
 
     const reporter = useReporter();
     const platform = usePlatform();
-    const {space} = useSpaceContext();
-
     const stackRef = useRef<PeekStackRef>(null);
     const peekStackGlobalKeyDownManualContextRef =
         useRef<GlobalKeyDownManualContextProviderRef>(null);
@@ -591,14 +589,11 @@ function PeekStackContextProvider(
                             path.pathname ?? "/",
                         );
 
-                        // Don't open a peek if the path is for a different space.
-                        if (
-                            peekRouteMatches[peekRouteMatches.length - 1]?.params.spaceId !==
-                            space.id
-                        ) {
-                            return;
-                        }
-
+                        // NOTE(calebmer, 2026-06-05): So the URL paths have changed such that this comment
+                        // doesn't make sense anymore. I'm going to leave the comment for now since I can't
+                        // figure out the right way to update it or if the comment even makes sense
+                        // anymore? This branch isn't hurting anyway so I'm just gonna leave it alone.
+                        //
                         // So sometimes we have routes like that look like this:
                         //
                         // - `route/s/$spaceId/tasks/$taskId`

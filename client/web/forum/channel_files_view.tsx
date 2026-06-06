@@ -50,7 +50,7 @@ import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
     backfillChannelAndMetadata,
     getChannelAndMetadata,
@@ -68,7 +68,7 @@ export function ChannelFilesView({
     const clientInfo = useClientInfo();
     const spacingScale = useSpacingScale();
     const remPx = remPxBySpacingScale[spacingScale];
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -244,7 +244,6 @@ export function ChannelFilesView({
                 title={
                     <ChannelFilesViewNavigationBarTitle
                         title={channel.name}
-                        spaceId={space.id}
                         channelId={channelId}
                         isFromChannelView={isFromChannelView}
                     />
@@ -411,12 +410,10 @@ export function ChannelFilesView({
 
 function ChannelFilesViewNavigationBarTitle({
     title,
-    spaceId,
     channelId,
     isFromChannelView,
 }: {
     title: string;
-    spaceId: SpaceId;
     channelId: ChannelId;
     isFromChannelView: boolean;
 }) {
@@ -427,7 +424,7 @@ function ChannelFilesViewNavigationBarTitle({
             if (isFromChannelView) {
                 navigate(-1);
             } else {
-                navigate(`/s/${spaceId}/channels/${channelId}`, {
+                navigate(`/channel/${channelId}`, {
                     stopPropagation: true,
                 });
             }
@@ -441,7 +438,7 @@ function ChannelFilesViewNavigationBarTitle({
                 cursor: "pointer",
                 opacity: isPressed ? "60" : undefined,
             })}
-            href={`/s/${spaceId}/channels/${channelId}`}
+            href={`/channel/${channelId}`}
             onClick={event => {
                 event.preventDefault();
                 pressProps.onClick?.(event);

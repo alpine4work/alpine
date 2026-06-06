@@ -32,7 +32,7 @@ export class TaskCommentModel
         contentVersion: number,
         pos: number | "Files",
     ): string {
-        const baseUrl = `/s/${spaceId}/tasks/${this.taskId}/comments/${this.index}/reactions`;
+        const baseUrl = `/task/${this.taskId}/comment/${this.index}/reactions`;
         const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
         return `${baseUrl}?at=${at}`;
     }

@@ -63,7 +63,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
-import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
+import {Id, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -72,12 +72,9 @@ import {
     DocumentId,
     FileId,
     PostId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-
-export const arbitrarySpaceId = generateId<SpaceId>();
 
 // Use TypeScript `Record` so we get a type error when a type is added to the
 // union, reminding us that we need to add another entry.
@@ -130,7 +127,6 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
                     .tuple(ApiMentionTargetArbitrary, fc.boolean())
                     .map(([targetPathObject, isAccountShortName]) =>
                         printApiMentionPathToMentionLinkUrl(targetPathObject, {
-                            spaceId: arbitrarySpaceId,
                             isAccountShortName,
                         }),
                     ),

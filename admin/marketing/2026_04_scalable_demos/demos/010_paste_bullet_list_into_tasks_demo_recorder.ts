@@ -55,7 +55,7 @@ how the bullet list could come from anywhere.
    again.
         `,
         session,
-        path: `/s/${space.id}/tasks`,
+        path: `/my-tasks/${space.id}`,
         viewport: {
             width: scalableDemoWideViewport.width,
             height: scalableDemoWideViewport.width / goldenRatio,

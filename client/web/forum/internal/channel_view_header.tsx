@@ -225,11 +225,16 @@ function ChannelViewHeaderMobileDescriptionEditor({
     const reporter = useReporter();
     const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
+    const {space} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(channel.description, {selection: "start"}),
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: channel.description,
+            selection: "start",
+        }),
     );
 
     const [isSaving, setIsSaving] = useState(false);

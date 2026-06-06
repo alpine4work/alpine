@@ -1,5 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -18,7 +19,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -29,7 +30,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
     await page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}).click();
-    await page.keyboard.press("ControlOrMeta+ArrowRight");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "right"));
 
     await page.keyboard.type(" abc");
 
@@ -59,7 +60,7 @@ test("can update title", async ({page, context: browserContext}) => {
 
     await page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}).blur();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -69,7 +70,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -79,7 +80,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -89,7 +90,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -99,7 +100,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -121,7 +122,7 @@ test("can update title", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -140,7 +141,7 @@ test("can delete", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(page.getByText("This task was deleted")).toBeHidden();
     await expect(
@@ -181,7 +182,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -255,7 +256,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Test1"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Test2"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -265,7 +266,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -275,7 +276,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -285,7 +286,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -295,7 +296,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -305,7 +306,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -315,7 +316,7 @@ test("can update assignee", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -334,7 +335,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -409,7 +410,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByRole("option", {name: "Low"})).toBeHidden();
     await expect(page.getByRole("option", {name: "Medium"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -419,7 +420,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Medium");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -429,7 +430,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Low");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -439,7 +440,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -449,7 +450,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -459,7 +460,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Low");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -469,7 +470,7 @@ test("can update priority", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toHaveValue("Medium");
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -488,7 +489,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -540,7 +541,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("mm/dd/yyyy");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -550,7 +551,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/2000");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -560,7 +561,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1999");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -570,7 +571,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1998");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -580,7 +581,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/1999");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -590,7 +591,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/2000");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -609,7 +610,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(page.getByRole("img", {name: "Open", exact: true})).toBeVisible();
     await expect(
@@ -694,7 +695,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByRole("img", {name: "Closed", exact: true})).toBeVisible();
     await expect(
@@ -705,7 +706,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByRole("img", {name: "Open", exact: true})).toBeVisible();
     await expect(
@@ -716,7 +717,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByRole("img", {name: "Open (active)", exact: true})).toBeVisible();
     await expect(
@@ -727,7 +728,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByRole("img", {name: "Open", exact: true})).toBeVisible();
     await expect(
@@ -738,7 +739,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(page.getByRole("img", {name: "Open (active)", exact: true})).toBeVisible();
     await expect(
@@ -760,7 +761,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(page.getByRole("img", {name: "Closed", exact: true})).toBeVisible();
     await expect(
@@ -783,7 +784,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -864,39 +865,39 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(page.getByLabel("Priority")).toBeHidden();
     await expect(page.getByRole("group", {name: "Due date"})).toBeHidden();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test3Add");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test3Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test2test3Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1test2Add");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(page.getByTestId("TaskCollectionsInput")).toHaveText("test1Add");
 });
@@ -916,7 +917,7 @@ test("pressing backspace to delete a child task moves focus back to the parent t
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+    await page.goto(`/task/${parentTask.id}`);
 
     await expectTaskGridView(page, [[true, "Task 1"]], {withoutColumns: true});
 

@@ -205,9 +205,9 @@ export function CreateWidgetSecondaryMenuBar({
                 const documentId = generateId();
 
                 if (withRootNavigateToCreatedDocument) {
-                    await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                    await rootNavigate(`/doc/${documentId}?create=${space.id}&focus`);
                 } else {
-                    await navigate(`/s/${space.id}/documents/${documentId}?create&focus`);
+                    await navigate(`/doc/${documentId}?create=${space.id}&focus`);
                 }
             },
         },
@@ -222,7 +222,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create task",
             onPress: async () => {
                 const taskId = generateId();
-                await navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
+                await navigate(`/task/${taskId}?create=${space.id}&focus`);
             },
         },
         {
@@ -255,9 +255,7 @@ export function CreateWidgetSecondaryMenuBar({
                     },
                 ]);
 
-                await rootNavigate(
-                    `/s/${space.id}/tasks/${taskId}?create=${createSearchParam}&focus`,
-                );
+                await rootNavigate(`/task/${taskId}?create=${space.id}+${createSearchParam}&focus`);
             },
         },
         {
@@ -271,7 +269,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create task collection",
             onPress: async () => {
                 const collectionId = generateId();
-                await navigate(`/s/${space.id}/tasks/collections/${collectionId}?create`);
+                await navigate(`/task-collection/${collectionId}?create=${space.id}`);
             },
         },
         {
@@ -284,7 +282,7 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create task view",
             onPress: async () => {
-                await navigate(`/s/${space.id}/tasks/view`);
+                await navigate(`/task-view/new/${space.id}`);
             },
         },
         {
@@ -298,7 +296,7 @@ export function CreateWidgetSecondaryMenuBar({
             pressErrorTitle: "Couldn\u2019t create post",
             onPress: async () => {
                 const draftId = generateChronologicalId();
-                await navigate(`/s/${space.id}/posts/new/${draftId}?focus=content`);
+                await navigate(`/post/new/${draftId}/${space.id}?focus=content`);
             },
         },
         {
@@ -311,7 +309,7 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create channel",
             onPress: async () => {
-                await navigate(`/s/${space.id}/channels/new?focus=name`);
+                await navigate(`/channel/new/${space.id}?focus=name`);
             },
         },
         {
@@ -329,7 +327,7 @@ export function CreateWidgetSecondaryMenuBar({
                 // all space accounts before.
                 preloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
 
-                await navigate(`/s/${space.id}/chat/new?focus=picker`);
+                await navigate(`/chat/new/${space.id}?focus=picker`);
             },
         },
         {
@@ -342,7 +340,7 @@ export function CreateWidgetSecondaryMenuBar({
             createVerb: "Create",
             pressErrorTitle: "Couldn\u2019t create chat room",
             onPress: async () => {
-                await navigate(`/s/${space.id}/chat/room/new?focus=name`);
+                await navigate(`/chat/room/new/${space.id}?focus=name`);
             },
         },
         ...(canRenderSiteButton
@@ -358,7 +356,7 @@ export function CreateWidgetSecondaryMenuBar({
                       pressErrorTitle: "Couldn\u2019t create site",
                       onPress: async () => {
                           const siteId = generateId();
-                          await rootNavigate(`/s/${space.id}/sites/${siteId}?create&focus=name`);
+                          await rootNavigate(`/site/${siteId}?create=${space.id}&focus=name`);
                       },
                   },
               ]

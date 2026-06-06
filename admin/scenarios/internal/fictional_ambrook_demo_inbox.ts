@@ -165,8 +165,8 @@ Blah blah blah.
             cliffWeathers,
             Mustache.render(
                 markdown`
-[Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) are you sure
-we have publicity rights for this customer?
+[Cass](https://alpine.inc/mention/{{cassCadeAccountId}}short) are you sure we have publicity rights
+for this customer?
                 `,
                 {
                     spaceId: space.id,
@@ -241,7 +241,7 @@ structured records, ready to review, tag, and export.
 - Make it trivial to pull complete, exportable support for expenses at month‑end and year‑end
             `,
             {
-                spaceUrl: `https://alpine.inc/s/${space.id}`,
+                spaceUrl: `https://alpine.inc/home/${space.id}`,
                 masonClayAccountId: masonClay.account.id,
                 elleKappaTanAccountId: elleKappaTan.account.id,
                 cassCadeAccountId: cassCade.account.id,

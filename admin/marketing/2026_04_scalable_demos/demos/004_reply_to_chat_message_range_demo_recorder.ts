@@ -5,7 +5,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const chat = await TestChat.get(accounts.mattRHorn, accounts.cassCade);
 
@@ -53,7 +53,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 4. Press \u201Crust red\u201D so you can see it highlights in the original message.
         `,
         session: accounts.mattRHorn,
-        path: `/s/${space.id}/chat/${chat.id}`,
+        path: `/chat/${chat.id}`,
         viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

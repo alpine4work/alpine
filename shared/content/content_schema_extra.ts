@@ -10,7 +10,7 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {FileIdOrFileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SiteId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
@@ -22,6 +22,11 @@ import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  */
 function createProsemirrorNodesSpec<Nodes extends {[key: string]: NodeSpec}>(nodes: Nodes): Nodes {
     return nodes;
+}
+
+function isFileEntityUrl(url: string): boolean {
+    const entityId = parseSearchEntityIdFromUrl(url);
+    return entityId !== null && isFileEntityId(entityId);
 }
 
 export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
@@ -77,12 +82,6 @@ export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
                     const href = node.getAttribute("href");
                     if (!href) return false;
 
-                    const spaceIdMatch = href.match(/\/s\/([^/]+)/);
-                    if (!spaceIdMatch) return false;
-                    if (!isId<SpaceId>(spaceIdMatch[1]!)) return false;
-
-                    const spaceId = spaceIdMatch[1];
-
                     // If `data-cy-site` is set, this `<a>` is a Site mention whose `href` points to
                     // the site's first entity (e.g. a Document URL). Parsing the `href` would give us
                     // back the first entity, not the site, so we read the `SiteId` from `data-cy-site`
@@ -103,7 +102,7 @@ export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
                     // in the URL. It's the responsibility of `<ContentEditor>`'s `transformPastedDOM`
                     // to remove the `data-cy-mention` attribute from any mentions in the wrong space.
                     // Since only `<ContentEditor>` will know if we're in the right space.
-                    const entityId = parseSearchEntityIdFromUrl(spaceId, href);
+                    const entityId = parseSearchEntityIdFromUrl(href);
                     if (!entityId) return false;
                     if (!isSearchMentionEntityId(entityId)) return false;
 
@@ -171,7 +170,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                             (childNode instanceof HTMLElement &&
                                 childNode.hasAttribute("data-cy-tmp-file")) ||
                             (childNode instanceof HTMLIFrameElement &&
-                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                isFileEntityUrl(childNode.src))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -233,15 +232,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                     getAttrs: node => {
                         if (!(node instanceof HTMLIFrameElement)) return false;
 
-                        // NOTE(calebmer): Matching `spaceId` from the current URL is a little hacky. What
-                        // if someday you can view content from two spaces at a time? (e.g. In a peek.)
-                        const spaceIdMatch = window.location.pathname.match(/^\/s\/([^/]+)/);
-                        if (!spaceIdMatch) return false;
-
-                        const spaceId = spaceIdMatch[1]!;
-                        if (!isId<SpaceId>(spaceId)) return false;
-
-                        const entityId = parseSearchEntityIdFromUrl(spaceId, node.src);
+                        const entityId = parseSearchEntityIdFromUrl(node.src);
                         if (entityId === null || !isFileEntityId(entityId)) return false;
 
                         return {fileId: entityId};
@@ -295,7 +286,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                             (childNode instanceof HTMLElement &&
                                 childNode.hasAttribute("data-cy-tmp-file")) ||
                             (childNode instanceof HTMLIFrameElement &&
-                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                isFileEntityUrl(childNode.src))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -384,7 +375,7 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
                                 (childNode instanceof HTMLElement &&
                                     childNode.hasAttribute("data-cy-tmp-file")) ||
                                 (childNode instanceof HTMLIFrameElement &&
-                                    childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                    isFileEntityUrl(childNode.src))
                             ) {
                                 return {direction: node.style.float};
                             }

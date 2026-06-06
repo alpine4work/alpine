@@ -58,7 +58,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     const replyToTestId = async (testId: string) => {
         const message = page.getByTestId(testId).getByTestId("MessageViewContent");
@@ -234,7 +234,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Scroll through all messages...
     for (let i = 0; i < 101; i++) {

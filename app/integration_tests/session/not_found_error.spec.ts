@@ -7,21 +7,23 @@ import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
 const {context, services} = createTestServices();
 
-type RemoveSpaceFromAppSpaceRouteId<T> = T extends `routes/s.$spaceId.${infer U}` ? U : never;
+type RemoveSpaceFromAppSpaceRouteId<T> = T extends `routes/_space.${infer U}` ? U : never;
 
-type AppSpaceDynamicRouteId = RemoveSpaceFromAppSpaceRouteId<AppSpaceRouteId> &
-    `${string}$${string}`;
+// Extract all routes that have at least one non-`$spaceId` segment.
+type ExtractDynamicRouteId<T> = T extends `${string}$spaceId${string}`
+    ? T & `${string}$${string}$${string}`
+    : T & `${string}$${string}`;
+
+type AppSpaceDynamicRouteId = ExtractDynamicRouteId<
+    RemoveSpaceFromAppSpaceRouteId<AppSpaceRouteId>
+>;
 
 // We use TypeScript to make sure every dynamic route has an integration test here.
 // If you add a new route then the TypeScript type will update and you'll get a
 // TypeScript error. When this happens please add a test here.
 const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
-    "accounts.$accountId": () => {
-        // This route only redirects to `/chat/with/${accountId}` right now so it doesn't
-        // have its own not found page.
-    },
-    "channels.$channelId._index": () => {
-        test("not found error for route `channels.$channelId._index`", async ({
+    "channel.$channelId._index": () => {
+        test("not found error for route `channel.$channelId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -29,13 +31,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/channels/${generateId()}`);
+            await page.goto(`/channel/${generateId()}`);
 
             await expect(page.getByText("This channel doesn\u2019t exist")).toBeVisible();
         });
     },
-    "channels.$channelId.files": () => {
-        test("not found error for route `channels.$channelId.files`", async ({
+    "channel.$channelId.files": () => {
+        test("not found error for route `channel.$channelId.files`", async ({
             page,
             context: browserContext,
         }) => {
@@ -43,7 +45,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/channels/${generateId()}/files`);
+            await page.goto(`/channel/${generateId()}/files`);
 
             await expect(page.getByText("This channel doesn\u2019t exist")).toBeVisible();
         });
@@ -57,13 +59,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/chat/${generateId()}`);
+            await page.goto(`/chat/${generateId()}`);
 
             await expect(page.getByText("This chat doesn\u2019t exist")).toBeVisible();
         });
     },
-    "chat.$chatId.messages.$index.reactions": () => {
-        test("not found error for route `chat.$chatId.messages.$index.reactions`", async ({
+    "chat.$chatId.message.$index.reactions": () => {
+        test("not found error for route `chat.$chatId.message.$index.reactions`", async ({
             page,
             context: browserContext,
         }) => {
@@ -71,13 +73,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/chat/${generateId()}/messages/42/reactions`);
+            await page.goto(`/chat/${generateId()}/message/42/reactions`);
 
             await expect(page.getByText("This chat doesn\u2019t exist")).toBeVisible();
         });
     },
-    "chat.with.$accountId": () => {
-        test("not found error for route `chat.with.$accountId`", async ({
+    "chat.with.$accountId.$spaceId": () => {
+        test("not found error for route `chat.with.$accountId.$spaceId`", async ({
             page,
             context: browserContext,
         }) => {
@@ -85,13 +87,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/chat/with/${generateId()}`);
+            await page.goto(`/chat/with/${generateId()}/${space.id}`);
 
             await expect(page.getByText("This person doesn\u2019t exist")).toBeVisible();
         });
     },
-    "documents.$documentId._index": () => {
-        test("not found error for route `documents.$documentId._index`", async ({
+    "doc.$documentId._index": () => {
+        test("not found error for route `doc.$documentId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -99,13 +101,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/documents/${generateId()}`);
+            await page.goto(`/doc/${generateId()}`);
 
             await expect(page.getByText("This document doesn\u2019t exist")).toBeVisible();
         });
     },
-    "documents.$documentId.comments.$commentThreadId._index": () => {
-        test("not found error for route `documents.$documentId.comments.$commentThreadId`", async ({
+    "doc.$documentId.thread.$commentThreadId._index": () => {
+        test("not found error for route `doc.$documentId.thread.$commentThreadId`", async ({
             page,
             context: browserContext,
         }) => {
@@ -115,13 +117,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const document = await TestDocument.create(session);
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/documents/${document.id}/comments/${generateId()}`);
+            await page.goto(`/doc/${document.id}/thread/${generateId()}`);
 
             await expect(page.getByText("This comment thread doesn\u2019t exist")).toBeVisible();
         });
     },
-    "documents.$documentId.comments.$commentThreadId.$index.reactions": () => {
-        test("not found error for route `documents.$documentId.comments.$commentThreadId.$index.reactions`", async ({
+    "doc.$documentId.thread.$commentThreadId.comment.$index.reactions": () => {
+        test("not found error for route `doc.$documentId.thread.$commentThreadId.comment.$index.reactions`", async ({
             page,
             context: browserContext,
         }) => {
@@ -131,26 +133,24 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const document = await TestDocument.create(session);
 
             await services.signIn(browserContext, session);
-            await page.goto(
-                `/s/${space.id}/documents/${document.id}/comments/${generateId()}/42/reactions`,
-            );
+            await page.goto(`/doc/${document.id}/thread/${generateId()}/comment/42/reactions`);
 
             await expect(page.getByText("This comment thread doesn\u2019t exist")).toBeVisible();
         });
     },
-    "documents.$documentId.duplicate": () => {
+    "doc.$documentId.duplicate": () => {
         // Doesn't actually load document data so won't throw a not found error on load.
     },
     "notifications.channel-posts.$channelIdAndBucketGeneration": () => {
         // Users generally won't navigate to this route on their own. Don't bother testing
         // the 404 not found page.
     },
-    "notifications.document-comment-threads.$documentIdAndBucketGeneration": () => {
+    "notifications.document-threads.$documentIdAndBucketGeneration": () => {
         // Users generally won't navigate to this route on their own. Don't bother testing
         // the 404 not found page.
     },
-    "posts.$postId._index": () => {
-        test("not found error for route `posts.$postId._index`", async ({
+    "post.$postId._index": () => {
+        test("not found error for route `post.$postId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -158,13 +158,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/posts/${generateId()}`);
+            await page.goto(`/post/${generateId()}`);
 
             await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
-    "posts.$postId.reactions": () => {
-        test("not found error for route `posts.$postId.reactions`", async ({
+    "post.$postId.reactions": () => {
+        test("not found error for route `post.$postId.reactions`", async ({
             page,
             context: browserContext,
         }) => {
@@ -172,13 +172,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/posts/${generateId()}/reactions`);
+            await page.goto(`/post/${generateId()}/reactions`);
 
             await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
-    "posts.$postId.comments.$index.reactions": () => {
-        test("not found error for route `posts.$postId.comments.$index.reactions`", async ({
+    "post.$postId.comment.$index.reactions": () => {
+        test("not found error for route `post.$postId.comment.$index.reactions`", async ({
             page,
             context: browserContext,
         }) => {
@@ -186,17 +186,17 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/posts/${generateId()}/comments/42/reactions`);
+            await page.goto(`/post/${generateId()}/comment/42/reactions`);
 
             await expect(page.getByText("This post doesn\u2019t exist")).toBeVisible();
         });
     },
-    "posts.new.$draftId": () => {
+    "post.new.$draftId.$spaceId": () => {
         // This route accepts any chronological ID the user passes in. It'll error on
         // random IDs but this is a legitimate error.
     },
-    "settings.bots.$botId": () => {
-        test("not found error for route `settings.bots.$botId`", async ({
+    "settings.$spaceId.bots.$botId": () => {
+        test("not found error for route `settings.$spaceId.bots.$botId`", async ({
             page,
             context: browserContext,
         }) => {
@@ -204,13 +204,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/settings/bots/${generateId()}`);
+            await page.goto(`/settings/${space.id}/bots/${generateId()}`);
 
             await expect(page.getByText("This bot doesn\u2019t exist")).toBeVisible();
         });
     },
-    "sites.$siteId._index": () => {
-        test("not found error for route `sites.$siteId._index`", async ({
+    "site.$siteId._index": () => {
+        test("not found error for route `site.$siteId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -218,13 +218,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/sites/${generateId()}`);
+            await page.goto(`/site/${generateId()}`);
 
             await expect(page.getByText("This site doesn\u2019t exist")).toBeVisible();
         });
     },
-    "tasks.$taskId._index": () => {
-        test("not found error for route `tasks.$taskId._index`", async ({
+    "task.$taskId._index": () => {
+        test("not found error for route `task.$taskId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -232,13 +232,13 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/tasks/${generateId()}`);
+            await page.goto(`/task/${generateId()}`);
 
             await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
-    "tasks.$taskId.comments.$index.reactions": () => {
-        test("not found error for route `tasks.$taskId.comments.$index.reactions`", async ({
+    "task.$taskId.comment.$index.reactions": () => {
+        test("not found error for route `task.$taskId.comment.$index.reactions`", async ({
             page,
             context: browserContext,
         }) => {
@@ -246,16 +246,16 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/tasks/${generateId()}/comments/42/reactions`);
+            await page.goto(`/task/${generateId()}/comment/42/reactions`);
 
             await expect(page.getByText("This task doesn\u2019t exist")).toBeVisible();
         });
     },
-    "tasks.$taskId.duplicate": () => {
+    "task.$taskId.duplicate": () => {
         // Doesn't actually load task data so won't throw a not found error on load.
     },
-    "tasks.collections.$collectionId": () => {
-        test("not found error for route `tasks.collections.$collectionId`", async ({
+    "task-collection.$collectionId": () => {
+        test("not found error for route `task-collection.$collectionId`", async ({
             page,
             context: browserContext,
         }) => {
@@ -263,7 +263,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/tasks/collections/${generateId()}`);
+            await page.goto(`/task-collection/${generateId()}`);
 
             await expect(page.getByText("This task collection doesn\u2019t exist")).toBeVisible();
         });
@@ -279,7 +279,7 @@ test("not found error for root space route", async ({page, context: browserConte
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${generateId()}`);
+    await page.goto(`/home/${generateId()}`);
 
     await expect(page.getByText("You don\u2019t have access to this space")).toBeVisible();
 });

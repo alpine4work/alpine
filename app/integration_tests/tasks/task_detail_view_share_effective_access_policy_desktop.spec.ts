@@ -56,7 +56,7 @@ test("can share and unshare a task with the share button without inherited shari
     const task = await TestTask.create(session, {title: "Task"});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
     await expectTaskCanBeOpened(page);
 
     await expect(
@@ -89,7 +89,7 @@ test("can share and unshare everyone in the share modal without inherited sharin
     const task = await TestTask.create(session, {title: "Task"});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
     await expectTaskCanBeOpened(page);
 
     await page.getByRole("button", {name: "Share"}).click();
@@ -134,13 +134,13 @@ test("can share a task with inherited manage access from a collection", async ({
     await collection.access.grant(session1, session2, "Manage");
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page1.goto(`/task/${task.id}`);
     await expectTaskCanBeOpened(page1);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page2.goto(`/task/${task.id}`);
     await expectTaskCanNotBeOpened(page2);
 
     await shareTaskWithAccount(page1, session3.account.initialName);
@@ -174,13 +174,13 @@ test("can share a task with inherited manage access from a parent task", async (
     await parentCollection.access.grant(session1, session2, "Manage");
 
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/tasks/${childTask.id}`);
+    await page1.goto(`/task/${childTask.id}`);
     await expectTaskCanBeOpened(page1);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session3);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${childTask.id}`);
+    await page2.goto(`/task/${childTask.id}`);
     await expectTaskCanNotBeOpened(page2);
 
     await shareTaskWithAccount(page1, session3.account.initialName);
@@ -214,7 +214,7 @@ test("shows collection-based effective permission explanations in task detail sh
     await collection.access.grantUrl(session1);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
     await expectTaskCanBeOpened(page);
 
     await expect(
@@ -329,7 +329,7 @@ test("shows parent-based effective permission explanations in task detail share 
     await parentCollection.access.grantUrl(session1);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/tasks/${childTask.id}`);
+    await page.goto(`/task/${childTask.id}`);
     await expectTaskCanBeOpened(page);
 
     await expect(
@@ -441,7 +441,7 @@ test("shows assignee-based effective permission explanations in task detail shar
     await collection.access.grant(session1, session2, "Manage");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
     await expectTaskCanBeOpened(page);
     await expect(page.getByTestId("TaskAssigneeInput")).toContainText(session3.account.initialName);
 

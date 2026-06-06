@@ -22,7 +22,7 @@ import {ChatId, PostId} from "~/shared/id/types/id_types.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
-    const {space, accounts} = await runner.createDemoSpace(context);
+    const {accounts} = await runner.createDemoSpace(context);
 
     const site = await TestSite.create(accounts.cassCade, {
         name: "FY2026 H2 Planning",
@@ -281,7 +281,7 @@ last open design question is how column resizing should feel.
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/sites/${site.id}`);
+    await runner.goto(accounts.cassCade, `/site/${site.id}`);
 
     // Wait for the section labels (plain text in the sidebar) — proxy for "the whole
     // tree has rendered" so the screenshot captures every depth slot.
@@ -306,8 +306,8 @@ last open design question is how column resizing should feel.
     await runGhostRowMenuScenario(accounts.cassCade, runner);
     await runEntityContextMenuScenario(accounts.cassCade, runner);
     await runSectionContextMenuScenario(accounts.cassCade, runner);
-    await runDragOverlayExpandedSectionScenario(accounts.cassCade, runner, space.id, site.id);
-    await runDragOverlayCollapsedSectionScenario(accounts.cassCade, runner, space.id, site.id);
+    await runDragOverlayExpandedSectionScenario(accounts.cassCade, runner, site.id);
+    await runDragOverlayCollapsedSectionScenario(accounts.cassCade, runner, site.id);
     await runSearchModalMultiselectScenario(accounts.cassCade, runner);
     await runShareMenuScenario(accounts.cassCade, runner);
     await runShareSwitchTogglingOffScenario(accounts.cassCade, runner);
@@ -317,34 +317,34 @@ last open design question is how column resizing should feel.
     // showcase site so every screenshot doubles as a marketing-ready surface with real
     // content — body text, comments, posts, messages, subtasks. Run last so the
     // active-entity state from the share scenarios doesn't bleed across.
-    await runner.goto(accounts.cassCade, `/s/${space.id}/documents/${betsDocument.id}`);
+    await runner.goto(accounts.cassCade, `/doc/${betsDocument.id}`);
     await runner.getByText("Bets and Owners").first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("aj", "chrome-around-document");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${okrsTask.id}`);
+    await runner.goto(accounts.cassCade, `/task/${okrsTask.id}`);
     await runner.getByText("Lock the OKRs").first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("ak", "chrome-around-task");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${tablesProjectTask.id}`);
+    await runner.goto(accounts.cassCade, `/task/${tablesProjectTask.id}`);
     await runner.getByText("Tables GA Project").first().waitFor();
     await runner.getByText("GTM section with Cliff + Holly").first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("al", "chrome-around-project-task");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/collections/${tablesCollection.id}`);
+    await runner.goto(accounts.cassCade, `/task-collection/${tablesCollection.id}`);
     await runner.getByText("Tables crew").first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("am", "chrome-around-task-collection");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/channels/${statusChannel.id}`);
+    await runner.goto(accounts.cassCade, `/channel/${statusChannel.id}`);
     await runner.getByText("Status", {exact: true}).first().waitFor();
     await runner.getByText("Tables status", {exact: false}).first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("an", "chrome-around-channel");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${tablesGAChatRoom.id}`);
+    await runner.goto(accounts.cassCade, `/chat/${tablesGAChatRoom.id}`);
     await runner.getByText("Tables GA launch room").first().waitFor();
     await runner.getByText("latest tables build", {exact: false}).first().waitFor();
     await runner.mouse.move(0, 0);
@@ -913,7 +913,7 @@ async function runActivationAndScrollScenario(
     // Navigating to the entity URL is what triggers `useSideBarState`'s
     // initialization: ancestors of `targetTask` get expanded and the scroll target is
     // armed for the first paint.
-    await runner.goto(session, `/s/${session.space.id}/tasks/${targetTask.id}`);
+    await runner.goto(session, `/task/${targetTask.id}`);
 
     // Wait until the row for the target task mounts — proves the ancestor chain was
     // expanded.
@@ -962,7 +962,7 @@ async function runActivationAndScrollScenario(
 async function runSiteLifecycleScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
     // Start somewhere neutral inside the space — any entity URL puts the global "+"
     // button in the space sidebar in view.
-    await runner.goto(session, `/s/${session.space.id}/`);
+    await runner.goto(session, `/home/${session.space.id}`);
 
     // Click the global "+" Create button. `IconButton` exposes its `description` as
     // `aria-label`, so a label lookup finds it deterministically without depending on
@@ -991,12 +991,12 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
         });
 
     // The "Create → Site" handler generates a `siteId` on the client and navigates to
-    // `/sites/$siteId?create&focus=name`, which creates the site in the loader then
+    // `/site/$siteId?create&focus=name`, which creates the site in the loader then
     // renders — and because the URL carries `?focus=name`, `SiteNameHeader` opens
     // directly in edit mode with `SiteNameEditor`'s input auto-focused and the
     // existing "New site" name pre-selected. Wait for navigation, the welcome copy,
     // and the editor's input (placeholder "New site") to all be on screen.
-    await runner.page.waitForURL(/\/sites\//);
+    await runner.page.waitForURL(/\/site\//);
     await runner.getByText("Start building New site").first().waitFor();
     await runner.getByPlaceholder("New site").first().waitFor();
     await runner.mouse.move(0, 0);
@@ -1017,8 +1017,8 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
     await runner.screenshot("a25", "create-flow-renamed-site");
 
     // Capture the new site's id from the URL before we navigate away — we come back to
-    // its `/sites/$siteId` page once it has content (see the full-site steps).
-    const siteIdMatch = runner.page.url().match(/\/sites\/([^/?#]+)/);
+    // its `/site/$siteId` page once it has content (see the full-site steps).
+    const siteIdMatch = runner.page.url().match(/\/site\/([^/?#]+)/);
     if (!siteIdMatch)
         throw new InternalError("Could not determine the created site id from the URL");
     const siteId = siteIdMatch[1];
@@ -1076,13 +1076,13 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
     // navigates to the new document, so the site is no longer empty afterwards.
     await runner.getByText("Add to site", {exact: true}).first().click();
     await runner.getByText("Document", {exact: true}).first().click();
-    await runner.page.waitForURL(/\/documents\//);
+    await runner.page.waitForURL(/\/doc\//);
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
     // Back on the now-full site page the sidebar renders with its own 3-dot
     // `Site menu`, which takes over favoriting from the nav bar menu.
-    await runner.goto(session, `/s/${session.space.id}/sites/${siteId}`);
+    await runner.goto(session, `/site/${siteId}`);
     await runner.getByLabel("Site menu").first().waitFor();
     await runner.getByLabel("Site menu").first().click();
     await runner.getByText("Favorite").first().waitFor();
@@ -1152,7 +1152,7 @@ async function runDeepNestingScenario(session: TestSpaceSession, runner: Screens
     // Navigate to the deepest task. The site activation auto-expands the ancestor
     // chain (Engineering → Tables → Editor) so the comb is visible without us having
     // to drive clicks.
-    await runner.goto(session, `/s/${session.space.id}/tasks/${firstTaskId}`);
+    await runner.goto(session, `/task/${firstTaskId}`);
     await runner.getByText("Column resizing decision").first().waitFor();
     await runner.mouse.move(0, 0);
 
@@ -1189,7 +1189,7 @@ async function runLongTitlesScenario(session: TestSpaceSession, runner: Screensh
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
+    await runner.goto(session, `/site/${site.id}`);
     await runner.getByText("Quarterly retrospective", {exact: false}).first().waitFor();
     await runner.mouse.move(0, 0);
 
@@ -1210,7 +1210,7 @@ async function runGhostRowMenuScenario(session: TestSpaceSession, runner: Screen
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
+    await runner.goto(session, `/site/${site.id}`);
     await runner.getByText("Add", {exact: true}).first().waitFor();
     await runner.getByText("Add", {exact: true}).first().click();
 
@@ -1248,7 +1248,7 @@ async function runEntityContextMenuScenario(
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
+    await runner.goto(session, `/site/${site.id}`);
     await runner.getByText("Lock the OKRs").first().waitFor();
     await runner.getByText("Lock the OKRs").first().click({button: "right"});
 
@@ -1290,7 +1290,7 @@ async function runSectionContextMenuScenario(
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
+    await runner.goto(session, `/site/${site.id}`);
     await runner.getByText("Planning", {exact: true}).first().waitFor();
     // Match exactly "Planning" so we hit the section row, not the site name header
     // (which contains the word "Planning" as a substring).
@@ -1310,10 +1310,9 @@ async function runSectionContextMenuScenario(
 async function runDragOverlayExpandedSectionScenario(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
-    spaceId: string,
     siteId: string,
 ) {
-    await runner.goto(session, `/s/${spaceId}/sites/${siteId}`);
+    await runner.goto(session, `/site/${siteId}`);
     await runner.getByText("Planning", {exact: true}).first().waitFor();
     await runner.getByText("Bets list reviewed with Rose").first().waitFor();
 
@@ -1332,10 +1331,9 @@ async function runDragOverlayExpandedSectionScenario(
 async function runDragOverlayCollapsedSectionScenario(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
-    spaceId: string,
     siteId: string,
 ) {
-    await runner.goto(session, `/s/${spaceId}/sites/${siteId}`);
+    await runner.goto(session, `/site/${siteId}`);
     await runner.getByText("Launches", {exact: true}).first().waitFor();
 
     // Collapse the Launches section first — root sections default to expanded.
@@ -1399,7 +1397,7 @@ async function runSearchModalMultiselectScenario(
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/sites/${site.id}`);
+    await runner.goto(session, `/site/${site.id}`);
     await runner.getByText("Add", {exact: true}).first().waitFor();
     await runner.getByText("Add", {exact: true}).first().click();
     await runner.getByText("Search for existing", {exact: false}).first().click();
@@ -1432,7 +1430,7 @@ async function runShareMenuScenario(session: TestSpaceSession, runner: Screensho
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/documents/${document.id}`);
+    await runner.goto(session, `/doc/${document.id}`);
     await runner.getByText("Bets and Owners").first().waitFor();
     await runner.getByRole("button", {name: "Share"}).first().click();
     await runner.getByText("Copy link").first().waitFor();
@@ -1466,7 +1464,7 @@ async function runShareSwitchTogglingOffScenario(
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/documents/${document.id}`);
+    await runner.goto(session, `/doc/${document.id}`);
     await runner.getByText("Bets and Owners").first().waitFor();
 
     // The switch label includes the space name; substring match keeps the test
@@ -1503,7 +1501,7 @@ async function runShareSwitchTogglingOnScenario(
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/s/${session.space.id}/documents/${document.id}`);
+    await runner.goto(session, `/doc/${document.id}`);
     await runner.getByText("Bets and Owners").first().waitFor();
 
     await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();

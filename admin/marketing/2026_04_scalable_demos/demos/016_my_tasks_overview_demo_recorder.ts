@@ -190,7 +190,7 @@ the other is scheduled for the end of the week.
    the \u201CActive\u201D section header so the loop point is clean.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/tasks`,
+        path: `/my-tasks/${space.id}`,
         viewport: scalableDemoWideViewport,
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

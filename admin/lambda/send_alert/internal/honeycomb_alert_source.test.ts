@@ -2,7 +2,6 @@ import {HoneycombAlertSource} from "~/admin/lambda/send_alert/internal/honeycomb
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -36,8 +35,6 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
     });
 });
 
-const testSpaceId = "test_space_id_for_snapshots" as SpaceId;
-
 function resetAlertSourceTestEnvironment(): void {
     process.env = {...originalEnv, ...mockEnv};
     mockFetchCalls = [];
@@ -52,7 +49,7 @@ function restoreAlertSourceTestEnvironment(): void {
 
 function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
     const body = fetchCall.body as {channelId: string; content: ApiContent};
-    const markdown = printApiContentToMarkdown(body.content, {spaceId: testSpaceId});
+    const markdown = printApiContentToMarkdown(body.content);
     return `URL: ${fetchCall.url}
 Channel: ${body.channelId}
 

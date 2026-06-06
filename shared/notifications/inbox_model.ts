@@ -85,17 +85,17 @@ export function getInboxEntryKeyPath(
 ): string {
     switch (key.type) {
         case "Chat":
-            return `/s/${spaceId}/chat/${key.chatId}?inbox=show`;
+            return `/chat/${key.chatId}?inbox=show`;
         case "PostComments":
-            return `/s/${spaceId}/posts/${key.postId}?inbox=show`;
+            return `/post/${key.postId}?inbox=show`;
         case "ChannelPosts":
-            return `/s/${spaceId}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`;
+            return `/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`;
         case "DocumentCommentThread":
-            return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}?inbox=show`;
+            return `/doc/${key.documentId}/thread/${key.commentThreadId}?inbox=show`;
         case "DocumentNewCommentThreads":
-            return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
+            return `/notifications/document-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
         case "Task": {
-            return `/s/${spaceId}/tasks/${key.taskId}?inbox=show`;
+            return `/task/${key.taskId}?inbox=show`;
         }
         default:
             throw exhaustive(key);
@@ -112,7 +112,7 @@ export function getInboxEntryPath(
 /**
  * Gets the path for an inbox entry and base64 encodes it to hide the fact that
  * it's a URL. Intended for use in search params, such as the `selected` search
- * param (e.g. https://alpine.inc/s/1234/inbox?selected=<encoded entry path>).
+ * param (e.g. https://alpine.inc/inbox/1234?selected=<encoded entry path>).
  */
 export function getEncodedInboxEntryPath(
     model: InboxEntryModelInterface,
@@ -120,7 +120,7 @@ export function getEncodedInboxEntryPath(
 ): string {
     const entryPath = getInboxEntryPath(model, routeLayout);
     const textEncoder = new TextEncoder();
-    return encodeBase64(textEncoder.encode(entryPath.replace(/^(\/s\/[^/]+\/)/, "")), "Rfc4648Url");
+    return encodeBase64(textEncoder.encode(entryPath), "Rfc4648Url");
 }
 
 interface InboxEntryModelInterface {

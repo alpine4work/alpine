@@ -203,7 +203,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                     searchParams.set("selected", getEncodedInboxEntryPath(firstItem.model, "wide"));
                 }
                 await rootNavigate(
-                    `/s/${space.id}/inbox${
+                    `/inbox/${space.id}${
                         searchParams.size > 0 ? `?${searchParams.toString()}` : ""
                     }`,
                 ).then(onClose);

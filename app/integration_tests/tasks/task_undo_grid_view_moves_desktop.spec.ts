@@ -1,5 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskRowViewPriority} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -140,7 +141,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
 
     await services.signIn(browserContext, session2);
     await page.goto(
-        `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+        `/task-view/new/${space.id}?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
     );
 
     const taskLocator1 = page.getByTestId(/^TaskRowView:/).nth(0);
@@ -204,7 +205,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
@@ -229,7 +230,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).toBeFocused();
@@ -254,7 +255,7 @@ test("undo/redo can move a task between positions", async ({page, context: brows
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
     await expect(taskLocator5.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
@@ -307,7 +308,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
 
     await services.signIn(browserContext, session2);
     await page.goto(
-        `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+        `/task-view/new/${space.id}?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
     );
 
     const taskLocator1 = page.getByTestId(/^TaskRowView:/).nth(0);
@@ -370,7 +371,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
 
@@ -394,7 +395,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).not.toBeFocused();
 
@@ -418,7 +419,7 @@ test("undo/redo can recover a task that leaves the loaded range", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 10");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowPriorityCell")).toBeFocused();
 
@@ -470,7 +471,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
 
     await services.signIn(browserContext, session2);
     await page.goto(
-        `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+        `/task-view/new/${space.id}?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
     );
 
     const taskLocator1 = page.getByTestId(/^TaskRowView:/).nth(0);
@@ -528,7 +529,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).not.toBeFocused();
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).toBeFocused();
 
@@ -552,7 +553,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 8");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).not.toBeFocused();
 
@@ -576,7 +577,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
     await expect(taskLocator8.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 10");
 
-    await page.keyboard.press("Control+z");
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(taskLocator3.getByTestId("TaskRowCollectionsCell")).toBeFocused();
 

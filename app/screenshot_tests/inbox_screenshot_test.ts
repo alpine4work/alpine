@@ -287,7 +287,7 @@ nice
 
     await waitForNotifications(runner);
 
-    return {chat, path: `chat/${chat.id}`};
+    return {chat, path: `/chat/${chat.id}`};
 }
 
 async function createForumInboxEntry(
@@ -398,7 +398,7 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
 
     await waitForNotifications(runner);
 
-    return {channel, path: `notifications/channel-posts/${channel.id}-0`};
+    return {channel, path: `/notifications/channel-posts/${channel.id}-0`};
 }
 
 async function createDocumentNewCommentThreadsInboxEntry(
@@ -446,7 +446,7 @@ feel right. Not blocking, just registering the concern in the doc rather than on
 
     await waitForNotifications(runner);
 
-    return {document, path: `notifications/document-comment-threads/${document.id}-0`};
+    return {document, path: `/notifications/document-threads/${document.id}-0`};
 }
 
 async function createTaskInboxEntry(
@@ -513,7 +513,7 @@ normal docs tidy without blocking precise layout work when someone really needs 
 
     await waitForNotifications(runner);
 
-    return {task, path: `tasks/${task.id}`, collection};
+    return {task, path: `/task/${task.id}`, collection};
 }
 
 async function createChatRoomInboxEntry(
@@ -584,7 +584,7 @@ nice
 
     await waitForNotifications(runner);
 
-    return {chatRoom, path: `chat/${chatRoom.id}`};
+    return {chatRoom, path: `/chat/${chatRoom.id}`};
 }
 
 async function screenshotInboxEntry(
@@ -598,7 +598,7 @@ async function screenshotInboxEntry(
 ) {
     await runner.goto(
         session,
-        `/s/${spaceId}/inbox?selected=${encodeSelectedSpacePath(selectedSpacePath)}`,
+        `/inbox/${spaceId}?selected=${encodeSelectedSpacePath(selectedSpacePath)}`,
         {fixedTime: inboxScreenshotTime},
     );
     await runner.page.getByText(expectedText).first().waitFor();

@@ -86,7 +86,6 @@ export async function loadAgentDocumentPageLinkContent({
                 },
             },
         ),
-        {spaceId: request.spaceId},
     );
 
     const children: Root["children"] = [];

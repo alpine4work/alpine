@@ -428,8 +428,11 @@ export function MessageViewFiles({
             };
 
             const state = ContentEditorState.create({
-                doc: clipboardSchema.node("doc", {}, clipboardFileRows),
-                references: contentReferences,
+                spaceId: space.id,
+                content: {
+                    doc: clipboardSchema.node("doc", {}, clipboardFileRows),
+                    references: contentReferences,
+                },
             })._getInternalState();
             const {schema} = state.doc.type;
 

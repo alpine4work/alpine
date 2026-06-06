@@ -114,7 +114,6 @@ function TaskCollectionChipWithNavigation({
     tabIndex?: number;
     onRemove?: () => void;
 }) {
-    const {space} = useSpaceContext();
     const navigate = useNavigate();
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -128,7 +127,7 @@ function TaskCollectionChipWithNavigation({
 
                 setIsPendingNavigation(true);
 
-                navigate(`/s/${space.id}/tasks/collections/${collection.id}`).finally(() => {
+                navigate(`/task-collection/${collection.id}`).finally(() => {
                     setIsPendingNavigation(false);
                 });
             }}

@@ -44,7 +44,7 @@ test("shows lock icon for private collection chips in task detail view", async (
 
     await ProcessContextModule.waitForTestTasks();
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     const privateChip = page
         .getByTestId("TaskCollectionsInput")
@@ -81,7 +81,7 @@ test("shows lock icon for private collection chips in task query view", async ({
             },
         },
     ]);
-    await page.goto(`/s/${space.id}/tasks/view?filter=${filtersSearchParam}`);
+    await page.goto(`/task-view/new/${space.id}?filter=${filtersSearchParam}`);
 
     const queryCell = page
         .getByTestId(`TaskRowView:${task.id}`)
@@ -121,7 +121,7 @@ test("shows lock icon for private collection options in collections dropdown", a
 
     await ProcessContextModule.waitForTestTasks();
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     const collectionsCombobox = page.getByRole("combobox", {name: "Collections"});
     await collectionsCombobox.click();
@@ -168,7 +168,7 @@ test("shows lock icon for private collection chips in task file entity previews"
 
     await ProcessContextModule.waitForTestTasks();
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const taskPreview = page.getByTestId("ContentFileEntityPreview:Task");
     await expect(taskPreview).toHaveCount(1);

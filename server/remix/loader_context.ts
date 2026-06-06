@@ -1,7 +1,13 @@
+import {
+    AgnosticDataRouteObject,
+    AgnosticRouteMatch,
+    unstable_HandlerResult as HandlerResult,
+} from "@remix-run/router";
 import {ServerRoute} from "@remix-run/server-runtime";
 import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from "cookie";
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {RpcServerActionContextModules} from "~/server/rpc/rpc_server_action_context.js";
@@ -33,6 +39,7 @@ export type LoaderContextModules = Replace<
 > & {
     rpc: LocalRpcContextModule;
     loader: LoaderContextModule;
+    discovery: DiscoveryContextModule;
 };
 
 export interface LoaderArgs {
@@ -43,6 +50,10 @@ export interface LoaderArgs {
     span: TracerSpan;
     // This is added by a patch to `@remix-run/server-runtime`.
     serverRoutes: Array<ServerRoute>;
+    // This is added by a patch to `@remix-run/server-runtime`.
+    matches: Array<
+        AgnosticRouteMatch<string, AgnosticDataRouteObject> & {promise: Promise<HandlerResult>}
+    >;
 }
 
 /**

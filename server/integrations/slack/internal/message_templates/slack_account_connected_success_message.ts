@@ -31,7 +31,7 @@ export function slackAccountConnectedSuccessMessage({
                         emoji: true,
                     },
                     value: "open_alpine_integration_settings",
-                    url: `${edgeServiceUrl}/s/${spaceId}/settings/integrations/slack`,
+                    url: `${edgeServiceUrl}/settings/${spaceId}/integrations/slack`,
                     action_id: "open_alpine_integration_settings",
                 },
             },

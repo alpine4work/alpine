@@ -45,7 +45,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxBannerOutletContainer({
@@ -328,7 +328,7 @@ export function InboxBannerOutletContainer({
                 if (navigationState.hasPreviousLocation) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${entry.model.spaceId}/inbox`);
+                    await navigate(`/inbox/${entry.model.spaceId}`);
                 }
             }
 
@@ -475,27 +475,18 @@ export function InboxBannerOutletContainer({
                                         );
                                         newSearchParams.delete("inbox");
 
-                                        const result = convertPeekPathToSpacePathParts(
-                                            location.pathname,
-                                            newSearchParams,
+                                        const newLocation = convertPeekPathToSpacePath(
+                                            {...location, search: newSearchParams.toString()},
                                             {routeLayout: "wide"},
                                         );
 
-                                        const newLocation = {
-                                            ...location,
-                                            pathname:
-                                                result?.pathnameParts[1].slice(1) ??
-                                                location.pathname.replace(/^\/s\/[^/]+\//, ""),
-                                            search: result?.search ?? newSearchParams.toString(),
-                                        };
-
                                         const selectedSearchParam = encodeBase64(
-                                            textEncoder.encode(createPath(newLocation)),
+                                            textEncoder.encode(createPath(newLocation ?? location)),
                                             "Rfc4648Url",
                                         );
 
                                         await rootNavigate(
-                                            `/s/${space.id}/inbox?${
+                                            `/inbox/${space.id}?${
                                                 entry.model.isArchived ? `tab=done&` : ""
                                             }selected=${selectedSearchParam}`,
                                         );

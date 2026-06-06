@@ -29,12 +29,12 @@ test("can toggle channel sharing on/off with switch", async ({
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -129,12 +129,12 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -262,12 +262,12 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -405,7 +405,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await post.createComment(session1, "bar");
 
             await services.signIn(browserContext, session2);
-            await page.goto(`/s/${space.id}/channels/${channel.id}`);
+            await page.goto(`/channel/${channel.id}`);
 
             await expect(page.getByText("Test Channel 1")).toBeVisible();
             await expect(page.getByText("foo")).toBeVisible();
@@ -575,7 +575,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await post.createComment(session1, "bar");
 
             await services.signIn(browserContext, session2);
-            await page.goto(`/s/${space.id}/channels/${channel.id}`);
+            await page.goto(`/channel/${channel.id}`);
 
             await expect(page.getByText("Test Channel 2")).toBeVisible();
             await expect(page.getByText("foo")).toBeVisible();
@@ -628,7 +628,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await post.createComment(session1, "bar");
 
             await services.signIn(browserContext, session2);
-            await page.goto(`/s/${space.id}/channels/${channel.id}`);
+            await page.goto(`/channel/${channel.id}`);
 
             await expect(page.getByText("Test Channel 3")).toBeVisible();
             await expect(page.getByText("foo")).toBeVisible();
@@ -681,7 +681,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await post.createComment(session1, "bar");
 
             await services.signIn(browserContext, session2);
-            await page.goto(`/s/${space.id}/channels/${channel.id}`);
+            await page.goto(`/channel/${channel.id}`);
 
             await expect(page.getByText("Test Channel 4")).toBeVisible();
             await expect(page.getByText("foo")).toBeVisible();
@@ -734,7 +734,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await post.createComment(session1, "bar");
 
             await services.signIn(browserContext, session2);
-            await page.goto(`/s/${space.id}/channels/${channel.id}`);
+            await page.goto(`/channel/${channel.id}`);
 
             await expect(page.getByText("Test Channel 5")).toBeVisible();
             await expect(page.getByText("foo")).toBeVisible();
@@ -774,12 +774,12 @@ test("can switch other account access level between comment and view in realtime
     await channel.createPost(session2, "Hello, world!");
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
     await expect(page2.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
@@ -885,7 +885,7 @@ test("can switch own account access level between manage and view in realtime", 
     await channel.createPost(session2, "Hello, world!");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
     await page.getByRole("button", {name: "0 comments"}).click();
@@ -942,7 +942,7 @@ test("can\u2019t change permission level of account who invited you", async ({
     await channel.access.grant(session1, session2);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await page.getByTestId("NavigationBar").getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Share"}).click();
@@ -1014,7 +1014,7 @@ test("can\u2019t change permission level of account who invited the account who 
     await channel.access.grant(session2, session3);
 
     await services.signIn(browserContext, session3);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await page.getByTestId("NavigationBar").getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Share"}).click();
@@ -1088,7 +1088,7 @@ test("will be warned before lowering your own permission level", async ({
     await channel.access.grant(session1, session2);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await page.getByTestId("NavigationBar").getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Share"}).click();
@@ -1157,7 +1157,7 @@ test("will be prevented from lowering your own permission level if you\u2019re t
     await channel.access.grant(session1, session2, "Edit");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await page.getByTestId("NavigationBar").getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Share"}).click();
@@ -1243,12 +1243,12 @@ test("will send a notification when sharing with account", async ({
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -1289,12 +1289,12 @@ test("can share a public channel with any other account in the space", async ({
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -1334,12 +1334,12 @@ test("can share a public channel with any other account in the space and upgrade
     await channel.access.grantDefault(session1, "View");
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -1382,12 +1382,12 @@ test("can share a private channel with any other account in the space", async ({
     });
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Test Channel")).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeHidden();
@@ -1431,12 +1431,12 @@ test("anonymous users can view channel shared with url grant", async ({
     await post.createComment(session, "Test post comment content");
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page2.goto(`/channel/${channel.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
 
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page1.goto(`/channel/${channel.id}`);
 
     await expect(page1.getByText("Couldn\u2019t open channel")).toBeVisible();
     await expect(page1.getByText("Test Channel")).toBeHidden();
@@ -1461,7 +1461,7 @@ test("anonymous users can view channel shared with url grant", async ({
 
     // Doesn't update in realtime so keep reloading until we can see the channel.
     await expect(async () => {
-        await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+        await page1.goto(`/channel/${channel.id}`);
         await expect(page1.getByText("Test Channel")).toBeVisible({timeout: 250});
     }).toPass({timeout: 5000});
 
@@ -1574,7 +1574,7 @@ test("anonymous users can view mentions in shared channel posts and comments", a
         ).toBe("View");
     }).toPass({timeout: 5000});
 
-    await page.goto(`/s/${space.id}/channels/${channel.id}`);
+    await page.goto(`/channel/${channel.id}`);
 
     await expect(page.getByText("Test Channel")).toBeVisible();
     await expect(page.getByText("Post mentions:")).toBeVisible();
@@ -1619,7 +1619,7 @@ test("anonymous users can open channel files page with post and comment files", 
 
     await channel.access.grantUrl(session, "View");
 
-    await page.goto(`/s/${space.id}/channels/${channel.id}/files`);
+    await page.goto(`/channel/${channel.id}/files`);
 
     await expect(page.getByTestId("ContentFilePreview:image/png")).toHaveCount(1);
 });

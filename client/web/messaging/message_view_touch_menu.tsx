@@ -163,6 +163,7 @@ export function MessageViewTouchMenu<
 
                     messageEditing.dispatch({
                         type: "StartEditing",
+                        spaceId: space.id,
                         messageIndex: message.index,
                         messageRoomKey: message.getRoomKey(),
                         messagePayload,

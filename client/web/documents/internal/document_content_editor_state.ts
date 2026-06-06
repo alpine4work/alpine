@@ -43,6 +43,7 @@ import {
     AccountId,
     DocumentCommentThreadId,
     FileId,
+    SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -148,6 +149,7 @@ type DocumentContentEditorExtraState = {
 
 export function getInitialDocumentContentEditorState(
     options: {
+        spaceId: SpaceId;
         accessLevel: AccessLevel;
     } & (
         | {
@@ -165,6 +167,7 @@ export function getInitialDocumentContentEditorState(
     ),
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
+        spaceId: options.spaceId,
         initialVersion: options.initialVersion ?? 0,
         initialContent: options.initialContent ?? {
             doc: createEmptyDocumentContent(options.currentAccountId),
@@ -648,6 +651,7 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         }
         case "ResetToPersistedVersion": {
             return getInitialDocumentContentEditorState({
+                spaceId: state.spaceId,
                 currentAccountId: state.extra.currentAccountId,
                 accessLevel: state.extra.accessLevel,
                 initialVersion: state.persistedVersion,

@@ -48,18 +48,14 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 // Always prefer adding a shimmer for new routes that'll be rendered for users in
 // the UI.
 type IrrelevantAppSpaceRouteIdWithoutShimmer =
-    | "routes/s.$spaceId.accounts.$accountId"
-    | "routes/s.$spaceId.dev.empty"
-    | "routes/s.$spaceId.dev.feed"
-    | "routes/s.$spaceId.integrations.slack.oauth"
-    | "routes/s.$spaceId.invite._index"
-    | "routes/s.$spaceId.invite.accept"
-    | "routes/s.$spaceId.invite.reject-and-mark-as-spam"
-    | "routes/s.$spaceId.notifications.unsubscribe"
-    | "routes/s.$spaceId.settings"
-    | "routes/s.$spaceId.settings._index"
+    | "routes/_space.dev.empty.$spaceId"
+    | "routes/_space.dev.feed.$spaceId"
+    | "routes/_space.integrations.slack.oauth.$spaceId"
+    | "routes/_space.notifications.unsubscribe.$spaceId"
+    | "routes/_space.settings.$spaceId"
+    | "routes/_space.settings.$spaceId._index"
     // TODO(#sites): Add shimmers for these routes.
-    | "routes/s.$spaceId.sites.$siteId._index";
+    | "routes/_space.site.$siteId._index";
 
 type ShimmerScreenshotSetup = () => Promise<ShimmerScreenshotSetupResult>;
 
@@ -191,7 +187,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         // The inbox test is intentionally the very first test. To guarantee our
         // notifications are pristine and not affected by mutations performbed by any other
         // tests.
-        "routes/s.$spaceId.inbox": async () => {
+        "routes/_space.inbox.$spaceId": async () => {
             let selectedPath: string | null = null;
             for (let i = 0; i < 5; i++) {
                 const channel = await TestChannel.create(session, {
@@ -243,7 +239,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                     assert(inboxEntry !== undefined);
                     const key = inboxEntry.model.getKey();
                     assert(key.type === "ChannelPosts");
-                    selectedPath = `notifications/channel-posts/${key.channelId}-${key.bucketGeneration}`;
+                    selectedPath = `/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}`;
                 }
             }
             assert(selectedPath !== null);
@@ -256,12 +252,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             );
 
             return {
-                path: `/s/${space.id}/inbox?selected=${selectedSearchParam}`,
+                path: `/inbox/${space.id}?selected=${selectedSearchParam}`,
                 session: otherSession3,
             };
         },
 
-        "routes/s.$spaceId._index": async () => {
+        "routes/_space.home.$spaceId._index": async () => {
             const feedChannel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -370,9 +366,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                 JSON.stringify(Schema.array(FeedEntrySchema).serialize(feedEntries)),
             );
 
-            return {path: `/s/${space.id}/dev/feed?${feedSearchParams}`};
+            return {path: `/dev/feed/${space.id}?${feedSearchParams}`};
         },
-        "routes/s.$spaceId.channels.$channelId._index": async () => {
+        "routes/_space.channel.$channelId._index": async () => {
             const channel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -396,9 +392,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
                 overrideCreatedTime: new Date(screenshotTestEndTime.getTime() - 500),
             });
 
-            return {path: `/s/${space.id}/channels/${channel.id}`};
+            return {path: `/channel/${channel.id}`};
         },
-        "routes/s.$spaceId.channels.$channelId.files": async () => {
+        "routes/_space.channel.$channelId.files": async () => {
             const content = new TextEncoder().encode(
                 markdown`
 # Lorem Ipsum
@@ -428,12 +424,12 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 overrideCreatedTime: new Date(screenshotTestEndTime.getTime() - 250),
             });
 
-            return {path: `/s/${space.id}/channels/${channel.id}/files`};
+            return {path: `/channel/${channel.id}/files`};
         },
-        "routes/s.$spaceId.channels.new": async () => {
-            return {path: `/s/${space.id}/channels/new`};
+        "routes/_space.channel.new.$spaceId": async () => {
+            return {path: `/channel/new/${space.id}`};
         },
-        "routes/s.$spaceId.chat.$chatId._index": async () => {
+        "routes/_space.chat.$chatId._index": async () => {
             const chat = await TestChat.get(session, otherSession1, otherSession2, otherSession3);
             const messages = [
                 {author: otherSession1, content: lorem.messageWidth48},
@@ -472,9 +468,9 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 overrideCreatedTime: new Date(createdTime),
             });
 
-            return {path: `/s/${space.id}/chat/${chat.id}`};
+            return {path: `/chat/${chat.id}`};
         },
-        "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": async () => {
+        "routes/_space.chat.$chatId.message.$index.reactions": async () => {
             const chat = await TestChat.get(session, otherSession1, otherSession2, otherSession3);
             const reactionMessage = await chat.sendMessage(otherSession1, lorem.sentence, {
                 overrideCreatedTime: new Date(screenshotTestEndTime.getTime() - 100),
@@ -496,11 +492,11 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
             }`;
 
             return {
-                path: `/s/${space.id}/dev/empty`,
-                peekPath: `/s/${space.id}/chat/${chat.id}/messages/${reactionMessage.index}/reactions?at=${reactionSearchParam}`,
+                path: `/dev/empty/${space.id}`,
+                peekPath: `/chat/${chat.id}/message/${reactionMessage.index}/reactions?at=${reactionSearchParam}`,
             };
         },
-        "routes/s.$spaceId.chat.new": async () => {
+        "routes/_space.chat.new.$spaceId": async () => {
             const chat = await TestChat.get(session, otherSession1);
             const messages = [
                 {author: session, content: lorem.messageWidth32},
@@ -526,13 +522,13 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
             });
 
             return {
-                path: `/s/${space.id}/chat/new?accounts=${otherSession1.account.id}`,
+                path: `/chat/new/${space.id}?accounts=${otherSession1.account.id}`,
             };
         },
-        "routes/s.$spaceId.chat.room.new": async () => {
-            return {path: `/s/${space.id}/chat/room/new`};
+        "routes/_space.chat.room.new.$spaceId": async () => {
+            return {path: `/chat/room/new/${space.id}`};
         },
-        "routes/s.$spaceId.chat.with.$accountId": async () => {
+        "routes/_space.chat.with.$accountId.$spaceId": async () => {
             const chat = await TestChat.get(session, otherSession2);
             const mergeBreakGapMs = 6 * 60 * 1000;
             const messages = [
@@ -572,15 +568,15 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 overrideCreatedTime: new Date(createdTime),
             });
 
-            return {path: `/s/${space.id}/chat/with/${otherSession2.account.id}`};
+            return {path: `/chat/with/${otherSession2.account.id}/${space.id}`};
         },
-        "routes/s.$spaceId.create._index": async () => {
-            return {path: `/s/${space.id}/create`};
+        "routes/_space.create.$spaceId._index": async () => {
+            return {path: `/create/${space.id}`};
         },
-        "routes/s.$spaceId.create.more": async () => {
-            return {path: `/s/${space.id}/create/more`};
+        "routes/_space.create.$spaceId.more": async () => {
+            return {path: `/create/${space.id}/more`};
         },
-        "routes/s.$spaceId.documents.$documentId._index": async () => {
+        "routes/_space.doc.$documentId._index": async () => {
             const document = await TestDocument.create(session, {
                 title: lorem.title,
                 access: "Public",
@@ -601,9 +597,9 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 overrideCreatedTime: new Date(screenshotTestEndTime.getTime() - 1000),
             });
 
-            return {path: `/s/${space.id}/documents/${document.id}`};
+            return {path: `/doc/${document.id}`};
         },
-        "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions":
+        "routes/_space.doc.$documentId.thread.$commentThreadId.comment.$index.reactions":
             async () => {
                 const document = await TestDocument.create(session, {
                     title: lorem.title,
@@ -630,11 +626,11 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 }@${reactionCommentModel.payload.contentUpdate?.mappings.length ?? 0}`;
 
                 return {
-                    path: `/s/${space.id}/dev/empty`,
-                    peekPath: `/s/${space.id}/documents/${document.id}/comments/${commentThread.id}/${reactionComment.index}/reactions?at=${reactionSearchParam}`,
+                    path: `/dev/empty/${space.id}`,
+                    peekPath: `/doc/${document.id}/thread/${commentThread.id}/comment/${reactionComment.index}/reactions?at=${reactionSearchParam}`,
                 };
             },
-        "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": async () => {
+        "routes/_space.doc.$documentId.thread.$commentThreadId._index": async () => {
             const document = await TestDocument.create(session, {
                 title: lorem.title,
                 access: "Public",
@@ -679,10 +675,10 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
             }
 
             return {
-                path: `/s/${space.id}/documents/${document.id}/comments/${commentThread.id}`,
+                path: `/doc/${document.id}/thread/${commentThread.id}`,
             };
         },
-        "routes/s.$spaceId.documents.$documentId.duplicate": async () => {
+        "routes/_space.doc.$documentId.duplicate": async () => {
             const document = await TestDocument.create(session, {
                 title: lorem.title,
                 access: "Public",
@@ -703,10 +699,10 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 documentDuplicateSearchParams.set("schema", encodedSchema);
             }
             return {
-                path: `/s/${space.id}/documents/${document.id}/duplicate?${documentDuplicateSearchParams}`,
+                path: `/doc/${document.id}/duplicate?${documentDuplicateSearchParams}`,
             };
         },
-        "routes/s.$spaceId.favorites": async () => {
+        "routes/_space.favorites.$spaceId": async () => {
             const favoriteChannel = await TestChannel.create(session, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -757,9 +753,9 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
                 ),
             );
 
-            return {path: `/s/${space.id}/favorites`, session: otherSession1};
+            return {path: `/favorites/${space.id}`, session: otherSession1};
         },
-        "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": async () => {
+        "routes/_space.notifications.channel-posts.$channelIdAndBucketGeneration": async () => {
             const channel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -794,89 +790,86 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
             assert(key.type === "ChannelPosts");
 
             return {
-                path: `/s/${space.id}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`,
+                path: `/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`,
             };
         },
-        "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration":
-            async () => {
-                const document = await TestDocument.create(otherSession1, {
-                    title: lorem.title,
-                    access: "Public",
-                    body: lorem.documentBody,
-                });
-                await document.updateContentPreview();
+        "routes/_space.notifications.document-threads.$documentIdAndBucketGeneration": async () => {
+            const document = await TestDocument.create(otherSession1, {
+                title: lorem.title,
+                access: "Public",
+                body: lorem.documentBody,
+            });
+            await document.updateContentPreview();
 
-                const commentThreadMessages = [
-                    {author: otherSession2, content: lorem.messageShort},
-                    {author: session, content: lorem.messageWidth64},
-                    {author: session, content: lorem.messageMedium},
-                    {author: otherSession2, content: lorem.messageShort},
-                    {author: otherSession2, content: lorem.messageWidth64},
-                    {author: otherSession2, content: lorem.messageWidth128},
-                    {author: otherSession3, content: lorem.messageMedium},
-                ];
-                const firstCommentThreadMessage = commentThreadMessages[0];
-                assert(firstCommentThreadMessage !== undefined);
+            const commentThreadMessages = [
+                {author: otherSession2, content: lorem.messageShort},
+                {author: session, content: lorem.messageWidth64},
+                {author: session, content: lorem.messageMedium},
+                {author: otherSession2, content: lorem.messageShort},
+                {author: otherSession2, content: lorem.messageWidth64},
+                {author: otherSession2, content: lorem.messageWidth128},
+                {author: otherSession3, content: lorem.messageMedium},
+            ];
+            const firstCommentThreadMessage = commentThreadMessages[0];
+            assert(firstCommentThreadMessage !== undefined);
 
-                const commentThread = await document.createCommentThread(
-                    firstCommentThreadMessage.author,
-                    {from: 77, to: 90},
-                    firstCommentThreadMessage.content,
+            const commentThread = await document.createCommentThread(
+                firstCommentThreadMessage.author,
+                {from: 77, to: 90},
+                firstCommentThreadMessage.content,
+                {
+                    overrideCreatedTime: new Date(
+                        screenshotTestEndTime.getTime() - commentThreadMessages.length * 1000,
+                    ),
+                },
+            );
+
+            for (const [index, commentThreadMessage] of commentThreadMessages.slice(1).entries()) {
+                await commentThread.createComment(
+                    commentThreadMessage.author,
+                    commentThreadMessage.content,
                     {
                         overrideCreatedTime: new Date(
-                            screenshotTestEndTime.getTime() - commentThreadMessages.length * 1000,
+                            screenshotTestEndTime.getTime() -
+                                (commentThreadMessages.length - index - 1) * 1000,
                         ),
                     },
                 );
+            }
 
-                for (const [index, commentThreadMessage] of commentThreadMessages
-                    .slice(1)
-                    .entries()) {
-                    await commentThread.createComment(
-                        commentThreadMessage.author,
-                        commentThreadMessage.content,
-                        {
-                            overrideCreatedTime: new Date(
-                                screenshotTestEndTime.getTime() -
-                                    (commentThreadMessages.length - index - 1) * 1000,
-                            ),
-                        },
-                    );
-                }
+            await ProcessContextModule.waitForTestTasks();
+            await runner.services.waitForSqsProcessJobs();
 
-                await ProcessContextModule.waitForTestTasks();
-                await runner.services.waitForSqsProcessJobs();
+            const {items} = await getInboxEntries(otherSession1.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            });
+            const inboxEntry = items.find(
+                ({model}) =>
+                    model.type === "DocumentNewCommentThreads" &&
+                    model.getDocumentId() === document.id,
+            );
+            assert(inboxEntry !== undefined);
+            const key = inboxEntry.model.getKey();
+            assert(key.type === "DocumentNewCommentThreads");
 
-                const {items} = await getInboxEntries(otherSession1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                });
-                const inboxEntry = items.find(
-                    ({model}) =>
-                        model.type === "DocumentNewCommentThreads" &&
-                        model.getDocumentId() === document.id,
-                );
-                assert(inboxEntry !== undefined);
-                const key = inboxEntry.model.getKey();
-                assert(key.type === "DocumentNewCommentThreads");
-
-                return {
-                    path: `/s/${space.id}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`,
-                    session: otherSession1,
-                };
-            },
-        "routes/s.$spaceId.more._index": async () => {
-            return {path: `/s/${space.id}/more`};
+            return {
+                path: `/notifications/document-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`,
+                session: otherSession1,
+            };
         },
-        "routes/s.$spaceId.more.settings": async () => {
-            return {path: `/s/${space.id}/more/settings`};
+        "routes/_space.more.$spaceId": async () => {
+            return {path: `/more/${space.id}`};
         },
-        "routes/s.$spaceId.more.switch-space": async () => {
-            return {path: `/s/${space.id}/more/switch-space`};
+        "routes/_space.more.settings.$spaceId": async () => {
+            return {path: `/more/settings/${space.id}`};
         },
-        "routes/s.$spaceId.posts.$postId._index": async () => {
+        "routes/_space.more.switch-space.$spaceId": async () => {
+            return {path: `/more/switch-space/${space.id}`};
+        },
+        "routes/_space.post.$postId._index": async () => {
             const channel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -902,9 +895,9 @@ maximus volutpat ullamcorper.
                 overrideCreatedTime: new Date(screenshotTestEndTime.getTime() - 500),
             });
 
-            return {path: `/s/${space.id}/posts/${post.id}`};
+            return {path: `/post/${post.id}`};
         },
-        "routes/s.$spaceId.posts.$postId.comments.$index.reactions": async () => {
+        "routes/_space.post.$postId.comment.$index.reactions": async () => {
             const channel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -927,11 +920,11 @@ maximus volutpat ullamcorper.
             }`;
 
             return {
-                path: `/s/${space.id}/dev/empty`,
-                peekPath: `/s/${space.id}/posts/${post.id}/comments/${reactionComment.index}/reactions?at=${commentReactionSearchParam}`,
+                path: `/dev/empty/${space.id}`,
+                peekPath: `/post/${post.id}/comment/${reactionComment.index}/reactions?at=${commentReactionSearchParam}`,
             };
         },
-        "routes/s.$spaceId.posts.$postId.reactions": async () => {
+        "routes/_space.post.$postId.reactions": async () => {
             const channel = await TestChannel.create(otherSession1, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -945,11 +938,11 @@ maximus volutpat ullamcorper.
             await post.setReaction(otherSession3, "Happy");
 
             return {
-                path: `/s/${space.id}/dev/empty`,
-                peekPath: `/s/${space.id}/posts/${post.id}/reactions`,
+                path: `/dev/empty/${space.id}`,
+                peekPath: `/post/${post.id}/reactions`,
             };
         },
-        "routes/s.$spaceId.posts.new.$draftId": async () => {
+        "routes/_space.post.new.$draftId.$spaceId": async () => {
             const channel = await TestChannel.create(session, {
                 name: "Lorem Ipsum",
                 description: lorem.paragraph,
@@ -960,9 +953,9 @@ maximus volutpat ullamcorper.
                 screenshotTestEndTime.getTime(),
             );
 
-            return {path: `/s/${space.id}/posts/new/${postDraftId}?channel=${channel.id}`};
+            return {path: `/post/new/${postDraftId}/${space.id}?channel=${channel.id}`};
         },
-        "routes/s.$spaceId.search": async () => {
+        "routes/_space.search.$spaceId": async () => {
             const searchSpace = await TestSpace.create(context, {
                 id: unsafelyGenerateStableId<SpaceId>(runner.stableRandom, "searchSpace"),
                 name: "Lorem Ipsum",
@@ -1072,36 +1065,36 @@ maximus volutpat ullamcorper.
                 ),
             );
 
-            return {path: `/s/${searchSpace.id}/search`, session: searchSession};
+            return {path: `/search/${searchSpace.id}`, session: searchSession};
         },
-        "routes/s.$spaceId.settings.bots.$botId": async () => {
-            return {path: `/s/${space.id}/settings/bots/${chatGptKnownBotId}`};
+        "routes/_space.settings.$spaceId.bots.$botId": async () => {
+            return {path: `/settings/${space.id}/bots/${chatGptKnownBotId}`};
         },
-        "routes/s.$spaceId.settings.bots._index": async () => {
-            return {path: `/s/${space.id}/settings/bots`};
+        "routes/_space.settings.$spaceId.bots._index": async () => {
+            return {path: `/settings/${space.id}/bots`};
         },
-        "routes/s.$spaceId.settings.general": async () => {
-            return {path: `/s/${space.id}/settings/general`};
+        "routes/_space.settings.$spaceId.general": async () => {
+            return {path: `/settings/${space.id}/general`};
         },
-        "routes/s.$spaceId.settings.integrations._index": async () => {
-            return {path: `/s/${space.id}/settings/integrations`};
+        "routes/_space.settings.$spaceId.integrations._index": async () => {
+            return {path: `/settings/${space.id}/integrations`};
         },
-        "routes/s.$spaceId.settings.integrations.notion": async () => {
-            return {path: `/s/${space.id}/settings/integrations/notion`};
+        "routes/_space.settings.$spaceId.integrations.notion": async () => {
+            return {path: `/settings/${space.id}/integrations/notion`};
         },
-        "routes/s.$spaceId.settings.integrations.slack": async () => {
-            return {path: `/s/${space.id}/settings/integrations/slack`};
+        "routes/_space.settings.$spaceId.integrations.slack": async () => {
+            return {path: `/settings/${space.id}/integrations/slack`};
         },
-        "routes/s.$spaceId.settings.notifications": async () => {
-            return {path: `/s/${space.id}/settings/notifications`};
+        "routes/_space.settings.$spaceId.notifications": async () => {
+            return {path: `/settings/${space.id}/notifications`};
         },
-        "routes/s.$spaceId.settings.people": async () => {
-            return {path: `/s/${space.id}/settings/people`};
+        "routes/_space.settings.$spaceId.people": async () => {
+            return {path: `/settings/${space.id}/people`};
         },
-        "routes/s.$spaceId.settings.profile": async () => {
-            return {path: `/s/${space.id}/settings/profile`};
+        "routes/_space.settings.$spaceId.profile": async () => {
+            return {path: `/settings/${space.id}/profile`};
         },
-        "routes/s.$spaceId.tasks.$taskId._index": async () => {
+        "routes/_space.task.$taskId._index": async () => {
             const task = await TestTask.create(session, {
                 title: lorem.title,
                 assignee: session,
@@ -1110,9 +1103,9 @@ maximus volutpat ullamcorper.
                 notes: "",
             });
 
-            return {path: `/s/${space.id}/tasks/${task.id}`};
+            return {path: `/task/${task.id}`};
         },
-        "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": async () => {
+        "routes/_space.task.$taskId.comment.$index.reactions": async () => {
             const collection = await TestTaskCollection.create(session, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -1140,11 +1133,11 @@ maximus volutpat ullamcorper.
             }@${reactionCommentModel.payload.contentUpdate?.mappings.length ?? 0}`;
 
             return {
-                path: `/s/${space.id}/dev/empty`,
-                peekPath: `/s/${space.id}/tasks/${task.id}/comments/${reactionComment.index}/reactions?at=${commentReactionSearchParam}`,
+                path: `/dev/empty/${space.id}`,
+                peekPath: `/task/${task.id}/comment/${reactionComment.index}/reactions?at=${commentReactionSearchParam}`,
             };
         },
-        "routes/s.$spaceId.tasks.$taskId.duplicate": async () => {
+        "routes/_space.task.$taskId.duplicate": async () => {
             const collection = await TestTaskCollection.create(session, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -1173,10 +1166,10 @@ maximus volutpat ullamcorper.
                 taskDuplicateSearchParams.set("schema", encodedSchema);
             }
             return {
-                path: `/s/${space.id}/tasks/${task.id}/duplicate?${taskDuplicateSearchParams}`,
+                path: `/task/${task.id}/duplicate?${taskDuplicateSearchParams}`,
             };
         },
-        "routes/s.$spaceId.tasks._index": async () => {
+        "routes/_space.my-tasks.$spaceId": async () => {
             const collection = await TestTaskCollection.create(otherSession3, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -1192,9 +1185,9 @@ maximus volutpat ullamcorper.
                 });
             }
 
-            return {path: `/s/${space.id}/tasks`, session: otherSession3};
+            return {path: `/my-tasks/${space.id}`, session: otherSession3};
         },
-        "routes/s.$spaceId.tasks.collections.$collectionId": async () => {
+        "routes/_space.task-collection.$collectionId": async () => {
             const collection = await TestTaskCollection.create(session, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -1210,9 +1203,9 @@ maximus volutpat ullamcorper.
                 });
             }
 
-            return {path: `/s/${space.id}/tasks/collections/${collection.id}`};
+            return {path: `/task-collection/${collection.id}`};
         },
-        "routes/s.$spaceId.tasks.view": async () => {
+        "routes/_space.task-view.new.$spaceId": async () => {
             const collection = await TestTaskCollection.create(session, {
                 name: "Lorem Ipsum",
                 access: "Public",
@@ -1243,21 +1236,21 @@ maximus volutpat ullamcorper.
                 ]),
             );
 
-            return {path: `/s/${space.id}/tasks/view?${taskQuerySearchParams}`};
+            return {path: `/task-view/new/${space.id}?${taskQuerySearchParams}`};
         },
     };
 
     const screenshotEntries = Object.entries(screenshots);
 
     // Double check that the inbox entry test is the first one we'll run.
-    assert(screenshotEntries[0]![0] === "routes/s.$spaceId.inbox");
+    assert(screenshotEntries[0]![0] === "routes/_space.inbox.$spaceId");
 
     for (const [name, setup] of screenshotEntries) {
-        assert(name.startsWith("routes/s.$spaceId."));
+        assert(name.startsWith("routes/_space."));
 
         const screenshotName = convertToUrlPathnameSlug(
             name
-                .slice("routes/s.$spaceId.".length)
+                .slice("routes/_space.".length)
                 .split(".")
                 .map(convertCamelCaseToKebabCase)
                 .join("."),

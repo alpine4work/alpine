@@ -30,7 +30,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 4. Select \u201CExport -> HTML\u201D and show the exported HTML content.
         `,
         session,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

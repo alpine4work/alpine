@@ -9,7 +9,7 @@ import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_cont
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const document = await TestDocument.create(accounts.masonClay, {
         title: "Space Delight Features",
@@ -80,7 +80,7 @@ dragging in the second clip so both dropdown options can sit side by side in one
 4. Pause on the finished two-video layout for a beat, then stop recording.
         `,
         session: accounts.masonClay,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {width: videoGalleriesSideBySideDemoWidth},
         prepare: async page => {
             await page.getByTestId("DocumentContentEditorMain").waitFor({state: "visible"});

@@ -51,7 +51,7 @@ test("builds settings URL from edgeServiceUrl and spaceId", () => {
 
     expect(result.blocks[1]).toMatchObject({
         accessory: expect.objectContaining({
-            url: "https://app.alpine.dev/s/space-abc/settings/integrations/slack",
+            url: "https://app.alpine.dev/settings/space-abc/integrations/slack",
         }),
     });
 });

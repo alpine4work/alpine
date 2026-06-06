@@ -397,9 +397,6 @@ const space = createTestSpaceModel({
     id: assertId<SpaceId>("pv9hmw9x4nkzpnn404ntddmbp0"),
 });
 
-// For any code that needs to parse the `SpaceId` from the URL.
-window.history.replaceState(null, "", `/s/${space.id}/test`);
-
 const currentAccount = createTestAccountModel({
     id: assertId<AccountId>("y6j4bejce5hf26d8kmatrf9dec"),
     name: "Budd Deey",
@@ -489,8 +486,11 @@ for (const blockTestCase of blockTestCases) {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: blockTestCase.references ?? emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: blockTestCase.references ?? emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -517,8 +517,11 @@ for (const blockTestCase of blockTestCases) {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: blockTestCase.references ?? emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: blockTestCase.references ?? emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -557,8 +560,11 @@ for (const blockTestCase of blockTestCases) {
                 <ContentEditor
                     aria-label="Test"
                     state={ContentEditorState.create({
-                        doc: content,
-                        references: blockTestCase.references ?? emptyContentReferences,
+                        spaceId: null,
+                        content: {
+                            doc: content,
+                            references: blockTestCase.references ?? emptyContentReferences,
+                        },
                     })}
                     onChange={() => {}}
                     fileAttachmentTarget={fileAttachmentTarget}
@@ -598,8 +604,11 @@ for (const inlineTestCase of inlineTestCases) {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -635,8 +644,11 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     function TestContentEditor() {
         const [state, setState] = useState(() =>
             ContentEditorState.create({
-                doc: emptyDocumentWithoutTitleContent,
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: emptyDocumentWithoutTitleContent,
+                    references: emptyContentReferences,
+                },
             }),
         );
 
@@ -789,7 +801,10 @@ test("divider", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -806,10 +821,13 @@ test("heading cannot have a level lower than 1", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: 0}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: 0}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -823,10 +841,13 @@ test("heading cannot have a level lower than 1", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: -42}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: -42}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -842,10 +863,13 @@ test("heading cannot have a level greater than 3", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: 4}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: 4}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -859,10 +883,13 @@ test("heading cannot have a level greater than 3", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: 42}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: 42}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -878,10 +905,13 @@ test("heading cannot be the wrong type", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: ""}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: ""}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -895,10 +925,13 @@ test("heading cannot be the wrong type", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -912,10 +945,13 @@ test("heading cannot be the wrong type", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: true}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: true}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -931,10 +967,13 @@ test("heading is converted into an integer", () => {
         <ContentEditor
             aria-label="Test"
             state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("heading", {level: 2.5}, [schema.text("Test")]),
-                ]),
-                references: emptyContentReferences,
+                spaceId: null,
+                content: {
+                    doc: schema.node("doc", {}, [
+                        schema.node("heading", {level: 2.5}, [schema.text("Test")]),
+                    ]),
+                    references: emptyContentReferences,
+                },
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -963,16 +1002,19 @@ describe("links", () => {
                 <ContentEditor
                     aria-label="Test"
                     state={ContentEditorState.create({
-                        doc: schema.node("doc", {}, [
-                            schema.node("paragraph", {}, [
-                                schema.text("Test", [
-                                    schema.mark("link", {
-                                        url: link,
-                                    }),
+                        spaceId: null,
+                        content: {
+                            doc: schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text("Test", [
+                                        schema.mark("link", {
+                                            url: link,
+                                        }),
+                                    ]),
                                 ]),
                             ]),
-                        ]),
-                        references: emptyContentReferences,
+                            references: emptyContentReferences,
+                        },
                     })}
                     onChange={() => {}}
                     fileAttachmentTarget={fileAttachmentTarget}
@@ -992,16 +1034,19 @@ describe("links", () => {
                 <ContentEditor
                     aria-label="Test"
                     state={ContentEditorState.create({
-                        doc: schema.node("doc", {}, [
-                            schema.node("paragraph", {}, [
-                                schema.text("Test", [
-                                    schema.mark("link", {
-                                        url: link,
-                                    }),
+                        spaceId: null,
+                        content: {
+                            doc: schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text("Test", [
+                                        schema.mark("link", {
+                                            url: link,
+                                        }),
+                                    ]),
                                 ]),
                             ]),
-                        ]),
-                        references: emptyContentReferences,
+                            references: emptyContentReferences,
+                        },
                     })}
                     onChange={() => {}}
                     fileAttachmentTarget={fileAttachmentTarget}
@@ -1019,16 +1064,19 @@ describe("links", () => {
                 <ContentEditor
                     aria-label="Test"
                     state={ContentEditorState.create({
-                        doc: schema.node("doc", {}, [
-                            schema.node("paragraph", {}, [
-                                schema.text("Test", [
-                                    schema.mark("link", {
-                                        url: link,
-                                    }),
+                        spaceId: null,
+                        content: {
+                            doc: schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text("Test", [
+                                        schema.mark("link", {
+                                            url: link,
+                                        }),
+                                    ]),
                                 ]),
                             ]),
-                        ]),
-                        references: emptyContentReferences,
+                            references: emptyContentReferences,
+                        },
                     })}
                     onChange={() => {}}
                     fileAttachmentTarget={fileAttachmentTarget}
@@ -1063,7 +1111,10 @@ test("bullet list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1085,7 +1136,10 @@ test("ordered list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1119,7 +1173,10 @@ test("check list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1158,7 +1215,10 @@ test("bullet list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1197,7 +1257,10 @@ test("ordered list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1236,7 +1299,10 @@ test("check list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1275,7 +1341,10 @@ test("bullet list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1314,7 +1383,10 @@ test("ordered list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1353,7 +1425,10 @@ test("check list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1377,7 +1452,10 @@ test("breaks inside paragraphs", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1403,7 +1481,10 @@ test("breaks inside list items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1426,7 +1507,10 @@ test("multiple paragraphs inside list items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            state={ContentEditorState.create({
+                spaceId: null,
+                content: {doc: content, references: emptyContentReferences},
+            })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1460,7 +1544,10 @@ test("account long mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1495,7 +1582,10 @@ test("account short mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1529,7 +1619,10 @@ test("unknown account mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1577,7 +1670,10 @@ test("search entity mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1609,7 +1705,10 @@ test("unknown search entity mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1644,7 +1743,10 @@ test("private search entity mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1699,7 +1801,10 @@ test("site search entity mention with first entity", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1744,7 +1849,10 @@ test("site mention with null first entity Id", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1793,7 +1901,10 @@ test("file row (one file)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1817,7 +1928,10 @@ test("file row (one file, null reference)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1866,7 +1980,10 @@ test("file row (one file, image type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1916,7 +2033,10 @@ test("file row (one file, video type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -1964,7 +2084,10 @@ test("file row (one file, audio type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2024,7 +2147,10 @@ test("file row (one file, channel entity)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2107,7 +2233,10 @@ test("file row (two files)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2212,7 +2341,10 @@ test("file row (three files)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2263,7 +2395,10 @@ test("file float (left direction)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2314,7 +2449,10 @@ test("file float (right direction)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2377,7 +2515,10 @@ test("table with fileRowTable (one file)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2501,7 +2642,10 @@ test("table with fileRowTable (mixed content)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                state={ContentEditorState.create({
+                    spaceId: null,
+                    content: {doc: content, references: contentReferences},
+                })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
@@ -2531,8 +2675,11 @@ test("table(2x2) with fileRowTable (null reference)", async () => {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -2603,8 +2750,11 @@ test("table(3x3) with header row only", async () => {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -2675,8 +2825,11 @@ test("table(3x3) with header column only", async () => {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -2747,8 +2900,11 @@ test("table(3x3) with both header row and column", async () => {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -2819,8 +2975,11 @@ test("will serialize table(3x3) with no headers", async () => {
             <ContentEditor
                 aria-label="Test"
                 state={ContentEditorState.create({
-                    doc: content,
-                    references: emptyContentReferences,
+                    spaceId: null,
+                    content: {
+                        doc: content,
+                        references: emptyContentReferences,
+                    },
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}

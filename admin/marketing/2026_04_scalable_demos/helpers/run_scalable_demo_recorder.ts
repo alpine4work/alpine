@@ -245,11 +245,6 @@ export class ScalableDemoRecorder {
                 const browserContext = await collaboratorBrowser.newContext({
                     ...devices["Desktop Chrome"],
                     viewport: scalableDemoDefaultViewport,
-                    deviceScaleFactor: 2,
-                    timezoneId: "America/New_York",
-                    // So callbacks can `page.goto("/s/.../chat/...")` with a relative URL \u2014
-                    // Playwright resolves it against `baseURL`.
-                    baseURL: this._baseUrl,
                 });
                 this._secondaryContexts.push(browserContext);
 

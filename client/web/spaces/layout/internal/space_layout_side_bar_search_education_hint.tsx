@@ -27,7 +27,7 @@ export function SpaceLayoutSideBarSearchEducationHint({
     const {space, currentAccountSettings, updateCurrentAccountSettings} = useSpaceContext();
 
     // Detect feed view from current route. The feed view is the space home page.
-    const isOnFeedView = location.pathname === `/s/${space.id}`;
+    const isOnFeedView = location.pathname === `/home/${space.id}`;
 
     // Update state when on feed view: arm the hint if it hasn't been dismissed. We
     // check localStorage directly to avoid a race condition where `useLocalStorage`

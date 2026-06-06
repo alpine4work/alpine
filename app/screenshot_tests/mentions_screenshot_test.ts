@@ -231,7 +231,7 @@ async function screenshot(
     orderKey: string,
     name: string,
 ) {
-    await runner.goto(accounts.cassCade, `/s/${spaceId}/documents/${documentId}`, {
+    await runner.goto(accounts.cassCade, `/doc/${documentId}`, {
         fixedTime: screenshotTime,
     });
     await runner.screenshot(orderKey, name);

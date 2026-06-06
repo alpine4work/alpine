@@ -573,7 +573,7 @@ async function openSearchModal(
     session: Parameters<ScreenshotTestRunner["goto"]>[0],
     spaceId: string,
 ) {
-    await runner.goto(session, `/s/${spaceId}/dev/empty`);
+    await runner.goto(session, `/dev/empty/${spaceId}`);
     await runner.getByLabel("Search").first().click();
     await runner.getByTestId("SearchModal").waitFor();
 }

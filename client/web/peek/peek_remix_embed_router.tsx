@@ -79,10 +79,10 @@ export function usePeekRemixEmbedRouter() {
             const rootRoute = routes[0]!;
             assert(rootRoute.id === "root");
             const spaceRoute = assertExists(
-                rootRoute.children?.find(route => route.id === "routes/s.$spaceId"),
+                rootRoute.children?.find(route => route.id === "routes/_space"),
             ) as DataRouteObject;
             const spacePeekRoute = assertExists(
-                spaceRoute.children?.find(route => route.id === "routes/s.$spaceId.peek"),
+                spaceRoute.children?.find(route => route.id === "routes/_space.peek"),
             ) as DataRouteObject;
             return [
                 {

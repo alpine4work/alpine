@@ -225,8 +225,8 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         new Date("2025-10-14T17:20:00.000Z").getTime(),
     );
 
-    const channelPath = `/s/${space.id}/channels/${channel.id}`;
-    const postPath = `/s/${space.id}/posts/${codeBlockPost.id}`;
+    const channelPath = `/channel/${channel.id}`;
+    const postPath = `/post/${codeBlockPost.id}`;
 
     await runner.goto(accounts.cassCade, channelPath);
     await runner.screenshot("a0", "channel");
@@ -265,12 +265,12 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
     });
 
     await runner.goto(accounts.cassCade, channelPath, {
-        peekPath: `/s/${space.id}/channels/${channel.id}/files`,
+        peekPath: `/channel/${channel.id}/files`,
     });
     await runner.screenshot("a2", "channel-files");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-        peekPath: `/s/${space.id}/channels/new`,
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+        peekPath: `/channel/new/${space.id}`,
     });
     await runner.screenshot("a3", "channel-new");
 
@@ -287,15 +287,15 @@ but if you\u2019ve gone to an event you\u2019ve definitely been asked to \u201Cs
         siteOptions: null,
     });
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
-        peekPath: `/s/${space.id}/posts/new/${postDraftId}`,
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
+        peekPath: `/post/new/${postDraftId}/${space.id}`,
     });
     await runner.screenshot("a6", "post-new");
 
     {
         const loadingChannel = await loadingChannelPromise;
 
-        await runner.goto(accounts.masonClay, `/s/${space.id}/channels/${loadingChannel.id}`, {
+        await runner.goto(accounts.masonClay, `/channel/${loadingChannel.id}`, {
             allowPauseNetwork: true,
         });
         await runner.pauseNetwork();

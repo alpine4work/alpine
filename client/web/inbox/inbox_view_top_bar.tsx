@@ -28,11 +28,11 @@ export function InboxViewTopBar({filter}: {filter: InboxEntryStatus}) {
                     filter={filter}
                     onNewPress={async () => {
                         if (filter === "New") return;
-                        await navigate(`/s/${space.id}/inbox`);
+                        await navigate(`/inbox/${space.id}`);
                     }}
                     onArchivePress={async () => {
                         if (filter === "Done") return;
-                        await navigate(`/s/${space.id}/inbox?tab=done`);
+                        await navigate(`/inbox/${space.id}?tab=done`);
                     }}
                 />
             </Box>

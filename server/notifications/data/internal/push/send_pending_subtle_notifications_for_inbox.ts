@@ -101,7 +101,7 @@ export async function sendPendingSubtleNotificationsForInbox(
         // displayed.
         silent: true,
         data: {
-            url: `${context.constants.edgeServiceUrl}/s/${spaceId}/inbox`,
+            url: `${context.constants.edgeServiceUrl}/inbox/${spaceId}`,
         },
         // This ensures if we send this notification multiple times, the push service will
         // replace the previous notification with the new one.
@@ -126,7 +126,7 @@ export async function sendPendingSubtleNotificationsForInbox(
                         body: content.body,
                         plainText: content.title,
                     },
-                    entryPath: `/s/${spaceId}/inbox`,
+                    entryPath: `/inbox/${spaceId}`,
                 });
             case "WebPushSubscription":
                 return await context.jobs.sendAndWait({

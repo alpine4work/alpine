@@ -131,7 +131,7 @@ export abstract class EmailContextModuleBase<
         baseUrl: string;
     }): URL {
         return new URL(
-            `${baseUrl}/s/${spaceId}/notifications/unsubscribe?accountId=${accountId}&emailType=${emailType}`,
+            `${baseUrl}/notifications/unsubscribe/${spaceId}?accountId=${accountId}&emailType=${emailType}`,
         );
     }
 

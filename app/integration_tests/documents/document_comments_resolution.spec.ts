@@ -24,12 +24,12 @@ test("can resolve document comment threads", async ({
     await document.createCommentThread(session1, {from: 10, to: 15}, "Test comment 1");
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     await expect(page1.getByText("Test comment 1")).toBeHidden();
     await expect(page1.getByText("Mark as resolved")).toBeHidden();
@@ -203,7 +203,7 @@ test("will preserve document comment snippet even after comment is removed from 
     );
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`);
+    await page1.goto(`/doc/${document.id}?thread=${commentThread.id}`);
 
     await expect(page1.getByText("Test comment 1")).toBeVisible();
     await expect(page1.getByText("Mark as resolved")).toBeVisible();
@@ -223,7 +223,7 @@ test("will preserve document comment snippet even after comment is removed from 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText("Hello, world!");
 
@@ -340,7 +340,7 @@ test("will preserve document comment snippet even after resolved comment thread 
     );
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`);
+    await page1.goto(`/doc/${document.id}?thread=${commentThread.id}`);
 
     await expect(page1.getByText("Test comment 1")).toBeVisible();
     await expect(page1.getByText("Mark as resolved")).toBeVisible();
@@ -375,7 +375,7 @@ test("will preserve document comment snippet even after resolved comment thread 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText("Hello, world!");
 
@@ -492,7 +492,7 @@ test("can still go to the next document comment thread after resolving", async (
     await document.createCommentThread(session, {from: 11, to: 14}, "Test comment 3");
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}?comments=${commentThread1.id}`);
+    await page.goto(`/doc/${document.id}?thread=${commentThread1.id}`);
 
     await expect(
         page.getByTestId("DocumentContentEditorMain").locator("[data-comment]"),

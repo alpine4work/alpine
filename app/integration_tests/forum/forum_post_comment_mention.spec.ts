@@ -1,5 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
@@ -31,16 +32,6 @@ async function tapSendComment(page: Page) {
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 }
 
-async function pressPlatformUndoShortcut(page: Page, textboxName: string) {
-    const usesMetaUndoShortcut = await page.evaluate(() =>
-        /Mac|iP(hone|[oa]d)/.test(navigator.platform),
-    );
-
-    await page
-        .getByRole("textbox", {name: textboxName})
-        .press(usesMetaUndoShortcut ? "Meta+z" : "Control+z");
-}
-
 test("can search for an account in mention menu", async ({
     page,
     context: browserContext,
@@ -58,7 +49,7 @@ test("can search for an account in mention menu", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
     await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
@@ -166,7 +157,7 @@ test("can undo to get the full mention when a short mention was inferred", async
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await page.getByRole("textbox", {name: "New comment"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
@@ -183,8 +174,7 @@ test("can undo to get the full mention when a short mention was inferred", async
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
 
         await expect(page.getByRole("textbox", {name: "New comment"})).toBeFocused();
-        await pressPlatformUndoShortcut(page, "New comment");
-
+        await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
         await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
@@ -233,7 +223,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     await page.getByRole("textbox", {name: "New comment"}).focus();
     await page.getByRole("textbox", {name: "New comment"}).type("@");

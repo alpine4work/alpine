@@ -1331,7 +1331,7 @@ function ChatAccountPickerSelectedItem({
                 case "Account": {
                     if (isNavigatePending) return;
                     setIsNavigatePending(true);
-                    navigate(`/s/${space.id}/chat/with/${item.accountData.id}?focus`, {
+                    navigate(`/chat/with/${item.accountData.id}/${space.id}?focus`, {
                         // Don't open in peek. Navigate the window we're in.
                         stopPropagation: true,
                     }).finally(() => setIsNavigatePending(false));
@@ -1340,7 +1340,7 @@ function ChatAccountPickerSelectedItem({
                 case "RoomChat": {
                     if (isNavigatePending) return;
                     setIsNavigatePending(true);
-                    navigate(`/s/${space.id}/chat/${item.id}?focus`, {
+                    navigate(`/chat/${item.id}?focus`, {
                         // Don't open in peek. Navigate the window we're in.
                         stopPropagation: true,
                     }).finally(() => setIsNavigatePending(false));

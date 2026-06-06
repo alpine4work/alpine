@@ -82,9 +82,8 @@ export async function createFictionalAmbrookDemoChannel(
 📣 Brainstorm and share ideas for outreach, social content, campaigns, and growth. Everything from
 big-picture strategy to post drafts lives here.
 
-Refer to
-[Social Content Calendar](https://alpine.inc/s/{{spaceId}}/tasks/collections/{{collectionId}}?mention)
-for the current plan.
+Refer to [Social Content Calendar](https://alpine.inc/tasks/{{collectionId}}?mention) for the
+current plan.
             `,
             {
                 spaceId: space.id,

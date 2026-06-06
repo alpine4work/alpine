@@ -26,7 +26,7 @@ import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
-import {LoaderSchema as SpaceIdLoaderSchema} from "~/app/routes/s.$spaceId.js";
+import {LoaderSchema as SpaceLoaderSchema} from "~/app/routes/_space.js";
 import {BlobsArtProvider} from "~/client/web/blobs/blobs_art_provider.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/web/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/web/content/handle_drag_start_event_if_not_text_input_element.js";
@@ -313,12 +313,12 @@ function useRootAppContext(
             }
         }
 
-        // The /s/:spaceId route loads account and space data. We want to add the account
-        // and space IDs to the propagated data so that we can use them in the tracer.
-        if (dataRouterStateContext.loaderData["routes/s.$spaceId"]) {
+        // The `_space` route loads account and space data. We want to add the account and
+        // space IDs to the propagated data so that we can use them in the tracer.
+        if (dataRouterStateContext.loaderData["routes/_space"]) {
             const spaceIdLoaderData = dataRouterStateContext.loaderData[
-                "routes/s.$spaceId"
-            ] as SchemaType<typeof SpaceIdLoaderSchema>;
+                "routes/_space"
+            ] as SchemaType<typeof SpaceLoaderSchema>;
 
             const spaceId = spaceIdLoaderData.space.id;
             const actor =
@@ -461,7 +461,7 @@ export default function Root() {
         const renderedSpaceIds = new Set<unknown>();
 
         const primarySpaceRouteMatch = dataRouterStateContext.matches.find(
-            match => match.route.id === "routes/s.$spaceId",
+            match => match.route.id === "routes/_space",
         );
 
         const getPrimaryNode = (entryKey: string) => (
@@ -499,18 +499,18 @@ export default function Root() {
         // state like scroll position.
         //
         // Not all our inert routes are rendered here in `root.tsx`. Space inert routes are
-        // rendered in `s.$spaceId.tsx`. That way we can share space-level context across
-        // inert routes. Like the task realtime client.
+        // rendered in `_space.tsx`. That way we can share space-level context across inert
+        // routes. Like the task realtime client.
         for (const {
             entryKey,
             routerState: inertRouterState,
         } of nativeMobileRouterState.inertRouterStates) {
             // Inert space routes that share the same `SpaceId` should be rendered under one
-            // `/s/:spaceId` route so they share the same space context components. So render
-            // the first `/s/:spaceId` route we see then trust that component to render the
-            // remaining inert router states.
+            // `_space` route so they share the same space context components. So render the
+            // first `_space` route we see then trust that component to render the remaining
+            // inert router states.
             const inertSpaceRouteMatch = inertRouterState.matches.find(
-                match => match.route.id === "routes/s.$spaceId",
+                match => match.route.id === "routes/_space",
             );
             if (inertSpaceRouteMatch) {
                 if (renderedSpaceIds.has(inertSpaceRouteMatch.params.spaceId)) {

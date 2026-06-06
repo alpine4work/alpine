@@ -23,7 +23,7 @@ const schema = DocumentContentProsemirrorSchema;
 const siteName = "FY2026 H2 Planning";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
-    const {space, accounts} = await runner.createDemoSpace(context);
+    const {accounts} = await runner.createDemoSpace(context);
 
     const emptySite = await TestSite.create(accounts.cassCade, {
         name: siteName,
@@ -164,12 +164,12 @@ Third case study published, demo script in Cliff\u2019s hands
 </table>
             `,
             {
-                cassMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.cassCade.account.id}?mention=short)`,
-                masonMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.masonClay.account.id}?mention=short)`,
-                mattMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.mattRHorn.account.id}?mention=short)`,
-                elleMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.elleKappaTan.account.id}?mention=short)`,
-                cliffMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.cliffWeathers.account.id}?mention=short)`,
-                hollyMention: `[](https://alpine.inc/s/${space.id}/accounts/${accounts.hollyEvergreen.account.id}?mention=short)`,
+                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}?short)`,
+                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}?short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
+                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}?short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
             },
         ),
         sitePosition: {
@@ -429,7 +429,7 @@ async function screenshotSiteFiles(
         content: [schema.node("title"), ...fileRows],
     });
 
-    await runner.goto(session, `/s/${session.space.id}/documents/${document.id}`);
+    await runner.goto(session, `/doc/${document.id}`);
     await runner.page
         .getByTestId("ContentFileEntityPreview:Site")
         .nth(siteFileIds.length - 1)

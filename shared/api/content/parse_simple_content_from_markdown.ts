@@ -7,7 +7,7 @@ import {
 } from "~/shared/content/simple_content_schema.js";
 
 export function parseSimpleContentFromMarkdown(markdown: string): SimpleContent {
-    const apiContent = parseApiContentFromMarkdown(markdown, {spaceId: null});
+    const apiContent = parseApiContentFromMarkdown(markdown);
     const content = fromApiContent(SimpleContentProsemirrorSchema, apiContent);
     return assertSimpleContent(content);
 }

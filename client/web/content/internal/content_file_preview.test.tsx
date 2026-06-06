@@ -124,8 +124,11 @@ test("will refresh signed URL when it\u2019s about to expire", async () => {
     function TestContentEditor() {
         const [state, setState] = useState(() =>
             ContentEditorState.create({
-                doc: content,
-                references: contentReferences,
+                spaceId: null,
+                content: {
+                    doc: content,
+                    references: contentReferences,
+                },
             }),
         );
 

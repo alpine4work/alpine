@@ -29,14 +29,14 @@ service URL.
 Configure the OAuth app's redirect URI as:
 
 ```
-https://local-redirect.cyberworlds.dev/http://localhost:3000/s/:spaceId/integrations/slack/oauth
+https://local-redirect.cyberworlds.dev/http://localhost:3000/integrations/slack/oauth/:spaceId
 ```
 
 When Slack redirects back after authorization it will hit the service, which immediately redirects
 the browser to:
 
 ```
-http://localhost:3000/s/:spaceId/integrations/slack/oauth?code=...&state=...
+http://localhost:3000/integrations/slack/oauth/:spaceId?code=...&state=...
 ```
 
 The query parameters (`code`, `state`, etc.) are forwarded automatically because they are appended

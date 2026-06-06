@@ -90,15 +90,10 @@ export function TaskDetailViewParentBreadcrumbs({
                             paddingX="1.5"
                             pressErrorTitle="Couldn&#x2019;t open task"
                             onPress={() =>
-                                navigate(
-                                    `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
-                                        parentTaskEntry.task.id
-                                    }`,
-                                    {
-                                        // Don't let the route open in `<PeekStack>`.
-                                        stopPropagation: true,
-                                    },
-                                )
+                                navigate(`/task/${parentTaskEntry.task.id}`, {
+                                    // Don't let the route open in `<PeekStack>`.
+                                    stopPropagation: true,
+                                })
                             }
                         >
                             <span
@@ -230,15 +225,10 @@ export function TaskProjectDetailViewParentBreadcrumbs({
                             paddingX="1.5"
                             pressErrorTitle="Couldn&#x2019;t open task"
                             onPress={() =>
-                                navigate(
-                                    `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
-                                        parentTaskEntry.task.id
-                                    }`,
-                                    {
-                                        // Don't let the route open in `<PeekStack>`.
-                                        stopPropagation: true,
-                                    },
-                                )
+                                navigate(`/task/${parentTaskEntry.task.id}`, {
+                                    // Don't let the route open in `<PeekStack>`.
+                                    stopPropagation: true,
+                                })
                             }
                         >
                             <span

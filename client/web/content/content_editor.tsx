@@ -1923,20 +1923,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     mentionElement.removeAttribute("data-cy-mention");
                     continue;
                 }
-
-                const spaceIdMatch = href.match(/\/s\/([^/]+)/);
-                if (!spaceIdMatch) {
-                    mentionElement.removeAttribute("data-cy-mention");
-                    continue;
-                }
-
-                if (
-                    !spaceContextRef.current ||
-                    spaceIdMatch[1] !== spaceContextRef.current.space.id
-                ) {
-                    mentionElement.removeAttribute("data-cy-mention");
-                    continue;
-                }
             }
         };
 
@@ -2421,9 +2407,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If we're pasting a URL for a `SearchEntityId` in an empty paragraph then instead
             // of pasting the URL text we want to paste a file node.
-            if (spaceContextRef.current && selection.from === selection.to) {
+            if (selection.from === selection.to) {
                 const entityId = parseSearchEntityIdFromUrl(
-                    spaceContextRef.current.space.id,
                     event.clipboardData?.getData("text/plain") ?? "",
                 );
                 if (entityId !== null) {
@@ -2467,7 +2452,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             temporaryPastedFileInfosForParent.push({
                                 type: "AttachFileEntity",
-                                spaceId: spaceContextRef.current.space.id,
+                                spaceId: assertExists(spaceContextRef.current).space.id,
                                 fileEntityId: entityId,
                             });
                         }

@@ -77,11 +77,11 @@ const emailTemplatePreviews: {
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
                 unsubscribeUrl: new URL(
-                    `/s/1234567890/notifications/unsubscribe?accountId=1234567890&emailType=digest`,
+                    `/notifications/unsubscribe/1234567890?accountId=1234567890&emailType=digest`,
                     emailPreviewBaseUrl,
                 ),
                 digestContent: {
-                    inboxUrl: new URL(`/s/1234567890/inbox?selected=3`, emailPreviewBaseUrl),
+                    inboxUrl: new URL(`/inbox/1234567890?selected=3`, emailPreviewBaseUrl),
                     remainingEntryCount: 10,
                     digestEntries: [
                         {
@@ -89,7 +89,7 @@ const emailTemplatePreviews: {
                             preview: "Bob: Did you see Alice\u2019s photos? They\u2019re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=3`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=3`, emailPreviewBaseUrl),
                             loudNotificationCount: 1,
                             featuredAccount: {
                                 id: "1" as AccountId,
@@ -122,7 +122,7 @@ const emailTemplatePreviews: {
                             preview: "Caominhe: Good thinking! 👍",
                             brandIconType: "Document",
                             time: new Date("2025-08-21T11:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 100,
                             featuredAccount: {
                                 id: "1" as AccountId,
@@ -170,7 +170,7 @@ const emailTemplatePreviews: {
                                 "Alice: Hey! I just got back from Colorado and have some photos to share.",
                             brandIconType: "Post",
                             time: new Date("2025-08-22T08:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=1`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=1`, emailPreviewBaseUrl),
                             loudNotificationCount: 10,
                             featuredAccount: {
                                 id: "2" as AccountId,
@@ -195,7 +195,7 @@ const emailTemplatePreviews: {
                             preview: "Bob: OMG! 🤩 I\u2019m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             featuredAccount: {
                                 id: "1" as AccountId,
@@ -252,7 +252,7 @@ const emailTemplatePreviews: {
                                 "Felicia: I\u2019m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=2`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=2`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             featuredAccount: {
                                 id: "4" as AccountId,
@@ -282,7 +282,7 @@ const emailTemplatePreviews: {
                             preview: "Kenji: Wow! I love that idea!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T10:42:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=4`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=4`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             featuredAccount: {
                                 id: "5" as AccountId,
@@ -316,7 +316,7 @@ const emailTemplatePreviews: {
                             preview: "Want to pair on this one together?",
                             brandIconType: "Task",
                             time: new Date("2025-08-20T22:36:11Z"),
-                            url: new URL(`/s/1234/inbox?selected=6`, emailPreviewBaseUrl),
+                            url: new URL(`/inbox/1234?selected=6`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             featuredAccount: {
                                 id: "5" as AccountId,

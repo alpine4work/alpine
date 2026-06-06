@@ -86,7 +86,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         return {loadingCollection, loadingTask};
     })();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks`, {
+    await runner.goto(accounts.cassCade, `/my-tasks/${space.id}`, {
         fixedTime: personalScreenshotTime,
     });
     await runner.screenshot("a0", "personal-empty");
@@ -96,7 +96,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await createPersonalTasks(accounts.cassCade, collections);
     await waitForTaskIndex();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks`, {
+    await runner.goto(accounts.cassCade, `/my-tasks/${space.id}`, {
         fixedTime: personalScreenshotTime,
     });
     await runner.screenshot("a1", "personal");
@@ -109,23 +109,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await waitForTaskIndex();
 
     {
-        const searchParams = new URLSearchParams();
-        searchParams.set(
-            "create",
-            serializeTaskQueryFiltersSearchParam([
-                {type: "Layout", operation: {type: "OneOf", layouts: ["Project"]}},
-            ]),
-        );
+        const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+            {type: "Layout", operation: {type: "OneOf", layouts: ["Project"]}},
+        ]);
 
         await runner.goto(
             accounts.cassCade,
-            `/s/${space.id}/tasks/${generateId<TaskId>()}?${searchParams.toString()}`,
+            `/task/${generateId<TaskId>()}?create=${space.id}+${filtersSearchParam}`,
             {fixedTime: sprintScreenshotTime},
         );
         await runner.screenshot("a2", "project-new");
     }
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.getByText("2/3").first().click();
@@ -133,7 +129,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.mouse.move(0, 0);
     await runner.screenshot("a3", "project");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
         viewport: "wide",
     });
@@ -144,7 +140,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("a3G", "project-wide");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
         viewport: {
             // Copied directly from `getTaskWideProjectLayoutScaleFromWindowWidth()` since
@@ -160,9 +156,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("a3V", "project-narrow");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
-        peekPath: `/s/${space.id}/tasks/${featuredProjectTask.id}`,
+        peekPath: `/task/${featuredProjectTask.id}`,
     });
 
     // Should be visible since we persist the grid view expansion state (modified for
@@ -172,14 +168,14 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.screenshot("a4", "task-peek");
 
     {
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${generateId<TaskId>()}?create`,
+            peekPath: `/task/${generateId<TaskId>()}?create=${space.id}`,
         });
         await runner.screenshot("a5", "task-new");
     }
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/${featuredProjectTask.id}`, {
+    await runner.goto(accounts.cassCade, `/task/${featuredProjectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("a6", "task");
@@ -187,7 +183,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     const {featuredBugTask} = await createSprintTasksAndBugTasks(accounts, collections);
     await waitForTaskIndex();
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/tasks/view`, {
+    await runner.goto(accounts.cassCade, `/task-view/new/${space.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("a7", "query-empty");
@@ -225,19 +221,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         await runner.goto(
             accounts.cassCade,
-            `/s/${space.id}/tasks/view?${searchParams.toString()}`,
+            `/task-view/new/${space.id}?${searchParams.toString()}`,
             {fixedTime: sprintScreenshotTime},
         );
     }
     await runner.screenshot("a8", "query");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
         fixedTime: sprintScreenshotTime,
-        peekPath: `/s/${space.id}/tasks/collections/${generateId()}?create`,
+        peekPath: `/task-collection/${generateId()}?create=${space.id}`,
     });
     await runner.screenshot("a9", "collection-new");
 
-    const bugsPath = `/s/${space.id}/tasks/collections/${collections.bugs.id}`;
+    const bugsPath = `/task-collection/${collections.bugs.id}`;
 
     await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
     await runner.screenshot("aA", "collection");
@@ -291,7 +287,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await projectTask.access.grantUrl(accounts.cassCade);
     await collections.bugs.access.grantUrl(accounts.cassCade);
 
-    await runner.goto(null, `/s/${space.id}/tasks/${projectTask.id}`, {
+    await runner.goto(null, `/task/${projectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.getByText("2/3").first().click();
@@ -309,12 +305,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.screenshot("aD", "task-peek-url-grant");
 
-    await runner.goto(null, `/s/${space.id}/tasks/${featuredProjectTask.id}`, {
+    await runner.goto(null, `/task/${featuredProjectTask.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("aE", "task-url-grant");
 
-    await runner.goto(null, `/s/${space.id}/tasks/collections/${collections.bugs.id}`, {
+    await runner.goto(null, `/task-collection/${collections.bugs.id}`, {
         fixedTime: sprintScreenshotTime,
     });
     await runner.screenshot("aF", "collection-url-grant");
@@ -323,7 +319,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await collections.bugs.access.revokeUrl(accounts.cassCade);
 
     {
-        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${projectTask.id}`, {
+        await runner.goto(accounts.masonClay, `/task/${projectTask.id}`, {
             fixedTime: sprintScreenshotTime,
             allowPauseNetwork: true,
         });
@@ -336,18 +332,16 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         const {loadingCollection, loadingTask} = await loadingCollectionAndTaskPromise;
 
-        await runner.goto(
-            accounts.masonClay,
-            `/s/${space.id}/tasks/collections/${loadingCollection.id}`,
-            {allowPauseNetwork: true},
-        );
+        await runner.goto(accounts.masonClay, `/task-collection/${loadingCollection.id}`, {
+            allowPauseNetwork: true,
+        });
         await runner.pauseNetwork();
         await scrollLocatorToBottom(runner.getByTestId("TaskCollectionScrollView"), {
             withExpectedScrollHeightChange: true,
         });
         await runner.screenshot("aH", "tasks-loading");
 
-        await runner.goto(accounts.masonClay, `/s/${space.id}/tasks/${loadingTask.id}`, {
+        await runner.goto(accounts.masonClay, `/task/${loadingTask.id}`, {
             allowPauseNetwork: true,
         });
         await runner.pauseNetwork();
@@ -458,9 +452,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
         // screenshot focuses on the entity peek under test rather than whatever's on the
         // inbox page.
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${projectTask.id}`,
+            peekPath: `/task/${projectTask.id}`,
         });
         await runner.getByText("Tables").first().waitFor();
         await runner.mouse.move(0, 0);
@@ -488,9 +482,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await ProcessContextModule.waitForTestTasks();
         await runner.services.waitForSqsProcessJobs();
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${projectTask.id}`,
+            peekPath: `/task/${projectTask.id}`,
         });
         await runner.getByText("Tables").first().waitFor();
         await runner.mouse.move(0, 0);
@@ -516,9 +510,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         // Open peeks against `/dev/empty` so the surrounding chrome is plain and the
         // screenshot focuses on the entity peek under test rather than whatever's on the
         // inbox page.
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${featuredBugTask.id}`,
+            peekPath: `/task/${featuredBugTask.id}`,
         });
         await runner
             .getByText("App crashes if user has deleted a previously-favorited task")
@@ -549,9 +543,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await ProcessContextModule.waitForTestTasks();
         await runner.services.waitForSqsProcessJobs();
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/${featuredBugTask.id}`,
+            peekPath: `/task/${featuredBugTask.id}`,
         });
         await runner
             .getByText("App crashes if user has deleted a previously-favorited task")
@@ -577,16 +571,16 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         const oldBugsCollectionAccessPolicy = await collections.bugs.access.get();
         assert(oldBugsCollectionAccessPolicy.type === "Local");
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+            peekPath: `/task-collection/${collections.bugs.id}`,
         });
         await runner.getByText("Bugs").first().waitFor();
         await runner.mouse.move(0, 0);
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+            peekPath: `/task-collection/${collections.bugs.id}`,
         });
         await runner.getByText("Bugs").first().waitFor();
         await runner.mouse.move(0, 0);
@@ -663,9 +657,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await ProcessContextModule.waitForTestTasks();
         await runner.services.waitForSqsProcessJobs();
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: sprintScreenshotTime,
-            peekPath: `/s/${space.id}/tasks/collections/${collections.bugs.id}`,
+            peekPath: `/task-collection/${collections.bugs.id}`,
         });
         await runner.getByText("Bugs").first().waitFor();
         await runner.mouse.move(0, 0);
@@ -1257,7 +1251,7 @@ the last tricky part because document position and visual line are not the same 
 wraps
             `,
             {
-                mattMention: `[](https://alpine.inc/s/${accounts.masonClay.space.id}/accounts/${accounts.mattRHorn.account.id}?mention=short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-06T14:18:00-04:00")},

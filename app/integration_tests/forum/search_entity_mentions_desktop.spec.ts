@@ -1,5 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
@@ -144,7 +145,7 @@ const testCaseByEntityType: Record<
                     await page
                         .getByTestId("TaskDetailViewMain")
                         .getByLabel("Title")
-                        .press("ControlOrMeta+a");
+                        .press(await pageKeyboardShortcut(page, "mod", "a"));
                     await page.getByTestId("TaskDetailViewMain").getByLabel("Title").fill(newTitle);
                 },
             };
@@ -161,9 +162,13 @@ const testCaseByEntityType: Record<
                 updateTitle: async (page, {newTitle}) => {
                     await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
                     await page.getByRole("menuitem", {name: "Edit"}).click();
-                    await page.getByLabel("Post").press("ControlOrMeta+a");
+                    await page
+                        .getByLabel("Post")
+                        .press(await pageKeyboardShortcut(page, "mod", "a"));
                     await page.getByLabel("Post").fill(newTitle);
-                    await page.getByLabel("Post").press("ControlOrMeta+Enter");
+                    await page
+                        .getByLabel("Post")
+                        .press(await pageKeyboardShortcut(page, "mod", "enter"));
                 },
             };
         },
@@ -193,9 +198,13 @@ const testCaseByEntityType: Record<
                 updateTitle: async (page, {newTitle}) => {
                     await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
                     await page.getByRole("menuitem", {name: "Edit"}).click();
-                    await page.getByLabel("Post").press("ControlOrMeta+a");
+                    await page
+                        .getByLabel("Post")
+                        .press(await pageKeyboardShortcut(page, "mod", "a"));
                     await page.getByLabel("Post").fill(newTitle);
-                    await page.getByLabel("Post").press("ControlOrMeta+Enter");
+                    await page
+                        .getByLabel("Post")
+                        .press(await pageKeyboardShortcut(page, "mod", "enter"));
                 },
             };
         },
@@ -259,7 +268,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
         );
 
         await services.signIn(browserContext, session);
-        await page.goto(`/s/${space.id}/posts/${post.id}`);
+        await page.goto(`/post/${post.id}`);
 
         // Wait for React to mount
         await page.waitForFunction("dev.ready");
@@ -293,7 +302,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
             const session = await space.createSession();
 
             await services.signIn(browserContext, session);
-            await page.goto(`/s/${space.id}/documents/${generateId()}?create`);
+            await page.goto(`/doc/${generateId()}?create=${space.id}`);
 
             // Wait for React to mount
             await page.waitForFunction("dev.ready");

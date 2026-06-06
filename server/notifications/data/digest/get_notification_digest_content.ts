@@ -75,7 +75,7 @@ export async function getNotificationDigestContent(
                 entryDisplay.latestMessage.contentTextSnippet.length > 0;
             return {
                 url: new URL(
-                    `/s/${entry.model.spaceId}/inbox?selected=${selectedSearchParam}`,
+                    `/inbox/${entry.model.spaceId}?selected=${selectedSearchParam}`,
                     context.constants.edgeServiceUrl,
                 ),
                 title,
@@ -103,7 +103,7 @@ export async function getNotificationDigestContent(
 
     const remainingEntryCount = Math.max(entries.items.length - digestEntryDisplayLimit, 0);
     const digestContent = {
-        inboxUrl: new URL(`/s/${spaceId}/inbox`, context.constants.edgeServiceUrl),
+        inboxUrl: new URL(`/inbox/${spaceId}`, context.constants.edgeServiceUrl),
         digestEntries: parsedEntries,
         remainingEntryCount,
     };

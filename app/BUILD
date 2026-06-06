@@ -149,6 +149,7 @@ ts_project(
         "//shared/remix",
         "//shared/rpc",
         "//shared/schema",
+        "//shared/search",
         "//shared/spaces",
         "//shared/store",
         "//shared/tracer",
@@ -233,8 +234,8 @@ genrule(
         "".join([
             "\n    | \\\"{}\\\"".format(route_src[:route_src.rindex(".")].replace("$", "\\$$"))
             for route_src in ALL_ROUTE_SRCS
-            if route_src[:route_src.rindex(".")].startswith("routes/s.$spaceId.") and
-               not route_src.startswith("routes/s.$spaceId.peek")
+            if route_src[:route_src.rindex(".")].startswith("routes/_space.") and
+               not route_src.startswith("routes/_space.peek.")
         ]),
     ),
     visibility = ["//shared/remix:__pkg__"],

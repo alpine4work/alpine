@@ -1,3 +1,4 @@
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
@@ -38,6 +39,7 @@ export type ServerMinimalActionContextModules = {
     dynamo: DynamoContextModule;
     jobs: JobsContextModule;
     actor: ActorContextModule;
+    discovery?: DiscoveryContextModule;
     chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;

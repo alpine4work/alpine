@@ -72,7 +72,7 @@ export function TaskFloatingCreateButton({
                 onPress={async () => {
                     if (!filters && !parentTaskId) {
                         const taskId = generateId();
-                        await navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
+                        await navigate(`/task/${taskId}?create=${space.id}&focus`);
                     } else {
                         let createSearchParam = serializeTaskQueryFiltersSearchParam(filters ?? []);
 
@@ -84,7 +84,7 @@ export function TaskFloatingCreateButton({
 
                         const taskId = generateId();
                         await navigate(
-                            `/s/${space.id}/tasks/${taskId}?create=${createSearchParam}&focus`,
+                            `/task/${taskId}?create=${space.id}+${createSearchParam}&focus`,
                         );
                     }
                 }}

@@ -31,9 +31,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
 
     // ── Documents ──────────────────────────────────────────────────────
 
-    const spaceUrl = `https://alpine.inc/s/${spaceId}`;
     const mentionUrl = (accountSession: {account: {id: string}}) =>
-        `${spaceUrl}/accounts/${accountSession.account.id}?mention=short`;
+        `https://alpine.inc/mention/${accountSession.account.id}?short`;
 
     const q2UpdateDoc = await TestDocument.create(accounts.cassCade, {
         title: "FY2026 Q2 Update",
@@ -106,9 +105,9 @@ Senior backend engineer offer went out. Start date is early Q3.
     ]);
 
     // Rose's Q3 roadmap post in Leads, mentioning the Q2 Update doc with a preview.
-    const q2UpdateMentionUrl = `${spaceUrl}/documents/${q2UpdateDoc.id}?mention`;
-    const q2UpdatePreviewUrl = `${spaceUrl}/documents/${q2UpdateDoc.id}?preview`;
-    const fy26Q3MentionUrl = `${spaceUrl}/tasks/collections/${fy26Q3Collection.id}?mention`;
+    const q2UpdateMentionUrl = `https://alpine.inc/doc/${q2UpdateDoc.id}?mention`;
+    const q2UpdatePreviewUrl = `https://alpine.inc/doc/${q2UpdateDoc.id}/preview`;
+    const fy26Q3MentionUrl = `https://alpine.inc/task-collection/${fy26Q3Collection.id}?mention`;
     const rosePost = await leadsChannel.createPost(
         accounts.roseCompas,
         markdown`
@@ -838,7 +837,7 @@ feature, and they wish they\u2019d had it from week one.
         },
     ];
 
-    const url = new UrlPath(`/s/${spaceId}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${spaceId}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),

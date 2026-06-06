@@ -5,9 +5,7 @@ import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
+import {AccountId, ChannelId, DocumentId, TaskId} from "~/shared/id/types/id_types.js";
 
 const storage = new DurableObjectStorage(new MemoryStorage());
 
@@ -36,9 +34,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         // The markdown tree has the mention as a link with /account/ prefix
         expect(printMarkdownTree(markdownTree)).toContain("[Alice](/account/alice)");
@@ -76,9 +72,7 @@ describe("account mentions", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -107,9 +101,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -141,9 +133,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -172,9 +162,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -219,9 +207,7 @@ describe("non-account links", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -266,9 +252,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -300,9 +284,7 @@ describe("nested content", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -322,9 +304,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -336,9 +316,7 @@ describe("edge cases", () => {
             elements: [],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 
@@ -364,9 +342,7 @@ describe("edge cases", () => {
             ],
         };
 
-        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {
-            spaceId,
-        });
+        const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
 
         const linkLabelByUrl = collectLinksFromMarkdownTreeForCursorAgent(markdownTree);
 

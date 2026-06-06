@@ -159,7 +159,7 @@ export function PostContentView({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
@@ -429,6 +429,7 @@ export function PostContentView({
                                 onStartEditingPost: () => {
                                     postEditing.dispatch({
                                         type: "StartEditing",
+                                        spaceId: space.id,
                                         postId: post.id,
                                         contentVersion: post.contentUpdate?.mappings.length ?? 0,
                                         content: post.content,
@@ -563,7 +564,7 @@ function PostContentViewFooter({
     const context = useAppContext();
     const {locale} = useClientInfo();
     const platform = usePlatform();
-    const {space, currentAccount} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
@@ -620,7 +621,7 @@ function PostContentViewFooter({
                         if (isNavigatePending) return;
 
                         setIsNavigatePending(true);
-                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
+                        navigate(`/post/${post.id}/reactions`).finally(() => {
                             setIsNavigatePending(false);
                         });
                     }}
@@ -676,7 +677,7 @@ function PostContentViewFooter({
                         });
                     }}
                     onPressSeeReactions={async () => {
-                        await navigate(`/s/${space.id}/posts/${post.id}/reactions`);
+                        await navigate(`/post/${post.id}/reactions`);
                     }}
                 />
             </Box>
@@ -734,7 +735,7 @@ function PostContentViewFooter({
                         pressErrorTitle="Couldn&#x2019;t open comments"
                         onPress={async () => {
                             if (routeLayout === "narrow") {
-                                await navigate(`/s/${post.spaceId}/posts/${post.id}`);
+                                await navigate(`/post/${post.id}`);
                                 return;
                             }
 

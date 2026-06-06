@@ -7,13 +7,18 @@ import {
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOTE(calebmer, 2023-09-21): This file used to be only for document content. But
 // when we introduced task notes collaborative content it was refactored to support
 // both document content and task notes content. `ExtraState` and `ExtraAction`s
 // came about to maintain state unique to documents.
 export type CollaborativeContentEditorState<Content extends ContentWithReferences, ExtraState> = {
+    /**
+     * The space this collaborative content is in.
+     */
+    readonly spaceId: SpaceId;
+
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
      * `UpdateContent` message before a backfill response). If we see an action for a
@@ -95,6 +100,7 @@ export function getInitialCollaborativeContentEditorState<
     Content extends ContentWithReferences,
     ExtraState,
 >({
+    spaceId,
     initialVersion,
     initialContent,
     initialSelection,
@@ -102,6 +108,7 @@ export function getInitialCollaborativeContentEditorState<
     extra,
     disableUndoKeyboardShortcuts,
 }: {
+    spaceId: SpaceId;
     initialVersion: number;
     initialContent: Content;
     initialSelection?: Selection | SelectionBookmark;
@@ -113,6 +120,7 @@ export function getInitialCollaborativeContentEditorState<
     disableUndoKeyboardShortcuts?: boolean;
 }): CollaborativeContentEditorState<Content, ExtraState> {
     const editorState = ContentEditorState.createCollaborative({
+        spaceId,
         version: initialVersion,
         content: initialContent,
         selection: initialSelection,
@@ -121,6 +129,7 @@ export function getInitialCollaborativeContentEditorState<
     });
 
     return {
+        spaceId,
         pendingActions: [],
         editorState,
         pendingSendableSteps: null,

@@ -95,9 +95,7 @@ export function RoomChatCreator({
                     pressErrorTitle="Couldn&#x2019;t save chat room"
                     onPress={async () => {
                         await navigate(
-                            `/s/${
-                                space.id
-                            }/chat/${generateId()}?create=${encodeURIComponent(name)}${!isPublic ? "&private" : ""}`,
+                            `/chat/${generateId()}?create=${space.id}+${encodeURIComponent(name)}${!isPublic ? "&private" : ""}`,
                             {
                                 replace: true,
                                 // In our native mobile app, we want to call
@@ -112,7 +110,7 @@ export function RoomChatCreator({
                 </Button>
             </Box>
         ),
-        defaultPreviousRoute: `/s/${space.id}/create`,
+        defaultPreviousRoute: `/create/${space.id}`,
     });
 
     return (
@@ -167,7 +165,7 @@ export function RoomChatCreator({
                             >
                                 Chat rooms are for live conversations where all participants are
                                 present and engaged.{" "}
-                                <Link color="inherit" url={`/s/${space.id}/channels/new`}>
+                                <Link color="inherit" url={`/channel/new/${space.id}`}>
                                     Channels
                                 </Link>{" "}
                                 are better for decision making.

@@ -49,7 +49,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -303,7 +303,7 @@ export class TestTask extends TestCommentRoomBase {
         if (notes.length === 0) {
             notesState = new MutexValue({lastVersion: 0, lastUpdatePos: 1});
         } else {
-            const fragment = Fragment.from(parseTaskTestContent(session.space.id, notes));
+            const fragment = Fragment.from(parseTaskTestContent(notes));
 
             await updateTaskNotesContent(session.action(), {
                 spaceId: session.space.id,
@@ -880,8 +880,8 @@ export class TestTask extends TestCommentRoomBase {
     }
 }
 
-function parseTaskTestContent(spaceId: SpaceId, content: string) {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parseTaskTestContent(content: string) {
+    const apiContent = parseApiContentFromMarkdown(content);
 
     return Array.from(
         fromApiContentBlockElements(TaskNotesContentProsemirrorSchema, apiContent.elements),

@@ -49,14 +49,14 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     {
         const directOneOnOneChat = await TestChat.get(accounts.cassCade, accounts.elleKappaTan);
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${directOneOnOneChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${directOneOnOneChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a0", "direct-one-on-one-empty");
 
         await createDirectOneOnOneChatMessages(directOneOnOneChat, accounts, runner);
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${directOneOnOneChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${directOneOnOneChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a1", "direct-one-on-one");
@@ -73,7 +73,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             accounts.mattRHorn,
         );
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${directGroupChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${directGroupChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a3", "direct-group-empty");
@@ -90,7 +90,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             messageModel.payload.contentUpdate?.mappings.length ?? 0
         }`;
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${directGroupChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${directGroupChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a4", "direct-group");
@@ -105,9 +105,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         await runner.screenshot("a6", "turn-into-room");
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${directGroupChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${directGroupChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
-            peekPath: `/s/${space.id}/chat/${directGroupChat.id}/messages/${message.index}/reactions?at=${messageAt}`,
+            peekPath: `/chat/${directGroupChat.id}/message/${message.index}/reactions?at=${messageAt}`,
         });
         await runner.screenshot("a7", "message-reactions");
     }
@@ -120,19 +120,19 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     {
         await createRoomChatMessages(incidentResponseRoomChat, accounts, runner);
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/chat/${incidentResponseRoomChat.id}`, {
+        await runner.goto(accounts.cassCade, `/chat/${incidentResponseRoomChat.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
         });
         await runner.screenshot("a8", "room");
 
+        const oldRoomAccessPolicy = await incidentResponseRoomChat.roomAccess.get();
+        assert(oldRoomAccessPolicy.type === "Local");
         await incidentResponseRoomChat.roomAccess.grantUrl(accounts.cassCade);
-        await runner.goto(null, `/s/${space.id}/chat/${incidentResponseRoomChat.id}`);
+
+        await runner.goto(null, `/chat/${incidentResponseRoomChat.id}`);
         await runner.getByRole("heading", {name: "Incident Response"}).waitFor();
         await runner.getByText("No, the doc is doing its job").waitFor();
         await runner.screenshot("a9", "room-url-grant");
-
-        const oldRoomAccessPolicy = await incidentResponseRoomChat.roomAccess.get();
-        assert(oldRoomAccessPolicy.type === "Local");
 
         // Screenshot the room standalone and inside a site (showing the site breadcrumb).
         // Reuses the existing "Incident Response" room; `screenshotFileEntity` adds it to
@@ -160,22 +160,22 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         );
     }
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
         fixedTime: new Date("2025-10-02T21:00:00Z"),
-        peekPath: `/s/${space.id}/chat/new`,
+        peekPath: `/chat/new/${space.id}`,
     });
     await runner.screenshot("aA", "new");
 
-    await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+    await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
         fixedTime: new Date("2025-10-02T21:00:00Z"),
-        peekPath: `/s/${space.id}/chat/room/new`,
+        peekPath: `/chat/room/new/${space.id}`,
     });
     await runner.screenshot("aB", "new-room");
 
     {
         const loadingChat = await loadingChatPromise;
 
-        await runner.goto(accounts.masonClay, `/s/${space.id}/chat/${loadingChat.id}`, {
+        await runner.goto(accounts.masonClay, `/chat/${loadingChat.id}`, {
             allowPauseNetwork: true,
         });
 
@@ -192,9 +192,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
         // Open the peek against `/dev/empty` so the background is plain and the screenshot
         // focuses on the chat peek under test.
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
-            peekPath: `/s/${space.id}/chat/${incidentResponseRoomChat.id}`,
+            peekPath: `/chat/${incidentResponseRoomChat.id}`,
         });
         await runner.getByRole("heading", {name: "Incident Response"}).first().waitFor();
         await runner.mouse.move(0, 0);
@@ -265,9 +265,9 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await ProcessContextModule.waitForTestTasks();
         await runner.services.waitForSqsProcessJobs();
 
-        await runner.goto(accounts.cassCade, `/s/${space.id}/dev/empty`, {
+        await runner.goto(accounts.cassCade, `/dev/empty/${space.id}`, {
             fixedTime: new Date("2025-10-02T21:00:00Z"),
-            peekPath: `/s/${space.id}/chat/${incidentResponseRoomChat.id}`,
+            peekPath: `/chat/${incidentResponseRoomChat.id}`,
         });
         await runner.getByRole("heading", {name: "Incident Response"}).first().waitFor();
         await runner.mouse.move(0, 0);
@@ -1118,7 +1118,7 @@ yeah this is us. the 7:55 deploy. rolling it back
 {{hollyMention}} already has 2 in support saying chat isn\u2019t updating. Pulling her in
             `,
             {
-                hollyMention: `[](https://alpine.inc/s/${chat.space.id}/accounts/${accounts.hollyEvergreen.account.id}?mention=short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-09-03T08:17:00-04:00")},
@@ -1235,7 +1235,7 @@ Also {{elleMention}}, postmortem by Friday. And I want this one to have clear ac
 It\u2019s the second deploy-induced incident this quarter. This can\u2019t happen again.
             `,
             {
-                elleMention: `[](https://alpine.inc/s/${chat.space.id}/accounts/${accounts.elleKappaTan.account.id}?mention=short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-09-03T08:39:00-04:00")},
@@ -1435,7 +1435,7 @@ Demo is at 12:30 so genuinely fine for me, I was being dramatic
 Also lol, the 14k-comments doc is {{mattMention}}\u2019s editor interaction audit. Of course it is
             `,
             {
-                mattMention: `[](https://alpine.inc/s/${chat.space.id}/accounts/${accounts.mattRHorn.account.id}?mention=short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-09T11:42:00-04:00")},

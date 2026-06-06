@@ -26,9 +26,8 @@ runScalableDemoRecorder(async (context, services, recorder) => {
             .subtract({days})
             .toDate(timeZone);
 
-    const spaceUrl = `https://alpine.inc/s/${space.id}`;
     const accountMentionUrl = (accountSession: {account: {id: string}}) =>
-        `${spaceUrl}/accounts/${accountSession.account.id}?mention=short`;
+        `https://alpine.inc/mention/${accountSession.account.id}?short`;
 
     const [announcementsChannel, engineeringChannel, craftChannel, salesChannel, planningChannel] =
         await runAllPromises([
@@ -728,7 +727,7 @@ real problem. Let\u2019s save the remaining editor polish for the next pass.
         },
     ];
 
-    const url = new UrlPath(`/s/${space.id}/dev/feed`);
+    const url = new UrlPath(`/dev/feed/${space.id}`);
     url.searchParams.set(
         "entries",
         JSON.stringify(Schema.array(FeedEntrySchema).serialize(entries)),

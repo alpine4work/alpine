@@ -46,7 +46,7 @@ test("can edit the name of a project task", async ({page, context: browserContex
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await openMoreMenu(page);
     await page.getByRole("menuitem", {name: "Edit title"}).click();
@@ -84,7 +84,7 @@ test("can view notes, comments, and subtasks for a project task", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(page.getByText("Project", {exact: true})).toBeVisible();
     await expect(page.getByText("Notes", {exact: true})).toBeVisible();
@@ -109,7 +109,7 @@ test("can turn a regular task into a project task and back", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -149,12 +149,12 @@ test("floating create shows parent before typing and creates a subtask when typi
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext1, session);
-    await page1.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+    await page1.goto(`/task/${parentTask.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/tasks/${parentTask.id}`);
+    await page2.goto(`/task/${parentTask.id}`);
 
     await expect(page2.getByText("Floating child task")).toBeHidden();
 
@@ -184,12 +184,12 @@ test("can create a project from create menu in fullscreen and focused", async ({
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await page.getByLabel("Create").click();
     await page.getByRole("menuitem", {name: /^Project\b/}).click();
 
-    await expect(page).toHaveURL(/\/s\/[^/]+\/tasks\/[^?]+\?create=/);
+    await expect(page).toHaveURL(/\/task\/[^?]+\?create=/);
     await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
     await expect(page.getByRole("button", {name: "Create task"})).toBeVisible();
 
@@ -220,7 +220,7 @@ test("can turn a create-menu task peek into project and get fullscreen project u
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/dev/empty`);
+    await page.goto(`/dev/empty/${space.id}`);
 
     await page.getByLabel("Create").click();
     await page
@@ -266,7 +266,7 @@ test("can sort the children of a project task", async ({page, context: browserCo
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${project.id}`);
+    await page.goto(`/task/${project.id}`);
 
     const rowTitles = page.getByTestId(/^TaskRowView:/).getByRole("textbox", {name: "Title"});
 
@@ -312,7 +312,7 @@ test("can filter the children of a project task", async ({page, context: browser
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${project.id}`);
+    await page.goto(`/task/${project.id}`);
 
     await expect(page.getByTestId(`TaskRowView:${apple.id}`)).toBeVisible();
     await expect(page.getByTestId(`TaskRowView:${banana.id}`)).toBeVisible();

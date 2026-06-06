@@ -89,7 +89,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
     const context = useAppContext();
     const reporter = useReporter();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const events = useEvents({
         getContext: () => context,
@@ -134,6 +134,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                     type: "NotExists",
                     state: new ValueStore(
                         getInitialTaskNotesContentEditorState({
+                            spaceId: space.id,
                             taskId,
                             initialNotesVersion,
                             initialNotesContent,
@@ -152,6 +153,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                         displayError: (title, error) =>
                             events.getReporter().displayError(title, error),
                         initialState: getInitialTaskNotesContentEditorState({
+                            spaceId: space.id,
                             taskId,
                             initialNotesVersion,
                             initialNotesContent,
@@ -178,6 +180,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                     initialState.extra.taskId === taskId
                         ? initialState
                         : getInitialTaskNotesContentEditorState({
+                              spaceId: space.id,
                               taskId,
                               initialNotesVersion,
                               initialNotesContent,
@@ -202,6 +205,7 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
                 accessLevel,
                 displayError: (title, error) => events.getReporter().displayError(title, error),
                 initialState: getInitialTaskNotesContentEditorState({
+                    spaceId: space.id,
                     taskId,
                     initialNotesVersion,
                     initialNotesContent,

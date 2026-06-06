@@ -51,7 +51,7 @@ import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
  * - Create an Alpine document for the document using a markdown parser
  *     - Use the correct accessPolicy based on the teamspace import option
  * - Update all references within this document to a link to the alpine document
- *     - use the format https://alpine.inc/s/{spaceId}/documents/{documentId}
+ *     - use the format https://alpine.inc/doc/{documentId}
  * - Notion exported documents will have their children under the title, above the
  *   first divider (---)
  *     - Check if all children and only the children exist between the # title and
@@ -252,9 +252,7 @@ export async function convertExtractedNotionDataToEntities(
                     // syntax to link syntax so the URLs are preserved as Text elements with Link
                     // marks, allowing `convertParagraphToFileRowsIfNeeded` to resolve them as files.
                     const markdownWithImagesAsLinks = preprocessedContent.replaceAll("![", "[");
-                    const rawApiContent = parseApiContentFromMarkdown(markdownWithImagesAsLinks, {
-                        spaceId,
-                    });
+                    const rawApiContent = parseApiContentFromMarkdown(markdownWithImagesAsLinks);
 
                     // ============================================================ \
                     // Transform API content for Alpine's format \

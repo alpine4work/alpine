@@ -503,9 +503,6 @@ async function getPreambleForDocumentComments({
                 documentContentSnippet,
                 link.commentThreadId,
             ),
-            {
-                spaceId: request.spaceId,
-            },
         );
 
         for (const element of snippetContentMarkdownTree.children) {

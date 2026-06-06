@@ -5,7 +5,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     // Elle owns the realtime reliability work. This is her technical design doc for
     // the reconnection and health check changes she's shipping in week 3 of the
@@ -175,7 +175,7 @@ across it.
 4. Pause so the viewer can see the new comment.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${doc.id}`,
+        path: `/doc/${doc.id}`,
         viewport: {width: scalableDemoWideViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

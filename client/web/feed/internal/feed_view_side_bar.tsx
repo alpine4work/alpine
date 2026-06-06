@@ -536,7 +536,7 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
             runPromiseWithoutAwaiting(async () => {
                 setIsPending(true);
                 try {
-                    navigate(`/s/${space.id}/favorites`);
+                    navigate(`/favorites/${space.id}`);
                 } finally {
                     setIsPending(false);
                 }

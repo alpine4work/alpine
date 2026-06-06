@@ -1332,7 +1332,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
                 const slice = content.doc.slice(startPos, endPos, true);
 
-                const state = ContentEditorState.create(content)._getInternalState();
+                const state = ContentEditorState.create({spaceId, content})._getInternalState();
                 const {schema} = state.doc.type;
 
                 const viewProps: DirectEditorProps = {

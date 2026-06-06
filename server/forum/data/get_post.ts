@@ -35,6 +35,10 @@ export async function getPostIfPossible(
 ): Promise<Result<RynamoItem<PostModel>, ErrorBase>> {
     const postItem = await getPostItemWithContentForAuthorization(context, postId, {consistency});
 
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId);
+
     const [authorizationResult, postResult] = await runAllPromises([
         authorizeChannelAccessIfPossible(context, postItem.channelId, "View"),
         captureResultPromise(ForumRealtimeTable.buildRealtimeItem(context, postItem)),

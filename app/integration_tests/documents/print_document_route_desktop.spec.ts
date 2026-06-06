@@ -61,7 +61,7 @@ test("print document route renders image and file entities and prints once", asy
 
     await services.signIn(browserContext, session);
     await page.setViewportSize({width: 1280, height: 720});
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const imageContents = await fs.readFile(
         joinPath(

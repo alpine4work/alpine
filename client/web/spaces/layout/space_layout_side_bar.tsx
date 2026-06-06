@@ -70,7 +70,7 @@ export function SpaceLayoutSideBar({
                         tooltipPlacement="right"
                         pressErrorTitle="Couldn&#x2019;t open home"
                         onPress={async () => {
-                            await rootNavigate(`/s/${space.id}`);
+                            await rootNavigate(`/home/${space.id}`);
                         }}
                     >
                         <House />
@@ -181,7 +181,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                         icon: <Gear />,
                         label: "Settings",
                         pressErrorTitle: "Couldn\u2019t open settings",
-                        onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
+                        onPress: () => rootNavigate(`/settings/${space.id}/profile`),
                     },
                     ...(currentAccountData.plan !== "LifetimeAccess"
                         ? [

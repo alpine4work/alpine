@@ -258,7 +258,7 @@ export function ChannelView({
     );
 
     const handleCopyLink = async () => {
-        const url = new URL(`/s/${channel.spaceId}/channels/${channel.id}`, window.location.href);
+        const url = new URL(`/channel/${channel.id}`, window.location.href);
         await writeTextToClipboard(url.toString());
     };
 
@@ -428,16 +428,13 @@ export function ChannelView({
                           {
                               label: "See all files",
                               pressErrorTitle: "Couldn\u2019t open files",
-                              onPress: () =>
-                                  navigate(
-                                      `/s/${space.id}/channels/${channelId}/files?from=channel`,
-                                  ),
+                              onPress: () => navigate(`/channel/${channelId}/files?from=channel`),
                           },
                       ],
                   ]
                 : emptyArray),
         ],
-        defaultPreviousRoute: `/s/${space.id}`,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const channelHeader = useMemo(

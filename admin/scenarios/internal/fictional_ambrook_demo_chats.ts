@@ -68,8 +68,8 @@ Hi Elle! I finally made it back to land today
 
 There were some weather delays which is why I didn\u2019t respond sooner, but everything is good!
 I\u2019m pretty tired but I\u2019ll send you +
-[Matt](https://alpine.inc/s/{{spaceId}}/accounts/{{mattRHornAccountId}}?mention=short) the
-sorted/tagged customer feedback as soon as I can
+[Matt](https://alpine.inc/mention/{{mattRHornAccountId}}?short) the sorted/tagged customer feedback
+as soon as I can
             `,
             {
                 spaceId: space.id,
@@ -198,9 +198,8 @@ async function createFictionalAmbrookDemoChat2(
         cliffWeathers,
         Mustache.render(
             markdown`
-[ChatGPT](https://alpine.inc/s/{{spaceId}}/accounts/{{chatGptAccountId}}?mention) please sort and
-tag the feedback in
-[Customer Feedback from Sales](https://alpine.inc/s/{{spaceId}}/documents/{{documentId}}?mention).
+[ChatGPT](https://alpine.inc/mention/{{chatGptAccountId}}) please sort and tag the feedback in
+[Customer Feedback from Sales](https://alpine.inc/doc/{{documentId}}?mention).
             `,
             {
                 spaceId: space.id,
@@ -216,7 +215,7 @@ tag the feedback in
 
     await streamMessage.putStreamPart(chatGpt.action(chat.getBotScope()), 0, {
         type: "Reasoning",
-        content: parseTestMessageContent(space.id, "I\u2019m thinking here"),
+        content: parseTestMessageContent("I\u2019m thinking here"),
     });
 
     await streamMessage.putStreamPart(

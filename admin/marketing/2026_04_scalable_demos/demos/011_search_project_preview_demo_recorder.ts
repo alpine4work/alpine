@@ -194,7 +194,7 @@ stabilizing realtime and kicking off the mobile redesign - more on both below.
    an inline Mobile App Redesign reference.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: scalableDemoWideViewport,
     });
 });

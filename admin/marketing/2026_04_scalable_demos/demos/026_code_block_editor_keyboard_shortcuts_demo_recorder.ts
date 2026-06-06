@@ -38,7 +38,7 @@ cursor movement into the block and types a small binary search function. Watch f
   written
         `,
         session,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {width: scalableDemoDefaultViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

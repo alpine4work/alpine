@@ -1098,7 +1098,7 @@ export function DocumentContentEditor({
             // to the document.
             await ensureCreateDocument();
 
-            const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
+            const url = new URL(`/doc/${documentId}`, window.location.href);
             await writeTextToClipboard(url.toString());
         },
     });
@@ -1569,7 +1569,7 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
-        defaultPreviousRoute: `/s/${spaceId}`,
+        defaultPreviousRoute: `/home/${spaceId}`,
         getTitleBoundaryElement: useCallback(() => {
             // Assume the title `<h1>` element is always the first element in the ProseMirror
             // DOM.
@@ -1777,7 +1777,7 @@ export function DocumentContentEditor({
                                           searchParams.set("schema", encodedSchema);
 
                                           await navigate(
-                                              `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
+                                              `/doc/${documentId}/duplicate?${searchParams.toString()}`,
                                           );
                                           return;
                                       }
@@ -1799,13 +1799,9 @@ export function DocumentContentEditor({
                                       // Navigate to the new document. Always open in a peek on desktop. To make it clear
                                       // when you're duplicating from a peek that the new document is a duplicate.
                                       if (peekStackContext && platform !== "mobile") {
-                                          await peekStackContext.push(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
+                                          await peekStackContext.push(`/doc/${newDocumentId}`);
                                       } else {
-                                          await navigate(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
+                                          await navigate(`/doc/${newDocumentId}`);
                                       }
                                   },
                               }),
@@ -2517,9 +2513,9 @@ export function DocumentContentEditor({
                         // Navigate to the new document. Always open in a peek on desktop. To make it clear
                         // when you're duplicating from a peek that the new document is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
-                            await peekStackContext.push(`/s/${spaceId}/documents/${newDocumentId}`);
+                            await peekStackContext.push(`/doc/${newDocumentId}`);
                         } else {
-                            await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
+                            await navigate(`/doc/${newDocumentId}`);
                         }
                     }}
                     onClose={() => setShowDuplicateInstructionalModal(false)}

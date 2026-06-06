@@ -14,7 +14,7 @@ import {markdown} from "~/shared/helpers/string/markdown.js";
 // demo, copy the relevant files to
 // admin/marketing/2026_04_scalable_demos/fixtures.
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const schema = DocumentContentProsemirrorSchema;
 
@@ -162,7 +162,7 @@ the left. August (The Pragmatic Programmer) is waiting for its cover.
    layout.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {width: documentFileFloatDemoWidth},
     });
 });

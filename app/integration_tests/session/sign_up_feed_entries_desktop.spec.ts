@@ -73,19 +73,19 @@ async function signUpWithSkippedInvites({
 }
 
 function getCurrentSpaceId(page: Page): SpaceId {
-    const match = /^\/s\/([^/]+)/.exec(new URL(page.url()).pathname);
+    const match = /^\/home\/([^/]+)/.exec(new URL(page.url()).pathname);
     assert(match?.[1] && isId<SpaceId>(match[1]));
     return match[1];
 }
 
 function getCurrentDocumentId(page: Page): DocumentId {
-    const match = /^\/s\/[^/]+\/documents\/([^/?]+)/.exec(new URL(page.url()).pathname);
+    const match = /^\/doc\/([^/?]+)/.exec(new URL(page.url()).pathname);
     assert(match?.[1] && isId<DocumentId>(match[1]));
     return match[1];
 }
 
 function getCurrentTaskId(page: Page): TaskId {
-    const match = /^\/s\/[^/]+\/tasks\/([^/?]+)/.exec(new URL(page.url()).pathname);
+    const match = /^\/task\/([^/?]+)/.exec(new URL(page.url()).pathname);
     assert(match?.[1] && isId<TaskId>(match[1]));
     return match[1];
 }
@@ -180,7 +180,7 @@ test("can sign up then create a document and see it in feed", async ({page}) => 
         .getByRole("menubar", {name: "Create", exact: true});
     await createMenu.getByRole("menuitem", {name: /^Create document/i}).click();
 
-    await expect(page).toHaveURL(new RegExp(`/s/${spaceId}/documents/[^?]+\\?create=`));
+    await expect(page).toHaveURL(new RegExp(`/doc/[^?]+\\?create=${spaceId}`));
     await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
 
     const documentId = getCurrentDocumentId(page);
@@ -193,7 +193,7 @@ test("can sign up then create a document and see it in feed", async ({page}) => 
     await waitForDocumentFeedAccountCandidateEntry({spaceId, accountId, documentId});
 
     await page.getByLabel("Home").click();
-    await expect(page).toHaveURL(new RegExp(`/s/${spaceId}(\\?.*)?$`));
+    await expect(page).toHaveURL(new RegExp(`/home/${spaceId}(\\?.*)?$`));
     await expect(
         page.getByTestId("FeedEntryView").getByText(documentTitle, {exact: true}),
     ).toBeVisible();
@@ -220,7 +220,7 @@ test("can sign up then create a project and see it in feed", async ({page}) => {
         .getByRole("menubar", {name: "Create", exact: true});
     await createMenu.getByRole("menuitem", {name: /^Create project/i}).click();
 
-    await expect(page).toHaveURL(new RegExp(`/s/${spaceId}/tasks/[^?]+\\?create=`));
+    await expect(page).toHaveURL(new RegExp(`/task/[^?]+\\?create=${spaceId}`));
     await expect(page.getByTestId("PeekStackOverlay")).toBeHidden();
     await expect(page.getByRole("button", {name: "Create task"})).toBeVisible();
 
@@ -234,7 +234,7 @@ test("can sign up then create a project and see it in feed", async ({page}) => {
     await waitForProjectTaskFeedAccountCandidateEntry({spaceId, accountId, taskId});
 
     await page.getByLabel("Home").click();
-    await expect(page).toHaveURL(new RegExp(`/s/${spaceId}(\\?.*)?$`));
+    await expect(page).toHaveURL(new RegExp(`/home/${spaceId}(\\?.*)?$`));
     await expect(
         page.getByTestId("FeedEntryView").getByText(projectTitle, {exact: true}),
     ).toBeVisible();

@@ -14,11 +14,9 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
-
-const spaceId = generateId<SpaceId>();
 
 function testIntoApiContentAndPrintToMarkdown(
     expectedProsemirrorNode: Node,
@@ -38,10 +36,10 @@ function testIntoApiContentAndPrintToMarkdown(
 
     expect(actualApiContent).toEqual(expectedApiContent);
 
-    const actualMarkdown = printApiContentToMarkdown(actualApiContent, {spaceId});
+    const actualMarkdown = printApiContentToMarkdown(actualApiContent, {});
     expect(actualMarkdown).toEqual(expectedMarkdown);
 
-    const actualApiContent2 = parseApiContentFromMarkdown(actualMarkdown, {spaceId});
+    const actualApiContent2 = parseApiContentFromMarkdown(actualMarkdown);
     expect(actualApiContent2).toEqual(expectedApiContent);
 
     const actualProsemirrorNode = fromApiContent(
@@ -364,11 +362,11 @@ const fileOptions: ApiContentMarkdownIntoOptions = {
 };
 
 function fileUrl(fileId: FileId) {
-    return `https://alpine.inc/s/${spaceId}/files/${fileId}/content`;
+    return `https://alpine.inc/file/${fileId}/content`;
 }
 
 function previewUrl(entityPath: string) {
-    return `https://alpine.inc/s/${spaceId}/${entityPath}/preview`;
+    return `https://alpine.inc/${entityPath}/preview`;
 }
 
 function testFileIntoApiContentAndPrintToMarkdown(
@@ -381,7 +379,7 @@ function testFileIntoApiContentAndPrintToMarkdown(
     const actualApiContent = intoApiContent(prosemirrorNode, fileOptions);
     expect(actualApiContent).toEqual(expectedApiContent);
 
-    const actualMarkdown = printApiContentToMarkdown(actualApiContent, {spaceId});
+    const actualMarkdown = printApiContentToMarkdown(actualApiContent);
     expect(actualMarkdown).toEqual(expectedMarkdown);
 }
 
@@ -584,7 +582,7 @@ test("preview of a document entity", () => {
             ],
         },
         `\
-![My Document](${previewUrl(`documents/${testDocumentId}`)})
+![My Document](${previewUrl(`doc/${testDocumentId}`)})
 `,
     );
 });
@@ -610,7 +608,7 @@ test("fileFloat with preview entity", () => {
             ],
         },
         `\
-<div style="float: left; clear: both"><img alt="General" src="${previewUrl(`channels/${testChannelId}`)}"/></div>
+<div style="float: left; clear: both"><img alt="General" src="${previewUrl(`channel/${testChannelId}`)}"/></div>
 `,
     );
 });
@@ -659,7 +657,7 @@ test("file gallery with mixed files and previews", () => {
         `\
 <div style="display: flex; align-items: stretch">
 <img src="${fileUrl(fileId1)}" style="flex: 0 0 34%"/>
-<img alt="My Document" src="${previewUrl(`documents/${testDocumentId}`)}" style="flex: 0 0 66%"/>
+<img alt="My Document" src="${previewUrl(`doc/${testDocumentId}`)}" style="flex: 0 0 66%"/>
 </div>
 `,
     );

@@ -591,6 +591,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                             messageEditing.dispatch({
                                 type: "StartEditing",
+                                spaceId: space.id,
                                 messageIndex: message.index,
                                 messageRoomKey: message.getRoomKey(),
                                 messagePayload,

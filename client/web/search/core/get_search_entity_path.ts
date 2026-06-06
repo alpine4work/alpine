@@ -98,41 +98,41 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
             //
             // Though even if we had a profile page for accounts, routing to the 1:1 chat in
             // search may be more useful.
-            return `/s/${spaceId}/chat/with/${entityId.accountId}`;
+            return `/chat/with/${entityId.accountId}/${spaceId}?focus`;
         }
         case "Document": {
-            return `/s/${spaceId}/documents/${entityId.documentId}`;
+            return `/doc/${entityId.documentId}`;
         }
         case "DocumentComment": {
-            return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
+            return `/doc/${entityId.documentId}?thread=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
         }
         case "Channel": {
-            return `/s/${spaceId}/channels/${entityId.channelId}`;
+            return `/channel/${entityId.channelId}`;
         }
         case "Post": {
-            return `/s/${spaceId}/posts/${entityId.postId}`;
+            return `/post/${entityId.postId}`;
         }
         case "PostComment": {
-            return `/s/${spaceId}/posts/${entityId.postId}?comment=${entityId.commentIndex}`;
+            return `/post/${entityId.postId}?comment=${entityId.commentIndex}`;
         }
         case "Chat": {
-            return `/s/${spaceId}/chat/${entityId.chatId}`;
+            return `/chat/${entityId.chatId}`;
         }
         case "ChatMessage": {
-            return `/s/${spaceId}/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
+            return `/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
         }
         case "Task": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}`;
+            return `/task/${entityId.taskId}`;
         }
         case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
+            return `/task-collection/${entityId.collectionId}`;
         }
         case "TaskComment": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}?comment=${entityId.commentIndex}`;
+            return `/task/${entityId.taskId}?comment=${entityId.commentIndex}`;
         }
         case "Site": {
             if (entityId.firstEntityId === null) {
-                return `/s/${spaceId}/sites/${entityId.siteId}`;
+                return `/site/${entityId.siteId}`;
             }
 
             const idObject = parseSiteItemSearchEntityId(entityId.firstEntityId);
@@ -158,7 +158,7 @@ export function getSearchStaticEntityPath({
 
     switch (entityId) {
         case "CreateChatMessage": {
-            return `/s/${spaceId}/chat/new`;
+            return `/chat/new/${spaceId}`;
         }
         case "CreatePost": {
             // Make sure we use the same `draftId` consistently for the current search result
@@ -169,10 +169,10 @@ export function getSearchStaticEntityPath({
                 currentTime.getTime(),
             );
 
-            return `/s/${spaceId}/posts/new/${draftId}`;
+            return `/post/new/${draftId}/${spaceId}`;
         }
         case "CreateChannel": {
-            return `/s/${spaceId}/channels/new?focus=none`;
+            return `/channel/new/${spaceId}?focus=none`;
         }
         case "CreateDocument": {
             // Make sure we use the same `documentId` consistently for the current search
@@ -181,27 +181,27 @@ export function getSearchStaticEntityPath({
 
             // Documents are only created once the user starts typing in them. The user doesn't
             // create a document every time they navigate to this search route.
-            return `/s/${spaceId}/documents/${documentId}?create`;
+            return `/doc/${documentId}?create=${spaceId}`;
         }
         case "CreateTaskCollection": {
             // Make sure we use the same `collectionId` consistently for the current search
             // result list.
             const collectionId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
-            return `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`;
+            return `/task-collection/${collectionId}?create=${spaceId}&focus=none`;
         }
         case "CreateTaskView": {
-            return `/s/${spaceId}/tasks/view`;
+            return `/task-view/new/${spaceId}`;
         }
         case "CreateTask": {
             // Make sure we use the same `taskId` consistently for the current search result
             // list.
             const taskId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
-            return `/s/${spaceId}/tasks/${taskId}?create`;
+            return `/task/${taskId}?create=${spaceId}`;
         }
         case "TaskPersonal": {
-            return `/s/${spaceId}/tasks`;
+            return `/my-tasks/${spaceId}`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I\u2019ve created");
@@ -223,7 +223,7 @@ export function getSearchStaticEntityPath({
                 },
             ]);
 
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
+            return `/task-view/new/${spaceId}?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssigneeIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks assigned to me");
@@ -245,7 +245,7 @@ export function getSearchStaticEntityPath({
                 },
             ]);
 
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
+            return `/task-view/new/${spaceId}?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive": {
             const nameSearchParam = encodeURIComponent("Active tasks assigned to me");
@@ -274,7 +274,7 @@ export function getSearchStaticEntityPath({
                 },
             ]);
 
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
+            return `/task-view/new/${spaceId}?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I\u2019ve assigned to others");
@@ -310,10 +310,10 @@ export function getSearchStaticEntityPath({
                 },
             ]);
 
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
+            return `/task-view/new/${spaceId}?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "SearchFavorites": {
-            return `/s/${spaceId}/favorites`;
+            return `/favorites/${spaceId}`;
         }
         default: {
             throw exhaustive(entityId);

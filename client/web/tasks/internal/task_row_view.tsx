@@ -1325,10 +1325,7 @@ function TaskRowView(
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn\u2019t copy task link",
                     onPress: async () => {
-                        const url = new URL(
-                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
-                            window.location.href,
-                        );
+                        const url = new URL(`/task/${task.id}`, window.location.href);
                         await writeTextToClipboard(url.toString());
                     },
                 },
@@ -1707,7 +1704,7 @@ function TaskRowView(
                                 description="Open"
                                 pressErrorTitle="Couldn&#x2019;t open task"
                                 onPress={async () => {
-                                    await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                                    await navigate(`/task/${task.id}`);
 
                                     // After opening a task, (probably the task was opened in a peek) then unfocus the
                                     // button. That way keyboard events like "Escape" will be handled by the peek and

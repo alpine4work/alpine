@@ -26,7 +26,6 @@ export async function loadAgentChannelLinkContent({
 
     return await printApiContentToAgentMarkdownTreeWithFrontmatter({
         transaction,
-        request,
         frontmatter: {
             type: "Channel",
             name: channel.name,

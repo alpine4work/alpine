@@ -2231,9 +2231,7 @@ function createMessageStreamTimeoutAdditionalWrite<Options extends {}>(
         const content = assertMessageContent(
             fromApiContent(
                 MessageContentProsemirrorSchema,
-                parseApiContentFromMarkdown(defaultAgentErrorDisplayMessage, {
-                    spaceId: context.actor.getSpaceId(),
-                }),
+                parseApiContentFromMarkdown(defaultAgentErrorDisplayMessage),
             ),
         );
 

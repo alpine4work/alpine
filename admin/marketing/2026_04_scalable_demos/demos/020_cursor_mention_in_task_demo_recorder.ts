@@ -12,7 +12,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     // Instantiate the Cursor bot into the space. Pass `services` so the bot gets a
     // webhook URL pointing at the local agent service mock endpoint — required for
@@ -66,7 +66,6 @@ Due date appears one day earlier than expected.
         cursor,
         `/tasks/${dueDateTask.id}`,
         createMockAgentRecording(
-            space.id,
             [
                 2000,
                 "## Incorrect Due Date Display\n\nStarted coding. I\u2019ll let you know when I\u2019m done [(watch me work)](http://localhost:3000).",
@@ -128,7 +127,7 @@ and sends it.
 2. Start recording, then press Enter in this terminal to begin the automated actions.
         `,
         session: accounts.elleKappaTan,
-        path: `/s/${space.id}/tasks/collections/${bugsCollection.id}`,
+        path: `/task-collection/${bugsCollection.id}`,
         viewport: {width: scalableDemoWideViewportWidth},
         prepare: async page => {
             await page.evaluate("dev.spaceSideBar.toggleVisibility()");

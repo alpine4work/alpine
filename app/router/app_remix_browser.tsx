@@ -189,10 +189,10 @@ export function AppRemixBrowser({
         }
 
         // When single fetch is enabled, we need to suspend until the initial state
-        // snapshot is decoded into window.\_\_remixContext.state
+        // snapshot is decoded into `window.__remixContext.state`
         if (window.__remixContext.future.unstable_singleFetch) {
             // NOTE(calebmer): We don't currently use `unstable_singleFetch`.
-            throw new UnimplementedError("`unstable_singleFetch` not supported");
+            throw new UnimplementedError("`unstable_singleFetch` is disabled in `cyberworlds`");
         }
 
         routes = createAppClientRoutes(

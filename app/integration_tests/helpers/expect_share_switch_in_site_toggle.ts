@@ -48,7 +48,7 @@ export async function expectShareSwitchInSiteToggle({
     entityNoun: string;
     createEntity: (session: TestSpaceSession) => Promise<{
         entityId: SiteItemSearchEntityId;
-        /** URL path relative to the space (e.g. `/tasks/collections/{id}`). */
+        /** Canonical URL path for the entity (e.g. `/task-collection/{id}`). */
         path: string;
         /** Asserts the entity page finished loading before we interact with it. */
         expectLoaded: (page: Page) => Promise<void>;
@@ -81,7 +81,7 @@ export async function expectShareSwitchInSiteToggle({
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}${entity.path}`);
+    await page.goto(entity.path);
 
     await entity.expectLoaded(page);
 

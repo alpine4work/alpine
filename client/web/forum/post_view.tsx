@@ -116,8 +116,8 @@ export function PostView({
             },
         }),
         defaultPreviousRoute: inboxContext?.entry
-            ? `/s/${inboxContext.entry.model.spaceId}/inbox`
-            : `/s/${initialPost.model.spaceId}/posts/${initialPost.model.id}`,
+            ? `/inbox/${inboxContext.entry.model.spaceId}`
+            : `/post/${initialPost.model.id}`,
     });
 
     return (

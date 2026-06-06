@@ -25,7 +25,7 @@ test("can reply to range in post", async ({page, context: browserContext}) => {
     );
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -97,7 +97,7 @@ test("can reply to range in post when post has marks", async ({page, context: br
     );
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -170,7 +170,7 @@ test("can reply to range in post when range has multiple block nodes", async ({
     );
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -240,7 +240,7 @@ test("if content within replied post range changes then the reply is updated", a
     );
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/posts/${post.id}`);
+    await page.goto(`/post/${post.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -339,7 +339,7 @@ test("can reply to range in post in channel peek", async ({page, context: browse
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}`);
+    await page.goto(`/home/${space.id}`);
 
     await page.getByText("Test Channel").first().click({button: "right"});
     await expect(page.getByTestId("PeekStack")).toBeHidden();

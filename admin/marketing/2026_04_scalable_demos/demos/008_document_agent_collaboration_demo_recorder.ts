@@ -86,7 +86,7 @@ forth. You also don\u2019t have to make updates to the document yourself.
    we\u2019ll replay.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {
             width: documentAgentCollaborationDemoRecordingWidth,
             height: documentAgentCollaborationDemoRecordingHeight,
@@ -105,7 +105,6 @@ forth. You also don\u2019t have to make updates to the document yourself.
         chatGpt,
         `/documents/${document.id}/threads/${commentThreadId}`,
         createMockAgentRecording(
-            space.id,
             [
                 8_000,
                 "I like the general direction, but I think you\u2019re leaving a lot of power on the table with how abstract and repetitive it is.",
@@ -138,7 +137,7 @@ forth. You also don\u2019t have to make updates to the document yourself.
 11. All done!
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {
             width: documentAgentCollaborationDemoRecordingWidth,
             height: documentAgentCollaborationDemoRecordingHeight,

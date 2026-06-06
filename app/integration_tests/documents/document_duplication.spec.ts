@@ -17,7 +17,7 @@ test("can duplicate a document without variables", async ({context: browserConte
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Original Document"})).toBeVisible();
 
@@ -39,7 +39,7 @@ test("can duplicate a document without variables", async ({context: browserConte
     }
 
     // The URL should have changed to the new document
-    expect(page.url()).toContain("/documents/");
+    expect(page.url()).toContain("/doc/");
     await expect(page).not.toHaveURL(new RegExp(document.id));
 
     // Content should be duplicated
@@ -58,7 +58,7 @@ test("can duplicate a document with template variables", async ({context: browse
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Template: {{Name}}"})).toBeVisible();
 
@@ -110,7 +110,7 @@ test("duplicate with empty variable value leaves variable unchanged", async ({
     });
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Template: {{Name}}"})).toBeVisible();
 
@@ -157,7 +157,7 @@ test("viewer can duplicate a document they have view access to", async ({
 
     // Sign in as the viewer (session2)
     await services.signIn(browserContext1, session2);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Original Document"})).toBeVisible();
 
@@ -179,7 +179,7 @@ test("viewer can duplicate a document they have view access to", async ({
 
     // The URL should have changed to the new document
     await expect(page1).not.toHaveURL(new RegExp(document.id));
-    expect(page1.url()).toContain("/documents/");
+    expect(page1.url()).toContain("/doc/");
 
     // Content should be duplicated
     await expect(page1.getByText("This is the content.")).toBeVisible();

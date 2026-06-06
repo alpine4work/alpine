@@ -37,9 +37,8 @@ export function InboxMobileView({
     initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
 }) {
     // This component only supports rendering on mobile platforms. Unlike
-    // `<SearchMobileView>` where the `/s/:spaceId/search` route also renders the
-    // mobile UI on desktop. On desktop the `/s/:spaceId/inbox` route renders
-    // `<InboxView>`.
+    // `<SearchMobileView>` where the `/search/:spaceId` route also renders the mobile
+    // UI on desktop. On desktop the `/inbox/:spaceId` route renders `<InboxView>`.
     assert(usePlatform() === "mobile");
 
     const navigate = useNavigate();
@@ -72,7 +71,7 @@ export function InboxMobileView({
                     pressErrorTitle: "Can\u2019t open new notifications",
                     onPress: async () => {
                         if (filter === "New") return;
-                        await navigate(`/s/${space.id}/inbox`, {replace: true});
+                        await navigate(`/inbox/${space.id}`, {replace: true});
                     },
                 },
                 {
@@ -81,7 +80,7 @@ export function InboxMobileView({
                     pressErrorTitle: "Can\u2019t open done notifications",
                     onPress: async () => {
                         if (filter === "Done") return;
-                        await navigate(`/s/${space.id}/inbox?tab=done`, {replace: true});
+                        await navigate(`/inbox/${space.id}?tab=done`, {replace: true});
                     },
                 },
             ],

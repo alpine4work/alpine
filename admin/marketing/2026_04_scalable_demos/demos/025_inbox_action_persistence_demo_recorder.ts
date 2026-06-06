@@ -83,7 +83,7 @@ automation uses a task comment, a Celebrate reaction on Cliff\u2019s won-deal po
 comment to show each inbox entry clearing only after Cass takes action.
         `,
         session: accounts.cassCade,
-        path: `/s/${space.id}/inbox`,
+        path: `/inbox/${space.id}`,
         viewport: {
             width: inboxActionPersistenceDemoRecordingWidth,
             height: inboxActionPersistenceDemoRecordingHeight,

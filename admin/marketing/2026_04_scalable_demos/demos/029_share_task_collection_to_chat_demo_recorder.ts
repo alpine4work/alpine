@@ -10,7 +10,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const demoFixedTime = new Date("2025-10-16T11:20:00-04:00");
     const defaultTypingDurationMs = 1500;
@@ -90,7 +90,7 @@ inside table cells.
     void helpDocExampleTask;
     void toolbarSpacingTask;
 
-    const collectionPath = `/s/${space.id}/tasks/collections/${collection.id}`;
+    const collectionPath = `/task-collection/${collection.id}`;
 
     await recorder.record({
         instructions: markdown`

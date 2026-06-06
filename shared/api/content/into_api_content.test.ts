@@ -25,12 +25,9 @@ import {
     DocumentId,
     FileId,
     PostId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-
-const spaceId = generateId<SpaceId>();
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
@@ -4832,8 +4829,8 @@ describe("file block elements", () => {
                 fileOptionsWithDimensions,
             );
 
-            const markdown = printApiContentToMarkdown(apiContent, {spaceId});
-            const parsed = parseApiContentFromMarkdown(markdown, {spaceId});
+            const markdown = printApiContentToMarkdown(apiContent);
+            const parsed = parseApiContentFromMarkdown(markdown);
 
             // Widths are response-only metadata and don't survive the round-trip (they'll be
             // recomputed on the next response). The parsed content should have the right

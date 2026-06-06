@@ -186,6 +186,7 @@ export function useDocumentContentEditorWebSocket(
                     type: "NotExists",
                     state: new ValueStore(
                         getInitialDocumentContentEditorState({
+                            spaceId: space.id,
                             currentAccountId: assertExists(currentAccount).id,
                             // No document yet, so no access checks apply. We pick `Manage` so the editor
                             // state's reducer doesn't strip an empty cursor selection in read-only mode (the
@@ -215,6 +216,7 @@ export function useDocumentContentEditorWebSocket(
                         documentId: initialDocument.id,
                         accessLevel,
                         initialState: getInitialDocumentContentEditorState({
+                            spaceId: space.id,
                             currentAccountId: currentAccount?.id ?? null,
                             accessLevel,
                             initialVersion: initialDocument.version,
@@ -246,6 +248,7 @@ export function useDocumentContentEditorWebSocket(
                 documentId: initialDocument.id,
                 accessLevel,
                 initialState: getInitialDocumentContentEditorState({
+                    spaceId: space.id,
                     currentAccountId: currentAccount?.id ?? null,
                     accessLevel,
                     initialVersion: initialDocument.version,
@@ -470,6 +473,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: clientState.client.documentId,
                     accessLevel,
                     initialState: getInitialDocumentContentEditorState({
+                        spaceId: space.id,
                         currentAccountId: currentAccount?.id ?? null,
                         accessLevel,
                         initialVersion: state.editorState.getVersion(),
@@ -551,6 +555,7 @@ export function useDocumentContentEditorWebSocket(
                     documentId: document.id,
                     accessLevel,
                     initialState: getInitialDocumentContentEditorState({
+                        spaceId: space.id,
                         currentAccountId: currentAccount?.id ?? null,
                         accessLevel,
                         initialVersion: document.version,
@@ -571,6 +576,7 @@ export function useDocumentContentEditorWebSocket(
         currentAccount?.id,
         setErrorState,
         shouldInitializeClientWithNewCommentAccess,
+        space.id,
     ]);
 
     // Update `SearchEntityRegistry` with the latest document title. Now as the title

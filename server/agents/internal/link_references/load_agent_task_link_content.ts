@@ -115,11 +115,8 @@ export async function loadAgentTaskLinkContent({
         });
     }
 
-    for (const node of (
-        await printApiContentToAgentMarkdownTree(transaction, task.content, {
-            spaceId: request.spaceId,
-        })
-    ).children) {
+    for (const node of (await printApiContentToAgentMarkdownTree(transaction, task.content))
+        .children) {
         children.push(node);
     }
 

@@ -175,6 +175,7 @@ import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
@@ -1232,9 +1233,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreads(
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading in
         // parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
         // document which may be before the function as a whole returns. This function will
         // not be called in error cases.
@@ -1260,9 +1259,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading in
         // parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
         // document which may be before the function as a whole returns. This function will
         // not be called in error cases.
@@ -6609,6 +6606,7 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         commentThreadIds,
         commentLimit,
         commentThreadCountAgainstLimit,
+        onSpaceId,
     }: {
         documentId: DocumentId;
         commentThreadIds:
@@ -6627,6 +6625,10 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         //
         // This number can be fractional like 5.8.
         commentThreadCountAgainstLimit: number;
+        // If you pass this in, we will call once we've loaded the `SpaceId` for the
+        // document which may be before the function as a whole returns. This function will
+        // not be called in error cases.
+        onSpaceId?: (spaceId: SpaceId) => void;
     },
 ): Promise<{
     document: DocumentModel;
@@ -6647,7 +6649,10 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         // don't have comment access to the document. Instead of returning the document
         // without comment marks.
         commentThreadIds,
-        onSpaceId: spaceIdPromiseResolver.resolve,
+        onSpaceId: spaceId => {
+            spaceIdPromiseResolver.resolve(spaceId);
+            onSpaceId?.(spaceId);
+        },
     }).then(
         result => {
             spaceIdPromiseResolver.resolve(result.document.spaceId);

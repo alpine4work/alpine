@@ -88,7 +88,7 @@ export async function screenshotFileEntity(
             ],
         });
 
-        await runner.goto(session, `/s/${session.space.id}/documents/${document.id}`, {
+        await runner.goto(session, `/doc/${document.id}`, {
             fixedTime: options?.fixedTime,
         });
 

@@ -99,7 +99,7 @@ patchedDependencies:
     hash: 3dw7fuwmgqf24hbcyfvwt3jcae
     path: admin/patches/@remix-run__router@1.16.1.patch
   '@remix-run/server-runtime@2.9.2':
-    hash: eg6mlbjujkoey2wvs2xfc2hgba
+    hash: bwp7lsfah57qxogbvyn6mt5i4e
     path: admin/patches/@remix-run__server-runtime@2.9.2.patch
   '@types/functional-red-black-tree@1.0.1':
     hash: y7qvz66glgshbez7p4ffcn2dmi
@@ -471,7 +471,7 @@ importers:
         version: 1.16.1(patch_hash=3dw7fuwmgqf24hbcyfvwt3jcae)
       '@remix-run/server-runtime':
         specifier: 2.9.2
-        version: 2.9.2(patch_hash=eg6mlbjujkoey2wvs2xfc2hgba)(typescript@5.9.2)
+        version: 2.9.2(patch_hash=bwp7lsfah57qxogbvyn6mt5i4e)(typescript@5.9.2)
       '@remotion/cli':
         specifier: 4.0.443
         version: 4.0.443(@swc/helpers@0.5.2)(bufferutil@4.0.7(supports-color@10.2.2))(react-dom@19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0))(react@19.2.0)(supports-color@10.2.2)(utf-8-validate@5.0.10(supports-color@10.2.2))
@@ -14200,7 +14200,7 @@ snapshots:
       '@remix-run/node': 2.9.2(typescript@5.9.2)
       '@remix-run/react': 2.9.2(patch_hash=7saxlxo6zuymefpcz2q5igparu)(react-dom@19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
       '@remix-run/router': 1.16.1(patch_hash=3dw7fuwmgqf24hbcyfvwt3jcae)
-      '@remix-run/server-runtime': 2.9.2(patch_hash=eg6mlbjujkoey2wvs2xfc2hgba)(typescript@5.9.2)
+      '@remix-run/server-runtime': 2.9.2(patch_hash=bwp7lsfah57qxogbvyn6mt5i4e)(typescript@5.9.2)
       '@types/mdx': 2.0.13
       '@vanilla-extract/integration': 6.5.0(patch_hash=mdzwieginzqmg2qrwzm56mc3hu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(supports-color@10.2.2)(terser@5.31.6)
       arg: 5.0.2
@@ -14293,7 +14293,7 @@ snapshots:
 
   '@remix-run/node@2.9.2(typescript@5.9.2)':
     dependencies:
-      '@remix-run/server-runtime': 2.9.2(patch_hash=eg6mlbjujkoey2wvs2xfc2hgba)(typescript@5.9.2)
+      '@remix-run/server-runtime': 2.9.2(patch_hash=bwp7lsfah57qxogbvyn6mt5i4e)(typescript@5.9.2)
       '@remix-run/web-fetch': 4.4.2
       '@web3-storage/multipart-parser': 1.0.0(patch_hash=ayyfgljgypwwq3tsszvlpoikva)
       cookie-signature: 1.2.1
@@ -14306,7 +14306,7 @@ snapshots:
   '@remix-run/react@2.9.2(patch_hash=7saxlxo6zuymefpcz2q5igparu)(react-dom@19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0))(react@19.2.0)(typescript@5.9.2)':
     dependencies:
       '@remix-run/router': 1.16.1(patch_hash=3dw7fuwmgqf24hbcyfvwt3jcae)
-      '@remix-run/server-runtime': 2.9.2(patch_hash=eg6mlbjujkoey2wvs2xfc2hgba)(typescript@5.9.2)
+      '@remix-run/server-runtime': 2.9.2(patch_hash=bwp7lsfah57qxogbvyn6mt5i4e)(typescript@5.9.2)
       react: 19.2.0
       react-dom: 19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0)
       react-router: 6.23.1(patch_hash=3v52hwhk34cap7zzd3vv6srlte)(react@19.2.0)
@@ -14317,7 +14317,7 @@ snapshots:
 
   '@remix-run/router@1.16.1(patch_hash=3dw7fuwmgqf24hbcyfvwt3jcae)': {}
 
-  '@remix-run/server-runtime@2.9.2(patch_hash=eg6mlbjujkoey2wvs2xfc2hgba)(typescript@5.9.2)':
+  '@remix-run/server-runtime@2.9.2(patch_hash=bwp7lsfah57qxogbvyn6mt5i4e)(typescript@5.9.2)':
     dependencies:
       '@remix-run/router': 1.16.1(patch_hash=3dw7fuwmgqf24hbcyfvwt3jcae)
       '@types/cookie': 0.6.0

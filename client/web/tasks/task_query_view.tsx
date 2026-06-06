@@ -227,7 +227,7 @@ export function TaskQueryView({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy view link",
                 onPress: async () => {
-                    const url = new URL(`/s/${space.id}/tasks/view`, window.location.href);
+                    const url = new URL(`/task-view/new/${space.id}`, window.location.href);
 
                     if (name !== defaultTaskQueryViewName) {
                         url.searchParams.set("name", name);
@@ -509,7 +509,7 @@ export function TaskQueryView({
                 />
             ),
         menuActions,
-        defaultPreviousRoute: `/s/${space.id}/tasks`,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(

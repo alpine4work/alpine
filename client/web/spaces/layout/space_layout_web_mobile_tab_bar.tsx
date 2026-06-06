@@ -152,7 +152,7 @@ export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: Rynamo
                 label="Home"
                 icon={<House />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}`;
+                    const pathname = `/home/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -164,7 +164,7 @@ export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: Rynamo
                 label="Search"
                 icon={<MagnifyingGlass />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/search`;
+                    const pathname = `/search/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -176,7 +176,7 @@ export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: Rynamo
                 label="Create"
                 icon={<Plus />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/create`;
+                    const pathname = `/create/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);
@@ -225,10 +225,10 @@ export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: Rynamo
                     </>
                 }
                 onPress={() => {
-                    const pathname = `/s/${space.id}/inbox`;
+                    const pathname = `/inbox/${space.id}`;
 
                     if (location.pathname !== pathname) {
-                        navigate(`/s/${space.id}/inbox`);
+                        navigate(`/inbox/${space.id}`);
                     }
                 }}
             />
@@ -237,7 +237,7 @@ export function SpaceLayoutWebMobileTabBar({initialInbox}: {initialInbox: Rynamo
                 label="More"
                 icon={<List />}
                 onPress={() => {
-                    const pathname = `/s/${space.id}/more`;
+                    const pathname = `/more/${space.id}`;
 
                     if (location.pathname !== pathname) {
                         navigate(pathname);

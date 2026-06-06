@@ -190,7 +190,7 @@ const NavigationContext = createContext<NavigationContext | null>(null);
  * Sets up the navigation context. Primarily resolves the promises returned by
  * `navigate()` by observing the `location` at the position of this context
  * provider in the tree. So should be rendered at the root of a react router route
- * (we render in `root.tsx` and `s.$spaceId.peek.tsx` since peeks create their own
+ * (we render in `root.tsx` and `_space.peek.tsx` since peeks create their own
  * react routers).
  */
 export function NavigationContextProvider({children}: {children?: ReactNode}) {

@@ -64,11 +64,13 @@ export const createContentCommentThreadMetaKey = "createCommentThread";
 export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
 
 function buildPlugins<Content extends ContentWithReferences>({
+    spaceId,
     schema,
     references,
     reduceReferences,
     disableUndoKeyboardShortcuts,
 }: {
+    spaceId: SpaceId | null;
     schema: ContentProsemirrorSchema;
     references: Content["references"];
     reduceReferences: (
@@ -100,16 +102,10 @@ function buildPlugins<Content extends ContentWithReferences>({
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 
-    // A bit of a hack to get the spaceId while these plugins are feature flagged. We
-    // only show this UI in the browser, so browser-only gating is sufficient here.
-    const spaceId =
-        typeof window !== "undefined"
-            ? (window.location.pathname.match(/\/s\/([^/]+)/)?.[1] as SpaceId) || null
-            : null;
-
     if (
         spaceId &&
         hasDatePickerFeature(spaceId) &&
+        typeof localStorage !== "undefined" &&
         !isMobileWebKit &&
         // Create an escape hatch while we're testing in case things break
         localStorage.getItem("disableDatePicker") !== "true"
@@ -133,6 +129,7 @@ function buildPlugins<Content extends ContentWithReferences>({
     if (
         spaceId &&
         hasSpellCheckFeature(spaceId) &&
+        typeof localStorage !== "undefined" &&
         !isMobileWebKit &&
         // Create an escape hatch while we're testing in case things break
         localStorage.getItem("disableSpellCheck") !== "true"
@@ -159,26 +156,33 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * object. You need to use `_create()` or `createCollaborative()` to customize the
      * `ContentReferences` type.
      */
-    public static create<ContentDoc extends Node>(
-        content: ContentWithReferences & {doc: ContentDoc},
-        options: {
-            /**
-             * The initial selection to use for the editor state. If the string "start" or
-             * "end" then we'll automatically put the selection at that side of the doc.
-             */
-            selection?: "start" | "end" | Selection | SelectionBookmark;
+    public static create<ContentDoc extends Node>(options: {
+        /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
 
-            /**
-             * Should the undo/redo keyboard shortcuts be disabled on this editor? When this is
-             * set to true it usually means the component rendering our content editor will
-             * managed undo/redo keyboard shortcuts.
-             */
-            disableUndoKeyboardShortcuts?: boolean;
-        } = {},
-    ): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
+        /**
+         * The initial content of the editor.
+         */
+        content: ContentWithReferences & {doc: ContentDoc};
+
+        /**
+         * The initial selection to use for the editor state. If the string "start" or
+         * "end" then we'll automatically put the selection at that side of the doc.
+         */
+        selection?: "start" | "end" | Selection | SelectionBookmark;
+
+        /**
+         * Should the undo/redo keyboard shortcuts be disabled on this editor? When this is
+         * set to true it usually means the component rendering our content editor will
+         * managed undo/redo keyboard shortcuts.
+         */
+        disableUndoKeyboardShortcuts?: boolean;
+    }): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
         return ContentEditorState._create({
             ...options,
-            content,
             reduceReferences: reduceContentReferences,
         });
     }
@@ -188,12 +192,21 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * type of `ContentReferences`.
      */
     private static _create<Content extends ContentWithReferences>({
+        spaceId,
         content,
         reduceReferences,
         selection = "start",
         disableUndoKeyboardShortcuts = false,
     }: {
-        /** The initial content of the editor. */
+        /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
+
+        /**
+         * The initial content of the editor.
+         */
         content: Content;
 
         /**
@@ -216,6 +229,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         assert(schema.topNodeType === content.doc.type);
 
         const plugins = buildPlugins({
+            spaceId,
             schema,
             references: content.references,
             reduceReferences,
@@ -242,6 +256,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * Creates a new collaborative state for our content editor.
      */
     public static createCollaborative<Content extends ContentWithReferences>({
+        spaceId,
         version,
         content,
         selection = "start",
@@ -249,6 +264,12 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         clientId = generateId<ContentEditorClientId>(),
         disableUndoKeyboardShortcuts = false,
     }: {
+        /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
+
         /**
          * The content version for collaborative editing.
          */
@@ -298,6 +319,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
 
         const plugins = [
             ...buildPlugins({
+                spaceId,
                 schema,
                 references: content.references,
                 reduceReferences,

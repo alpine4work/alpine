@@ -1646,6 +1646,12 @@ export async function getPostAndInitialComments(
 
     const postItem = await getPostItemWithContentForAuthorization(context, postId);
 
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId);
+
+    const authorizationPromise = authorizeChannelAccess(context, postItem.channelId, "View");
+
     const commentPromises: Array<Promise<PostCommentModel>> = [];
 
     const commentIndexes = new Set<number>();
@@ -1666,7 +1672,7 @@ export async function getPostAndInitialComments(
     }
 
     const [, post, comments, otherReferencedComments] = await runAllPromises([
-        authorizeChannelAccess(context, postItem.channelId, "View"),
+        authorizationPromise,
         ForumRealtimeTable.buildRealtimeItem(context, postItem),
         runAllPromises(commentPromises),
         runAllPromises(

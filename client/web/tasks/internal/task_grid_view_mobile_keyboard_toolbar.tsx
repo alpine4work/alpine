@@ -146,7 +146,7 @@ export function TaskGridViewMobileKeyboardToolbar({
 
                 scrollToAnchorPosition();
             }}
-            onOpenPress={task ? () => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`) : null}
+            onOpenPress={task ? () => navigate(`/task/${task.id}`) : null}
         />,
         portalElement,
     );

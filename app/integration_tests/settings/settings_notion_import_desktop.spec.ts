@@ -65,7 +65,7 @@ test("can upload a Notion export and see final teamspace stats", async ({
     writeFileSync(zipPath, zip);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/settings/integrations/notion`);
+    await page.goto(`/settings/${space.id}/integrations/notion`);
 
     // Verify the page loaded
     await expect(page.getByText("Click to upload a Notion export")).toBeVisible({timeout: 15_000});

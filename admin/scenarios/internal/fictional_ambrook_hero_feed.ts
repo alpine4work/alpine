@@ -53,13 +53,12 @@ export async function createFictionalAmbrookHeroFeed({
                     masonClay,
                     Mustache.render(
                         markdown`
-[ChatGPT](https://alpine.inc/s/{{spaceId}}/accounts/{{chatGptAccountId}}?mention) please write an
-executive summary of everything the engineering team worked in Q1 2026 and whether we met our
-estimates from
-[Product Roadmap (Q1 2026)](https://alpine.inc/s/{{spaceId}}/documents/{{roadmapDocumentId}}?mention).
+[ChatGPT](https://alpine.inc/mention/{{chatGptAccountId}}) please write an executive summary of
+everything the engineering team worked in Q1 2026 and whether we met our estimates from
+[Product Roadmap (Q1 2026)](https://alpine.inc/doc/{{roadmapDocumentId}}?mention).
 
-cc [Cass](https://alpine.inc/s/{{spaceId}}/accounts/{{cassCadeAccountId}}?mention=short) let\u2019s
-use this for our retro today
+cc [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short) let\u2019s use this for our retro
+today
                         `,
                         {
                             spaceId: space.id,
@@ -156,8 +155,8 @@ use this for our retro today
                     hollyEvergreen,
                     Mustache.render(
                         markdown`
-Kudos to [Matt R Horn](https://alpine.inc/s/{{spaceId}}/accounts/{{mattRHornAccountId}}?mention) for
-designing our offsite swag. It looks soooo good!!
+Kudos to [Matt R Horn](https://alpine.inc/mention/{{mattRHornAccountId}}) for designing our offsite
+swag. It looks soooo good!!
                         `,
                         {
                             spaceId: space.id,

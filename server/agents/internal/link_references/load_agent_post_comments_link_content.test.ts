@@ -368,7 +368,6 @@ ${"Hi Alice, how are you?".repeat(200)}
     - with a nested list
     - item
 `,
-                            {spaceId},
                         ) as ApiContentResponse,
                         files: [],
                     },

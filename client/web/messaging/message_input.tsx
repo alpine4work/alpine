@@ -150,7 +150,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
     const fileRegistry = useFileRegistry();
 
@@ -214,7 +214,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             key: generateId(),
             state:
                 restoreStateRef?.current?.state ??
-                ContentEditorState.create(emptyMessageContentWithReferences),
+                ContentEditorState.create({
+                    spaceId: space.id,
+                    content: emptyMessageContentWithReferences,
+                }),
             files: restoreStateRef?.current?.files ?? emptyArray,
         }));
 
@@ -232,10 +235,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const resetInputState = useCallback(() => {
         actuallySetInputState({
             key: generateId(),
-            state: ContentEditorState.create(emptyMessageContentWithReferences),
+            state: ContentEditorState.create({
+                spaceId: space.id,
+                content: emptyMessageContentWithReferences,
+            }),
             files: emptyArray,
         });
-    }, []);
+    }, [space.id]);
 
     const addInputFile = useCallback((file: MessageInputFile) => {
         actuallySetInputState(oldState => ({
@@ -578,6 +584,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             ) {
                                 messageEditing.dispatch({
                                     type: "StartEditing",
+                                    spaceId: space.id,
                                     messageRoomKey: message.getRoomKey(),
                                     messageIndex: message.index,
                                     messagePayload: message.payload,

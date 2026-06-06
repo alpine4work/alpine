@@ -42,12 +42,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     await document.access.grantDefault(session1);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     // Make pages a bit wider so comment thread decorations show up even when the
     // comment sidebar is open.
@@ -543,7 +543,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -726,7 +726,7 @@ test("can leave a document comment across multiple paragraphs", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,

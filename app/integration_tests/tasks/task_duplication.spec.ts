@@ -18,7 +18,7 @@ test("can duplicate a task without variables", async ({context: browserContext, 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -70,7 +70,7 @@ test("can duplicate a task without variables", async ({context: browserContext, 
     ).toHaveText("Original Task (copy)");
 
     // The URL should have changed to the new task
-    expect(page.url()).toContain("/tasks/");
+    expect(page.url()).toContain("/task/");
     await expect(page).not.toHaveURL(new RegExp(task.id));
 
     // Content should be duplicated
@@ -90,7 +90,7 @@ test("can duplicate a task with template variables in title", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -163,7 +163,7 @@ test("can duplicate a task with template variables in notes", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -231,7 +231,7 @@ test("duplicate with empty variable value leaves variable unchanged", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -296,7 +296,7 @@ test("can duplicate a task with variable in both title and notes", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),

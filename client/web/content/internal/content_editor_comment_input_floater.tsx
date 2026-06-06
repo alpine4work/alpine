@@ -165,7 +165,7 @@ export function ContentEditorCommentInputFloater({
     }, [range.from, range.to, state.doc, state.schema.marks.comment]);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({spaceId: space.id, content: emptyMessageContentWithReferences}),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
 

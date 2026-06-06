@@ -15,7 +15,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
-    const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
+    const {accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
 
     const {chatGpt, cursor} = await createDemoMockBots(
         accounts.roseCompas,
@@ -148,7 +148,7 @@ but we won\u2019t show that in this demo.
 8. Scroll all the way back to the top then stop recording.
         `,
         session: accounts.roseCompas,
-        path: `/s/${space.id}/documents/${document.id}`,
+        path: `/doc/${document.id}`,
         viewport: {
             width: channelAndChatRoomFilePreviewDemoRecordingWidth,
             height: channelAndChatRoomFilePreviewDemoRecordingHeight + 8,
