@@ -127,7 +127,7 @@ export interface DatabaseExecuteResult {
 
 /** Result of a single {@link Database.executeAction} call. */
 export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
-    readonly output: DatabaseActionOutput<N>;
+    readonly result: DatabaseActionOutput<N>;
     readonly readPages: ReadonlyDatabasePageSet;
     readonly writtenPages: ReadonlyDatabasePageSet;
 }
@@ -320,7 +320,7 @@ export class Database {
             () => action.run(ctx, actionObject.input as never),
             {allowWrites: action.writeLevel},
         );
-        return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
+        return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
     }
 
     /**

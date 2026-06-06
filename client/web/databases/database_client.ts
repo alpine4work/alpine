@@ -186,9 +186,9 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const result = this.database.executeAction(actionObject);
-            output = result.output;
-            writtenPages = result.writtenPages;
+            const executed = this.database.executeAction(actionObject);
+            output = executed.result;
+            writtenPages = executed.writtenPages;
         } catch (error) {
             if (error instanceof PageMissingError) {
                 return await this.executeActionViaServer(conn, actionObject, mutationId);
@@ -258,9 +258,9 @@ export class DatabaseClient {
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
+        const {result, readPages, writtenPages} = this.database.executeAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
-        return {output, readPages};
+        return {output: result, readPages};
     }
 
     // -- Reactive actions ----------------------------------------------------

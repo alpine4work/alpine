@@ -138,7 +138,7 @@ async function buildSchemaSeed(
         {server: true},
     );
     fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
-    const {output} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
+    const {result} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
 
     const buffered = fake.getBufferedWrites();
     const seedPages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
@@ -152,7 +152,7 @@ async function buildSchemaSeed(
         }
     }
     fake.close();
-    return {seedPages, viewId: output.viewId, tableName: output.tableName};
+    return {seedPages, viewId: result.viewId, tableName: result.tableName};
 }
 
 async function setupTestDatabase(): Promise<{

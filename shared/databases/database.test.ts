@@ -1095,12 +1095,12 @@ describe("Database — executeAction", () => {
             "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
         );
 
-        const {output} = database.executeAction<"rawSql">({
+        const {result} = database.executeAction<"rawSql">({
             name: "rawSql",
             input: {sql: "SELECT id, name FROM items ORDER BY id"},
         });
 
-        expect(output.rows).toEqual([
+        expect(result.rows).toEqual([
             {id: 1, name: "alpha"},
             {id: 2, name: "beta"},
         ]);
