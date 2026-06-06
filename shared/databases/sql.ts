@@ -123,6 +123,26 @@ class SqlQuery {
     }
 
     /**
+     * Execute and return every row's single column as an
+     * array of values, deserialized through `schema`.
+     * Asserts the query selects exactly one column.
+     */
+    selectValues<Value>(db: Database, schema: Schema<Value>): Array<Value> {
+        const stmt = db.prepare(this.query);
+        try {
+            if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
+            assert(stmt.columnCount === 1, `Expected 1 column, got ${stmt.columnCount}`);
+            const values: Array<Value> = [];
+            while (stmt.step()) {
+                values.push(schema.deserialize(stmt.get(0) as SchemaSerializedValue));
+            }
+            return values;
+        } finally {
+            stmt.finalize();
+        }
+    }
+
+    /**
      * Execute and return all rows as untyped objects. Use
      * when the result schema is not known statically (e.g.
      * user-provided SQL).

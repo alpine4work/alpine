@@ -65,47 +65,64 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
         // database as the child. Index names carry the schema;
         // their `ON` table stays unqualified (resolved within
         // that schema).
-        db.exec(`CREATE TABLE ${ref(schema, "_alpine_table")} (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            table_name TEXT NOT NULL,
-            CHECK(is_id(id))
-        ) STRICT, WITHOUT ROWID;
-
-        CREATE TABLE ${ref(schema, "_alpine_fields")} (
-            id TEXT PRIMARY KEY,
-            table_id TEXT NOT NULL REFERENCES _alpine_table(id),
-            name TEXT NOT NULL,
-            column_name TEXT NOT NULL,
-            config TEXT NOT NULL,
-            UNIQUE(table_id, column_name),
-            CHECK(is_id(id)),
-            CHECK(is_id(table_id))
-        ) STRICT, WITHOUT ROWID;
-
-        CREATE INDEX ${ref(schema, "_alpine_fields_table_id")} ON _alpine_fields(table_id);
-
-        CREATE TABLE ${ref(schema, "_alpine_views")} (
-            id TEXT PRIMARY KEY,
-            table_id TEXT NOT NULL REFERENCES _alpine_table(id),
-            name TEXT NOT NULL,
-            CHECK(is_id(id)),
-            CHECK(is_id(table_id))
-        ) STRICT, WITHOUT ROWID;
-
-        CREATE INDEX ${ref(schema, "_alpine_views_table_id")} ON _alpine_views(table_id);
-
-        CREATE TABLE ${ref(schema, "_alpine_view_fields")} (
-            view_id TEXT NOT NULL REFERENCES _alpine_views(id),
-            field_id TEXT NOT NULL REFERENCES _alpine_fields(id),
-            position TEXT NOT NULL,
-            width INTEGER NOT NULL,
-            hidden INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (view_id, field_id),
-            CHECK(is_id(view_id)),
-            CHECK(is_id(field_id)),
-            CHECK(is_order_key(position))
-        ) STRICT, WITHOUT ROWID;`);
+        sql`
+            CREATE TABLE ${sql.tableRef(schema, "_alpine_table")} (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                CHECK (is_id (id))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
+        sql`
+            CREATE TABLE ${sql.tableRef(schema, "_alpine_fields")} (
+                id TEXT PRIMARY KEY,
+                table_id TEXT NOT NULL REFERENCES _alpine_table (id),
+                name TEXT NOT NULL,
+                column_name TEXT NOT NULL,
+                config TEXT NOT NULL,
+                UNIQUE (table_id, column_name),
+                CHECK (is_id (id)),
+                CHECK (is_id (table_id))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
+        sql`
+            CREATE INDEX ${sql.tableRef(
+                schema,
+                "_alpine_fields_table_id",
+            )} ON _alpine_fields (table_id)
+        `.exec(db);
+        sql`
+            CREATE TABLE ${sql.tableRef(schema, "_alpine_views")} (
+                id TEXT PRIMARY KEY,
+                table_id TEXT NOT NULL REFERENCES _alpine_table (id),
+                name TEXT NOT NULL,
+                CHECK (is_id (id)),
+                CHECK (is_id (table_id))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
+        sql`
+            CREATE INDEX ${sql.tableRef(
+                schema,
+                "_alpine_views_table_id",
+            )} ON _alpine_views (table_id)
+        `.exec(db);
+        sql`
+            CREATE TABLE ${sql.tableRef(schema, "_alpine_view_fields")} (
+                view_id TEXT NOT NULL REFERENCES _alpine_views (id),
+                field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
+                position TEXT NOT NULL,
+                width INTEGER NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (view_id, field_id),
+                CHECK (is_id (view_id)),
+                CHECK (is_id (field_id)),
+                CHECK (is_order_key (position))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
     },
 ];
 
@@ -155,9 +172,4 @@ export function runTableMigrations(db: Database, schema: string): void {
     if (version < tableSqliteMigrations.length) {
         db.exec(`${userVersionPragma} = ${tableSqliteMigrations.length}`);
     }
-}
-
-/** Build a `"schema"."name"` identifier for migration DDL. */
-function ref(schema: string, name: string): string {
-    return sql.tableRef(schema, name).query;
 }

@@ -218,6 +218,32 @@ describe("selectAll", () => {
     });
 });
 
+describe("selectValues", () => {
+    test("returns each row's single column as an array", () => {
+        const names = sql`
+            SELECT
+                name
+            FROM
+                t
+            ORDER BY
+                id
+        `.selectValues(db, Schema.string);
+        expect(names).toEqual(["alice", "bob", "carol"]);
+    });
+
+    test("returns an empty array when no rows match", () => {
+        const names = sql`
+            SELECT
+                name
+            FROM
+                t
+            WHERE
+                id = ${999}
+        `.selectValues(db, Schema.string);
+        expect(names).toEqual([]);
+    });
+});
+
 describe("selectOne", () => {
     test("returns the single matching row", () => {
         const row = sql`

@@ -273,40 +273,15 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "none",
         run(db) {
-            // Main routing tables (public, IDs only).
-            const tableIds = sql`
+            // Pull the main registry's pages into the read set
+            // (and cache). Per-table metadata is fetched on
+            // demand for now.
+            sql`
                 SELECT
                     id
                 FROM
                     _alpine_tables
-            `
-                .selectAll(db, {id: Schema.id<DatabaseTableId>()})
-                .map(row => row.id);
-            sql`
-                SELECT
-                    *
-                FROM
-                    _alpine_views
-            `.selectAllUnknown(db);
-
-            // Each table's real metadata lives in its own
-            // per-db file; touch every metadata table so its
-            // pages are pulled into the read set (and cached).
-            for (const tableId of tableIds) {
-                for (const table of [
-                    "_alpine_table",
-                    "_alpine_fields",
-                    "_alpine_views",
-                    "_alpine_view_fields",
-                ]) {
-                    sql`
-                        SELECT
-                            *
-                        FROM
-                            ${sql.tableRef(tableId, table)}
-                    `.selectAllUnknown(db);
-                }
-            }
+            `.selectValues(db, Schema.id<DatabaseTableId>());
             return {};
         },
     }),
@@ -464,15 +439,15 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run(db) {
-            const rows = sql`
+            const tableIds = sql`
                 SELECT
                     id
                 FROM
                     _alpine_tables
                 ORDER BY
                     id
-            `.selectAll(db, {id: Schema.id<DatabaseTableId>()});
-            return {tableIds: rows.map(row => row.id)};
+            `.selectValues(db, Schema.id<DatabaseTableId>());
+            return {tableIds};
         },
     }),
 
