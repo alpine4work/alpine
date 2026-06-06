@@ -278,13 +278,20 @@ export class Database {
      * are thin wrappers.
      *
      * `allowWrites` controls which classes of statement
-     * the authorizer permits while `fn` runs.
+     * the authorizer permits while `fn` runs. On the
+     * canonical (server) database, a schema change also
+     * triggers `PRAGMA optimize` inside the same tracked
+     * call (see {@link maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
         options: {allowWrites: SqliteWriteLevel},
     ): {result: T; readPages: ReadonlyDatabasePageSet; writtenPages: ReadonlyDatabasePageSet} {
-        return this.runTracked(options.allowWrites, fn);
+        return this.runTracked(options.allowWrites, db => {
+            const result = fn(db);
+            this.maybeOptimizeAfterWrites(options.allowWrites);
+            return result;
+        });
     }
 
     /**
@@ -293,11 +300,10 @@ export class Database {
      * the authorizer permits.
      */
     executeSql(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
-        const {result, readPages, writtenPages} = this.execute(db => {
-            const rows = sql.raw(query).selectAllUnknown(db);
-            this.maybeOptimizeAfterWrites(options.allowWrites);
-            return rows;
-        }, options);
+        const {result, readPages, writtenPages} = this.execute(
+            db => sql.raw(query).selectAllUnknown(db),
+            options,
+        );
         return {rows: result, readPages, writtenPages};
     }
 
@@ -311,11 +317,7 @@ export class Database {
         const action = databaseActions[actionObject.name];
         const ctx: DatabaseActionContext = {db: this.db, server: this.serverContext};
         const {result, readPages, writtenPages} = this.execute(
-            () => {
-                const output = action.run(ctx, actionObject.input as never);
-                this.maybeOptimizeAfterWrites(action.writeLevel);
-                return output;
-            },
+            () => action.run(ctx, actionObject.input as never),
             {allowWrites: action.writeLevel},
         );
         return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
@@ -326,9 +328,8 @@ export class Database {
      * Only the canonical (server) database does this — a
      * client running `PRAGMA optimize` would just produce
      * `sqlite_stat` writes that diverge from the server and
-     * create rebase churn. Runs inside the caller's tracked
-     * execute so any stat updates ride along in the same
-     * buffer and broadcast.
+     * create rebase churn. Runs inside {@link execute} so any
+     * stat updates ride along in the same buffer and broadcast.
      */
     private maybeOptimizeAfterWrites(writeLevel: SqliteWriteLevel): void {
         if (writeLevel === "schema+data" && this.serverContext !== null) {

@@ -91,11 +91,10 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
     } {
-        const {result, readPages, changedPages} = this._runAndPersist(() => {
-            const {output, readPages} = this.database.executeAction(actionObject);
-            return {result: output, readPages};
+        return this._runAndPersist(() => {
+            const {output: result, readPages} = this.database.executeAction(actionObject);
+            return {result, readPages};
         });
-        return {result, readPages, changedPages};
     }
 
     close(): void {
@@ -148,8 +147,6 @@ export class DatabaseServer {
                     this.database.attachIfNeeded(tableId);
                     runTableMigrations(db, tableId);
                 }
-
-                db.exec("PRAGMA optimize");
             },
             {allowWrites: "schema+data"},
         );
@@ -167,10 +164,6 @@ export class DatabaseServer {
         // writes belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         try {
-            // `run` executes the SQL/action through the
-            // Database's own tracking boundary (which also
-            // runs `PRAGMA optimize` for schema changes); the
-            // buffer is left intact for us to snapshot + drain.
             const {result, readPages} = run();
             return this._persistAndBuildResult(result, readPages);
         } catch (error) {
