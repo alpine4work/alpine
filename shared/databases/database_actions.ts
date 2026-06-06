@@ -539,7 +539,7 @@ export const databaseActions = {
                           WHERE
                               _id > ${afterCursor}
                       `
-                    : sql.raw("");
+                    : sql``;
 
             const rows = sql`
                 SELECT
@@ -596,7 +596,7 @@ export const databaseActions = {
 
             // _id is always at index 0; view fields start at 1.
             const selectColumns = [
-                sql.raw("_id"),
+                sql.identifier("_id"),
                 ...viewFields.map(f => sql.identifier(f.columnName)),
             ];
             const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
@@ -633,7 +633,7 @@ export const databaseActions = {
                         _id <= ${endCursor}
                 `;
             } else {
-                whereClause = sql.raw("");
+                whereClause = sql``;
             }
 
             const rows = sql`

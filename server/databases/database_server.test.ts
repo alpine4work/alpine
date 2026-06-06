@@ -1,8 +1,6 @@
-/* eslint-disable cyberworlds/string-quotes -- SQL literals */
-
 import {DatabaseServer} from "~/server/databases/database_server.js";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -84,12 +82,12 @@ afterEach(() => {
     }
 });
 
-async function createServerWithSchema(...statements: Array<string>): Promise<DatabaseServer> {
+async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<DatabaseServer> {
     const server = await DatabaseServer.create(new InMemoryStorage());
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
-        sql.raw(stmt).exec(db);
+        stmt.exec(db);
     }
     // Drain test-setup writes to durable storage so a
     // later failed execute (which discards the buffer)
@@ -133,22 +131,38 @@ describe("DatabaseServer — storage failure recovery", () => {
         const storage = new FlakyStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        server.execute("CREATE TABLE items (id INTEGER PRIMARY KEY)", {
+        server.execute(sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`, {
             allowWrites: "schema+data",
         });
 
         // Arm a storage failure: the drain (`writePages`) throws
         // after `execute` has already buffered its write.
         storage.failNextWritePages = true;
-        expect(() => server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"})).toThrow(
-            "simulated storage failure",
-        );
+        expect(() =>
+            server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            ),
+        ).toThrow("simulated storage failure");
 
         // The failed drain must not leave the buffer dirty: a
         // subsequent execute should succeed, not throw
         // "_runAndPersist requires an empty buffer".
         expect(() =>
-            server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"}),
+            server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (2)
+                `,
+                {allowWrites: "data"},
+            ),
         ).not.toThrow();
     });
 });
@@ -159,13 +173,30 @@ describe("DatabaseServer", () => {
     // SQLite's own test suite; we only verify the wiring.
     test("execute passes SELECT rows through", async () => {
         const server = await createServerWithSchema(
-            "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
-            "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`,
+            sql`
+                INSERT INTO
+                    items (name)
+                VALUES
+                    ('alpha'),
+                    ('beta')
+            `,
         );
 
-        const result = server.execute("SELECT id, name FROM items ORDER BY id", {
-            allowWrites: "none",
-        });
+        const result = server.execute(
+            sql`
+                SELECT
+                    id,
+                    name
+                FROM
+                    items
+                ORDER BY
+                    id
+            `,
+            {
+                allowWrites: "none",
+            },
+        );
 
         expect(result.rows).toEqual([
             {id: 1, name: "alpha"},
@@ -176,23 +207,49 @@ describe("DatabaseServer", () => {
     describe("execute read-only — page tracking", () => {
         test("returns non-empty pages map", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
             );
 
-            const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const result = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
 
             expect(result.readPages.get(databaseMainTableId)?.size ?? 0).toBeGreaterThan(0);
         });
 
         test("all page values are 4096 bytes", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, data TEXT)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY, data TEXT)`,
 
-                "INSERT INTO items VALUES (1, 'hello world')",
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1, 'hello world')
+                `,
             );
 
-            const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const result = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
 
             for (const [, pageData] of result.readPages.get(databaseMainTableId)!) {
                 expect(pageData.data.byteLength).toBe(sqlitePageSize);
@@ -201,11 +258,24 @@ describe("DatabaseServer", () => {
 
         test("pages contain actual database content", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
             );
 
-            const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const result = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
 
             // At least one page should be non-zero.
             let hasNonZeroPage = false;
@@ -220,15 +290,30 @@ describe("DatabaseServer", () => {
 
         test("tracks page 0 and the root page of the queried table", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE t1 (id INTEGER PRIMARY KEY, data TEXT)",
-                "CREATE TABLE t2 (id INTEGER PRIMARY KEY, data TEXT)",
-                "CREATE TABLE t3 (id INTEGER PRIMARY KEY, data TEXT)",
+                sql`CREATE TABLE t1 (id INTEGER PRIMARY KEY, data TEXT)`,
+                sql`CREATE TABLE t2 (id INTEGER PRIMARY KEY, data TEXT)`,
+                sql`CREATE TABLE t3 (id INTEGER PRIMARY KEY, data TEXT)`,
 
-                "INSERT INTO t1 VALUES (1, 'a')",
+                sql`
+                    INSERT INTO
+                        t1
+                    VALUES
+                        (1, 'a')
+                `,
 
-                "INSERT INTO t2 VALUES (1, 'b')",
+                sql`
+                    INSERT INTO
+                        t2
+                    VALUES
+                        (1, 'b')
+                `,
 
-                "INSERT INTO t3 VALUES (1, 'c')",
+                sql`
+                    INSERT INTO
+                        t3
+                    VALUES
+                        (1, 'c')
+                `,
             );
 
             // Get each table's root page (SQLite's rootpage is
@@ -248,7 +333,15 @@ describe("DatabaseServer", () => {
             `.selectAll(db, {name: Schema.string, rootpage: Schema.integer});
 
             for (const {name, rootpage} of schema) {
-                const result = server.execute(`SELECT * FROM "${name}"`, {allowWrites: "none"});
+                const result = server.execute(
+                    sql`
+                        SELECT
+                            *
+                        FROM
+                            ${sql.identifier(name)}
+                    `,
+                    {allowWrites: "none"},
+                );
                 const pageIndices = [...result.readPages.get(databaseMainTableId)!.keys()];
 
                 // Page 0 (the schema page) is always accessed.
@@ -261,12 +354,35 @@ describe("DatabaseServer", () => {
 
         test("repeated identical queries return identical readPages", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1), (2), (3)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1),
+                        (2),
+                        (3)
+                `,
             );
 
-            const result1 = server.execute("SELECT * FROM items", {allowWrites: "none"});
-            const result2 = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const result1 = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
+            const result2 = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
 
             const t1 = result1.readPages.get(databaseMainTableId)!;
             const t2 = result2.readPages.get(databaseMainTableId)!;
@@ -287,52 +403,133 @@ describe("DatabaseServer", () => {
     describe("execute read-only — isolation", () => {
         test("writes via unsafeGetDbForTests are visible to execute", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
             );
 
-            const before = server.execute("SELECT COUNT(*) as cnt FROM items", {
-                allowWrites: "none",
-            });
+            const before = server.execute(
+                sql`
+                    SELECT
+                        COUNT(*) AS cnt
+                    FROM
+                        items
+                `,
+                {
+                    allowWrites: "none",
+                },
+            );
             expect(before.rows).toEqual([{cnt: 1}]);
 
             const db = server.unsafeGetDbForTests();
-            sql.raw("INSERT INTO items VALUES (2)").exec(db);
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (2)
+            `.exec(db);
             server.commitBufferForTests();
 
-            const after = server.execute("SELECT COUNT(*) as cnt FROM items", {
-                allowWrites: "none",
-            });
+            const after = server.execute(
+                sql`
+                    SELECT
+                        COUNT(*) AS cnt
+                    FROM
+                        items
+                `,
+                {
+                    allowWrites: "none",
+                },
+            );
             expect(after.rows).toEqual([{cnt: 2}]);
         });
 
         test("database is usable after a failed execute (any writeLevel)", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-                "INSERT INTO items VALUES (1)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
             );
 
             // Authorizer rejection.
             expect(() =>
-                server.execute("INSERT INTO items VALUES (2)", {allowWrites: "none"}),
+                server.execute(
+                    sql`
+                        INSERT INTO
+                            items
+                        VALUES
+                            (2)
+                    `,
+                    {allowWrites: "none"},
+                ),
             ).toThrow();
             // Reference to non-existent table.
             expect(() =>
-                server.execute("SELECT * FROM nonexistent", {allowWrites: "none"}),
+                server.execute(
+                    sql`
+                        SELECT
+                            *
+                        FROM
+                            nonexistent
+                    `,
+                    {allowWrites: "none"},
+                ),
             ).toThrow();
             // Constraint violation under writes.
             expect(() =>
-                server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"}),
+                server.execute(
+                    sql`
+                        INSERT INTO
+                            items
+                        VALUES
+                            (1)
+                    `,
+                    {allowWrites: "data"},
+                ),
             ).toThrow();
 
             // After all of the above, the server should still
             // serve queries and accept new writes.
-            const after = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const after = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
             expect(after.rows).toEqual([{id: 1}]);
-            server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
-            const final = server.execute("SELECT * FROM items ORDER BY id", {
-                allowWrites: "none",
-            });
+            server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (2)
+                `,
+                {allowWrites: "data"},
+            );
+            const final = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                    ORDER BY
+                        id
+                `,
+                {
+                    allowWrites: "none",
+                },
+            );
             expect(final.rows).toEqual([{id: 1}, {id: 2}]);
         });
     });
@@ -341,8 +538,8 @@ describe("DatabaseServer", () => {
         test("invalid SQL throws regardless of writeLevel", async () => {
             const server = await createServerWithSchema();
 
-            expect(() => server.execute("NOT VALID SQL", {allowWrites: "none"})).toThrow();
-            expect(() => server.execute("NOT VALID SQL", {allowWrites: "data"})).toThrow();
+            expect(() => server.execute(sql`NOT VALID SQL`, {allowWrites: "none"})).toThrow();
+            expect(() => server.execute(sql`NOT VALID SQL`, {allowWrites: "data"})).toThrow();
         });
     });
 
@@ -353,8 +550,13 @@ describe("DatabaseServer", () => {
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
-            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
-            sql.raw("INSERT INTO items VALUES (1)").exec(db);
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `.exec(db);
             server.commitBufferForTests();
 
             // Storage should have been written to.
@@ -367,11 +569,24 @@ describe("DatabaseServer", () => {
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
-            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
-            sql.raw("INSERT INTO items VALUES (1)").exec(db);
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
+            const result = server.execute(
+                sql`
+                    SELECT
+                        *
+                    FROM
+                        items
+                `,
+                {allowWrites: "none"},
+            );
 
             // Each page in the result should match what storage
             // returns for that page index.
@@ -383,13 +598,21 @@ describe("DatabaseServer", () => {
 
     describe("execute with writes — basic operations", () => {
         test("INSERT returns empty rows and non-empty changedPages", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
+            `);
 
-            const result = server.execute("INSERT INTO items VALUES (1, 'hello')", {
-                allowWrites: "data",
-            });
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1, 'hello')
+                `,
+                {
+                    allowWrites: "data",
+                },
+            );
 
             expect(result.rows).toEqual([]);
             expect(result.changedPages.get(databaseMainTableId)?.pages.size ?? 0).toBeGreaterThan(
@@ -398,12 +621,20 @@ describe("DatabaseServer", () => {
         });
 
         test("INSERT with RETURNING returns rows", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)
+            `);
 
             const result = server.execute(
-                "INSERT INTO items VALUES (1, 'hello') RETURNING id, name",
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1, 'hello')
+                    RETURNING
+                        id,
+                        name
+                `,
                 {allowWrites: "data"},
             );
 
@@ -413,11 +644,19 @@ describe("DatabaseServer", () => {
 
     describe("execute with writes — changed pages", () => {
         test("changedPages has before and after snapshots", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY)
+            `);
 
-            const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            );
 
             for (const [, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.before).toBeInstanceOf(Uint8Array);
@@ -426,11 +665,19 @@ describe("DatabaseServer", () => {
         });
 
         test("all page snapshots are 4096 bytes", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY)
+            `);
 
-            const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            );
 
             for (const [, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.before.byteLength).toBe(sqlitePageSize);
@@ -443,8 +690,13 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
-            sql.raw("INSERT INTO items VALUES (1)").exec(db);
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `.exec(db);
             server.commitBufferForTests();
 
             // Snapshot storage state before the mutation.
@@ -453,7 +705,15 @@ describe("DatabaseServer", () => {
                 prePages.set(i, new Uint8Array(storage.readPage(databaseMainTableId, i)!.data));
             }
 
-            const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (2)
+                `,
+                {allowWrites: "data"},
+            );
 
             for (const [pageIndex, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 const prePage = prePages.get(pageIndex) ?? new Uint8Array(sqlitePageSize);
@@ -466,11 +726,24 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
-            sql.raw("INSERT INTO items VALUES (1)").exec(db);
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`.exec(db);
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `.exec(db);
             server.commitBufferForTests();
 
-            const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (2)
+                `,
+                {allowWrites: "data"},
+            );
 
             for (const [pageIndex, change] of result.changedPages.get(databaseMainTableId)!.pages) {
                 expect(change.after).toEqual(
@@ -480,11 +753,19 @@ describe("DatabaseServer", () => {
         });
 
         test("before and after differ for changed pages", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY)
+            `);
 
-            const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            );
 
             // At least one page should have different before/after.
             let hasDiff = false;
@@ -498,11 +779,19 @@ describe("DatabaseServer", () => {
         });
 
         test("changedPages reports per-table fileSizeInPages after the drain", async () => {
-            const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY)",
-            );
+            const server = await createServerWithSchema(sql`
+                CREATE TABLE items (id INTEGER PRIMARY KEY)
+            `);
 
-            const result = server.execute("INSERT INTO items VALUES (1)", {allowWrites: "data"});
+            const result = server.execute(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            );
             const entry = result.changedPages.get(databaseMainTableId);
             expect(entry).toBeDefined();
             expect(entry!.fileSizeInPages).toBeGreaterThan(0);
@@ -522,17 +811,22 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY, blob TEXT NOT NULL)").exec(db);
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
             // Grow the file across many pages, then free them all
             // so the VACUUM rebuild produces a shrinking truncate.
             for (let i = 0; i < 200; i++) {
-                sql.raw(`INSERT INTO items (blob) VALUES ('${"x".repeat(200)}')`).exec(db);
+                sql`
+                    INSERT INTO
+                        items (BLOB)
+                    VALUES
+                        (${"x".repeat(200)})
+                `.exec(db);
             }
-            sql.raw("DELETE FROM items").exec(db);
+            sql`DELETE FROM items`.exec(db);
             server.commitBufferForTests();
             const sizeBefore = storage.getFileSize(databaseMainTableId);
 
-            server.execute("VACUUM", {allowWrites: "schema+data"});
+            server.execute(sql`VACUUM`, {allowWrites: "schema+data"});
 
             expect(storage.getFileSize(databaseMainTableId)).toBeLessThan(sizeBefore);
         });
@@ -541,9 +835,15 @@ describe("DatabaseServer", () => {
     describe("executeAction — rawSql", () => {
         test("SELECT returns rows in result", async () => {
             const server = await createServerWithSchema(
-                "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
+                sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`,
 
-                "INSERT INTO items (name) VALUES ('alpha'), ('beta')",
+                sql`
+                    INSERT INTO
+                        items (name)
+                    VALUES
+                        ('alpha'),
+                        ('beta')
+                `,
             );
 
             const {result} = server.executeAction<"rawSql">({
@@ -573,12 +873,22 @@ describe("DatabaseServer", () => {
     describe("create", () => {
         test("multiple servers can coexist", async () => {
             const server1 = await createServerWithSchema(
-                "CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
-                "INSERT INTO t1 VALUES (1)",
+                sql`CREATE TABLE t1 (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        t1
+                    VALUES
+                        (1)
+                `,
             );
             const server2 = await createServerWithSchema(
-                "CREATE TABLE t2 (id INTEGER PRIMARY KEY)",
-                "INSERT INTO t2 VALUES (2)",
+                sql`CREATE TABLE t2 (id INTEGER PRIMARY KEY)`,
+                sql`
+                    INSERT INTO
+                        t2
+                    VALUES
+                        (2)
+                `,
             );
 
             expect(

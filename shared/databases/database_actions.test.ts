@@ -234,6 +234,9 @@ describe("createTable", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
+            // `sql.raw` for the blob literal: the sql template
+            // JSON-encodes bound objects, so a blob value can't
+            // go through a `?` parameter.
             sql`
                 INSERT INTO
                     ${sql.tableRef(tableId, tableName)} (name)

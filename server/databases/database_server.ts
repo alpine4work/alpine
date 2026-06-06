@@ -7,7 +7,7 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
-import {sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -76,9 +76,9 @@ export class DatabaseServer {
         return server;
     }
 
-    execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
+    execute(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
         const {result, readPages, changedPages} = this._runAndPersist(() => {
-            const {rows, readPages} = this.database.executeSql(sql.raw(query), options);
+            const {rows, readPages} = this.database.executeSql(query, options);
             return {result: rows, readPages};
         });
         return {rows: result, readPages, changedPages};

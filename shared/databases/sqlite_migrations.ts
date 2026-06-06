@@ -160,9 +160,8 @@ export function runMainMigrations(db: Database): void {
  * and clients trust the pages it syncs.
  */
 export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
-    const schemaName = sql.identifier(databaseTableSchemaName(tableId)).query;
-    const userVersionPragma = `PRAGMA ${schemaName}.user_version`;
-    const version = sql.raw(userVersionPragma).selectValue(db, Schema.integer);
+    const schema = sql.identifier(databaseTableSchemaName(tableId));
+    const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);
     assert(
         version <= tableSqliteMigrations.length,
         `table ${tableId} user_version (${version}) is ahead of known migrations (${tableSqliteMigrations.length})`,
@@ -171,6 +170,10 @@ export function runTableMigrations(db: Database, tableId: DatabaseTableId): void
         tableSqliteMigrations[i]!(db, tableId);
     }
     if (version < tableSqliteMigrations.length) {
-        db.exec(`${userVersionPragma} = ${tableSqliteMigrations.length}`);
+        // PRAGMA values can't be bound, so the (trusted)
+        // migration count is inlined with `sql.raw`.
+        sql`
+            PRAGMA ${schema}.user_version = ${sql.raw(String(tableSqliteMigrations.length))}
+        `.exec(db);
     }
 }
