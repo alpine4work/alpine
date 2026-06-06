@@ -2,6 +2,11 @@
 
 import type {DatabaseClientConnection} from "~/client/web/databases/database_client.js";
 import {DatabaseClient} from "~/client/web/databases/database_client.js";
+import type {
+    OpfsDirectoryHandle,
+    OpfsFileHandle,
+    OpfsSyncAccessHandle,
+} from "~/client/web/databases/opfs.js";
 import {
     createInMemoryOpfsDirectoryHandle,
     extractOpfsPages,
@@ -860,5 +865,123 @@ describe("registerReactiveAction", () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         expect(notifications.length).toBe(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Close / OPFS handle release
+// ---------------------------------------------------------------------------
+
+/**
+ * In-memory OPFS directory that enforces OPFS's
+ * single-open-sync-access-handle rule: a second
+ * `createSyncAccessHandle()` for a file whose handle is
+ * still open throws, the way real OPFS does. The shared
+ * test mock deliberately does not model this (many helpers
+ * open handles without closing), so a handle-leak
+ * regression is only observable against this stricter fake.
+ */
+function createExclusiveOpfsDirectoryHandle(): OpfsDirectoryHandle {
+    const dirs = new Map<string, OpfsDirectoryHandle>();
+    const files = new Map<string, {buffer: Uint8Array; open: boolean}>();
+    return {
+        async removeEntry(name: string) {
+            dirs.delete(name);
+            files.delete(name);
+        },
+        async getDirectoryHandle(name: string) {
+            let dir = dirs.get(name);
+            if (dir === undefined) {
+                dir = createExclusiveOpfsDirectoryHandle();
+                dirs.set(name, dir);
+            }
+            return dir;
+        },
+        async getFileHandle(name: string): Promise<OpfsFileHandle> {
+            return {
+                async createSyncAccessHandle(): Promise<OpfsSyncAccessHandle> {
+                    let file = files.get(name);
+                    if (file === undefined) {
+                        file = {buffer: new Uint8Array(0), open: false};
+                        files.set(name, file);
+                    }
+                    if (file.open) {
+                        throw new InternalError(
+                            `createSyncAccessHandle: access handle already open for ${name}`,
+                        );
+                    }
+                    file.open = true;
+                    const f = file;
+                    return {
+                        read(data, options) {
+                            const at = options?.at ?? 0;
+                            const available = Math.max(0, f.buffer.byteLength - at);
+                            const toCopy = Math.min(data.byteLength, available);
+                            if (toCopy > 0) data.set(f.buffer.subarray(at, at + toCopy));
+                            return toCopy;
+                        },
+                        write(data, options) {
+                            const at = options?.at ?? 0;
+                            const end = at + data.byteLength;
+                            if (end > f.buffer.byteLength) {
+                                const next = new Uint8Array(end);
+                                next.set(f.buffer);
+                                f.buffer = next;
+                            }
+                            f.buffer.set(data, at);
+                            return data.byteLength;
+                        },
+                        truncate(size) {
+                            if (size < f.buffer.byteLength) {
+                                f.buffer = f.buffer.slice(0, size);
+                            } else {
+                                const next = new Uint8Array(size);
+                                next.set(f.buffer);
+                                f.buffer = next;
+                            }
+                        },
+                        flush() {},
+                        close() {
+                            f.open = false;
+                        },
+                        getSize() {
+                            return f.buffer.byteLength;
+                        },
+                    };
+                },
+            };
+        },
+    };
+}
+
+describe("DatabaseClient handle release", () => {
+    test("an unclosed client holds OPFS handles that block reopening the group", async () => {
+        const dir = createExclusiveOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+
+        // The main store's sync-access handles are still open, so
+        // OPFS refuses a second handle on the same files. This both
+        // proves the fake enforces exclusivity and shows that a
+        // leaked client wedges the group until its handles close.
+        await expect(DatabaseClient.create(dir)).rejects.toThrow(/already open/);
+
+        client.close();
+    });
+
+    test("close() releases the group's OPFS handles so it can be reopened", async () => {
+        const dir = createExclusiveOpfsDirectoryHandle();
+
+        const client = await DatabaseClient.create(dir);
+        client.close();
+
+        // Handles released: a fresh open of the same group now
+        // succeeds and is usable. Without DatabaseClient.close()
+        // closing every page store, this would reject with
+        // "access handle already open" (see the test above).
+        const reopened = await DatabaseClient.create(dir);
+        const rows = await execute(reopened, testConn, "SELECT 1 AS n");
+        expect(rows).toMatchObject([{n: 1}]);
+
+        reopened.close();
     });
 });
