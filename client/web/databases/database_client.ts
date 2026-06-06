@@ -186,7 +186,7 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const result = this.executeActionTracked(actionObject);
+            const result = this.database.executeAction(actionObject);
             output = result.output;
             writtenPages = result.writtenPages;
         } catch (error) {
@@ -255,29 +255,10 @@ export class DatabaseClient {
         }
     }
 
-    /**
-     * Run an action through the {@link Database}'s tracking
-     * boundary at its declared write level, returning the
-     * output plus the pages it read and wrote.
-     */
-    private executeActionTracked<N extends DatabaseActionName>(
-        actionObject: DatabaseActionObject<N>,
-    ): {
-        output: DatabaseActionOutput<N>;
-        readPages: ReadonlyDatabasePageSet;
-        writtenPages: ReadonlyDatabasePageSet;
-    } {
-        const {result, readPages, writtenPages} = this.database.execute(
-            () => this.database.executeAction(actionObject),
-            {allowWrites: databaseActions[actionObject.name].writeLevel},
-        );
-        return {output: result, readPages, writtenPages};
-    }
-
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {output, readPages, writtenPages} = this.executeActionTracked(actionObject);
+        const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output, readPages};
     }
@@ -477,7 +458,7 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const {writtenPages} = this.executeActionTracked(mutation.action);
+                const {writtenPages} = this.database.executeAction(mutation.action);
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
                 }

@@ -78,8 +78,8 @@ export class DatabaseServer {
     }
 
     execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
-        const {result, readPages, changedPages} = this._runAndPersist(options.allowWrites, () =>
-            this.database.executeSql(query),
+        const {result, readPages, changedPages} = this._runAndPersist(options.allowWrites, db =>
+            sql.raw(query).selectAllUnknown(db),
         );
         return {rows: result, readPages, changedPages};
     }
@@ -92,8 +92,9 @@ export class DatabaseServer {
         changedPages: DatabaseServerChangedPages;
     } {
         const action = databaseActions[actionObject.name];
+        const ctx = this.database.getActionContext();
         const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, () =>
-            this.database.executeAction(actionObject),
+            action.run(ctx, actionObject.input as never),
         );
         return {
             result: result as DatabaseActionOutput<N>,
@@ -135,6 +136,8 @@ export class DatabaseServer {
         // ATTACH is legal mid-execute (no explicit
         // transaction is open), so we can attach + migrate
         // every per-table file inline.
+        const {server} = this.database.getActionContext();
+        assert(server !== null, "DatabaseServer must have server capabilities");
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
@@ -149,7 +152,7 @@ export class DatabaseServer {
                         _alpine_tables
                 `.selectValues(db, Schema.id<DatabaseTableId>());
                 for (const tableId of tableIds) {
-                    this.database.attachIfNeeded(tableId);
+                    server.attach(tableId);
                     runTableMigrations(db, tableId);
                 }
 
