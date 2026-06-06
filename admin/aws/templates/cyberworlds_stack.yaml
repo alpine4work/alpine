@@ -2905,7 +2905,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 7686
+                  MemoryReservation: 7546
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -3027,7 +3027,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionGatewayContainerLogGroupC33881DF
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 156
+                  MemoryReservation: 154
                   Name: GatewayContainer
                   PortMappings:
                       - ContainerPort: 80
@@ -4545,7 +4545,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -5666,7 +5666,7 @@ Resources:
                               Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -6788,7 +6788,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY
@@ -8962,7 +8962,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 15810
+                  Memory: 15675
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000

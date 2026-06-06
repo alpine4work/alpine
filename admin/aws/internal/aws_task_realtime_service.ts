@@ -210,18 +210,15 @@ export class AwsTaskRealtimeService extends Construct {
 
         const cpu = 2048;
 
-        // Memory available to our container. We can't use the full available memory (1024
-        // MiB for `t4g.micro` instances) because the ECS agent needs some memory to
-        // function.
+        // Memory available to our container. We can't use the full available memory
+        // because the ECS agent needs some memory to function. If you reserve too much
+        // memory you won't get an error. Instead the tasks are stuck in the "Provisioning"
+        // status forever.
         //
         // The right value is available on the container instance screen in the AWS
         // console. Specifically under the "Resources & networking" tab. You want to look
         // at "Total capacity" and make sure we're reserving all of it.
-        //
-        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much memory on
-        // `t4g.nano` instances you don't get an error. Instead the tasks are stuck in the
-        // "Provisioning" status forever.
-        const memoryLimitMiB = 7842;
+        const memoryLimitMiB = 7700;
 
         const gatewayResourcePercent = 0.02;
 
