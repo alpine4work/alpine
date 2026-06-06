@@ -599,18 +599,31 @@ export class DatabaseClient {
             mutationId,
             returnResult,
         });
-        // Writes from any pending optimistic mutations
-        // still live in the buffer; drop them so the
-        // server pages we're about to apply are visible
-        // before we replay the queue on top.
-        this.database.discardBuffer();
+
+        // Attach any table the server just told us about (e.g. a
+        // table this client created) before touching the buffer.
+        // `ensureTableAttached` can await (it creates the OPFS
+        // store), and there must be no `await` between
+        // `discardBuffer()` and `applyServerPages()` below: a
+        // concurrent RPC handler (RPC handlers aren't serialized,
+        // see DatabaseActiveTabWorker) could re-dirty the buffer in
+        // that window and trip `assertBufferIsEmpty`. Attaching here
+        // is safe while the optimistic buffer is still live — attach
+        // only adds the new table's empty page store, never writes.
         if (serverResult.readPages !== null) {
-            // Attach any table the server just told us about
-            // (e.g. a table this client created) before writing
-            // its pages, so its per-db file is reachable.
             for (const tableId of serverResult.readPages.keys()) {
                 await this.ensureTableAttached(tableId);
             }
+        }
+
+        // Writes from any pending optimistic mutations still live in
+        // the buffer; drop them so the server pages we're about to
+        // apply are visible before we replay the queue on top. From
+        // here through `replayOptimisticQueue()` runs synchronously —
+        // no `await` — so the buffer can't be re-dirtied underneath
+        // us.
+        this.database.discardBuffer();
+        if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
             const acknowledged = new Map<DatabaseTableId, Array<number>>();
             for (const [tableId, tablePages] of serverResult.readPages) {
