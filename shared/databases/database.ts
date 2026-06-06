@@ -616,7 +616,7 @@ export class Database {
     private unattachedTablePageMissing(error: unknown): PageMissingError | null {
         if (this.serverContext !== null) return null;
         if (!(error instanceof Error)) return null;
-        const tableId = parseUnattachedTableSchemaError(error.message);
+        const tableId = parseUnattachedTableError(error.message);
         if (tableId === null || this.tables.has(tableId)) return null;
         return new PageMissingError(0, tableId);
     }
@@ -780,7 +780,7 @@ const unattachedSchemaErrorPatterns = [
  * file from a SQLite name-resolution error message, or `null`
  * if the message isn't one of those errors.
  */
-function parseUnattachedTableSchemaError(message: string): DatabaseTableId | null {
+function parseUnattachedTableError(message: string): DatabaseTableId | null {
     for (const pattern of unattachedSchemaErrorPatterns) {
         const match = pattern.exec(message);
         if (match !== null) return match[1] as DatabaseTableId;
