@@ -109,6 +109,16 @@ function readTableName(db: Database, tableId: DatabaseTableId): string {
 }
 
 /**
+ * Stable name for a table's `_created_at` index. Keyed by
+ * the immutable table id (not the mutable SQL table name),
+ * so renaming the table leaves the index in place rather
+ * than dropping and rebuilding it.
+ */
+function createdAtIndexName(tableId: DatabaseTableId): string {
+    return `_alpine_index_${tableId}_created_at`;
+}
+
+/**
  * Resolves a `tableOrViewId` (which may be either a
  * table ID or a view ID) into the canonical triple of
  * `{tableId, viewId, tableName}`.
@@ -381,7 +391,7 @@ export const databaseActions = {
             sql`
                 CREATE INDEX ${sql.tableRef(
                     tableId,
-                    tableName + "__created_at",
+                    createdAtIndexName(tableId),
                 )} ON ${sql.identifier(tableName)} (_created_at)
             `.exec(db);
 
@@ -412,21 +422,14 @@ export const databaseActions = {
             const tableName = formatUniqueSqlName(name, new Set());
 
             if (tableName !== existing.tableName) {
-                // Index names are schema-qualified; the renamed
-                // table stays in its own schema so the RENAME TO
-                // target is unqualified.
-                sql`
-                    DROP INDEX ${sql.tableRef(tableId, existing.tableName + "__created_at")}
-                `.exec(db);
+                // The `_created_at` index is named by table id,
+                // not by SQL name, so it follows the table
+                // through the rename — no drop/recreate needed.
+                // The RENAME TO target stays unqualified (the
+                // table stays in its own schema).
                 sql`
                     ALTER TABLE ${sql.tableRef(tableId, existing.tableName)}
                     RENAME TO ${sql.identifier(tableName)}
-                `.exec(db);
-                sql`
-                    CREATE INDEX ${sql.tableRef(
-                        tableId,
-                        tableName + "__created_at",
-                    )} ON ${sql.identifier(tableName)} (_created_at)
                 `.exec(db);
             }
 

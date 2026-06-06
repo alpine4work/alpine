@@ -91,10 +91,7 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
     } {
-        return this._runAndPersist(() => {
-            const {result, readPages} = this.database.executeAction(actionObject);
-            return {result, readPages};
-        });
+        return this._runAndPersist(() => this.database.executeAction(actionObject));
     }
 
     close(): void {

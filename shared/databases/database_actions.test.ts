@@ -583,7 +583,7 @@ describe("renameTable", () => {
         db.close();
     });
 
-    test("renames the SQL table when the slug changes and recreates the index", async () => {
+    test("renames the SQL table when the slug changes and keeps the index", async () => {
         const db = await createDb();
         const {tableId} = run(db, "createTable", {name: "Tasks"});
         sql`
