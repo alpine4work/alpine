@@ -46,7 +46,11 @@ function makeCtx(db: Database): DatabaseActionContext {
         db,
         server: {
             attach(tableId) {
-                db.exec(`ATTACH DATABASE ':memory:' AS "${databaseTableSchemaName(tableId)}"`);
+                sql`
+                    ATTACH DATABASE ':memory:' AS ${sql.identifier(
+                        databaseTableSchemaName(tableId),
+                    )}
+                `.exec(db);
             },
         },
     };
@@ -243,11 +247,9 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const colInfo = sql
-            .raw(
-                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.table_info(${sql.identifier(tableName).query})`,
-            )
-            .selectAllUnknown(db);
+        const colInfo = sql`
+            PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(tableName)})
+        `.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
         expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}$/);
@@ -269,11 +271,9 @@ describe("createTable", () => {
         const db = await createDb();
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
-        const indexes = sql
-            .raw(
-                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.index_list(${sql.identifier(tableName).query})`,
-            )
-            .selectAllUnknown(db);
+        const indexes = sql`
+            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier(tableName)})
+        `.selectAllUnknown(db);
 
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
@@ -605,11 +605,9 @@ describe("renameTable", () => {
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "keep me"}]);
         // The created_at index follows the rename.
-        const indexes = sql
-            .raw(
-                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.index_list(${sql.identifier("projects").query})`,
-            )
-            .selectAllUnknown(db);
+        const indexes = sql`
+            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier("projects")})
+        `.selectAllUnknown(db);
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
         db.close();
     });

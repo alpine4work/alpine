@@ -264,13 +264,13 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
  * Create a schema-qualified SQL identifier,
  * `"_{tableId}"."name"`, for referencing a table (or index)
  * in a {@link DatabaseTableId}'s `ATTACH`-ed per-db file.
- * `name` is quoted and escaped per the SQL standard
- * (`"` → `""`); the schema name is a safe generated id.
+ * Both parts are quoted and escaped per the SQL standard
+ * (`"` → `""`).
  */
 sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
     new SqlQuery(
         // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
-        `"${databaseTableSchemaName(schema)}"."${name.replace(/"/g, '""')}"`,
+        `"${databaseTableSchemaName(schema).replace(/"/g, '""')}"."${name.replace(/"/g, '""')}"`,
     );
 
 export {sql, SqlQuery};

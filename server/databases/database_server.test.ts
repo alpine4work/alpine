@@ -89,7 +89,7 @@ async function createServerWithSchema(...statements: Array<string>): Promise<Dat
     openServers.push(server);
     const db = server.unsafeGetDbForTests();
     for (const stmt of statements) {
-        db.exec(stmt);
+        sql.raw(stmt).exec(db);
     }
     // Drain test-setup writes to durable storage so a
     // later failed execute (which discards the buffer)
@@ -297,7 +297,7 @@ describe("DatabaseServer", () => {
             expect(before.rows).toEqual([{cnt: 1}]);
 
             const db = server.unsafeGetDbForTests();
-            db.exec("INSERT INTO items VALUES (2)");
+            sql.raw("INSERT INTO items VALUES (2)").exec(db);
             server.commitBufferForTests();
 
             const after = server.execute("SELECT COUNT(*) as cnt FROM items", {
@@ -353,8 +353,8 @@ describe("DatabaseServer", () => {
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
-            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
-            db.exec("INSERT INTO items VALUES (1)");
+            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
+            sql.raw("INSERT INTO items VALUES (1)").exec(db);
             server.commitBufferForTests();
 
             // Storage should have been written to.
@@ -367,8 +367,8 @@ describe("DatabaseServer", () => {
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
 
-            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
-            db.exec("INSERT INTO items VALUES (1)");
+            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
+            sql.raw("INSERT INTO items VALUES (1)").exec(db);
             server.commitBufferForTests();
 
             const result = server.execute("SELECT * FROM items", {allowWrites: "none"});
@@ -443,8 +443,8 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
-            db.exec("INSERT INTO items VALUES (1)");
+            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
+            sql.raw("INSERT INTO items VALUES (1)").exec(db);
             server.commitBufferForTests();
 
             // Snapshot storage state before the mutation.
@@ -466,8 +466,8 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY)");
-            db.exec("INSERT INTO items VALUES (1)");
+            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY)").exec(db);
+            sql.raw("INSERT INTO items VALUES (1)").exec(db);
             server.commitBufferForTests();
 
             const result = server.execute("INSERT INTO items VALUES (2)", {allowWrites: "data"});
@@ -522,13 +522,13 @@ describe("DatabaseServer", () => {
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
-            db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, blob TEXT NOT NULL)");
+            sql.raw("CREATE TABLE items (id INTEGER PRIMARY KEY, blob TEXT NOT NULL)").exec(db);
             // Grow the file across many pages, then free them all
             // so the VACUUM rebuild produces a shrinking truncate.
             for (let i = 0; i < 200; i++) {
-                db.exec(`INSERT INTO items (blob) VALUES ('${"x".repeat(200)}')`);
+                sql.raw(`INSERT INTO items (blob) VALUES ('${"x".repeat(200)}')`).exec(db);
             }
-            db.exec("DELETE FROM items");
+            sql.raw("DELETE FROM items").exec(db);
             server.commitBufferForTests();
             const sizeBefore = storage.getFileSize(databaseMainTableId);
 

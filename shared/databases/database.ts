@@ -15,7 +15,7 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
+import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {
     type InternalSqliteWriteLevel,
@@ -295,13 +295,14 @@ export class Database {
     }
 
     /**
-     * Run an arbitrary SQL string against the database.
-     * `allowWrites` controls which classes of statement
-     * the authorizer permits.
+     * Run a {@link SqlQuery} (built with the {@link sql}
+     * tagged template) against the database. `allowWrites`
+     * controls which classes of statement the authorizer
+     * permits.
      */
-    executeSql(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
+    executeSql(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
         const {result, readPages, writtenPages} = this.execute(
-            db => sql.raw(query).selectAllUnknown(db),
+            db => query.selectAllUnknown(db),
             options,
         );
         return {rows: result, readPages, writtenPages};
@@ -480,13 +481,12 @@ export class Database {
         const previousWriteLevel = this.writeLevel;
         this.writeLevel = "attach";
         try {
-            // Our table ids are 26-char alphanumerics, so
-            // safe to inline as both an identifier and a
-            // path without escaping. Pin page_size on the
-            // fresh schema immediately so its first write
-            // matches the VFS's per-page contract.
-            // eslint-disable-next-line cyberworlds/string-quotes -- SQL literal
-            this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${schemaName}"`);
+            // The filename is the raw table id, bound as a
+            // parameter; the schema name is quoted via
+            // `sql.identifier`. Pin page_size on the fresh
+            // schema immediately so its first write matches
+            // the VFS's per-page contract.
+            sql`ATTACH DATABASE ${`/${tableId}`} AS ${sql.identifier(schemaName)}`.exec(this.db);
             this.db.exec(sqliteAttachPagePragma(schemaName));
             this.schemaToTable.set(schemaName, tableId);
         } catch (error) {

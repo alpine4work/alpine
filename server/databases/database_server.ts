@@ -78,7 +78,7 @@ export class DatabaseServer {
 
     execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
         const {result, readPages, changedPages} = this._runAndPersist(() => {
-            const {rows, readPages} = this.database.executeSql(query, options);
+            const {rows, readPages} = this.database.executeSql(sql.raw(query), options);
             return {result: rows, readPages};
         });
         return {rows: result, readPages, changedPages};
