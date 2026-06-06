@@ -210,7 +210,7 @@ export class DatabaseActiveTabWorker {
     ): Promise<DatabaseClient> {
         let promise = this.clientPromises.get(databaseGroupId);
         if (!promise) {
-            promise = (async () => {
+            const created = (async () => {
                 const groupDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
                 const client = await DatabaseClient.create(groupDir);
 
@@ -220,6 +220,10 @@ export class DatabaseActiveTabWorker {
                     await client.seedPages(initialPages);
                 }
 
+                // We're an always-online app: OPFS is just a cache, so
+                // any cold-open failure (server unreachable, cache
+                // validation, attach) is meant to bubble up as
+                // "couldn't connect to the database".
                 await client.ensureCacheIsUpToDate(conn);
 
                 // Attach every existing table's per-db file so its
@@ -236,7 +240,17 @@ export class DatabaseActiveTabWorker {
 
                 return client;
             })();
-            this.clientPromises.set(databaseGroupId, promise);
+            // Evict on failure so the next call re-attempts the
+            // cold-open rather than replaying the cached rejection
+            // forever. The identity guard avoids clobbering a newer
+            // attempt if this one rejects after eviction.
+            created.catch(() => {
+                if (this.clientPromises.get(databaseGroupId) === created) {
+                    this.clientPromises.delete(databaseGroupId);
+                }
+            });
+            this.clientPromises.set(databaseGroupId, created);
+            promise = created;
         }
         return promise;
     }
