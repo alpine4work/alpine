@@ -220,36 +220,19 @@ export class DatabaseActiveTabWorker {
                     await client.seedPages(initialPages);
                 }
 
-                try {
-                    await client.ensureCacheIsUpToDate(conn);
-                } catch {
-                    // Validation failed (e.g. server unreachable).
-                    // Proceed with potentially stale cache — the
-                    // client will fall back to the server for
-                    // missing pages on demand.
-                }
+                await client.ensureCacheIsUpToDate(conn);
 
-                // Attach every existing table's per-db file so
-                // its metadata and data are reachable before any
-                // per-table action runs. Best-effort: missing
-                // pages are fetched from the server on demand.
-                try {
-                    await client.attachExistingTables(conn);
-                } catch {
-                    // Ignore — tables attach lazily via server
-                    // fallback when first accessed.
-                }
+                // Attach every existing table's per-db file so its
+                // metadata and data are reachable before any
+                // per-table action runs.
+                await client.attachExistingTables(conn);
 
                 // Pre-fetch schema pages so optimistic mutations
                 // can read metadata without hitting the server.
-                // Best-effort — may fail if the local cache is
-                // empty; pages will be fetched on demand.
-                void client
-                    .executeAction(conn, {
-                        name: "ensureSchemaPagesLoaded",
-                        input: {},
-                    })
-                    .catch(() => {});
+                await client.executeAction(conn, {
+                    name: "ensureSchemaPagesLoaded",
+                    input: {},
+                });
 
                 return client;
             })();

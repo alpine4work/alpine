@@ -157,10 +157,6 @@ export class DatabaseServer {
                     runTableMigrations(db, tableId);
                 }
 
-                // Seed the first table on a brand-new group.
-                if (tableIds.length === 0) {
-                    databaseActions.createTable.run(db, {name: "Table"}, ctx);
-                }
                 db.exec("PRAGMA optimize");
             },
             {allowWrites: "schema+data"},

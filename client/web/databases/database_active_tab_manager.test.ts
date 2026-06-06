@@ -22,6 +22,7 @@ import {
 import type {DatabaseExecuteActionResponse} from "~/shared/databases/database_protocol_schemas.js";
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {generateId} from "~/shared/id/id.js";
 import type {
     DatabaseGroupId,
@@ -43,6 +44,31 @@ async function createSeededClient(
     const dbsDir = await dir.getDirectoryHandle("databases", {create: true});
     const groupDir = await dbsDir.getDirectoryHandle(databaseGroupId, {create: true});
     return DatabaseClient.create(groupDir);
+}
+
+/**
+ * Seed a group's main database with the Alpine routing
+ * schema, as the server always does before a client opens
+ * it. Without this the client's cold-open (which attaches
+ * existing tables + prefetches schema pages) has no
+ * `_alpine_tables` to read.
+ */
+async function seedMainSchema(
+    dir: OpfsDirectoryHandle,
+    databaseGroupId: string = testDatabaseGroupId,
+): Promise<void> {
+    const client = await createSeededClient(dir, databaseGroupId);
+    client.executeLocallyForTests(runMainMigrations);
+    client.commitOptimisticPagesForTests();
+}
+
+/** Create an OPFS dir with a migrated main database seeded. */
+async function createSeededTestDir(
+    databaseGroupId: string = testDatabaseGroupId,
+): Promise<OpfsDirectoryHandle> {
+    const newDir = createInMemoryOpfsDirectoryHandle();
+    await seedMainSchema(newDir, databaseGroupId);
+    return newDir;
 }
 
 async function executeSql(
@@ -435,7 +461,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const {manager} = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await manager.connect();
@@ -448,7 +474,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Tab A — leader
         const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
@@ -473,7 +499,7 @@ describe("DatabaseActiveTabManager", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = (clientId: string) => createTestTab({locks, sw, bc, clientId, dir});
 
@@ -500,7 +526,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -531,7 +557,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -563,7 +589,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -598,7 +624,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data persists across leader change
         const seed = await createSeededClient(dir);
@@ -630,7 +656,7 @@ describe("DatabaseActiveTabManager resilience", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data persists across leader death
         const seed = await createSeededClient(dir);
@@ -666,7 +692,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         let capturedMutationId: DatabaseMutationId | null = null;
         const tab = createTestTab({
@@ -705,7 +731,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Tab A — leader
         const tabA = createTestTab({
@@ -757,7 +783,7 @@ describe("DatabaseActiveTabManager mutations", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const {manager} = createTestTab({
             locks,
@@ -778,7 +804,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -804,7 +830,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -859,7 +885,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -950,7 +976,7 @@ describe("Reactive actions", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -1001,7 +1027,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
@@ -1025,7 +1051,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Pre-populate OPFS so data is in the base store
         // (no optimistic queue to replay on
@@ -1051,7 +1077,7 @@ describe("watchAction", () => {
 
         // Build "after" state in a separate database that
         // has both rows — simulates a server-side mutation.
-        const serverDir = createInMemoryOpfsDirectoryHandle();
+        const serverDir = await createSeededTestDir();
         const server = await createSeededClient(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         server.commitOptimisticPagesForTests();
@@ -1100,7 +1126,7 @@ describe("watchAction", () => {
         const locks = new MockLockManager();
         const sw = new MockServiceWorkerBridge();
         const bc = new MockBroadcastChannelBus();
-        const dir = createInMemoryOpfsDirectoryHandle();
+        const dir = await createSeededTestDir();
 
         // Tab A — leader
         const tabA = createTestTab({locks, sw, bc, clientId: "tab-a", dir});

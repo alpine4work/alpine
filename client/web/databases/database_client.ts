@@ -259,9 +259,6 @@ export class DatabaseClient {
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
         const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
-        // The read-set spans every table the action touched —
-        // including the per-table databases that hold row data,
-        // not just main's routing tables.
         return {output, readPages};
     }
 
@@ -346,9 +343,6 @@ export class DatabaseClient {
     }
 
     private async checkInvalidation(writtenPages: ReadonlyDatabasePageSet): Promise<void> {
-        // A reactive action's read-set spans every table it
-        // touched (main routing + per-table data), so check
-        // overlap against the written pages of every table.
         for (const [, reg] of this.reactiveActions) {
             if (reg.reExecuting) continue;
 
