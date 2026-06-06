@@ -27,6 +27,7 @@ import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
@@ -185,7 +186,7 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const result = this.database.executeAction(actionObject);
+            const result = this.executeActionTracked(actionObject);
             output = result.output;
             writtenPages = result.writtenPages;
         } catch (error) {
@@ -254,10 +255,29 @@ export class DatabaseClient {
         }
     }
 
+    /**
+     * Run an action through the {@link Database}'s tracking
+     * boundary at its declared write level, returning the
+     * output plus the pages it read and wrote.
+     */
+    private executeActionTracked<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ): {
+        output: DatabaseActionOutput<N>;
+        readPages: ReadonlyDatabasePageSet;
+        writtenPages: ReadonlyDatabasePageSet;
+    } {
+        const {result, readPages, writtenPages} = this.database.execute(
+            () => this.database.executeAction(actionObject),
+            {allowWrites: databaseActions[actionObject.name].writeLevel},
+        );
+        return {output: result, readPages, writtenPages};
+    }
+
     private executeReadOnly<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
     ): {output: DatabaseActionOutput<N>; readPages: ReadonlyDatabasePageSet} {
-        const {output, readPages, writtenPages} = this.database.executeAction(actionObject);
+        const {output, readPages, writtenPages} = this.executeActionTracked(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output, readPages};
     }
@@ -457,7 +477,7 @@ export class DatabaseClient {
         let anyInvalidated = false;
         this.optimisticQueue = this.optimisticQueue.filter(mutation => {
             try {
-                const {writtenPages} = this.database.executeAction(mutation.action);
+                const {writtenPages} = this.executeActionTracked(mutation.action);
                 if (this.markWrittenPages(writtenPages)) {
                     anyInvalidated = true;
                 }
@@ -548,19 +568,16 @@ export class DatabaseClient {
         // `storage.create` yields, so without this two callers
         // could both pass the `isAttached` check and the second
         // `attach` would throw "already attached".
-        let pending = this.attachingTables.get(tableId);
-        if (pending === undefined) {
-            pending = (async () => {
+        return getOrSetDefaultMapValue(this.attachingTables, tableId, () =>
+            (async () => {
                 if (this.storage.get(tableId) === undefined) {
                     await this.storage.create(tableId);
                 }
                 this.database.attach(tableId);
             })().finally(() => {
                 this.attachingTables.delete(tableId);
-            });
-            this.attachingTables.set(tableId, pending);
-        }
-        return pending;
+            }),
+        );
     }
 
     /**

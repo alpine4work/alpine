@@ -113,25 +113,6 @@ export interface DatabaseBufferedWrites {
     readonly fileSizesInPages: ReadonlyMap<DatabaseTableId, number>;
 }
 
-/** Result of a single {@link Database.execute} call. */
-export interface DatabaseExecuteResult {
-    readonly rows: Array<Record<string, unknown>>;
-    /**
-     * Pages SQLite read while running this call. Includes
-     * cache hits, captured via the page-access hook.
-     */
-    readonly readPages: ReadonlyDatabasePageSet;
-    /** Pages buffered by writes that ran during this call. */
-    readonly writtenPages: ReadonlyDatabasePageSet;
-}
-
-/** Result of a single {@link Database.executeAction} call. */
-export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
-    readonly output: DatabaseActionOutput<N>;
-    readonly readPages: ReadonlyDatabasePageSet;
-    readonly writtenPages: ReadonlyDatabasePageSet;
-}
-
 /**
  * SQLite database that buffers writes in memory.
  *
@@ -271,11 +252,10 @@ export class Database {
     }
 
     /**
-     * Run an arbitrary callback against the underlying
-     * SQLite handle with read/write tracking and authorizer
-     * enforcement. The callback is the lowest-level entry
-     * point; {@link executeSql} and {@link executeAction}
-     * are thin wrappers.
+     * Run a callback against the underlying SQLite handle
+     * with read/write tracking and authorizer enforcement.
+     * This is the tracking boundary: {@link executeSql} and
+     * {@link executeAction} must be called from inside it.
      *
      * `allowWrites` controls which classes of statement
      * the authorizer permits while `fn` runs.
@@ -288,42 +268,27 @@ export class Database {
     }
 
     /**
-     * Run an arbitrary SQL string against the database.
-     * `allowWrites` controls which classes of statement
-     * the authorizer permits.
+     * Run an arbitrary SQL string and return its rows. Must
+     * be called inside an {@link execute} block, which sets
+     * authorization and captures the read/write pages.
      */
-    executeSql(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
-        const {result, readPages, writtenPages} = this.execute(
-            db => sql.raw(query).selectAllUnknown(db),
-            options,
-        );
-        return {rows: result, readPages, writtenPages};
+    executeSql(query: string): Array<Record<string, unknown>> {
+        assert(this.writeLevel !== null, "executeSql must run inside execute()");
+        return sql.raw(query).selectAllUnknown(this.db);
     }
 
     /**
-     * Run a named {@link DatabaseActionObject}. Uses the
-     * action's declared `writeLevel` for authorization.
+     * Run a named {@link DatabaseActionObject} and return its
+     * output. Must be called inside an {@link execute} block
+     * whose `allowWrites` matches the action's `writeLevel`.
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
-    ): DatabaseExecuteActionResult<N> {
+    ): DatabaseActionOutput<N> {
+        assert(this.writeLevel !== null, "executeAction must run inside execute()");
         const action = databaseActions[actionObject.name];
-        const ctx = this.getActionContext();
-        const {result, readPages, writtenPages} = this.execute(
-            () => action.run(ctx, actionObject.input as never),
-            {allowWrites: action.writeLevel},
-        );
-        return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
-    }
-
-    /**
-     * The {@link DatabaseActionContext} passed to action
-     * `run()` functions. Exposed for callers that invoke
-     * `action.run` directly (e.g. {@link DatabaseServer})
-     * rather than through {@link executeAction}.
-     */
-    getActionContext(): DatabaseActionContext {
-        return {db: this.db, server: this.serverContext};
+        const ctx: DatabaseActionContext = {db: this.db, server: this.serverContext};
+        return action.run(ctx, actionObject.input as never) as DatabaseActionOutput<N>;
     }
 
     /**

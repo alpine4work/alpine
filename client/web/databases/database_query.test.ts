@@ -137,8 +137,13 @@ async function buildSchemaSeed(
         {readPage: () => null, getFileSize: () => 0},
         {server: true},
     );
-    fake.execute(db => runMainMigrations(db), {allowWrites: "schema+data"});
-    const {output} = fake.executeAction<"createTable">({name: "createTable", input: {name}});
+    const {result: output} = fake.execute(
+        db => {
+            runMainMigrations(db);
+            return fake.executeAction<"createTable">({name: "createTable", input: {name}});
+        },
+        {allowWrites: "schema+data"},
+    );
 
     const buffered = fake.getBufferedWrites();
     const seedPages = new Map<DatabaseTableId, Map<number, {version: number; data: Uint8Array}>>();
