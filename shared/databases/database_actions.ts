@@ -422,11 +422,6 @@ export const databaseActions = {
             const tableName = formatUniqueSqlName(name, new Set());
 
             if (tableName !== existing.tableName) {
-                // The `_created_at` index is named by table id,
-                // not by SQL name, so it follows the table
-                // through the rename — no drop/recreate needed.
-                // The RENAME TO target stays unqualified (the
-                // table stays in its own schema).
                 sql`
                     ALTER TABLE ${sql.tableRef(tableId, existing.tableName)}
                     RENAME TO ${sql.identifier(tableName)}

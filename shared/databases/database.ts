@@ -15,7 +15,7 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {sql} from "~/shared/databases/sql.js";
+import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {
     type InternalSqliteWriteLevel,
@@ -473,6 +473,10 @@ export class Database {
         // entry must exist before the SQL runs.
         this.tables.set(tableId, new DatabaseTableState());
 
+        // The VFS filename is the raw table id; the SQLite
+        // schema name is `_`-prefixed to mark it internal
+        // (see {@link databaseTableSchemaName}).
+        const schemaName = databaseTableSchemaName(tableId);
         const previousWriteLevel = this.writeLevel;
         this.writeLevel = "attach";
         try {
@@ -482,9 +486,9 @@ export class Database {
             // fresh schema immediately so its first write
             // matches the VFS's per-page contract.
             // eslint-disable-next-line cyberworlds/string-quotes -- SQL literal
-            this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${tableId}"`);
-            this.db.exec(sqliteAttachPagePragma(tableId));
-            this.schemaToTable.set(tableId, tableId);
+            this.db.exec(`ATTACH DATABASE '/${tableId}' AS "${schemaName}"`);
+            this.db.exec(sqliteAttachPagePragma(schemaName));
+            this.schemaToTable.set(schemaName, tableId);
         } catch (error) {
             this.tables.delete(tableId);
             throw error;

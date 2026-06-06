@@ -10,7 +10,7 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_providers.js";
-import {sql} from "~/shared/databases/sql.js";
+import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
@@ -46,7 +46,7 @@ function makeCtx(db: Database): DatabaseActionContext {
         db,
         server: {
             attach(tableId) {
-                db.exec(`ATTACH DATABASE ':memory:' AS "${tableId}"`);
+                db.exec(`ATTACH DATABASE ':memory:' AS "${databaseTableSchemaName(tableId)}"`);
             },
         },
     };
@@ -245,7 +245,7 @@ describe("createTable", () => {
 
         const colInfo = sql
             .raw(
-                `PRAGMA ${sql.identifier(tableId).query}.table_info(${sql.identifier(tableName).query})`,
+                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.table_info(${sql.identifier(tableName).query})`,
             )
             .selectAllUnknown(db);
 
@@ -271,7 +271,7 @@ describe("createTable", () => {
 
         const indexes = sql
             .raw(
-                `PRAGMA ${sql.identifier(tableId).query}.index_list(${sql.identifier(tableName).query})`,
+                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.index_list(${sql.identifier(tableName).query})`,
             )
             .selectAllUnknown(db);
 
@@ -607,7 +607,7 @@ describe("renameTable", () => {
         // The created_at index follows the rename.
         const indexes = sql
             .raw(
-                `PRAGMA ${sql.identifier(tableId).query}.index_list(${sql.identifier("projects").query})`,
+                `PRAGMA ${sql.identifier(databaseTableSchemaName(tableId)).query}.index_list(${sql.identifier("projects").query})`,
             )
             .selectAllUnknown(db);
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);

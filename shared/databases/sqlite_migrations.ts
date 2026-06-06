@@ -1,6 +1,7 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {sql} from "~/shared/databases/sql.js";
+import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type SqliteMigration = string | ((db: Database) => void);
@@ -42,7 +43,7 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
  * against an `ATTACH`-ed schema, so they receive the schema
  * name (the table id) to qualify their DDL.
  */
-export type TableSqliteMigration = (db: Database, schema: string) => void;
+export type TableSqliteMigration = (db: Database, tableId: DatabaseTableId) => void;
 
 /**
  * Ordered migrations for a **per-table** database — the
@@ -59,14 +60,14 @@ export type TableSqliteMigration = (db: Database, schema: string) => void;
  * action, not here.
  */
 export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
-    function migration1(db: Database, schema: string): void {
+    function migration1(db: Database, tableId: DatabaseTableId): void {
         // `REFERENCES` parent tables stay unqualified — SQLite
         // resolves a foreign key's parent within the same
         // database as the child. Index names carry the schema;
         // their `ON` table stays unqualified (resolved within
         // that schema).
         sql`
-            CREATE TABLE ${sql.tableRef(schema, "_alpine_table")} (
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_table")} (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 table_name TEXT NOT NULL,
@@ -75,7 +76,7 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
             WITHOUT ROWID
         `.exec(db);
         sql`
-            CREATE TABLE ${sql.tableRef(schema, "_alpine_fields")} (
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_fields")} (
                 id TEXT PRIMARY KEY,
                 table_id TEXT NOT NULL REFERENCES _alpine_table (id),
                 name TEXT NOT NULL,
@@ -89,12 +90,12 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
         `.exec(db);
         sql`
             CREATE INDEX ${sql.tableRef(
-                schema,
+                tableId,
                 "_alpine_fields_table_id",
             )} ON _alpine_fields (table_id)
         `.exec(db);
         sql`
-            CREATE TABLE ${sql.tableRef(schema, "_alpine_views")} (
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_views")} (
                 id TEXT PRIMARY KEY,
                 table_id TEXT NOT NULL REFERENCES _alpine_table (id),
                 name TEXT NOT NULL,
@@ -105,12 +106,12 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
         `.exec(db);
         sql`
             CREATE INDEX ${sql.tableRef(
-                schema,
+                tableId,
                 "_alpine_views_table_id",
             )} ON _alpine_views (table_id)
         `.exec(db);
         sql`
-            CREATE TABLE ${sql.tableRef(schema, "_alpine_view_fields")} (
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_view_fields")} (
                 view_id TEXT NOT NULL REFERENCES _alpine_views (id),
                 field_id TEXT NOT NULL REFERENCES _alpine_fields (id),
                 position TEXT NOT NULL,
@@ -151,23 +152,23 @@ export function runMainMigrations(db: Database): void {
 }
 
 /**
- * Runs any pending {@link tableSqliteMigrations} against the
- * `ATTACH`-ed per-table database named `schema` (the table
- * id). Tracks progress with that schema's own
- * `PRAGMA "{schema}".user_version`.
+ * Runs any pending {@link tableSqliteMigrations} against
+ * `tableId`'s `ATTACH`-ed per-table database. Tracks progress
+ * with that schema's own `PRAGMA "_{tableId}".user_version`.
  *
  * Runs server-side only: the server is canonical for schema,
  * and clients trust the pages it syncs.
  */
-export function runTableMigrations(db: Database, schema: string): void {
-    const userVersionPragma = `PRAGMA ${sql.identifier(schema).query}.user_version`;
+export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
+    const schemaName = sql.identifier(databaseTableSchemaName(tableId)).query;
+    const userVersionPragma = `PRAGMA ${schemaName}.user_version`;
     const version = sql.raw(userVersionPragma).selectValue(db, Schema.integer);
     assert(
         version <= tableSqliteMigrations.length,
-        `table ${schema} user_version (${version}) is ahead of known migrations (${tableSqliteMigrations.length})`,
+        `table ${tableId} user_version (${version}) is ahead of known migrations (${tableSqliteMigrations.length})`,
     );
     for (let i = version; i < tableSqliteMigrations.length; i++) {
-        tableSqliteMigrations[i]!(db, schema);
+        tableSqliteMigrations[i]!(db, tableId);
     }
     if (version < tableSqliteMigrations.length) {
         db.exec(`${userVersionPragma} = ${tableSqliteMigrations.length}`);

@@ -1,5 +1,6 @@
 import type {BindableValue, Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {
     ObjectPropertySchema,
     type ObjectSchemaConfigBase,
@@ -248,15 +249,28 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
 
 /**
- * Create a schema-qualified SQL identifier, `"schema"."name"`,
- * for referencing a table (or index) in an `ATTACH`-ed
- * database. Both parts are quoted and escaped per the SQL
- * standard (`"` → `""`).
+ * SQLite schema name for a table's `ATTACH`-ed per-db file.
+ * Prefixed with `_` to mark it internal, matching the
+ * convention used for `_alpine_*` tables and the
+ * `_id`/`_created_at` columns. Both {@link sql.tableRef} and
+ * {@link Database.attach} use this so the attach name and
+ * every reference to it stay in sync.
  */
-sql.tableRef = (schema: string, name: string): SqlQuery =>
+export function databaseTableSchemaName(tableId: DatabaseTableId): string {
+    return `_${tableId}`;
+}
+
+/**
+ * Create a schema-qualified SQL identifier,
+ * `"_{tableId}"."name"`, for referencing a table (or index)
+ * in a {@link DatabaseTableId}'s `ATTACH`-ed per-db file.
+ * `name` is quoted and escaped per the SQL standard
+ * (`"` → `""`); the schema name is a safe generated id.
+ */
+sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
     new SqlQuery(
         // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
-        `"${schema.replace(/"/g, '""')}"."${name.replace(/"/g, '""')}"`,
+        `"${databaseTableSchemaName(schema)}"."${name.replace(/"/g, '""')}"`,
     );
 
 export {sql, SqlQuery};

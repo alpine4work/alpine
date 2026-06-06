@@ -3,6 +3,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -143,14 +144,14 @@ describe("sql.identifier", () => {
 });
 
 describe("sql.tableRef", () => {
-    test("qualifies a name with its schema", () => {
-        const q = sql.tableRef("schema_a", "my_table");
-        expect(q.query).toBe('"schema_a"."my_table"');
+    test("qualifies a name with the table's `_`-prefixed schema", () => {
+        const q = sql.tableRef("abc123" as DatabaseTableId, "my_table");
+        expect(q.query).toBe('"_abc123"."my_table"');
     });
 
-    test("escapes double quotes in both parts", () => {
-        const q = sql.tableRef('a "b"', 'c "d"');
-        expect(q.query).toBe('"a ""b"""."c ""d"""');
+    test("escapes double quotes in the name", () => {
+        const q = sql.tableRef("abc123" as DatabaseTableId, 'c "d"');
+        expect(q.query).toBe('"_abc123"."c ""d"""');
     });
 });
 

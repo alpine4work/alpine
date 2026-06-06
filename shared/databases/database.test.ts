@@ -1,6 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
+import {databaseTableSchemaName} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -233,17 +234,26 @@ describe("Database — attach", () => {
         // Write a table into the attached schema, persist,
         // and read back. The new pager must flow through the
         // same VFS / hook plumbing as the main table.
-        database.executeSql(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`, {
-            allowWrites: "schema+data",
-        });
-        database.executeSql(`INSERT INTO "${otherTableId}".items VALUES (1)`, {
-            allowWrites: "data",
-        });
+        database.executeSql(
+            `CREATE TABLE "${databaseTableSchemaName(otherTableId)}".items (id INTEGER PRIMARY KEY)`,
+            {
+                allowWrites: "schema+data",
+            },
+        );
+        database.executeSql(
+            `INSERT INTO "${databaseTableSchemaName(otherTableId)}".items VALUES (1)`,
+            {
+                allowWrites: "data",
+            },
+        );
         commit(database, storage);
 
-        const result = database.executeSql(`SELECT id FROM "${otherTableId}".items`, {
-            allowWrites: "none",
-        });
+        const result = database.executeSql(
+            `SELECT id FROM "${databaseTableSchemaName(otherTableId)}".items`,
+            {
+                allowWrites: "none",
+            },
+        );
 
         expect(result.rows).toEqual([{id: 1}]);
         const otherReads = result.readPages.get(otherTableId);
@@ -286,16 +296,21 @@ describe("Database — attach", () => {
         database.execute(
             db => {
                 database.attach(otherTableId);
-                db.exec(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`);
-                db.exec(`INSERT INTO "${otherTableId}".items VALUES (1)`);
+                db.exec(
+                    `CREATE TABLE "${databaseTableSchemaName(otherTableId)}".items (id INTEGER PRIMARY KEY)`,
+                );
+                db.exec(`INSERT INTO "${databaseTableSchemaName(otherTableId)}".items VALUES (1)`);
             },
             {allowWrites: "schema+data"},
         );
         commit(database, storage);
 
-        const result = database.executeSql(`SELECT id FROM "${otherTableId}".items`, {
-            allowWrites: "none",
-        });
+        const result = database.executeSql(
+            `SELECT id FROM "${databaseTableSchemaName(otherTableId)}".items`,
+            {
+                allowWrites: "none",
+            },
+        );
 
         expect(result.rows).toEqual([{id: 1}]);
     });
@@ -307,7 +322,9 @@ describe("Database — attach", () => {
         const {writtenPages} = database.execute(
             db => {
                 database.attach(otherTableId);
-                db.exec(`CREATE TABLE "${otherTableId}".items (id INTEGER PRIMARY KEY)`);
+                db.exec(
+                    `CREATE TABLE "${databaseTableSchemaName(otherTableId)}".items (id INTEGER PRIMARY KEY)`,
+                );
             },
             {allowWrites: "schema+data"},
         );
