@@ -15,7 +15,13 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
+import {PageMissingError} from "~/shared/databases/page_missing_error.js";
+import {
+    type SqlQuery,
+    databaseTableSchemaName,
+    databaseTableSchemaNamePrefix,
+    sql,
+} from "~/shared/databases/sql.js";
 import {trySqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {
     type InternalSqliteWriteLevel,
@@ -570,6 +576,11 @@ export class Database {
                 }
                 throw stashed;
             }
+            const pageMissing = this.unattachedTablePageMissing(error);
+            if (pageMissing !== null) {
+                pageMissing.cause = error;
+                throw pageMissing;
+            }
             throw error;
         } finally {
             this.writeLevel = null;
@@ -578,6 +589,36 @@ export class Database {
             this.vfs.takeError();
             this.tempFiles.clear();
         }
+    }
+
+    /**
+     * Map a SQLite name-resolution failure that references an
+     * unattached per-db file to a {@link PageMissingError},
+     * or `null` if it isn't that case.
+     *
+     * A query against a table whose per-db file isn't attached
+     * (e.g. a table this client learned about mid-session but
+     * hasn't attached yet) fails at statement preparation with
+     * "no such table" / "unknown database" — before any page
+     * read — so it never surfaces as a {@link PageMissingError}
+     * on its own. Recovering the {@link DatabaseTableId} from
+     * the error text and raising `PageMissingError` lets the
+     * client's existing server-fallback path attach + populate
+     * the table and retry, exactly as it does for a missing
+     * cached page.
+     *
+     * Client-only: the canonical server attaches every per-db
+     * file it touches, so the same error there is a genuine
+     * bug and must surface as-is. We also bail when the named
+     * schema *is* attached — then the error is about a missing
+     * inner table, not an unattached file.
+     */
+    private unattachedTablePageMissing(error: unknown): PageMissingError | null {
+        if (this.serverContext !== null) return null;
+        if (!(error instanceof Error)) return null;
+        const tableId = parseUnattachedTableSchemaError(error.message);
+        if (tableId === null || this.tables.has(tableId)) return null;
+        return new PageMissingError(0, tableId);
     }
 
     private makeVfsFile(tableId: DatabaseTableId, state: DatabaseTableState): VfsFile {
@@ -713,4 +754,36 @@ function addToTablePageSet(
     pageIndex: number,
 ): void {
     getOrSetDefaultMapValue(target, tableId, () => new Set<number>()).add(pageIndex);
+}
+
+// SQLite reports a reference to an unattached per-db file in
+// one of two shapes, both naming the schema we generated via
+// `databaseTableSchemaName`:
+//
+// - `no such table: _alpine_schema_<tableId>.<inner>` — for
+//   DML/SELECT/ALTER.
+// - `unknown database "_alpine_schema_<tableId>"` — for some
+//   DDL (e.g. CREATE INDEX).
+//
+// Ids are 26-char Crockford base-32; matching `[0-9a-z]+` up
+// to the `.`/`"` boundary recovers the id without depending
+// on its exact length. These message formats are stable
+// across SQLite versions and not localized.
+const unattachedSchemaErrorPatterns = [
+    new RegExp(`no such table: ${databaseTableSchemaNamePrefix}([0-9a-z]+)\\.`),
+    // eslint-disable-next-line cyberworlds/string-quotes -- matches SQLite error text
+    new RegExp(`unknown database "${databaseTableSchemaNamePrefix}([0-9a-z]+)"`),
+];
+
+/**
+ * Recover the {@link DatabaseTableId} of an unattached per-db
+ * file from a SQLite name-resolution error message, or `null`
+ * if the message isn't one of those errors.
+ */
+function parseUnattachedTableSchemaError(message: string): DatabaseTableId | null {
+    for (const pattern of unattachedSchemaErrorPatterns) {
+        const match = pattern.exec(message);
+        if (match !== null) return match[1] as DatabaseTableId;
+    }
+    return null;
 }

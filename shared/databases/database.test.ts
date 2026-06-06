@@ -1,6 +1,7 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
+import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -423,6 +424,84 @@ describe("Database — attach", () => {
         database.attachIfNeeded(otherTableId);
 
         expect(database.isAttached(otherTableId)).toBe(true);
+    });
+});
+
+describe("Database — unattached per-db file detection", () => {
+    test("a query against an unattached per-db file throws PageMissingError", async () => {
+        const {database} = await createDatabase();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        // The table's file was never attached, so name resolution fails with
+        // "no such table" — surfaced as PageMissingError so the client's
+        // server-fallback path attaches + populates it.
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        table_name
+                    FROM
+                        ${sql.tableRef(tableId, "_alpine_table")}
+                `,
+                {allowWrites: "none"},
+            ),
+        ).toThrow(PageMissingError);
+    });
+
+    test("the 'unknown database' DDL error shape also becomes PageMissingError", async () => {
+        const {database} = await createDatabaseWithSchema(sql`CREATE TABLE items (x INTEGER)`);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        // CREATE INDEX against an unattached schema reports "unknown
+        // database" rather than "no such table"; both must be detected.
+        expect(() =>
+            database.executeSql(sql`CREATE INDEX ${sql.tableRef(tableId, "i")} ON items (x)`, {
+                allowWrites: "schema+data",
+            }),
+        ).toThrow(PageMissingError);
+    });
+
+    test("a missing inner table in an ATTACHED file throws the raw error, not PageMissingError", async () => {
+        const {database} = await createDatabase();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        // Attaching an empty store succeeds (valid empty DB). The inner
+        // _alpine_table genuinely doesn't exist, so this is a real error and
+        // must NOT be masked as a missing-page fallback.
+        database.attach(tableId);
+
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        table_name
+                    FROM
+                        ${sql.tableRef(tableId, "_alpine_table")}
+                `,
+                {allowWrites: "none"},
+            ),
+        ).toThrow("no such table");
+    });
+
+    test("the server surfaces the raw SQL error, not PageMissingError", async () => {
+        const storage = new InMemoryStorage();
+        const database = await Database.create(storage, {server: true});
+        openDatabases.push(database);
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        // The canonical server attaches every per-db file it touches, so an
+        // unattached reference there is a genuine bug, not a fallback signal.
+        expect(() =>
+            database.executeSql(
+                sql`
+                    SELECT
+                        table_name
+                    FROM
+                        ${sql.tableRef(tableId, "_alpine_table")}
+                `,
+                {allowWrites: "none"},
+            ),
+        ).toThrow("no such table");
     });
 });
 

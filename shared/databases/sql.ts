@@ -249,15 +249,25 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
 
 /**
- * SQLite schema name for a table's `ATTACH`-ed per-db file.
- * Prefixed with `_` to mark it internal, matching the
- * convention used for `_alpine_*` tables and the
- * `_id`/`_created_at` columns. Both {@link sql.tableRef} and
- * {@link Database.attach} use this so the attach name and
- * every reference to it stay in sync.
+ * Prefix for the SQLite schema name of a table's `ATTACH`-ed
+ * per-db file. Deliberately verbose and unique so it can be
+ * matched back out of SQLite's "no such table" / "unknown
+ * database" error text to recover the {@link DatabaseTableId}
+ * (see `Database`'s unattached-table detection). The leading
+ * `_` also marks it internal, matching the `_alpine_*` table
+ * convention.
+ */
+export const databaseTableSchemaNamePrefix = "_alpine_schema_";
+
+/**
+ * SQLite schema name for a table's `ATTACH`-ed per-db file:
+ * {@link databaseTableSchemaNamePrefix} followed by the table
+ * id. Both {@link sql.tableRef} and {@link Database.attach}
+ * use this so the attach name and every reference to it stay
+ * in sync.
  */
 export function databaseTableSchemaName(tableId: DatabaseTableId): string {
-    return `_${tableId}`;
+    return `${databaseTableSchemaNamePrefix}${tableId}`;
 }
 
 /**

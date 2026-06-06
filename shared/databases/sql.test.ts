@@ -144,14 +144,14 @@ describe("sql.identifier", () => {
 });
 
 describe("sql.tableRef", () => {
-    test("qualifies a name with the table's `_`-prefixed schema", () => {
+    test("qualifies a name with the table's prefixed schema", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, "my_table");
-        expect(q.query).toBe('"_abc123"."my_table"');
+        expect(q.query).toBe('"_alpine_schema_abc123"."my_table"');
     });
 
     test("escapes double quotes in the name", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, 'c "d"');
-        expect(q.query).toBe('"_abc123"."c ""d"""');
+        expect(q.query).toBe('"_alpine_schema_abc123"."c ""d"""');
     });
 });
 
