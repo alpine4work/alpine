@@ -293,10 +293,11 @@ export class Database {
      * the authorizer permits.
      */
     executeSql(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
-        const {result, readPages, writtenPages} = this.execute(
-            db => sql.raw(query).selectAllUnknown(db),
-            options,
-        );
+        const {result, readPages, writtenPages} = this.execute(db => {
+            const rows = sql.raw(query).selectAllUnknown(db);
+            this.maybeOptimizeAfterWrites(options.allowWrites);
+            return rows;
+        }, options);
         return {rows: result, readPages, writtenPages};
     }
 
@@ -308,22 +309,31 @@ export class Database {
         actionObject: DatabaseActionObject<N>,
     ): DatabaseExecuteActionResult<N> {
         const action = databaseActions[actionObject.name];
-        const ctx = this.getActionContext();
+        const ctx: DatabaseActionContext = {db: this.db, server: this.serverContext};
         const {result, readPages, writtenPages} = this.execute(
-            () => action.run(ctx, actionObject.input as never),
+            () => {
+                const output = action.run(ctx, actionObject.input as never);
+                this.maybeOptimizeAfterWrites(action.writeLevel);
+                return output;
+            },
             {allowWrites: action.writeLevel},
         );
         return {output: result as DatabaseActionOutput<N>, readPages, writtenPages};
     }
 
     /**
-     * The {@link DatabaseActionContext} passed to action
-     * `run()` functions. Exposed for callers that invoke
-     * `action.run` directly (e.g. {@link DatabaseServer})
-     * rather than through {@link executeAction}.
+     * Refresh query-planner statistics after a schema change.
+     * Only the canonical (server) database does this — a
+     * client running `PRAGMA optimize` would just produce
+     * `sqlite_stat` writes that diverge from the server and
+     * create rebase churn. Runs inside the caller's tracked
+     * execute so any stat updates ride along in the same
+     * buffer and broadcast.
      */
-    getActionContext(): DatabaseActionContext {
-        return {db: this.db, server: this.serverContext};
+    private maybeOptimizeAfterWrites(writeLevel: SqliteWriteLevel): void {
+        if (writeLevel === "schema+data" && this.serverContext !== null) {
+            this.db.exec("PRAGMA optimize");
+        }
     }
 
     /**

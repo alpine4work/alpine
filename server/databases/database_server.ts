@@ -1,11 +1,10 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
 import {Database} from "~/shared/databases/database.js";
-import {
-    type DatabaseActionName,
-    type DatabaseActionObject,
-    type DatabaseActionOutput,
-    databaseActions,
+import type {
+    DatabaseActionName,
+    DatabaseActionObject,
+    DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import {sql} from "~/shared/databases/sql.js";
@@ -78,9 +77,10 @@ export class DatabaseServer {
     }
 
     execute(query: string, options: {allowWrites: SqliteWriteLevel}): DatabaseServerResult {
-        const {result, readPages, changedPages} = this._runAndPersist(options.allowWrites, db =>
-            sql.raw(query).selectAllUnknown(db),
-        );
+        const {result, readPages, changedPages} = this._runAndPersist(() => {
+            const {rows, readPages} = this.database.executeSql(query, options);
+            return {result: rows, readPages};
+        });
         return {rows: result, readPages, changedPages};
     }
 
@@ -91,16 +91,11 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
     } {
-        const action = databaseActions[actionObject.name];
-        const ctx = this.database.getActionContext();
-        const {result, readPages, changedPages} = this._runAndPersist(action.writeLevel, () =>
-            action.run(ctx, actionObject.input as never),
-        );
-        return {
-            result: result as DatabaseActionOutput<N>,
-            readPages,
-            changedPages,
-        };
+        const {result, readPages, changedPages} = this._runAndPersist(() => {
+            const {output, readPages} = this.database.executeAction(actionObject);
+            return {result: output, readPages};
+        });
+        return {result, readPages, changedPages};
     }
 
     close(): void {
@@ -136,8 +131,6 @@ export class DatabaseServer {
         // ATTACH is legal mid-execute (no explicit
         // transaction is open), so we can attach + migrate
         // every per-table file inline.
-        const {server} = this.database.getActionContext();
-        assert(server !== null, "DatabaseServer must have server capabilities");
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
@@ -152,7 +145,7 @@ export class DatabaseServer {
                         _alpine_tables
                 `.selectValues(db, Schema.id<DatabaseTableId>());
                 for (const tableId of tableIds) {
-                    server.attach(tableId);
+                    this.database.attachIfNeeded(tableId);
                     runTableMigrations(db, tableId);
                 }
 
@@ -163,10 +156,7 @@ export class DatabaseServer {
         this._persistBuffer();
     }
 
-    private _runAndPersist<T>(
-        writeLevel: SqliteWriteLevel,
-        fn: (db: SqliteDatabase) => T,
-    ): {
+    private _runAndPersist<T>(run: () => {result: T; readPages: ReadonlyDatabasePageSet}): {
         result: T;
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
@@ -177,25 +167,12 @@ export class DatabaseServer {
         // writes belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         try {
-            const tracked = this.database.execute(
-                db => {
-                    const result = fn(db);
-                    // Run optimize inside the same tracked
-                    // call so any ANALYZE updates are
-                    // captured in the buffer (and broadcast
-                    // via realtime) alongside the action's
-                    // own writes.
-                    if (writeLevel === "schema+data") {
-                        db.exec("PRAGMA optimize");
-                    }
-                    return result;
-                },
-                {allowWrites: writeLevel},
-            );
-            // Drain inside the try so a failure here is
-            // handled identically to a failure in the
-            // tracked execute above.
-            return this._persistAndBuildResult(tracked.result, tracked.readPages);
+            // `run` executes the SQL/action through the
+            // Database's own tracking boundary (which also
+            // runs `PRAGMA optimize` for schema changes); the
+            // buffer is left intact for us to snapshot + drain.
+            const {result, readPages} = run();
+            return this._persistAndBuildResult(result, readPages);
         } catch (error) {
             // Drop any partial buffered writes — whether the
             // tracked execute or the drain failed — so storage
