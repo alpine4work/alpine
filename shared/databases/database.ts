@@ -576,7 +576,7 @@ export class Database {
                 }
                 throw stashed;
             }
-            const pageMissing = this.unattachedTablePageMissing(error);
+            const pageMissing = this.mapUnattachedTableError(error);
             if (pageMissing !== null) {
                 pageMissing.cause = error;
                 throw pageMissing;
@@ -613,7 +613,7 @@ export class Database {
      * schema *is* attached — then the error is about a missing
      * inner table, not an unattached file.
      */
-    private unattachedTablePageMissing(error: unknown): PageMissingError | null {
+    private mapUnattachedTableError(error: unknown): PageMissingError | null {
         if (this.serverContext !== null) return null;
         if (!(error instanceof Error)) return null;
         const tableId = parseUnattachedTableError(error.message);
