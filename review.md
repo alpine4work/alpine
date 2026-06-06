@@ -1,13 +1,3 @@
-# Code Review — `databases` (commits `7a3163f..HEAD`, 19 files, +1544/−909)
-
-**Scope:** the rebuild of `DatabaseServer` on the shared `Database`, batched
-`writePages(pages, truncates)` with a global version counter, `BrowserPageTracker` partitioned by
-`DatabaseTableId`, the schema-name page-access hook, and the new `Database.attach()` + `"attach"`
-authorizer level.
-
-9 finder angles + a sweep, candidates verified against source, and `dev check` run as ground truth.
-**The branch does not currently compile** — that's the headline.
-
 ## 🟡 Efficiency (hot paths)
 
 **8. `server/databases/database_durable_object_storage.ts:88,131` — per-row work on the
@@ -33,12 +23,3 @@ map (never pruned, no `detach()`) are manual contracts whose safety currently de
 the authorizer ban + VACUUM's specific behavior. The `actionArg === ""` VACUUM detection
 (`sqlite_authorizer.ts:107`) also rides on an undocumented SQLite internal that no test pins. Worth
 an explicit assertion/test rather than convention.
-
----
-
-## Verdict
-
-Items **#1–#2 must be fixed before this can merge** (it doesn't build). **#3** (permanent wedge) and
-**#5** (client-driven unbounded growth) are the highest-value runtime fixes; **#4** is a real
-comment/code contract violation that's latent only by luck. The efficiency and cleanup items are
-non-blocking.
