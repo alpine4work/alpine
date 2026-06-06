@@ -62,13 +62,29 @@ export class OpfsPageStore {
     }
 
     static async create(dir: OpfsDirectoryHandle): Promise<OpfsPageStore> {
+        // OPFS sync-access handles are exclusive: a leaked handle
+        // blocks every later open of the same file. If any step
+        // after the first handle opens throws, close what we've
+        // opened so far before propagating.
         const pagesFile = await dir.getFileHandle("pages.bin", {create: true});
         const pagesHandle = await pagesFile.createSyncAccessHandle();
-        const indexFile = await dir.getFileHandle("index.json", {create: true});
-        const indexHandle = await indexFile.createSyncAccessHandle();
+        let indexHandle: OpfsSyncAccessHandle;
+        try {
+            const indexFile = await dir.getFileHandle("index.json", {create: true});
+            indexHandle = await indexFile.createSyncAccessHandle();
+        } catch (error) {
+            pagesHandle.close();
+            throw error;
+        }
 
         const store = new OpfsPageStore(pagesHandle, indexHandle);
-        store.loadIndex();
+        try {
+            store.loadIndex();
+        } catch (error) {
+            pagesHandle.close();
+            indexHandle.close();
+            throw error;
+        }
         return store;
     }
 

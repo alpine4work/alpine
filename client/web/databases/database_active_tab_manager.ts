@@ -213,32 +213,40 @@ export class DatabaseActiveTabWorker {
             const created = (async () => {
                 const groupDir = await this.dir.getDirectoryHandle(databaseGroupId, {create: true});
                 const client = await DatabaseClient.create(groupDir);
+                try {
+                    const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
+                    if (initialPages !== undefined) {
+                        this.initialPagesByDatabase.delete(databaseGroupId);
+                        await client.seedPages(initialPages);
+                    }
 
-                const initialPages = this.initialPagesByDatabase.get(databaseGroupId);
-                if (initialPages !== undefined) {
-                    this.initialPagesByDatabase.delete(databaseGroupId);
-                    await client.seedPages(initialPages);
+                    // We're an always-online app: OPFS is just a cache,
+                    // so any cold-open failure (server unreachable,
+                    // cache validation, attach) is meant to bubble up
+                    // as "couldn't connect to the database".
+                    await client.ensureCacheIsUpToDate(conn);
+
+                    // Attach every existing table's per-db file so its
+                    // metadata and data are reachable before any
+                    // per-table action runs.
+                    await client.attachExistingTables(conn);
+
+                    // Pre-fetch schema pages so optimistic mutations
+                    // can read metadata without hitting the server.
+                    await client.executeAction(conn, {
+                        name: "ensureSchemaPagesLoaded",
+                        input: {},
+                    });
+
+                    return client;
+                } catch (error) {
+                    // The client opened its OPFS sync-access handles
+                    // before failing; close it so the eviction below
+                    // leaves the next open free of OPFS's exclusive
+                    // handle lock.
+                    client.close();
+                    throw error;
                 }
-
-                // We're an always-online app: OPFS is just a cache, so
-                // any cold-open failure (server unreachable, cache
-                // validation, attach) is meant to bubble up as
-                // "couldn't connect to the database".
-                await client.ensureCacheIsUpToDate(conn);
-
-                // Attach every existing table's per-db file so its
-                // metadata and data are reachable before any
-                // per-table action runs.
-                await client.attachExistingTables(conn);
-
-                // Pre-fetch schema pages so optimistic mutations
-                // can read metadata without hitting the server.
-                await client.executeAction(conn, {
-                    name: "ensureSchemaPagesLoaded",
-                    input: {},
-                });
-
-                return client;
             })();
             // Evict on failure so the next call re-attempts the
             // cold-open rather than replaying the cached rejection

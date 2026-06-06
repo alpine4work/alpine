@@ -94,8 +94,29 @@ export class DatabaseClient {
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
         const storage = new OpfsDatabaseStorage(groupDir);
         await storage.create(databaseMainTableId);
-        const database = await Database.create(storage);
+        let database: Database;
+        try {
+            database = await Database.create(storage);
+        } catch (error) {
+            // The main store's OPFS handles are already open;
+            // release them so a retry isn't blocked by OPFS's
+            // exclusive sync-access-handle lock.
+            storage.close();
+            throw error;
+        }
         return new DatabaseClient(database, storage);
+    }
+
+    /**
+     * Close the SQLite connection and release every OPFS
+     * sync-access handle held by the page stores. Call when
+     * discarding this client (e.g. after a failed cold-open)
+     * so a later re-open of the same group isn't blocked by
+     * OPFS's exclusive sync-access-handle lock.
+     */
+    close(): void {
+        this.database.close();
+        this.storage.close();
     }
 
     /**

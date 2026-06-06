@@ -42,6 +42,20 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
         return this.stores.get(tableId);
     }
 
+    /**
+     * Close every open page store, releasing their OPFS
+     * sync-access handles. Call when discarding the owning
+     * {@link DatabaseClient} (e.g. a failed cold-open) so a
+     * later re-open isn't blocked by OPFS's exclusive
+     * sync-access-handle lock.
+     */
+    close(): void {
+        for (const store of this.stores.values()) {
+            store.close();
+        }
+        this.stores.clear();
+    }
+
     [Symbol.iterator](): IterableIterator<[DatabaseTableId, OpfsPageStore]> {
         return this.stores.entries();
     }
