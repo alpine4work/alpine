@@ -58,12 +58,14 @@ const awsGithubRunnerAmiBazelCacheKeyParameterName =
 /* eslint-disable cyberworlds/string-quotes */
 function createLinuxUserDataTemplate() {
     return `#!/bin/bash -x
+set -o pipefail
 TASK_TOKEN="{}"
 logGroupName="{}"
 runnerNamePath="{}"
 runnerTokenPath="{}"
 registrationURL="{}"
 label="{}"
+requestedLabels="{}"
 export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
 export ALPINE_RUNNER_TAG="$label"
 export ALPINE_AMI_BAZEL_CACHE_KEY_PATH="${awsGithubRunnerAmiCacheKeyPath}"
@@ -71,7 +73,7 @@ export ALPINE_AMI_BAZEL_CACHE_KEY_PATH="${awsGithubRunnerAmiCacheKeyPath}"
 setup_logs () {
   # Ship the runner bootstrap log to CloudWatch so Step Functions timeouts and
   # instance startup failures are debuggable after the machine terminates.
-  cat <<EOF > /tmp/log.conf || exit 1
+  if ! cat > /tmp/log.conf <<EOF
   {
     "logs": {
       "log_stream_name": "unknown",
@@ -90,7 +92,32 @@ setup_logs () {
     }
   }
 EOF
-  /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf || exit 2
+  then
+    echo "Failed to write CloudWatch Agent log config." >&2
+    return 1
+  fi
+
+  # The SSM association that installs the CloudWatch Agent may also configure it
+  # on first boot. Retry through that startup race so transient log setup
+  # failures do not make runner startup less reliable than the test itself.
+  for attempt in 1 2 3 4 5 6; do
+    if /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+        -a fetch-config \
+        -m ec2 \
+        -s \
+        -c file:/tmp/log.conf; then
+      return 0
+    fi
+
+    echo "CloudWatch Agent log setup failed on attempt $attempt." >&2
+    if [ "$attempt" = "6" ]; then
+      break
+    fi
+    sleep $((attempt * 2))
+  done
+
+  echo "CloudWatch Agent log setup failed after retries." >&2
+  return 1
 }
 setup_runtime_env () {
   # Resolve the region from IMDS so the bootstrap can use the instance role for
@@ -118,11 +145,29 @@ action () {
 
   # Preserve the provider label and append the standard started-at marker so
   # GitHub runner diagnostics stay consistent with the legacy provider.
-  labelsTemplate="$label,cdkghr:started:$(date +%s)"
+  customLabels=""
+
+  IFS=',' read -ra requestedLabelList <<< "$requestedLabels"
+  for requestedLabel in "\${requestedLabelList[@]}"; do
+    if [ "$requestedLabel" = "self-hosted" ]; then
+      continue
+    fi
+
+    if [ -n "$customLabels" ]; then
+      customLabels="$customLabels,"
+    fi
+    customLabels="$customLabels$requestedLabel"
+  done
+
+  if [ -z "$customLabels" ]; then
+    customLabels="$label"
+  fi
+
+  labelsTemplate="$customLabels,cdkghr:started:$(date +%s)"
 
   # Register the ephemeral runner first, then start heartbeating only once the
   # instance is actually ready to execute workflow jobs.
-  sudo -Hu runner /home/runner/config.sh --unattended --url "$registrationURL" --token "$runnerTokenPath" --ephemeral --work _work --labels "$labelsTemplate" $RUNNER_FLAGS --name "$runnerNamePath" || exit 1
+  sudo -Hu runner /home/runner/config.sh --unattended --url "$registrationURL" --token "$runnerTokenPath" --ephemeral --work _work --labels "$labelsTemplate" $RUNNER_FLAGS --name "$runnerNamePath" || return 1
 
   heartbeat &
   heartbeat_pid=$!
@@ -131,15 +176,26 @@ action () {
   # Run the stock GitHub runner as the unprivileged runner account while
   # preserving only the environment needed for tracing and the AMI image
   # cache metadata.
-  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZEL_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2
+  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZEL_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2
 
   # Mirror the legacy provider's log line so downstream debugging still has the
   # same job-completion breadcrumb in CloudWatch.
   STATUS=$(grep -Phors "finish job request for job [0-9a-f\\-]+ with result: \\K.*" /home/runner/_diag/ | tail -n1)
   [ -n "$STATUS" ] && echo CDKGHA JOB DONE "$label" "$STATUS"
 }
-if setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1; then
-  aws stepfunctions send-task-success --task-token "$TASK_TOKEN" --task-output '{"ok": true}'
+if setup_runtime_env; then
+  if ! setup_logs; then
+    # TODO(imjoshin): This is a band-aid. About 1 in 50 runners can still
+    # miss CloudWatch logs if setup never succeeds; revisit the CloudWatch
+    # Agent/SSM first-boot race instead of ignoring it here.
+    echo "CloudWatch Agent log setup failed; continuing without log shipping." >&2
+  fi
+
+  if action | tee /var/log/runner.log 2>&1; then
+    aws stepfunctions send-task-success --task-token "$TASK_TOKEN" --task-output '{"ok": true}'
+  else
+    aws stepfunctions send-task-failure --task-token "$TASK_TOKEN"
+  fi
 else
   aws stepfunctions send-task-failure --task-token "$TASK_TOKEN"
 fi
@@ -154,6 +210,9 @@ poweroff
 
 export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProvider {
     public readonly labels: Array<string>;
+    // PATCH(imjoshin): Let the patched CloudSnorkel webhook match per-job ASG labels
+    // while keeping the provider's stable base label.
+    public readonly dynamicLabelPrefixes: Array<string>;
     public readonly logGroup: ILogGroup;
     public readonly retryableErrors: Array<string> = ["Ec2.Ec2Exception", "States.Timeout"];
 
@@ -183,6 +242,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
         super(scope, id);
 
         this.labels = [label];
+        this.dynamicLabelPrefixes = [`${label}-job-`];
         this.subnets = vpc.selectSubnets({subnetType: SubnetType.PUBLIC}).subnets;
         const amiSourceBundleBucketName = `cyberworlds-github-runner-source-bundle`;
 
@@ -367,6 +427,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                             parameters.runnerTokenPath,
                             parameters.registrationUrl,
                             this.labels.join(","),
+                            JsonPath.stringAt("$.labels"),
                             this.userDataExtraBase64,
                         ),
                     ),

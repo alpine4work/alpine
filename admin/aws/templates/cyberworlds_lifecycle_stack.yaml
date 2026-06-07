@@ -5561,17 +5561,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -5579,11 +5579,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -5602,32 +5612,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5670,17 +5695,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -5688,11 +5713,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -5711,32 +5746,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5779,17 +5829,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -5797,11 +5847,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -5820,32 +5880,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5888,17 +5963,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -5906,11 +5981,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -5929,32 +6014,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -5997,17 +6097,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -6015,11 +6115,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -6038,32 +6148,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -6106,17 +6231,17 @@ Resources:
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
-                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash
-                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
-                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabel=\\\"\
-                        {}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\nexport ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
+                        ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
+                        pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
+                        \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
+                        l=\\\"{}\\\"\\nrequestedLabels=\\\"{}\\\"\\nexport
+                        USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64 --decode)\\\"\\nexport
+                        ALPINE_RUNNER_TAG=\\\"$label\\\"\\nexport
                         ALPINE_AMI_BAZEL_CACHE_KEY_PATH=\\\"/opt/alpine-runner-image/bazel-cache-key\
                         \\\"\\n\\nsetup_logs () \\\\{\\n  # Ship the runner bootstrap log to
                         CloudWatch so Step Functions timeouts and\\n  # instance startup failures
-                        are debuggable after the machine terminates.\\n  cat <<EOF > /tmp/log.conf
-                        || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        are debuggable after the machine terminates.\\n  if ! cat > /tmp/log.conf
+                        <<EOF\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -6124,11 +6249,21 @@ Resources:
                         \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
                         \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
                         \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
-                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
-                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
-                        exit 2\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  # Resolve the region from
-                        IMDS so the bootstrap can use the instance role for\\n  # both Step
-                        Functions callbacks and the Bazel remote cache
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  then\\n    echo \\\"Failed to write
+                        CloudWatch Agent log config.\\\" >&2\\n    return 1\\n  fi\\n\\n  # The SSM
+                        association that installs the CloudWatch Agent may also configure it\\n  #
+                        on first boot. Retry through that startup race so transient log setup\\n  #
+                        failures do not make runner startup less reliable than the test
+                        itself.\\n  for attempt in 1 2 3 4 5 6; do\\n    if
+                        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl         -a
+                        fetch-config         -m ec2         -s         -c file:/tmp/log.conf;
+                        then\\n      return 0\\n    fi\\n\\n    echo \\\"CloudWatch Agent log setup
+                        failed on attempt $attempt.\\\" >&2\\n    if [ \\\"$attempt\\\" = \\\"6\\\"
+                        ]; then\\n      break\\n    fi\\n    sleep $((attempt *
+                        2))\\n  done\\n\\n  echo \\\"CloudWatch Agent log setup failed after
+                        retries.\\\" >&2\\n  return 1\\n\\\\}\\nsetup_runtime_env () \\\\{\\n  #
+                        Resolve the region from IMDS so the bootstrap can use the instance role
+                        for\\n  # both Step Functions callbacks and the Bazel remote cache
                         proxy.\\n  metadata_token=$(curl -sS -X PUT
                         http://169.254.169.254/latest/api/token     -H
                         \\\\'x-aws-ec2-metadata-token-ttl-seconds: 21600\\\\')\\n  export
@@ -6147,32 +6282,47 @@ Resources:
                         pdate\\\"\\n  fi\\n\\n  # Preserve the provider label and append the
                         standard started-at marker so\\n  # GitHub runner diagnostics stay
                         consistent with the legacy
-                        provider.\\n  labelsTemplate=\\\"$label,cdkghr:started:$(date
-                        +%s)\\\"\\n\\n  # Register the ephemeral runner first, then start
-                        heartbeating only once the\\n  # instance is actually ready to execute
-                        workflow jobs.\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
-                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
-                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
-                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  heartbeat
-                        &\\n  heartbeat_pid=$!\\n  trap \\\\'kill \\\"$heartbeat_pid\\\" >/dev/null
-                        2>&1 || true\\\\' EXIT\\n\\n  # Run the stock GitHub runner as the
-                        unprivileged runner account while\\n  # preserving only the environment
-                        needed for tracing and the AMI image\\n  # cache metadata.\\n  sudo
+                        provider.\\n  customLabels=\\\"\\\"\\n\\n  IFS=\\\\',\\\\' read -ra
+                        requestedLabelList <<< \\\"$requestedLabels\\\"\\n  for requestedLabel in
+                        \\\"$\\\\{requestedLabelList[@]\\\\}\\\"; do\\n    if [
+                        \\\"$requestedLabel\\\" = \\\"self-hosted\\\" ];
+                        then\\n      continue\\n    fi\\n\\n    if [ -n \\\"$customLabels\\\" ];
+                        then\\n      customLabels=\\\"$customLabels,\\\"\\n    fi\\n    customLabel\
+                        s=\\\"$customLabels$requestedLabel\\\"\\n  done\\n\\n  if [ -z
+                        \\\"$customLabels\\\" ];
+                        then\\n    customLabels=\\\"$label\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$cu\
+                        stomLabels,cdkghr:started:$(date +%s)\\\"\\n\\n  # Register the ephemeral
+                        runner first, then start heartbeating only once the\\n  # instance is
+                        actually ready to execute workflow jobs.\\n  sudo -Hu runner
+                        /home/runner/config.sh --unattended --url \\\"$registrationURL\\\" --token
+                        \\\"$runnerTokenPath\\\" --ephemeral --work _work --labels
+                        \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name \\\"$runnerNamePath\\\" ||
+                        return 1\\n\\n  heartbeat &\\n  heartbeat_pid=$!\\n  trap \\\\'kill
+                        \\\"$heartbeat_pid\\\" >/dev/null 2>&1 || true\\\\' EXIT\\n\\n  # Run the
+                        stock GitHub runner as the unprivileged runner account while\\n  #
+                        preserving only the environment needed for tracing and the AMI image\\n  #
+                        cache metadata.\\n  sudo
                         --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG,ALPINE_AMI_BAZE\
-                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || exit 2\\n\\n  # Mirror
+                        L_CACHE_KEY_PATH -Hu runner /home/runner/run.sh || return 2\\n\\n  # Mirror
                         the legacy provider\\\\'s log line so downstream debugging still has
                         the\\n  # same job-completion breadcrumb in CloudWatch.\\n  STATUS=$(grep
                         -Phors \\\"finish job request for job [0-9a-f\\\\\\\\-]+ with result:
                         \\\\\\\\K.*\\\" /home/runner/_diag/ | tail -n1)\\n  [ -n \\\"$STATUS\\\" ]
                         && echo CDKGHA JOB DONE \\\"$label\\\" \\\"$STATUS\\\"\\n\\\\}\\nif
-                        setup_logs && setup_runtime_env && action | tee /var/log/runner.log 2>&1;
-                        then\\n  aws stepfunctions send-task-success --task-token
-                        \\\"$TASK_TOKEN\\\" --task-output \\\\'\\\\{\\\"ok\\\":
-                        true\\\\}\\\\'\\nelse\\n  aws stepfunctions send-task-failure --task-token
+                        setup_runtime_env; then\\n  if ! setup_logs; then\\n    # TODO(imjoshin):
+                        This is a band-aid. About 1 in 50 runners can still\\n    # miss CloudWatch
+                        logs if setup never succeeds; revisit the CloudWatch\\n    # Agent/SSM
+                        first-boot race instead of ignoring it here.\\n    echo \\\"CloudWatch Agent
+                        log setup failed; continuing without log shipping.\\\" >&2\\n  fi\\n\\n  if
+                        action | tee /var/log/runner.log 2>&1; then\\n    aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        \\\\'\\\\{\\\"ok\\\": true\\\\}\\\\'\\n  else\\n    aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\n  fi\\nelse\\n  aws
+                        stepfunctions send-task-failure --task-token
                         \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10\\npoweroff\\n', $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerLogGroup08C80AF8
                       - "', $$.Execution.Name, $.runner.token, $.runner.registrationUrl,
-                        'aws-test-asg', '"
+                        'aws-test-asg', $.labels, '"
                       - Fn::Base64:
                             Fn::Join:
                                 - ""
@@ -7304,7 +7454,7 @@ Resources:
             Code:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
-                S3Key: 6e98a8cb30b9f206bbd9a2ff9ab8c53a2c1c0154bc9e28205ed66954a2a6cfd7.zip
+                S3Key: 80f01b65b6a573722235b5fd109f9232bd37a01b38b1dbc86a7939eb313d0eab.zip
             Description: Handle GitHub webhook and start runner orchestrator
             Environment:
                 Variables:
@@ -7316,7 +7466,7 @@ Resources:
                         Ref: GithubRunnersSecretsGitHubC8776C73
                     GITHUB_PRIVATE_KEY_SECRET_ARN:
                         Ref: GithubRunnersSecretsGitHubPrivateKey8994DEBA
-                    SUPPORTED_LABELS: '[{"provider":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider","labels":["aws-test"]},{"provider":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider","labels":["aws-test-asg"]},{"provider":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider","labels":["aws-ami-builder"]},{"provider":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider","labels":["aws-deploy"]}]'
+                    SUPPORTED_LABELS: '[{"provider":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider","labels":["aws-test"],"dynamicLabelPrefixes":[]},{"provider":"CyberworldsLifecycleStack/GithubRunners/TestRunnerAsgProvider","labels":["aws-test-asg"],"dynamicLabelPrefixes":["aws-test-asg-job-"]},{"provider":"CyberworldsLifecycleStack/GithubRunners/AmiBuilderRunnerProvider","labels":["aws-ami-builder"],"dynamicLabelPrefixes":[]},{"provider":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider","labels":["aws-deploy"],"dynamicLabelPrefixes":[]}]'
                     REQUIRE_SELF_HOSTED_LABEL: "1"
                     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
             Handler: index.handler
@@ -7336,7 +7486,7 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/Runners/Webhook
                 Handler/webhook-handler/Resource
-            aws:asset:path: asset.6e98a8cb30b9f206bbd9a2ff9ab8c53a2c1c0154bc9e28205ed66954a2a6cfd7.lambda
+            aws:asset:path: asset.80f01b65b6a573722235b5fd109f9232bd37a01b38b1dbc86a7939eb313d0eab.lambda
             aws:asset:is-bundled: false
             aws:asset:property: Code
     GithubRunnersWebhookHandlerwebhookhandlerFunctionUrl2535CA72:
