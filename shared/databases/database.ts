@@ -576,10 +576,26 @@ export class Database {
                 }
                 throw stashed;
             }
-            const pageMissing = this.mapUnattachedTableError(error);
-            if (pageMissing !== null) {
-                pageMissing.cause = error;
-                throw pageMissing;
+            // A query against a table whose per-db file isn't attached (e.g.
+            // a table this client learned about mid-session but hasn't
+            // attached yet) fails at statement preparation with "no such
+            // table" / "unknown database" — before any page read — so it
+            // never surfaces as a PageMissingError on its own. Recover the
+            // tableId from the error text and rethrow as PageMissingError so
+            // the client's existing server-fallback path attaches + populates
+            // the table and retries, exactly as for a missing cached page.
+            //
+            // Client-only: the canonical server attaches every per-db file it
+            // touches, so the same error there is a genuine bug and must
+            // surface as-is. Bail too when the named schema *is* attached —
+            // then it's a missing inner table, not an unattached file.
+            if (this.serverContext === null && error instanceof Error) {
+                const tableId = parseUnattachedTableMessage(error.message);
+                if (tableId !== null && !this.tables.has(tableId)) {
+                    const pageMissing = new PageMissingError(0, tableId);
+                    pageMissing.cause = error;
+                    throw pageMissing;
+                }
             }
             throw error;
         } finally {
@@ -589,36 +605,6 @@ export class Database {
             this.vfs.takeError();
             this.tempFiles.clear();
         }
-    }
-
-    /**
-     * Map a SQLite name-resolution failure that references an
-     * unattached per-db file to a {@link PageMissingError},
-     * or `null` if it isn't that case.
-     *
-     * A query against a table whose per-db file isn't attached
-     * (e.g. a table this client learned about mid-session but
-     * hasn't attached yet) fails at statement preparation with
-     * "no such table" / "unknown database" — before any page
-     * read — so it never surfaces as a {@link PageMissingError}
-     * on its own. Recovering the {@link DatabaseTableId} from
-     * the error text and raising `PageMissingError` lets the
-     * client's existing server-fallback path attach + populate
-     * the table and retry, exactly as it does for a missing
-     * cached page.
-     *
-     * Client-only: the canonical server attaches every per-db
-     * file it touches, so the same error there is a genuine
-     * bug and must surface as-is. We also bail when the named
-     * schema *is* attached — then the error is about a missing
-     * inner table, not an unattached file.
-     */
-    private mapUnattachedTableError(error: unknown): PageMissingError | null {
-        if (this.serverContext !== null) return null;
-        if (!(error instanceof Error)) return null;
-        const tableId = tryParseUnattachedTableError(error.message);
-        if (tableId === null || this.tables.has(tableId)) return null;
-        return new PageMissingError(0, tableId);
     }
 
     private makeVfsFile(tableId: DatabaseTableId, state: DatabaseTableState): VfsFile {
@@ -780,7 +766,7 @@ const unattachedSchemaErrorPatterns = [
  * file from a SQLite name-resolution error message, or `null`
  * if the message isn't one of those errors.
  */
-function tryParseUnattachedTableError(message: string): DatabaseTableId | null {
+function parseUnattachedTableMessage(message: string): DatabaseTableId | null {
     for (const pattern of unattachedSchemaErrorPatterns) {
         const match = pattern.exec(message);
         if (match !== null) return match[1] as DatabaseTableId;
