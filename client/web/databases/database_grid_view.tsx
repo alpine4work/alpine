@@ -238,19 +238,6 @@ export function DatabaseGridView({
         scrollViewRef.current?.scrollToKeyIfExists(selectedRowId, {withAnchor: false});
     }, [selectedRowId]);
 
-    // Cumulative left offset of each visible column in scroll-content
-    // pixel coords. Accounts for the `marginRight: -1` overlap between
-    // adjacent cells.
-    const columnLefts = useMemo(() => {
-        const lefts: Array<number> = [];
-        let left = 0;
-        for (const field of gridFields.fields) {
-            lefts.push(left);
-            left += field.width - 1;
-        }
-        return lefts;
-    }, [gridFields.fields]);
-
     const needsMore = useStore(query.needsMoreStore);
     const itemCount = rowCount + 2 + (needsMore ? 1 : 0);
 
@@ -416,7 +403,6 @@ export function DatabaseGridView({
                             selection={visibleSelection}
                             fields={gridFields.fields}
                             fieldIndexById={gridFields.fieldIndexById}
-                            columnLefts={columnLefts}
                             scrollViewRef={scrollViewRef}
                         />
                     }
@@ -437,15 +423,26 @@ function DatabaseGridViewSelectionOverlay({
     selection,
     fields,
     fieldIndexById,
-    columnLefts,
     scrollViewRef,
 }: {
     selection: DatabaseGridViewSelection;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
-    columnLefts: ReadonlyArray<number>;
     scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
 }) {
+    // Cumulative left offset of each visible column in scroll-content
+    // pixel coords. Accounts for the `marginRight: -1` overlap between
+    // adjacent cells.
+    const columnLefts = useMemo(() => {
+        const lefts: Array<number> = [];
+        let left = 0;
+        for (const field of fields) {
+            lefts.push(left);
+            left += field.width - 1;
+        }
+        return lefts;
+    }, [fields]);
+
     if (selection == null || selection.isEditing) return null;
     const rowPosition = scrollViewRef.current?.getPositionByKeyIfExists(selection.rowId);
     if (rowPosition == null) return null;
