@@ -251,30 +251,6 @@ export function DatabaseGridView({
         return lefts;
     }, [gridFields.fields]);
 
-    const renderSelectionOverlay = useEvent(() => {
-        if (visibleSelection == null || visibleSelection.isEditing) return null;
-        const rowPosition = scrollViewRef.current?.getPositionByKeyIfExists(visibleSelection.rowId);
-        if (rowPosition == null) return null;
-        const fieldIndex = gridFields.fieldIndexById.get(visibleSelection.fieldId);
-        if (fieldIndex == null) return null;
-        const field = gridFields.fields[fieldIndex];
-        const left = columnLefts[fieldIndex];
-        if (field == null || left == null) return null;
-        return (
-            <Box
-                position="absolute"
-                border="theme-40-const"
-                pointerEvents="none"
-                style={{
-                    top: rowPosition.offset,
-                    height: rowPosition.height,
-                    left,
-                    width: field.width,
-                }}
-            />
-        );
-    });
-
     const needsMore = useStore(query.needsMoreStore);
     const itemCount = rowCount + 2 + (needsMore ? 1 : 0);
 
@@ -435,10 +411,62 @@ export function DatabaseGridView({
                     scrollbarInsetTopItemIndex={0}
                     scrollbarInsetBottomItemIndex={addRowIndex}
                     contentMinWidth={gridFields.contentMinWidth}
-                    extraChildren={renderSelectionOverlay}
+                    extraChildren={
+                        <DatabaseGridViewSelectionOverlay
+                            selection={visibleSelection}
+                            fields={gridFields.fields}
+                            fieldIndexById={gridFields.fieldIndexById}
+                            columnLefts={columnLefts}
+                            scrollViewRef={scrollViewRef}
+                        />
+                    }
                 />
             </Box>
         </GlobalKeyDownEvent>
+    );
+}
+
+// -- Selection overlay --------------------------------------------------------
+
+/**
+ * Renders a floating border around the selected cell(s) using
+ * scroll-content coordinates so it scrolls with rows and is
+ * occluded by the sticky header.
+ */
+function DatabaseGridViewSelectionOverlay({
+    selection,
+    fields,
+    fieldIndexById,
+    columnLefts,
+    scrollViewRef,
+}: {
+    selection: DatabaseGridViewSelection;
+    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
+    columnLefts: ReadonlyArray<number>;
+    scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
+}) {
+    if (selection == null || selection.isEditing) return null;
+    const rowPosition = scrollViewRef.current?.getPositionByKeyIfExists(selection.rowId);
+    if (rowPosition == null) return null;
+    const fieldIndex = fieldIndexById.get(selection.fieldId);
+    if (fieldIndex == null) return null;
+    const field = fields[fieldIndex];
+    const left = columnLefts[fieldIndex];
+    if (field == null || left == null) return null;
+    return (
+        <Box
+            position="absolute"
+            border="theme-40-const"
+            pointerEvents="none"
+            zIndex="1"
+            style={{
+                top: rowPosition.offset,
+                height: rowPosition.height,
+                left,
+                width: field.width,
+            }}
+        />
     );
 }
 
