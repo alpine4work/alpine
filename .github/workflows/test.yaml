@@ -109,7 +109,7 @@ jobs:
         steps:
             - if: startsWith(github.ref_name, 'CI-ASG/')
               name: Checkout git SHA
-              uses: ./.github/actions/checkout_git_sha
+              uses: ./.github/actions/checkout_github_sha
               with:
                   github-token: ${{ github.token }}
 
@@ -166,7 +166,7 @@ jobs:
         steps:
             - if: startsWith(github.ref_name, 'CI-ASG/')
               name: Checkout git SHA
-              uses: ./.github/actions/checkout_git_sha
+              uses: ./.github/actions/checkout_github_sha
               with:
                   github-token: ${{ github.token }}
 
@@ -225,7 +225,7 @@ jobs:
         steps:
             - if: startsWith(github.ref_name, 'CI-ASG/')
               name: Checkout git SHA
-              uses: ./.github/actions/checkout_git_sha
+              uses: ./.github/actions/checkout_github_sha
               with:
                   github-token: ${{ github.token }}
 
