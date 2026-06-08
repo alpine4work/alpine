@@ -9,10 +9,10 @@ adopted at all call sites. Type-check/lint pass repo-wide (only the pre-existing
 
 **C1. Cold-open is no longer offline-tolerant, and a transient failure permanently poisons the
 client for the worker's lifetime** — `client/web/databases/database_active_tab_manager.ts:223`
-*(CONFIRMED, highest severity)*. The diff deletes the `try/catch` around `ensureCacheIsUpToDate` and
+_(CONFIRMED, highest severity)_. The diff deletes the `try/catch` around `ensureCacheIsUpToDate` and
 the best-effort `.catch(() => {})` on `ensureSchemaPagesLoaded`, and adds a mandatory
 `await client.attachExistingTables(conn)`. All three are now hard awaits inside the
-`getOrCreateClient` IIFE, whose promise is stored in `clientPromises` at line 239 *before* it
+`getOrCreateClient` IIFE, whose promise is stored in `clientPromises` at line 239 _before_ it
 resolves — and `clientPromises` is never `.delete`d (only `.get`/`.set`/`.has` exist). A tab opening
 during a brief server/WebSocket blip rejects `ensureCacheIsUpToDate`; the cached promise rejects;
 every later `getOrCreateClient(groupId)` returns the same rejected promise, so the group is
@@ -21,35 +21,36 @@ offline with a stale cache and fetched pages on demand.
 
 **C2. Re-entrancy: `await ensureTableAttached` between `discardBuffer()` and `applyServerPages()`
 lets a concurrent RPC re-dirty the buffer and crash the apply** —
-`client/web/databases/database_client.ts:611` *(CONFIRMED mechanism, timing-dependent trigger)*.
-`executeActionViaServer` now does `discardBuffer()` → `for (...) await this.ensureTableAttached(...)`
-→ `applyServerPages()` (which asserts `assertBufferIsEmpty`). The new `await` is a yield point that
-didn't exist before. RPC handlers are not serialized per client (`WebWorkerRpc.handleRequest` does
-`handler(input).then(...)` with no mutex; the worker shares one `DatabaseClient` across tabs). A
-`createTable` or any `PageMissingError` fallback reaches the attach loop; during the `storage.create`
-yield, a concurrent `executeAction` (writes the buffer directly) or `writePageDiffsFromRealtime`
-(calls `replayOptimisticQueue`) re-dirties the buffer → on resume `assertBufferIsEmpty` throws,
-losing the server response and desyncing the optimistic queue.
+`client/web/databases/database_client.ts:611` _(CONFIRMED mechanism, timing-dependent trigger)_.
+`executeActionViaServer` now does `discardBuffer()` →
+`for (...) await this.ensureTableAttached(...)` → `applyServerPages()` (which asserts
+`assertBufferIsEmpty`). The new `await` is a yield point that didn't exist before. RPC handlers are
+not serialized per client (`WebWorkerRpc.handleRequest` does `handler(input).then(...)` with no
+mutex; the worker shares one `DatabaseClient` across tabs). A `createTable` or any
+`PageMissingError` fallback reaches the attach loop; during the `storage.create` yield, a concurrent
+`executeAction` (writes the buffer directly) or `writePageDiffsFromRealtime` (calls
+`replayOptimisticQueue`) re-dirties the buffer → on resume `assertBufferIsEmpty` throws, losing the
+server response and desyncing the optimistic queue.
 
 **C3. Optimistic `executeAction` only falls back on `PageMissingError`; a "no such table" on an
 unattached per-table file hard-rejects** — `client/web/databases/database_client.ts:192`
-*(PLAUSIBLE)*. The catch routes to the server only for `PageMissingError`; any other throw rethrows.
+_(PLAUSIBLE)_. The catch routes to the server only for `PageMissingError`; any other throw rethrows.
 A per-table action against a `tableId` whose per-db file isn't attached locally throws a plain
 `no such table: _<tableId>._alpine_fields`, so the user-facing mutation rejects with no server
 fallback. Trigger: a table the local connection hasn't attached mid-session (it only attaches at
 cold-open via `attachExistingTables`).
 
 **C4. `attach()`'s error path orphans the SQLite attachment (no `DETACH`), wedging the table for the
-connection's life** — `shared/databases/database.ts:492` *(PLAUSIBLE; see also A13 below)*. The catch
-is `{ this.tables.delete(tableId); throw error; }` with no `DETACH`. If `ATTACH DATABASE` succeeds
-but the subsequent `page_size` PRAGMA throws (e.g. a VFS `xRead` of a corrupted/partially-synced
-per-db header, which the VFS asserts on), SQLite keeps the schema bound while the wrapper forgets it;
-a retry re-issues `ATTACH ... AS _<tableId>` → `database _<tableId> is already in use`, permanently.
-Fix: best-effort `DETACH` in the catch.
+connection's life** — `shared/databases/database.ts:492` _(PLAUSIBLE; see also A13 below)_. The
+catch is `{ this.tables.delete(tableId); throw error; }` with no `DETACH`. If `ATTACH DATABASE`
+succeeds but the subsequent `page_size` PRAGMA throws (e.g. a VFS `xRead` of a
+corrupted/partially-synced per-db header, which the VFS asserts on), SQLite keeps the schema bound
+while the wrapper forgets it; a retry re-issues `ATTACH ... AS _<tableId>` →
+`database _<tableId> is already in use`, permanently. Fix: best-effort `DETACH` in the catch.
 
 **C5. Bare `/databases` and `/peek/databases` now 404 instead of redirecting** —
-`app/routes/s.$spaceId.databases._index.tsx:6` *(CONFIRMED behavior change; may be intentional)*. The
-index loader now unconditionally `throw notFoundResponse()`; the peek index re-exports it. The
+`app/routes/s.$spaceId.databases._index.tsx:6` _(CONFIRMED behavior change; may be intentional)_.
+The index loader now unconditionally `throw notFoundResponse()`; the peek index re-exports it. The
 deleted loader redirected to the first table or `/sql`, with a comment specifically preserving the
 peek URL namespace. A `/databases/new` creator still exists, so a group isn't a dead end, but saved
 links / back-nav to the bare path now 404. Confirm this is the intended new contract.
@@ -87,8 +88,8 @@ round-trips warming the same registry pages. Fold the warm into the attach step.
 
 ## ⚪ Altitude (additions)
 
-**A14. Cold-open attaches tables one-at-a-time and reinstalls the page-access hook per attach →
-O(N) serial OPFS I/O and O(N²) hook installs** — `client/web/databases/database_client.ts:575`,
+**A14. Cold-open attaches tables one-at-a-time and reinstalls the page-access hook per attach → O(N)
+serial OPFS I/O and O(N²) hook installs** — `client/web/databases/database_client.ts:575`,
 `shared/databases/database.ts:502`, `server/databases/database_server.ts:143`. Each
 `ensureTableAttached` serializes ~5 OPFS round-trips; each `attach()` reinstalls the hook over all
 attached pagers. Startup latency scales with table count. Create the stores concurrently
