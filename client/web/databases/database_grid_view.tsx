@@ -438,6 +438,7 @@ export function DatabaseGridView({
                             selection={visibleSelection}
                             fields={gridFields.fields}
                             fieldIndexById={gridFields.fieldIndexById}
+                            rowCount={rowCount}
                             scrollViewRef={scrollViewRef}
                         />
                     }
@@ -458,11 +459,13 @@ function DatabaseGridViewSelectionOverlay({
     selection,
     fields,
     fieldIndexById,
+    rowCount,
     scrollViewRef,
 }: {
     selection: DatabaseGridViewSelection;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
+    rowCount: number;
     scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
 }) {
     // Cumulative left offset of each visible column. Stored as rem at the
@@ -487,6 +490,12 @@ function DatabaseGridViewSelectionOverlay({
     const field = fields[fieldIndex];
     const leftRem = columnLeftRems[fieldIndex];
     if (field == null || leftRem == null) return null;
+    // The last data row is shorter by 1px (it has no `borderBottom` slot
+    // since the footer renders its own sticky separator). Extend the
+    // selection by an extra pixel below so its bottom edge lands on the
+    // sticky footer border instead of stopping 1px above it.
+    const isLast = scrollViewRef.current?.getIndexByKeyIfExists(selection.rowId) === rowCount;
+    const heightExtension = isLast ? 2 : 1;
     return (
         <Box
             position="absolute"
@@ -495,7 +504,7 @@ function DatabaseGridViewSelectionOverlay({
             zIndex="20"
             style={{
                 top: rowPosition.offset - 1,
-                height: rowPosition.height + 1,
+                height: rowPosition.height + heightExtension,
                 left: `${leftRem}rem`,
                 width: `${field.width / remPxBySpacingScale.small}rem`,
             }}
