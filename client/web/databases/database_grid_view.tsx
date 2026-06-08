@@ -370,7 +370,6 @@ export function DatabaseGridView({
                             fields={gridFields.fields}
                             row={row}
                             rowId={rowId}
-                            isFirstRow={index === 1}
                             isLastRow={index === rowCount}
                             selection={visibleSelection}
                             dispatch={dispatch}
@@ -483,8 +482,8 @@ function DatabaseGridViewSelectionOverlay({
             pointerEvents="none"
             zIndex="20"
             style={{
-                top: rowPosition.offset,
-                height: rowPosition.height,
+                top: rowPosition.offset - 1,
+                height: rowPosition.height + 1,
                 left: `${leftRem}rem`,
                 width: `${field.width / remPxBySpacingScale.small}rem`,
             }}
@@ -975,7 +974,6 @@ function DatabaseGridViewDataRow({
     fields,
     row,
     rowId,
-    isFirstRow,
     isLastRow,
     selection,
     dispatch,
@@ -985,7 +983,6 @@ function DatabaseGridViewDataRow({
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
-    isFirstRow: boolean;
     isLastRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
@@ -1012,7 +1009,6 @@ function DatabaseGridViewDataRow({
                         field={field}
                         value={row.getCellValue(field.id)}
                         rowId={rowId}
-                        isFirstRow={isFirstRow}
                         isSelected={isSelected}
                         isEditing={isEditing}
                         initialEditValue={initialEditValue}
@@ -1032,7 +1028,6 @@ function DatabaseGridViewCell({
     field,
     value,
     rowId,
-    isFirstRow,
     isSelected,
     isEditing,
     initialEditValue,
@@ -1043,7 +1038,6 @@ function DatabaseGridViewCell({
     field: DatabaseGridViewFieldWithEditing;
     value: unknown;
     rowId: DatabaseRowId;
-    isFirstRow: boolean;
     isSelected: boolean;
     isEditing: boolean;
     initialEditValue: string | null;
@@ -1102,7 +1096,7 @@ function DatabaseGridViewCell({
                 border="transparent"
                 style={{
                     ...field.columnStyle,
-                    marginTop: isFirstRow ? undefined : -1,
+                    marginTop: -1,
                     marginBottom: -1,
                 }}
                 onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
