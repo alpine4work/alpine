@@ -288,24 +288,6 @@ export const databaseActions = {
         },
     }),
 
-    ensureSchemaPagesLoaded: defineDatabaseAction({
-        input: Schema.object({}),
-        output: Schema.object({}),
-        writeLevel: "none",
-        run({db}) {
-            // Pull the main registry's pages into the read set
-            // (and cache). Per-table metadata is fetched on
-            // demand for now.
-            sql`
-                SELECT
-                    id
-                FROM
-                    _alpine_tables
-            `.selectValues(db, Schema.id<DatabaseTableId>());
-            return {};
-        },
-    }),
-
     createTable: defineDatabaseAction({
         input: Schema.object({name: LabelStringSchema}),
         output: Schema.object({

@@ -228,15 +228,10 @@ export class DatabaseActiveTabWorker {
 
                     // Attach every existing table's per-db file so its
                     // metadata and data are reachable before any
-                    // per-table action runs.
+                    // per-table action runs. This also warms the main
+                    // registry pages (via `listTableIds`) so optimistic
+                    // mutations can resolve tables without a server hop.
                     await client.attachExistingTables(conn);
-
-                    // Pre-fetch schema pages so optimistic mutations
-                    // can read metadata without hitting the server.
-                    await client.executeAction(conn, {
-                        name: "ensureSchemaPagesLoaded",
-                        input: {},
-                    });
 
                     return client;
                 } catch (error) {

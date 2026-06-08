@@ -280,15 +280,14 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
 
 /**
  * Create a schema-qualified SQL identifier,
- * `"_{tableId}"."name"`, for referencing a table (or index)
- * in a {@link DatabaseTableId}'s `ATTACH`-ed per-db file.
- * Both parts are quoted and escaped per the SQL standard
- * (`"` → `""`).
+ * `"_alpine_schema_{tableId}"."name"`, for referencing a table
+ * (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed per-db
+ * file. Both parts are quoted and escaped via
+ * {@link sql.identifier}.
  */
 sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
     new SqlQuery(
-        // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
-        `"${databaseTableSchemaName(schema).replace(/"/g, '""')}"."${name.replace(/"/g, '""')}"`,
+        `${sql.identifier(databaseTableSchemaName(schema)).query}.${sql.identifier(name).query}`,
     );
 
 export {sql, SqlQuery};

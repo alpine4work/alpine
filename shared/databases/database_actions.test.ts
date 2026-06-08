@@ -526,23 +526,6 @@ describe("readonlyRawSql", () => {
     });
 });
 
-describe("ensureSchemaPagesLoaded", () => {
-    test("returns empty object and does not throw on a fresh database", async () => {
-        const db = await createDb();
-
-        expect(run(db, "ensureSchemaPagesLoaded", {})).toEqual({});
-        db.close();
-    });
-
-    test("returns empty object after tables exist", async () => {
-        const db = await createDb();
-        run(db, "createTable", {name: "T"});
-
-        expect(run(db, "ensureSchemaPagesLoaded", {})).toEqual({});
-        db.close();
-    });
-});
-
 describe("listTableIds", () => {
     test("returns table ids in id order", async () => {
         const db = await createDb();

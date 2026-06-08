@@ -522,12 +522,7 @@ export class DatabaseClient {
     }
 
     private addPageToInvalidate(tableId: DatabaseTableId, pageIndex: number): void {
-        let pages = this.pagesToInvalidate.get(tableId);
-        if (pages === undefined) {
-            pages = new Set();
-            this.pagesToInvalidate.set(tableId, pages);
-        }
-        pages.add(pageIndex);
+        getOrSetDefaultMapValue(this.pagesToInvalidate, tableId, () => new Set()).add(pageIndex);
     }
 
     private invalidateForWrittenPages(writtenPages: ReadonlyDatabasePageSet): void {
@@ -587,6 +582,10 @@ export class DatabaseClient {
      * `_alpine_tables` registry so their per-db files are
      * reachable. Called once at cold-open after the cache is
      * validated, before any per-table action runs.
+     *
+     * The `listTableIds` read also warms the registry pages into
+     * the local cache, so later optimistic mutations can resolve
+     * tables without a server round-trip.
      */
     async attachExistingTables(conn: DatabaseClientConnection): Promise<void> {
         const {tableIds} = await this.executeAction<"listTableIds">(conn, {
