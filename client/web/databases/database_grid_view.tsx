@@ -269,6 +269,7 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
+                                        zIndex="20"
                                         style={{
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
@@ -276,7 +277,6 @@ export function DatabaseGridView({
                                             top: shouldRenderWithRelativePositioning
                                                 ? undefined
                                                 : 0,
-                                            zIndex: 2,
                                             pointerEvents: "auto",
                                         }}
                                     >
@@ -456,12 +456,12 @@ function DatabaseGridViewSelectionOverlay({
             position="absolute"
             border="theme-40-const"
             pointerEvents="none"
+            zIndex="10"
             style={{
                 top: rowPosition.offset,
                 height: rowPosition.height,
                 left,
                 width: field.width,
-                zIndex: 1,
             }}
         />
     );
